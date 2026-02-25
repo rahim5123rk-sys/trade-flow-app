@@ -1,13 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 
 export default function WorkersListScreen() {
   const { userProfile } = useAuth();
+  const insets = useSafeAreaInsets();
   const [workers, setWorkers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,7 +43,9 @@ export default function WorkersListScreen() {
   const renderWorker = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{item.display_name?.[0]?.toUpperCase() || 'W'}</Text>
+        <Text style={styles.avatarText}>
+          {item.display_name?.[0]?.toUpperCase() || 'W'}
+        </Text>
       </View>
       <View style={styles.info}>
         <Text style={styles.name}>{item.display_name}</Text>
@@ -52,18 +63,30 @@ export default function WorkersListScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <Text style={styles.screenTitle}>Team</Text>
+
       <FlatList
         data={workers}
         keyExtractor={(item) => item.id}
         renderItem={renderWorker}
-        contentContainerStyle={{ padding: 16 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchWorkers} />}
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchWorkers();
+            }}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color={Colors.textLight} />
             <Text style={styles.emptyText}>No workers found.</Text>
-            <Text style={styles.emptySub}>Tap '+' to invite or create a test worker.</Text>
+            <Text style={styles.emptySub}>
+              Tap '+' to invite or create a test worker.
+            </Text>
           </View>
         }
       />
@@ -80,6 +103,14 @@ export default function WorkersListScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.text,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -87,7 +118,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderRadius: 16,
-    ...Colors.shadow
+    ...Colors.shadow,
   },
   avatar: {
     width: 50,
@@ -96,7 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16
+    marginRight: 16,
   },
   avatarText: { fontSize: 20, fontWeight: '800', color: Colors.primary },
   info: { flex: 1 },
@@ -108,7 +139,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    marginTop: 4
+    marginTop: 4,
   },
   testBadgeText: { fontSize: 10, fontWeight: '700', color: '#64748b' },
   actionBtn: { padding: 8 },
@@ -126,7 +157,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 6
+    elevation: 6,
   },
   emptyState: { alignItems: 'center', marginTop: 80, gap: 10 },
   emptyText: { fontSize: 18, fontWeight: '700', color: Colors.text },

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../constants/theme';
-import { supabase } from '../src/config/supabase';
+import { Colors } from '../constants/theme'; // Ensure this path is correct
+import { supabase } from '../src/config/supabase'; // Ensure this path is correct
 
 interface Worker {
   id: string;
@@ -21,11 +21,16 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!companyId) return;
-    fetchWorkers();
+    if (companyId) {
+      fetchWorkers();
+    } else {
+      // FIX: Ensure loading stops if no companyId is provided
+      setLoading(false);
+    }
   }, [companyId]);
 
   const fetchWorkers = async () => {
+    setLoading(true);
     try {
       // Query the 'profiles' table for workers in this company
       const { data, error } = await supabase
@@ -39,6 +44,7 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
     } catch (e) {
       console.error('Error fetching workers:', e);
     } finally {
+      // FIX: Always set loading to false regardless of success or failure
       setLoading(false);
     }
   };
@@ -51,7 +57,14 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
     }
   };
 
-  if (loading) return <ActivityIndicator color={Colors.primary} />;
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading team...</Text>
+      </View>
+    );
+  }
 
   if (workers.length === 0) {
     return (
@@ -92,24 +105,26 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
 
 const styles = StyleSheet.create({
   container: { gap: 8 },
+  loadingContainer: { padding: 20, alignItems: 'center' },
+  loadingText: { marginTop: 8, fontSize: 12, color: Colors.textLight },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
     backgroundColor: '#f8fafc',
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
   },
   itemSelected: {
     backgroundColor: '#EFF6FF',
     borderColor: Colors.primary,
   },
   info: { flex: 1 },
-  name: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  email: { fontSize: 12, color: Colors.textLight },
-  textSelected: { color: Colors.primaryDark },
+  name: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
+  email: { fontSize: 12, color: '#64748b' },
+  textSelected: { color: Colors.primary },
   emptyContainer: { padding: 10, alignItems: 'center' },
-  emptyText: { color: Colors.text, fontWeight: '600' },
-  subText: { color: Colors.textLight, fontSize: 12 },
+  emptyText: { color: '#0f172a', fontWeight: '700' },
+  subText: { color: '#64748b', fontSize: 12 },
 });

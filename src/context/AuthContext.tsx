@@ -1,5 +1,5 @@
 import { Session, User } from '@supabase/supabase-js';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../config/supabase';
 
 type UserRole = 'admin' | 'worker';
@@ -18,7 +18,8 @@ interface AuthState {
   isLoading: boolean;
   role: UserRole | null;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>; // Added to manually trigger profile fetch
+  refreshProfile: () => Promise<UserProfile | null>;
+  setRegistering: (value: boolean) => void;
 }
 
 const AuthContext = createContext<AuthState>({
@@ -28,7 +29,8 @@ const AuthContext = createContext<AuthState>({
   isLoading: true,
   role: null,
   signOut: async () => {},
-  refreshProfile: async () => {},
+  refreshProfile: async () => null,
+  setRegistering: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -37,46 +39,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isRegistering = useRef(false);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
-      
+
       if (data) {
+        console.log('Profile loaded:', data.display_name, data.role);
         setUserProfile(data);
-      } else {
-        console.log("No profile found for user:", userId);
+        return data;
       }
+
+      console.log('No profile found for user:', userId);
+      return null;
     } catch (e) {
       console.error('Error loading profile', e);
-    } finally {
-      setIsLoading(false);
+      return null;
     }
   };
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setIsLoading(false);
+        await fetchProfile(session.user.id);
       }
+      setIsLoading(false);
     });
 
-    // Listen for Auth Changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
+
+      if (isRegistering.current) {
+        console.log('Auth state changed during registration — skipping profile fetch');
+        return;
+      }
+
       if (session?.user) {
         await fetchProfile(session.user.id);
       } else {
         setUserProfile(null);
-        setIsLoading(false);
       }
     });
 
@@ -84,11 +93,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
-    setIsLoading(true);
-    await supabase.auth.signOut();
-    setUserProfile(null);
-    setSession(null);
-    setIsLoading(false);
+    try {
+      await supabase.auth.signOut();
+      setUserProfile(null);
+      setSession(null);
+    } catch (e) {
+      console.error('Sign out error:', e);
+    }
+  };
+
+  const refreshProfile = async (): Promise<UserProfile | null> => {
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    if (currentSession?.user) {
+      setSession(currentSession);
+      const profile = await fetchProfile(currentSession.user.id);
+      return profile;
+    }
+    console.log('refreshProfile: no active session');
+    return null;
+  };
+
+  const setRegistering = (value: boolean) => {
+    isRegistering.current = value;
   };
 
   return (
@@ -100,7 +126,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         role: userProfile?.role ?? null,
         signOut,
-        refreshProfile: () => session?.user ? fetchProfile(session.user.id) : Promise.resolve(),
+        refreshProfile,
+        setRegistering,
       }}
     >
       {children}

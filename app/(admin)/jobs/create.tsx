@@ -20,7 +20,6 @@ import { Colors } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 
-// Types
 interface Customer {
   id: string;
   name: string;
@@ -63,33 +62,32 @@ export default function CreateJobScreen() {
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Load existing customers on mount
   useEffect(() => {
     if (!userProfile?.company_id) return;
-    const fetchCustomers = async () => {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('company_id', userProfile.company_id)
-        .order('name', { ascending: true });
-
-      if (data) setExistingCustomers(data);
-    };
     fetchCustomers();
   }, [userProfile]);
 
-  // Handle Existing Customer Selection
+  const fetchCustomers = async () => {
+    const { data } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('company_id', userProfile?.company_id)
+      .order('name', { ascending: true });
+
+    if (data) setExistingCustomers(data);
+  };
+
   const handleSelectCustomer = (cust: Customer) => {
     setSelectedCustomer(cust);
     setShowCustomerPicker(false);
   };
 
-  // Date Helpers
   const adjustDate = (days: number) => {
     const d = new Date(scheduledDate);
     d.setDate(d.getDate() + days);
     setScheduledDate(d);
   };
+
   const adjustHour = (hours: number) => {
     const d = new Date(scheduledDate);
     d.setHours(d.getHours() + hours);
@@ -97,7 +95,11 @@ export default function CreateJobScreen() {
   };
 
   const handleCreateJob = async () => {
-    if (!userProfile?.company_id) return;
+    // FIX: Instead of a silent return, tell the user if the profile is still loading
+    if (!userProfile?.company_id) {
+      Alert.alert('Please Wait', 'Your company profile is still loading. Try again in a second.');
+      return;
+    }
 
     // Validation
     if (!title.trim()) {
@@ -127,19 +129,16 @@ export default function CreateJobScreen() {
         .eq('id', userProfile.company_id)
         .single();
 
-      if (companyError || !companyData) throw new Error('Company not found');
+      if (companyError || !companyData) throw new Error('Company not found in database.');
 
       const currentCount = companyData.settings?.nextJobNumber || 1;
       const year = new Date().getFullYear();
       const reference = `TF-${year}-${String(currentCount).padStart(4, '0')}`;
 
-      // 2. Handle Customer (Create if new, use ID if existing)
+      // 2. Handle Customer
       let customerId = '';
       let finalCustomerSnapshot = {
-        name: '',
-        address: '',
-        phone: '',
-        email: ''
+        name: '', address: '', phone: '', email: ''
       };
 
       if (customerMode === 'new') {
@@ -161,7 +160,6 @@ export default function CreateJobScreen() {
         
         if (custError) throw custError;
         customerId = newCust.id;
-
       } else if (selectedCustomer) {
         customerId = selectedCustomer.id;
         finalCustomerSnapshot = {
@@ -192,7 +190,8 @@ export default function CreateJobScreen() {
       if (jobError) throw jobError;
 
       // 4. Update Job Counter
-      const newSettings = { ...companyData.settings, nextJobNumber: currentCount + 1 };
+      const nextNum = currentCount + 1;
+      const newSettings = { ...companyData.settings, nextJobNumber: nextNum };
       await supabase
         .from('companies')
         .update({ settings: newSettings })
@@ -202,43 +201,34 @@ export default function CreateJobScreen() {
         { text: 'OK', onPress: () => router.replace('/(admin)/jobs') },
       ]);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to create job.');
+      console.error('Create Job Error:', error);
+      Alert.alert('Error', error.message || 'Failed to create job.');
     } finally {
+      // FIX: Ensure loading is ALWAYS set to false
       setLoading(false);
     }
   };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         
-        {/* Customer Selection Tabs */}
         <View style={styles.tabContainer}>
-            <TouchableOpacity 
-                style={[styles.tab, customerMode === 'new' && styles.activeTab]} 
-                onPress={() => setCustomerMode('new')}
-            >
+            <TouchableOpacity style={[styles.tab, customerMode === 'new' && styles.activeTab]} onPress={() => setCustomerMode('new')}>
                 <Text style={[styles.tabText, customerMode === 'new' && styles.activeTabText]}>New Customer</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-                style={[styles.tab, customerMode === 'existing' && styles.activeTab]} 
-                onPress={() => setCustomerMode('existing')}
-            >
-                <Text style={[styles.tabText, customerMode === 'existing' && styles.activeTabText]}>Existing Customer</Text>
+            <TouchableOpacity style={[styles.tab, customerMode === 'existing' && styles.activeTab]} onPress={() => setCustomerMode('existing')}>
+                <Text style={[styles.tabText, customerMode === 'existing' && styles.activeTabText]}>Existing</Text>
             </TouchableOpacity>
         </View>
 
-        {/* Customer Form */}
         <View style={styles.card}>
             {customerMode === 'new' ? (
                 <>
                     <Text style={styles.label}>Customer Name *</Text>
                     <TextInput style={styles.input} placeholder="e.g. Sarah Jenkins" value={customerName} onChangeText={setCustomerName} />
-                    
                     <Text style={styles.label}>Site Address *</Text>
                     <TextInput style={styles.input} placeholder="Address..." value={customerAddress} onChangeText={setCustomerAddress} />
-                    
                     <View style={styles.row}>
                         <View style={{ flex: 1, marginRight: 8 }}>
                             <Text style={styles.label}>Phone</Text>
@@ -255,9 +245,9 @@ export default function CreateJobScreen() {
                     <Text style={styles.label}>Select Customer *</Text>
                     <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowCustomerPicker(true)}>
                         <Text style={selectedCustomer ? styles.pickerText : styles.placeholderText}>
-                            {selectedCustomer ? selectedCustomer.name : 'Tap to search customers...'}
+                            {selectedCustomer ? selectedCustomer.name : 'Tap to search...'}
                         </Text>
-                        <Ionicons name="chevron-down" size={20} color={Colors.textLight} />
+                        <Ionicons name="chevron-down" size={20} color="#94a3b8" />
                     </TouchableOpacity>
                     {selectedCustomer && (
                         <View style={{ marginTop: 12 }}>
@@ -268,15 +258,12 @@ export default function CreateJobScreen() {
             )}
         </View>
 
-        {/* Job Details */}
         <Text style={styles.sectionTitle}>Job Details</Text>
         <View style={styles.card}>
             <Text style={styles.label}>Job Title *</Text>
             <TextInput style={styles.input} placeholder="e.g. Boiler Repair" value={title} onChangeText={setTitle} />
-
-            <Text style={styles.label}>Description / Notes</Text>
+            <Text style={styles.label}>Notes</Text>
             <TextInput style={[styles.input, styles.textArea]} placeholder="Details..." multiline numberOfLines={3} value={notes} onChangeText={setNotes} />
-            
             <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 8 }}>
                      <Text style={styles.label}>Price (£)</Text>
@@ -286,8 +273,7 @@ export default function CreateJobScreen() {
                     <Text style={styles.label}>Duration</Text>
                     <TouchableOpacity style={styles.input} onPress={() => {
                         const idx = DURATIONS.indexOf(estimatedDuration);
-                        const next = DURATIONS[(idx + 1) % DURATIONS.length];
-                        setEstimatedDuration(next);
+                        setEstimatedDuration(DURATIONS[(idx + 1) % DURATIONS.length]);
                     }}>
                         <Text>{estimatedDuration}</Text>
                     </TouchableOpacity>
@@ -295,7 +281,6 @@ export default function CreateJobScreen() {
             </View>
         </View>
 
-        {/* Schedule */}
         <Text style={styles.sectionTitle}>Schedule</Text>
         <View style={styles.card}>
             <View style={styles.row}>
@@ -310,7 +295,6 @@ export default function CreateJobScreen() {
             </View>
         </View>
 
-        {/* Assign */}
         <Text style={styles.sectionTitle}>Assign To</Text>
         <View style={styles.card}>
             <WorkerPicker companyId={userProfile?.company_id || ''} selectedWorkerIds={assignedTo} onSelect={setAssignedTo} />
@@ -320,7 +304,6 @@ export default function CreateJobScreen() {
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Create Job</Text>}
         </TouchableOpacity>
 
-        {/* Customer Modal */}
         <Modal visible={showCustomerPicker} animationType="slide" transparent>
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
@@ -337,43 +320,42 @@ export default function CreateJobScreen() {
                                 <Text style={styles.customerAddr}>{item.address}</Text>
                             </TouchableOpacity>
                         )}
-                        ListEmptyComponent={<Text style={{ padding: 20, textAlign: 'center', color: '#888' }}>No customers found.</Text>}
+                        ListEmptyComponent={<Text style={{ padding: 20, textAlign: 'center', color: '#94a3b8' }}>No customers found.</Text>}
                     />
                 </View>
             </View>
         </Modal>
-
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, padding: 16 },
-  tabContainer: { flexDirection: 'row', backgroundColor: '#e2e8f0', borderRadius: 8, padding: 4, marginBottom: 16 },
-  tab: { flex: 1, padding: 10, alignItems: 'center', borderRadius: 6 },
-  activeTab: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2, elevation: 1 },
-  tabText: { fontWeight: '600', color: Colors.textLight },
-  activeTabText: { color: Colors.text, fontWeight: '700' },
-  card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, ...Colors.shadow, marginBottom: 8 },
-  label: { fontSize: 12, fontWeight: '700', color: Colors.textLight, textTransform: 'uppercase', marginBottom: 6 },
-  input: { backgroundColor: '#f8fafc', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, marginBottom: 12, fontSize: 16 },
-  textArea: { minHeight: 80, textAlignVertical: 'top' },
+  container: { flex: 1, backgroundColor: '#f8fafc', padding: 16 },
+  tabContainer: { flexDirection: 'row', backgroundColor: '#e2e8f0', borderRadius: 12, padding: 4, marginBottom: 16 },
+  tab: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 10 },
+  activeTab: { backgroundColor: '#fff', elevation: 2 },
+  tabText: { fontWeight: '600', color: '#64748b' },
+  activeTabText: { color: '#0f172a', fontWeight: '700' },
+  card: { backgroundColor: '#fff', padding: 16, borderRadius: 16, ...Colors.shadow, marginBottom: 12 },
+  label: { fontSize: 11, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 6 },
+  input: { backgroundColor: '#f8fafc', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 12, fontSize: 16 },
+  textArea: { minHeight: 90, textAlignVertical: 'top' },
   row: { flexDirection: 'row' },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: Colors.textLight, marginTop: 16, marginBottom: 8, textTransform: 'uppercase' },
-  pickerBtn: { backgroundColor: '#f8fafc', padding: 14, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pickerText: { fontSize: 16, color: Colors.text, fontWeight: '500' },
+  sectionTitle: { fontSize: 13, fontWeight: '700', color: '#64748b', marginTop: 16, marginBottom: 8, textTransform: 'uppercase', paddingLeft: 4 },
+  pickerBtn: { backgroundColor: '#f8fafc', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pickerText: { fontSize: 16, color: '#0f172a', fontWeight: '600' },
   placeholderText: { fontSize: 16, color: '#94a3b8' },
   readOnlyText: { color: '#64748b', fontSize: 14, fontStyle: 'italic' },
-  adjustBtn: { padding: 10, backgroundColor: '#f1f5f9', borderRadius: 8 },
-  dateText: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '600', alignSelf: 'center' },
-  submitBtn: { backgroundColor: Colors.primary, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 24, ...Colors.shadow },
-  submitText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  adjustBtn: { padding: 10, backgroundColor: '#f1f5f9', borderRadius: 10 },
+  dateText: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', alignSelf: 'center', color: '#0f172a' },
+  submitBtn: { backgroundColor: Colors.primary, padding: 20, borderRadius: 16, alignItems: 'center', marginTop: 24, marginBottom: 40, ...Colors.shadow },
+  submitText: { color: '#fff', fontWeight: '800', fontSize: 17 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 12, maxHeight: '80%', padding: 16 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold' },
-  customerItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  customerName: { fontSize: 16, fontWeight: '600', color: Colors.text },
-  customerAddr: { fontSize: 14, color: '#64748b' },
+  modalContent: { backgroundColor: '#fff', borderRadius: 20, maxHeight: '80%', padding: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#0f172a' },
+  customerItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f8fafc' },
+  customerName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
+  customerAddr: { fontSize: 13, color: '#64748b', marginTop: 2 },
 });
