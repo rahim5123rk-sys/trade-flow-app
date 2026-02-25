@@ -1,8 +1,18 @@
+// ============================================
+// FILE: components/WorkerPicker.tsx
+// ============================================
+
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../constants/theme'; // Ensure this path is correct
-import { supabase } from '../src/config/supabase'; // Ensure this path is correct
+import {
+    ActivityIndicator,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { Colors } from '../constants/theme';
+import { supabase } from '../src/config/supabase';
 
 interface Worker {
   id: string;
@@ -16,7 +26,11 @@ interface WorkerPickerProps {
   onSelect: (ids: string[]) => void;
 }
 
-export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerPickerProps) => {
+export const WorkerPicker = ({
+  companyId,
+  selectedWorkerIds,
+  onSelect,
+}: WorkerPickerProps) => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,7 +38,6 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
     if (companyId) {
       fetchWorkers();
     } else {
-      // FIX: Ensure loading stops if no companyId is provided
       setLoading(false);
     }
   }, [companyId]);
@@ -32,7 +45,6 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
   const fetchWorkers = async () => {
     setLoading(true);
     try {
-      // Query the 'profiles' table for workers in this company
       const { data, error } = await supabase
         .from('profiles')
         .select('id, display_name, email')
@@ -44,7 +56,6 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
     } catch (e) {
       console.error('Error fetching workers:', e);
     } finally {
-      // FIX: Always set loading to false regardless of success or failure
       setLoading(false);
     }
   };
@@ -66,17 +77,25 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
     );
   }
 
+  // Sole trader: no workers at all — show friendly skip message
   if (workers.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No workers found.</Text>
-        <Text style={styles.subText}>Invite workers in the "Team" tab.</Text>
+        <Ionicons name="person-outline" size={24} color={Colors.textLight} />
+        <Text style={styles.emptyTitle}>No team members yet</Text>
+        <Text style={styles.emptyText}>
+          This is optional. Jobs will be assigned to you by default.
+          {'\n'}You can add workers later in the Team tab.
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <Text style={styles.hint}>
+        Optional — leave unselected to assign to yourself
+      </Text>
       {workers.map((worker) => {
         const isSelected = selectedWorkerIds.includes(worker.id);
         return (
@@ -86,15 +105,23 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
             onPress={() => toggleWorker(worker.id)}
           >
             <View style={styles.info}>
-              <Text style={[styles.name, isSelected && styles.textSelected]}>
+              <Text
+                style={[styles.name, isSelected && styles.textSelected]}
+              >
                 {worker.display_name || worker.email}
               </Text>
-              <Text style={[styles.email, isSelected && styles.textSelected]}>
+              <Text
+                style={[styles.email, isSelected && styles.textSelected]}
+              >
                 {worker.email}
               </Text>
             </View>
             {isSelected && (
-              <Ionicons name="checkmark-circle" size={24} color={Colors.primary} />
+              <Ionicons
+                name="checkmark-circle"
+                size={24}
+                color={Colors.primary}
+              />
             )}
           </TouchableOpacity>
         );
@@ -105,6 +132,12 @@ export const WorkerPicker = ({ companyId, selectedWorkerIds, onSelect }: WorkerP
 
 const styles = StyleSheet.create({
   container: { gap: 8 },
+  hint: {
+    fontSize: 12,
+    color: Colors.textLight,
+    fontStyle: 'italic',
+    marginBottom: 4,
+  },
   loadingContainer: { padding: 20, alignItems: 'center' },
   loadingText: { marginTop: 8, fontSize: 12, color: Colors.textLight },
   item: {
@@ -124,7 +157,20 @@ const styles = StyleSheet.create({
   name: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
   email: { fontSize: 12, color: '#64748b' },
   textSelected: { color: Colors.primary },
-  emptyContainer: { padding: 10, alignItems: 'center' },
-  emptyText: { color: '#0f172a', fontWeight: '700' },
-  subText: { color: '#64748b', fontSize: 12 },
+  emptyContainer: {
+    padding: 16,
+    alignItems: 'center',
+    gap: 6,
+  },
+  emptyTitle: {
+    color: Colors.text,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  emptyText: {
+    color: Colors.textLight,
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 });

@@ -1,3 +1,7 @@
+// ============================================
+// FILE: app/(admin)/_layout.tsx
+// ============================================
+
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
@@ -25,38 +29,53 @@ export default function AdminLayout() {
         name="dashboard"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Ionicons name="grid-outline" size={22} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="grid-outline" size={22} color={color} />
+          ),
         }}
       />
-      
-      {/* CALENDAR REMOVED PER ARCHITECT DIRECTIVE */}
-
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendar',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="calendar-outline" size={22} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="jobs"
         options={{
           title: 'Jobs',
-          tabBarIcon: ({ color }) => <Ionicons name="briefcase-outline" size={22} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="briefcase-outline" size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="customers"
         options={{
           title: 'Customers',
-          tabBarIcon: ({ color }) => <Ionicons name="people-outline" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="workers"
-        options={{
-          title: 'Team',
-          tabBarIcon: ({ color }) => <Ionicons name="person-add-outline" size={22} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="people-outline" size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings/index"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => <Ionicons name="settings-outline" size={22} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="settings-outline" size={22} color={color} />
+          ),
+        }}
+      />
+
+      {/* Workers screens exist but are hidden from tab bar — accessed via Settings */}
+      <Tabs.Screen
+        name="workers"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

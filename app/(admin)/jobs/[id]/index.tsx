@@ -1,3 +1,7 @@
+// ============================================
+// FILE: app/(admin)/jobs/[id]/index.tsx
+// ============================================
+
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -25,12 +29,11 @@ export default function AdminJobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  
+
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  // Reload data when the screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (user && id) {
@@ -43,31 +46,27 @@ export default function AdminJobDetailScreen() {
     try {
       if (!user) return;
 
-      // 1. Get Company ID (Try metadata first, then fallback to DB profile)
       let companyId = user.user_metadata?.company_id;
-      
+
       if (!companyId) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('company_id')
           .eq('id', user.id)
           .single();
-        
         companyId = profile?.company_id;
       }
 
       if (!companyId) {
-        console.error("No company_id found for user");
-        Alert.alert("Error", "User organization not found.");
+        Alert.alert('Error', 'User organization not found.');
         return;
       }
 
-      // 2. Fetch Job with strict tenant isolation
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('id', id)
-        .eq('company_id', companyId) 
+        .eq('company_id', companyId)
         .single();
 
       if (error) throw error;
@@ -85,7 +84,7 @@ export default function AdminJobDetailScreen() {
     setUpdating(true);
     try {
       const updateData: Partial<Job> = { status: newStatus as any };
-      
+
       if (newStatus === 'paid') {
         updateData.payment_status = 'paid';
       }
@@ -93,11 +92,9 @@ export default function AdminJobDetailScreen() {
       const { error } = await supabase
         .from('jobs')
         .update(updateData)
-        .eq('id', job.id); // RLS policies will handle the company_id check automatically here
+        .eq('id', job.id);
 
       if (error) throw error;
-      
-      // Refresh local data
       fetchJobData();
     } catch (e) {
       Alert.alert('Error', 'Could not update status.');
@@ -111,11 +108,16 @@ export default function AdminJobDetailScreen() {
     generateJobSheet(job);
   };
 
-  // Safe Date Formatter (Handles Seconds vs Milliseconds)
+  const handleCreateInvoice = () => {
+    if (!job) return;
+    router.push(`/(admin)/jobs/${job.id}/invoice`);
+  };
+
   const formatDate = (timestamp: number) => {
     if (!timestamp) return 'No date set';
-    // Heuristic: If timestamp is small (e.g. < 10 billion), it's likely seconds.
-    const date = new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp);
+    const date = new Date(
+      timestamp < 10000000000 ? timestamp * 1000 : timestamp
+    );
     return date.toLocaleDateString('en-GB', {
       weekday: 'long',
       day: 'numeric',
@@ -221,7 +223,7 @@ export default function AdminJobDetailScreen() {
         <Text style={styles.label}>Job Details</Text>
         <View style={styles.card}>
           <Text style={styles.subTitle}>{job.title}</Text>
-          
+
           {job.notes ? (
             <View style={styles.noteContainer}>
               <Text style={styles.noteLabel}>Notes:</Text>
@@ -235,7 +237,7 @@ export default function AdminJobDetailScreen() {
               <Text style={styles.priceValue}>£{job.price.toFixed(2)}</Text>
             </View>
           )}
-          
+
           {job.payment_status && (
             <View style={styles.paymentRow}>
               <Text style={styles.priceLabel}>Payment Status:</Text>
@@ -263,7 +265,11 @@ export default function AdminJobDetailScreen() {
           <Text style={styles.label}>Proof of Work</Text>
           <View style={styles.card}>
             {job.photos && job.photos.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 12 }}
+              >
                 {job.photos.map((uri, index) => (
                   <Image
                     key={index}
@@ -273,7 +279,7 @@ export default function AdminJobDetailScreen() {
                 ))}
               </ScrollView>
             )}
-            
+
             {job.signature && (
               <View style={styles.signatureContainer}>
                 <Text style={styles.signatureLabel}>Customer Signature</Text>
@@ -291,7 +297,11 @@ export default function AdminJobDetailScreen() {
       <View style={styles.footer}>
         {nextStatus && (
           <TouchableOpacity
-            style={[styles.btn, styles.primaryBtn, updating && { opacity: 0.7 }]}
+            style={[
+              styles.btn,
+              styles.primaryBtn,
+              updating && { opacity: 0.7 },
+            ]}
             onPress={() => updateStatus(nextStatus)}
             disabled={updating}
           >
@@ -313,6 +323,21 @@ export default function AdminJobDetailScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Invoice Button */}
+        <TouchableOpacity
+          style={[styles.btn, styles.invoiceBtn]}
+          onPress={handleCreateInvoice}
+        >
+          <Ionicons
+            name="receipt-outline"
+            size={20}
+            color="#fff"
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.primaryBtnText}>Create Invoice</Text>
+        </TouchableOpacity>
+
+        {/* Job Sheet Button */}
         <TouchableOpacity
           style={[styles.btn, styles.secondaryBtn]}
           onPress={handleGeneratePdf}
@@ -323,7 +348,9 @@ export default function AdminJobDetailScreen() {
             color={Colors.primary}
             style={{ marginRight: 8 }}
           />
-          <Text style={styles.secondaryBtnText}>Generate Job Sheet (PDF)</Text>
+          <Text style={styles.secondaryBtnText}>
+            Generate Job Sheet (PDF)
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -347,16 +374,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ref: { fontSize: 20, fontWeight: '800', color: Colors.text },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
   date: { marginTop: 4, color: Colors.textLight, fontSize: 14 },
   label: {
     fontSize: 12,
@@ -368,29 +387,15 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   value: { fontSize: 15, color: Colors.text, flex: 1 },
-  subTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
+  subTitle: { fontSize: 16, fontWeight: '600', color: Colors.text, marginBottom: 8 },
   noteContainer: {
     backgroundColor: '#f9fafb',
     padding: 10,
     borderRadius: 8,
     marginTop: 8,
   },
-  noteLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#6b7280',
-    marginBottom: 2,
-  },
-  notes: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-  },
+  noteLabel: { fontSize: 12, fontWeight: 'bold', color: '#6b7280', marginBottom: 2 },
+  notes: { fontSize: 14, color: '#374151', lineHeight: 20 },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -443,6 +448,14 @@ const styles = StyleSheet.create({
   },
   primaryBtn: { backgroundColor: Colors.primary, ...Colors.shadow },
   primaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  invoiceBtn: {
+    backgroundColor: Colors.success,
+    shadowColor: Colors.success,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
   secondaryBtn: {
     backgroundColor: '#fff',
     borderWidth: 1,

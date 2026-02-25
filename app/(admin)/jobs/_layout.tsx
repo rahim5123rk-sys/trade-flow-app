@@ -1,3 +1,7 @@
+// ============================================
+// FILE: app/(admin)/jobs/_layout.tsx
+// ============================================
+
 import { Stack } from 'expo-router';
 import React from 'react';
 import { Colors } from '../../../constants/theme';
@@ -15,6 +19,7 @@ export default function JobsLayout() {
       <Stack.Screen name="create" options={{ title: 'New Job', presentation: 'modal' }} />
       <Stack.Screen name="[id]/index" options={{ title: 'Job Details' }} />
       <Stack.Screen name="[id]/edit" options={{ title: 'Edit Job' }} />
+      <Stack.Screen name="[id]/invoice" options={{ title: 'Create Invoice' }} />
     </Stack>
   );
 }
