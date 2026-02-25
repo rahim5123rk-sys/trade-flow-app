@@ -1,46 +1,43 @@
 export type UserRole = 'admin' | 'worker';
 
 export interface UserProfile {
-  uid: string;
+  id: string;
   email: string;
-  displayName: string;
-  companyId: string;
+  display_name: string; // Changed from displayName
+  company_id: string;   // Changed from companyId
   role: UserRole;
-  createdAt?: number;
+  created_at?: string;  // Changed from createdAt
 }
 
 export type JobStatus = 
-  | 'pending'      // Scheduled / Assigned
-  | 'in_progress'  // Worker is working
-  | 'complete'     // Work done
-  | 'paid'         // Admin only
+  | 'pending'
+  | 'in_progress'
+  | 'complete'
+  | 'paid'
   | 'cancelled';
-
-// Removed "JobCategory" type entirely
 
 export interface Job {
   id: string;
-  companyId: string;
+  company_id: string;         // Match DB
   reference: string;
-  customerId?: string; // Link to the customer doc
-  customerSnapshot: {
+  customer_id?: string;       // Match DB
+  customer_snapshot: {        // Match DB
     name: string;
     address: string;
     phone?: string;
     email?: string;
   };
   title: string;
-  // category: removed; 
-  assignedTo: string[];
+  assigned_to: string[];      // Match DB
   status: JobStatus;
-  scheduledDate: number;
-  estimatedDuration?: string;
+  scheduled_date: number;     // Match DB
+  estimated_duration?: string; // Match DB
   price?: number;
   photos?: string[];
   signature?: string;
   notes?: string;
-  createdAt: any;
-  paymentStatus?: 'paid' | 'unpaid';
+  created_at: string;         // Match DB
+  payment_status?: 'paid' | 'unpaid'; // Match DB
 }
 
 export interface Customer {
@@ -49,5 +46,5 @@ export interface Customer {
   address: string;
   phone?: string;
   email?: string;
-  companyId: string;
+  company_id: string;         // Match DB
 }

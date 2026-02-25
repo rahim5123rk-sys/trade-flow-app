@@ -40,6 +40,18 @@ export default function AdminLayout() {
           ),
         }}
       />
+      
+      {/* NEW CALENDAR TAB */}
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="calendar-outline" size={22} color={color} />
+          ),
+        }}
+      />
+
       <Tabs.Screen
         name="jobs"
         options={{
