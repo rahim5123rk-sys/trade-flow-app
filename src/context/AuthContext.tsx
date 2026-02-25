@@ -1,4 +1,4 @@
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, signOut as firebaseSignOut, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../config/firebase';
@@ -21,6 +21,7 @@ interface AuthState {
   isLoading: boolean;
   role: UserRole | null;
   isAuthenticated: boolean;
+  signOut: () => Promise<void>;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ const AuthContext = createContext<AuthState>({
   isLoading: true,
   role: null,
   isAuthenticated: false,
+  signOut: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -86,6 +88,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
+  const handleSignOut = async () => {
+    await firebaseSignOut(auth);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -94,6 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         role: userProfile?.role || null,
         isAuthenticated: !!user,
+        signOut: handleSignOut,
       }}
     >
       {children}

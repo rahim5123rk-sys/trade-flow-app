@@ -1,9 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Alert, TouchableOpacity } from 'react-native';
+import { useAuth } from '../../src/context/AuthContext';
 
 export default function AdminLayout() {
+  const { signOut } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+    ]);
+  };
+
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: '#2563eb' }}>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: '#2563eb',
+        headerRight: () => (
+          <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
+            <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+          </TouchableOpacity>
+        ),
+      }}
+    >
       <Tabs.Screen
         name="dashboard"
         options={{
@@ -19,7 +39,6 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="briefcase-outline" size={24} color={color} />,
         }}
       />
-      {/* ADD THIS NEW TAB */}
       <Tabs.Screen
         name="workers"
         options={{
