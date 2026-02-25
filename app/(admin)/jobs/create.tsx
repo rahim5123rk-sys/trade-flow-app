@@ -1,4 +1,7 @@
+// app/(admin)/jobs/create.tsx
+
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -19,31 +22,26 @@ import { WorkerPicker } from '../../../components/WorkerPicker';
 import { Colors } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
-
-interface Customer {
-  id: string;
-  name: string;
-  address: string;
-  phone?: string;
-  email?: string;
-}
+import { Customer } from '../../../src/types';
 
 const DURATIONS = ['30 mins', '1 hour', '2 hours', '3 hours', '4 hours', 'Full day', 'Multi-day'];
 
 export default function CreateJobScreen() {
   const { userProfile } = useAuth();
 
-  // Mode: 'new' or 'existing'
   const [customerMode, setCustomerMode] = useState<'new' | 'existing'>('new');
-
-  // Existing Customers Data
   const [existingCustomers, setExistingCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
 
-  // New Customer Fields
+  // --- Granular Customer State ---
   const [customerName, setCustomerName] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [address1, setAddress1] = useState('');
+  const [address2, setAddress2] = useState('');
+  const [city, setCity] = useState('');
+  const [region, setRegion] = useState('');
+  const [postCode, setPostCode] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
 
@@ -58,6 +56,8 @@ export default function CreateJobScreen() {
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(9, 0, 0, 0);
   const [scheduledDate, setScheduledDate] = useState<Date>(tomorrow);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
 
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -74,7 +74,7 @@ export default function CreateJobScreen() {
       .eq('company_id', userProfile?.company_id)
       .order('name', { ascending: true });
 
-    if (data) setExistingCustomers(data);
+    if (data) setExistingCustomers(data as Customer[]);
   };
 
   const handleSelectCustomer = (cust: Customer) => {
@@ -94,59 +94,64 @@ export default function CreateJobScreen() {
     setScheduledDate(d);
   };
 
+  const onDateChange = (event: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (selected) setScheduledDate(selected);
+  };
+
   const handleCreateJob = async () => {
-    // FIX: Instead of a silent return, tell the user if the profile is still loading
     if (!userProfile?.company_id) {
-      Alert.alert('Please Wait', 'Your company profile is still loading. Try again in a second.');
+      Alert.alert('Please Wait', 'Your company profile is still loading.');
       return;
     }
 
-    // Validation
     if (!title.trim()) {
       Alert.alert('Missing Field', 'Please enter a job title.');
       return;
     }
 
     if (customerMode === 'new') {
-      if (!customerName.trim() || !customerAddress.trim()) {
-        Alert.alert('Missing Field', 'Customer Name and Address are required.');
+      if (!customerName.trim() || !address1.trim() || !postCode.trim()) {
+        Alert.alert('Missing Field', 'Contact Name, Address Line 1, and Post Code are required.');
         return;
       }
-    } else {
-      if (!selectedCustomer) {
-        Alert.alert('Missing Field', 'Please select an existing customer.');
-        return;
-      }
+    } else if (!selectedCustomer) {
+      Alert.alert('Missing Field', 'Please select an existing customer.');
+      return;
     }
 
     setLoading(true);
 
     try {
-      // 1. Get Company Settings (for Job Ref)
-      const { data: companyData, error: companyError } = await supabase
+      const { data: companyData } = await supabase
         .from('companies')
         .select('settings')
         .eq('id', userProfile.company_id)
         .single();
 
-      if (companyError || !companyData) throw new Error('Company not found in database.');
+      const currentCount = companyData?.settings?.nextJobNumber || 1;
+      const reference = `TF-${new Date().getFullYear()}-${String(currentCount).padStart(4, '0')}`;
 
-      const currentCount = companyData.settings?.nextJobNumber || 1;
-      const year = new Date().getFullYear();
-      const reference = `TF-${year}-${String(currentCount).padStart(4, '0')}`;
+      // Combined Address for Display
+      const combinedAddress = [address1, address2, city, region, postCode]
+        .filter(Boolean)
+        .join(', ');
 
-      // 2. Handle Customer
       let customerId = '';
-      let finalCustomerSnapshot = {
-        name: '', address: '', phone: '', email: ''
-      };
+      let finalCustomerSnapshot: any = {};
 
       if (customerMode === 'new') {
         finalCustomerSnapshot = {
           name: customerName.trim(),
-          address: customerAddress.trim(),
-          phone: customerPhone.trim() || '',
-          email: customerEmail.trim() || ''
+          company_name: companyName.trim(),
+          address_line_1: address1.trim(),
+          address_line_2: address2.trim(),
+          city: city.trim(),
+          region: region.trim(),
+          postal_code: postCode.trim().toUpperCase(),
+          phone: customerPhone.trim(),
+          email: customerEmail.trim(),
+          address: combinedAddress,
         };
 
         const { data: newCust, error: custError } = await supabase
@@ -162,49 +167,35 @@ export default function CreateJobScreen() {
         customerId = newCust.id;
       } else if (selectedCustomer) {
         customerId = selectedCustomer.id;
-        finalCustomerSnapshot = {
-          name: selectedCustomer.name,
-          address: selectedCustomer.address,
-          phone: selectedCustomer.phone || '',
-          email: selectedCustomer.email || ''
-        };
+        finalCustomerSnapshot = { ...selectedCustomer };
       }
 
-      // 3. Create Job
-      const { error: jobError } = await supabase
-        .from('jobs')
-        .insert({
-          company_id: userProfile.company_id,
-          reference,
-          title: title.trim(),
-          customer_id: customerId,
-          customer_snapshot: finalCustomerSnapshot,
-          assigned_to: assignedTo,
-          status: 'pending',
-          scheduled_date: scheduledDate.getTime(),
-          estimated_duration: estimatedDuration,
-          price: price ? parseFloat(price) : null,
-          notes: notes.trim() || null,
-        });
+      const { error: jobError } = await supabase.from('jobs').insert({
+        company_id: userProfile.company_id,
+        reference,
+        title: title.trim(),
+        customer_id: customerId,
+        customer_snapshot: finalCustomerSnapshot,
+        assigned_to: assignedTo,
+        status: 'pending',
+        scheduled_date: scheduledDate.getTime(),
+        estimated_duration: estimatedDuration,
+        price: price ? parseFloat(price) : null,
+        notes: notes.trim() || null,
+      });
 
       if (jobError) throw jobError;
 
-      // 4. Update Job Counter
-      const nextNum = currentCount + 1;
-      const newSettings = { ...companyData.settings, nextJobNumber: nextNum };
-      await supabase
-        .from('companies')
-        .update({ settings: newSettings })
-        .eq('id', userProfile.company_id);
+      await supabase.from('companies').update({ 
+        settings: { ...companyData?.settings, nextJobNumber: currentCount + 1 } 
+      }).eq('id', userProfile.company_id);
 
       Alert.alert('Success', 'Job created successfully.', [
         { text: 'OK', onPress: () => router.replace('/(admin)/jobs') },
       ]);
     } catch (error: any) {
-      console.error('Create Job Error:', error);
       Alert.alert('Error', error.message || 'Failed to create job.');
     } finally {
-      // FIX: Ensure loading is ALWAYS set to false
       setLoading(false);
     }
   };
@@ -225,10 +216,32 @@ export default function CreateJobScreen() {
         <View style={styles.card}>
             {customerMode === 'new' ? (
                 <>
-                    <Text style={styles.label}>Customer Name *</Text>
+                    <Text style={styles.label}>Contact Name *</Text>
                     <TextInput style={styles.input} placeholder="e.g. Sarah Jenkins" value={customerName} onChangeText={setCustomerName} />
-                    <Text style={styles.label}>Site Address *</Text>
-                    <TextInput style={styles.input} placeholder="Address..." value={customerAddress} onChangeText={setCustomerAddress} />
+                    
+                    <Text style={styles.label}>Company Name</Text>
+                    <TextInput style={styles.input} placeholder="e.g. Jenkins Plumbing Ltd" value={companyName} onChangeText={setCompanyName} />
+
+                    <Text style={styles.label}>Address Line 1 *</Text>
+                    <TextInput style={styles.input} placeholder="Street address" value={address1} onChangeText={setAddress1} />
+                    
+                    <Text style={styles.label}>Address Line 2</Text>
+                    <TextInput style={styles.input} placeholder="Apt / Suite / Unit" value={address2} onChangeText={setAddress2} />
+
+                    <View style={styles.row}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={styles.label}>City</Text>
+                            <TextInput style={styles.input} placeholder="Worcester" value={city} onChangeText={setCity} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.label}>Post Code *</Text>
+                            <TextInput style={styles.input} placeholder="WR1 1PA" autoCapitalize="characters" value={postCode} onChangeText={setPostCode} />
+                        </View>
+                    </View>
+
+                    <Text style={styles.label}>Region / County</Text>
+                    <TextInput style={styles.input} placeholder="Worcestershire" value={region} onChangeText={setRegion} />
+                    
                     <View style={styles.row}>
                         <View style={{ flex: 1, marginRight: 8 }}>
                             <Text style={styles.label}>Phone</Text>
@@ -285,15 +298,39 @@ export default function CreateJobScreen() {
         <View style={styles.card}>
             <View style={styles.row}>
                 <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustDate(-1)}><Ionicons name="chevron-back" size={20} color={Colors.primary} /></TouchableOpacity>
-                <Text style={styles.dateText}>{scheduledDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</Text>
+                <TouchableOpacity style={styles.dateDisplay} onPress={() => { setPickerMode('date'); setShowDatePicker(true); }}>
+                  <Text style={styles.dateText}>{scheduledDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustDate(1)}><Ionicons name="chevron-forward" size={20} color={Colors.primary} /></TouchableOpacity>
             </View>
             <View style={[styles.row, { marginTop: 12 }]}>
                 <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustHour(-1)}><Ionicons name="chevron-back" size={20} color={Colors.primary} /></TouchableOpacity>
-                <Text style={styles.dateText}>{scheduledDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</Text>
+                <TouchableOpacity style={styles.dateDisplay} onPress={() => { setPickerMode('time'); setShowDatePicker(true); }}>
+                  <Text style={styles.dateText}>{scheduledDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustHour(1)}><Ionicons name="chevron-forward" size={20} color={Colors.primary} /></TouchableOpacity>
             </View>
         </View>
+
+        <Modal transparent visible={showDatePicker} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.pickerModalContent}>
+              <DateTimePicker
+                value={scheduledDate}
+                mode={pickerMode}
+                is24Hour={true}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={onDateChange}
+                minuteInterval={15}
+                textColor="#000000"
+                themeVariant="light"
+              />
+              <TouchableOpacity style={styles.confirmBtn} onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.confirmBtnText}>Confirm Selection</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         <Text style={styles.sectionTitle}>Assign To</Text>
         <View style={styles.card}>
@@ -348,11 +385,15 @@ const styles = StyleSheet.create({
   placeholderText: { fontSize: 16, color: '#94a3b8' },
   readOnlyText: { color: '#64748b', fontSize: 14, fontStyle: 'italic' },
   adjustBtn: { padding: 10, backgroundColor: '#f1f5f9', borderRadius: 10 },
-  dateText: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', alignSelf: 'center', color: '#0f172a' },
+  dateDisplay: { flex: 1, justifyContent: 'center' },
+  dateText: { textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#0f172a' },
   submitBtn: { backgroundColor: Colors.primary, padding: 20, borderRadius: 16, alignItems: 'center', marginTop: 24, marginBottom: 40, ...Colors.shadow },
   submitText: { color: '#fff', fontWeight: '800', fontSize: 17 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#fff', borderRadius: 20, maxHeight: '80%', padding: 20 },
+  pickerModalContent: { backgroundColor: '#ffffff', borderRadius: 20, padding: 20, alignItems: 'center' },
+  confirmBtn: { marginTop: 20, backgroundColor: Colors.primary, padding: 12, borderRadius: 10, width: '100%', alignItems: 'center' },
+  confirmBtnText: { color: '#fff', fontWeight: '700' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   modalTitle: { fontSize: 18, fontWeight: '800', color: '#0f172a' },
   customerItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f8fafc' },

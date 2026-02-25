@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -12,43 +12,93 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { Colors } from '../../../../constants/theme';
 import { supabase } from '../../../../src/config/supabase';
+import { useAuth } from '../../../../src/context/AuthContext';
 import { generateJobSheet } from '../../../../src/services/pdfGenerator';
+import { Job } from '../../../../src/types';
 
 const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'];
 
 export default function AdminJobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const [job, setJob] = useState<any>(null);
+  const { user } = useAuth();
+  
+  const [job, setJob] = useState<Job | null>(null);
+  const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    fetchJob();
-  }, [id]);
+  // Reload data when the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user && id) {
+        fetchJobData();
+      }
+    }, [user, id])
+  );
 
-  const fetchJob = async () => {
-    const { data, error } = await supabase
-      .from('jobs')
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (data) setJob(data);
+  const fetchJobData = async () => {
+    try {
+      if (!user) return;
+
+      // 1. Get Company ID (Try metadata first, then fallback to DB profile)
+      let companyId = user.user_metadata?.company_id;
+      
+      if (!companyId) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .single();
+        
+        companyId = profile?.company_id;
+      }
+
+      if (!companyId) {
+        console.error("No company_id found for user");
+        Alert.alert("Error", "User organization not found.");
+        return;
+      }
+
+      // 2. Fetch Job with strict tenant isolation
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', id)
+        .eq('company_id', companyId) 
+        .single();
+
+      if (error) throw error;
+      setJob(data);
+    } catch (e) {
+      console.error('Error fetching job:', e);
+      Alert.alert('Error', 'Could not load job details.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateStatus = async (newStatus: string) => {
-    if (!id) return;
+    if (!job) return;
     setUpdating(true);
     try {
-      const updateData: any = { status: newStatus };
-      // When marking as paid, also set payment_status
+      const updateData: Partial<Job> = { status: newStatus as any };
+      
       if (newStatus === 'paid') {
         updateData.payment_status = 'paid';
       }
-      await supabase.from('jobs').update(updateData).eq('id', id);
-      fetchJob();
+
+      const { error } = await supabase
+        .from('jobs')
+        .update(updateData)
+        .eq('id', job.id); // RLS policies will handle the company_id check automatically here
+
+      if (error) throw error;
+      
+      // Refresh local data
+      fetchJobData();
     } catch (e) {
       Alert.alert('Error', 'Could not update status.');
     } finally {
@@ -61,12 +111,33 @@ export default function AdminJobDetailScreen() {
     generateJobSheet(job);
   };
 
-  if (!job)
+  // Safe Date Formatter (Handles Seconds vs Milliseconds)
+  const formatDate = (timestamp: number) => {
+    if (!timestamp) return 'No date set';
+    // Heuristic: If timestamp is small (e.g. < 10 billion), it's likely seconds.
+    const date = new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp);
+    return date.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+  };
+
+  if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
+  }
+
+  if (!job) {
+    return (
+      <View style={styles.center}>
+        <Text style={{ color: Colors.textLight }}>Job not found.</Text>
+      </View>
+    );
+  }
 
   const currentIndex = STATUS_FLOW.indexOf(job.status);
   const nextStatus =
@@ -79,6 +150,7 @@ export default function AdminJobDetailScreen() {
       style={styles.container}
       contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
     >
+      {/* Header Card */}
       <View style={styles.card}>
         <View style={styles.headerRow}>
           <Text style={styles.ref}>{job.reference}</Text>
@@ -110,54 +182,63 @@ export default function AdminJobDetailScreen() {
             </View>
             <TouchableOpacity
               onPress={() => router.push(`/(admin)/jobs/${job.id}/edit`)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="create-outline" size={26} color={Colors.primary} />
+              <Ionicons name="create-outline" size={24} color={Colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
-        <Text style={styles.date}>
-          {job.scheduled_date
-            ? new Date(job.scheduled_date).toLocaleDateString('en-GB', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-              })
-            : 'No date set'}
-        </Text>
+        <Text style={styles.date}>{formatDate(job.scheduled_date)}</Text>
       </View>
 
+      {/* Customer Snapshot */}
       <View style={styles.section}>
-        <Text style={styles.label}>Customer</Text>
+        <Text style={styles.label}>Customer (Snapshot)</Text>
         <View style={styles.card}>
           <View style={styles.row}>
             <Ionicons name="person" size={18} color={Colors.primary} />
             <Text style={styles.value}>
-              {job.customer_snapshot?.name || 'Unknown'}
+              {job.customer_snapshot?.name || 'Unknown Customer'}
             </Text>
           </View>
           <View style={[styles.row, { marginTop: 8 }]}>
             <Ionicons name="location" size={18} color={Colors.primary} />
             <Text style={styles.value}>
-              {job.customer_snapshot?.address || 'No address'}
+              {job.customer_snapshot?.address || 'No address provided'}
             </Text>
           </View>
+          {job.customer_snapshot?.phone && (
+            <View style={[styles.row, { marginTop: 8 }]}>
+              <Ionicons name="call" size={18} color={Colors.primary} />
+              <Text style={styles.value}>{job.customer_snapshot.phone}</Text>
+            </View>
+          )}
         </View>
       </View>
 
+      {/* Job Details */}
       <View style={styles.section}>
         <Text style={styles.label}>Job Details</Text>
         <View style={styles.card}>
           <Text style={styles.subTitle}>{job.title}</Text>
-          {job.notes ? <Text style={styles.notes}>{job.notes}</Text> : null}
+          
+          {job.notes ? (
+            <View style={styles.noteContainer}>
+              <Text style={styles.noteLabel}>Notes:</Text>
+              <Text style={styles.notes}>{job.notes}</Text>
+            </View>
+          ) : null}
+
           {job.price != null && (
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>Price:</Text>
               <Text style={styles.priceValue}>£{job.price.toFixed(2)}</Text>
             </View>
           )}
+          
           {job.payment_status && (
             <View style={styles.paymentRow}>
-              <Text style={styles.priceLabel}>Payment:</Text>
+              <Text style={styles.priceLabel}>Payment Status:</Text>
               <Text
                 style={[
                   styles.paymentStatus,
@@ -176,55 +257,37 @@ export default function AdminJobDetailScreen() {
         </View>
       </View>
 
-      {job.photos?.length || job.signature ? (
+      {/* Proof of Work */}
+      {((job.photos && job.photos.length > 0) || job.signature) && (
         <View style={styles.section}>
           <Text style={styles.label}>Proof of Work</Text>
           <View style={styles.card}>
             {job.photos && job.photos.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {job.photos.map((p: string, i: number) => (
+                {job.photos.map((uri, index) => (
                   <Image
-                    key={i}
-                    source={{ uri: p }}
-                    style={{
-                      width: 70,
-                      height: 70,
-                      borderRadius: 8,
-                      marginRight: 8,
-                    }}
+                    key={index}
+                    source={{ uri }}
+                    style={styles.proofImage}
                   />
                 ))}
               </ScrollView>
             )}
+            
             {job.signature && (
-              <View style={{ marginTop: 4 }}>
-                <Text
-                  style={{
-                    fontSize: 10,
-                    color: '#888',
-                    marginBottom: 4,
-                    textTransform: 'uppercase',
-                    fontWeight: '700',
-                  }}
-                >
-                  Customer Signature
-                </Text>
+              <View style={styles.signatureContainer}>
+                <Text style={styles.signatureLabel}>Customer Signature</Text>
                 <Image
                   source={{ uri: job.signature }}
-                  style={{
-                    height: 60,
-                    width: 150,
-                    resizeMode: 'contain',
-                    backgroundColor: '#f9fafb',
-                    borderRadius: 6,
-                  }}
+                  style={styles.signatureImage}
                 />
               </View>
             )}
           </View>
         </View>
-      ) : null}
+      )}
 
+      {/* Footer Actions */}
       <View style={styles.footer}>
         {nextStatus && (
           <TouchableOpacity
@@ -311,17 +374,27 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 8,
   },
-  notes: {
-    fontSize: 14,
-    color: '#4b5563',
-    lineHeight: 20,
+  noteContainer: {
     backgroundColor: '#f9fafb',
     padding: 10,
     borderRadius: 8,
+    marginTop: 8,
+  },
+  noteLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#6b7280',
+    marginBottom: 2,
+  },
+  notes: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
   },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
@@ -332,9 +405,34 @@ const styles = StyleSheet.create({
   paymentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 8,
   },
   paymentStatus: { fontSize: 14, fontWeight: '700' },
+  proofImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 8,
+    backgroundColor: '#f3f4f6',
+  },
+  signatureContainer: { marginTop: 12 },
+  signatureLabel: {
+    fontSize: 10,
+    color: '#888',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  signatureImage: {
+    height: 60,
+    width: 150,
+    resizeMode: 'contain',
+    backgroundColor: '#f9fafb',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
   footer: { marginTop: 24, gap: 12 },
   btn: {
     flexDirection: 'row',

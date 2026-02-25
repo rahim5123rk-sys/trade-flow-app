@@ -1,12 +1,14 @@
+// src/types/index.ts
+
 export type UserRole = 'admin' | 'worker';
 
 export interface UserProfile {
   id: string;
   email: string;
-  display_name: string; // Changed from displayName
-  company_id: string;   // Changed from companyId
+  display_name: string;
+  company_id: string;
   role: UserRole;
-  created_at?: string;  // Changed from createdAt
+  created_at?: string;
 }
 
 export type JobStatus = 
@@ -18,33 +20,45 @@ export type JobStatus =
 
 export interface Job {
   id: string;
-  company_id: string;         // Match DB
+  company_id: string;
   reference: string;
-  customer_id?: string;       // Match DB
-  customer_snapshot: {        // Match DB
+  customer_id?: string;
+  customer_snapshot: {
     name: string;
-    address: string;
+    company_name?: string;
+    address_line_1?: string;
+    address_line_2?: string;
+    city?: string;
+    region?: string;
+    postal_code?: string;
     phone?: string;
     email?: string;
+    address: string; // The concatenated display address
   };
   title: string;
-  assigned_to: string[];      // Match DB
+  assigned_to: string[];
   status: JobStatus;
-  scheduled_date: number;     // Match DB
-  estimated_duration?: string; // Match DB
+  scheduled_date: number;
+  estimated_duration?: string;
   price?: number;
   photos?: string[];
   signature?: string;
   notes?: string;
-  created_at: string;         // Match DB
-  payment_status?: 'paid' | 'unpaid'; // Match DB
+  created_at: string;
+  payment_status?: 'paid' | 'unpaid';
 }
 
 export interface Customer {
   id: string;
-  name: string;
-  address: string;
+  name: string; // Contact Person
+  company_name?: string;
+  address_line_1: string;
+  address_line_2?: string;
+  city: string;
+  region?: string;
+  postal_code: string;
+  address: string; // The concatenated display address
   phone?: string;
   email?: string;
-  company_id: string;         // Match DB
+  company_id: string;
 }
