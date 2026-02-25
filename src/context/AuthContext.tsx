@@ -1,106 +1,106 @@
-import { onAuthStateChanged, signOut as firebaseSignOut, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../config/firebase';
+import { supabase } from '../config/supabase';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export type UserRole = 'admin' | 'worker';
-
-export interface UserProfile {
-  uid: string;
+type UserRole = 'admin' | 'worker';
+interface UserProfile {
+  id: string;
   email: string;
-  displayName: string;
+  display_name: string;
+  company_id: string;
   role: UserRole;
-  companyId: string;
 }
 
 interface AuthState {
+  session: Session | null;
   user: User | null;
   userProfile: UserProfile | null;
   isLoading: boolean;
   role: UserRole | null;
-  isAuthenticated: boolean;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>; // Added to manually trigger profile fetch
 }
 
-// ─── Context ──────────────────────────────────────────────────────────────────
-
 const AuthContext = createContext<AuthState>({
+  session: null,
   user: null,
   userProfile: null,
   isLoading: true,
   role: null,
-  isAuthenticated: false,
   signOut: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-
-      if (currentUser) {
-        try {
-          // READ FROM FIRESTORE — not ID token claims.
-          // Custom claims require the Firebase Admin SDK (Cloud Functions).
-          // Until we have that, the source of truth is the 'users' Firestore doc
-          // written during register-company.tsx and add.tsx.
-          const userDocRef = doc(db, 'users', currentUser.uid);
-          const userDoc = await getDoc(userDocRef);
-
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setUserProfile({
-              uid: currentUser.uid,
-              email: currentUser.email || '',
-              displayName: data.displayName || currentUser.displayName || '',
-              role: data.role as UserRole,
-              companyId: data.companyId || '',
-            });
-          } else {
-            // User exists in Firebase Auth but has no Firestore profile yet.
-            // This can happen if registration failed halfway through.
-            // Clear the profile so the app falls back to login.
-            console.warn(`No Firestore profile found for UID: ${currentUser.uid}`);
-            setUserProfile(null);
-          }
-        } catch (e) {
-          console.error('Error fetching user profile from Firestore:', e);
-          setUserProfile(null);
-        }
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (data) {
+        setUserProfile(data);
       } else {
-        // Logged out — clear everything
-        setUserProfile(null);
+        console.log("No profile found for user:", userId);
       }
-
+    } catch (e) {
+      console.error('Error loading profile', e);
+    } finally {
       setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setIsLoading(false);
+      }
     });
 
-    return unsubscribe;
+    // Listen for Auth Changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        await fetchProfile(session.user.id);
+      } else {
+        setUserProfile(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const handleSignOut = async () => {
-    await firebaseSignOut(auth);
+  const signOut = async () => {
+    setIsLoading(true);
+    await supabase.auth.signOut();
+    setUserProfile(null);
+    setSession(null);
+    setIsLoading(false);
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user,
+        session,
+        user: session?.user ?? null,
         userProfile,
         isLoading,
-        role: userProfile?.role || null,
-        isAuthenticated: !!user,
-        signOut: handleSignOut,
+        role: userProfile?.role ?? null,
+        signOut,
+        refreshProfile: () => session?.user ? fetchProfile(session.user.id) : Promise.resolve(),
       }}
     >
       {children}

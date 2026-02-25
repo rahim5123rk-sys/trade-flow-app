@@ -1,318 +1,209 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import * as ImagePicker from 'expo-image-picker';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { db } from './../../../src/config/firebase';
-import { Job } from './../../../src/types';
-
-// ─── Status config ─────────────────────────────────────────────────────────────
-
-const STATUS_COLOURS: Record<string, { bg: string; text: string }> = {
-  pending:     { bg: '#fef3c7', text: '#92400e' },
-  accepted:    { bg: '#fff7ed', text: '#9a3412' },
-  on_the_way:  { bg: '#fce7f3', text: '#9d174d' },
-  in_progress: { bg: '#dbeafe', text: '#1e40af' },
-  complete:    { bg: '#dcfce7', text: '#166534' },
-  invoiced:    { bg: '#ede9fe', text: '#5b21b6' },
-  paid:        { bg: '#d1fae5', text: '#065f46' },
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  pending:     'Pending',
-  accepted:    'Accepted',
-  on_the_way:  'On The Way',
-  in_progress: 'In Progress',
-  complete:    'Complete',
-  invoiced:    'Invoiced',
-  paid:        'Paid',
-};
-
-// Workers progress through these statuses; invoiced/paid are handled by admin
-const WORKER_STATUS_FLOW = [
-  'pending',
-  'accepted',
-  'on_the_way',
-  'in_progress',
-  'complete',
-] as const;
-
-// Action button label for each status transition
-const WORKER_NEXT_LABEL: Record<string, string> = {
-  pending:     'Accept Job',
-  accepted:    "I'm On My Way",
-  on_the_way:  'Start Job',
-  in_progress: 'Mark as Complete',
-};
-
-const WORKER_NEXT_ICON: Record<string, string> = {
-  pending:     'checkmark-circle-outline',
-  accepted:    'navigate-outline',
-  on_the_way:  'play-circle-outline',
-  in_progress: 'flag-outline',
-};
-
-// ─── Sub-components ────────────────────────────────────────────────────────────
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const colours = STATUS_COLOURS[status] || { bg: '#f3f4f6', text: '#374151' };
-  return (
-    <View style={[styles.badge, { backgroundColor: colours.bg }]}>
-      <Text style={[styles.badgeText, { color: colours.text }]}>
-        {STATUS_LABELS[status] || status}
-      </Text>
-    </View>
-  );
-};
-
-const InfoRow = ({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-}) => (
-  <View style={styles.infoRow}>
-    <Ionicons name={icon as any} size={18} color="#6b7280" style={{ marginRight: 10 }} />
-    <View style={{ flex: 1 }}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  </View>
-);
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
+import { SignaturePad } from '../../../components/SignaturePad';
+import { Colors } from '../../../constants/theme';
+import { supabase } from '../../../src/config/supabase';
+import { uploadImage } from '../../../src/services/storage';
 
 export default function WorkerJobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [job, setJob] = useState<Job | null>(null);
-  const [updating, setUpdating] = useState(false);
+  const [job, setJob] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [signatureModalVisible, setSignatureModalVisible] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    const docRef = doc(db, 'jobs', id);
-    const unsub = onSnapshot(docRef, (snap) => {
-      if (snap.exists()) {
-        setJob({ id: snap.id, ...snap.data() } as Job);
-      }
-    });
-    return unsub;
+    fetchJob();
   }, [id]);
 
-  const updateStatus = async (newStatus: string) => {
-    if (!id) return;
-    setUpdating(true);
+  const fetchJob = async () => {
+    const { data, error } = await supabase.from('jobs').select('*').eq('id', id).single();
+    if (data) setJob(data);
+  };
+
+  const handleStartJob = async () => {
+    setLoading(true);
     try {
-      await updateDoc(doc(db, 'jobs', id), { status: newStatus });
+      await supabase.from('jobs').update({ status: 'in_progress' }).eq('id', id);
+      setJob({ ...job, status: 'in_progress' });
+      Alert.alert('Job Started');
     } catch (e) {
-      Alert.alert('Error', 'Could not update job status. Please try again.');
+      Alert.alert('Error', 'Could not start job.');
     } finally {
-      setUpdating(false);
+      setLoading(false);
     }
   };
 
-  const confirmStatusChange = (newStatus: string, label: string) => {
-    Alert.alert(
-      'Update Job Status',
-      `Confirm: "${label}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Confirm', onPress: () => updateStatus(newStatus) },
-      ]
-    );
+  const handleAddPhoto = async () => {
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setLoading(true);
+      try {
+        const url = await uploadImage(result.assets[0].uri, 'job-photos');
+        
+        // Append to existing array
+        const currentPhotos = job.photos || [];
+        const newPhotos = [...currentPhotos, url];
+        
+        await supabase.from('jobs').update({ photos: newPhotos }).eq('id', id);
+        setJob({ ...job, photos: newPhotos });
+
+      } catch (e) {
+        Alert.alert('Upload Failed', 'Could not save photo.');
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
-  if (!job) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
-    );
-  }
+  const handleSignature = async (signature: string) => {
+    setSignatureModalVisible(false);
+    setLoading(true);
+    try {
+      // You could upload the signature as an image first if it's too large, 
+      // but usually Base64 is okay for signatures in Supabase TEXT columns if not huge.
+      await supabase.from('jobs').update({
+        signature: signature,
+        status: 'complete'
+      }).eq('id', id);
+      
+      Alert.alert('Job Complete', 'Job has been signed off and finished.');
+      router.back();
+    } catch (e) {
+      Alert.alert('Error', 'Could not save signature.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const currentWorkerIndex = WORKER_STATUS_FLOW.indexOf(job.status as any);
-  const nextStatus =
-    currentWorkerIndex >= 0 && currentWorkerIndex < WORKER_STATUS_FLOW.length - 1
-      ? WORKER_STATUS_FLOW[currentWorkerIndex + 1]
-      : null;
+  const openMaps = () => {
+    const address = encodeURIComponent(job?.customer_snapshot?.address || '');
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${address}`);
+  };
 
-  const isComplete =
-    job.status === 'complete' || job.status === 'invoiced' || job.status === 'paid';
-
-  const scheduledDateStr = job.scheduledDate
-    ? new Date(job.scheduledDate).toLocaleDateString('en-GB', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
-    : 'Not scheduled';
-
-  const scheduledTimeStr = job.scheduledDate
-    ? new Date(job.scheduledDate).toLocaleTimeString('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '';
+  if (!job) return <View style={styles.center}><ActivityIndicator color={Colors.primary} /></View>;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-
-      {/* ── Header ── */}
-      <View style={styles.section}>
-        <View style={styles.headerRow}>
-          <Text style={styles.reference}>{job.reference}</Text>
-          <StatusBadge status={job.status} />
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>{job.customer_snapshot?.name}</Text>
+          <Text style={styles.address}>{job.customer_snapshot?.address}</Text>
         </View>
-        <Text style={styles.jobTitle}>{job.title}</Text>
-        <Text style={styles.scheduledDate}>
-          {scheduledDateStr}
-          {scheduledTimeStr ? ` at ${scheduledTimeStr}` : ''}
-        </Text>
+        <TouchableOpacity style={styles.mapBtn} onPress={openMaps}>
+          <Ionicons name="navigate-circle" size={48} color={Colors.primary} />
+        </TouchableOpacity>
       </View>
 
-      {/* ── Job Details ── */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Job Details</Text>
-        <InfoRow icon="build-outline" label="Category" value={job.category || 'Other'} />
-        {job.estimatedDuration ? (
-          <InfoRow icon="time-outline" label="Estimated Duration" value={job.estimatedDuration} />
-        ) : null}
-      </View>
-
-      {/* ── Customer ── */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Customer</Text>
-        <InfoRow icon="person-outline" label="Name" value={job.customerSnapshot.name} />
-        <InfoRow icon="location-outline" label="Address" value={job.customerSnapshot.address} />
-        {job.customerSnapshot.phone ? (
-          <InfoRow icon="call-outline" label="Phone" value={job.customerSnapshot.phone} />
-        ) : null}
-      </View>
-
-      {/* ── Notes ── */}
-      {job.notes ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes</Text>
-          <Text style={styles.notesText}>{job.notes}</Text>
-        </View>
-      ) : null}
-
-      {/* ── Action ── */}
-      <View style={styles.actionsContainer}>
-        {isComplete ? (
-          <View style={styles.completeBanner}>
-            <Ionicons name="checkmark-circle" size={28} color="#065f46" />
-            <Text style={styles.completeText}>Job Complete</Text>
-          </View>
-        ) : nextStatus ? (
-          <TouchableOpacity
-            style={[styles.actionBtn, updating && styles.actionBtnDisabled]}
-            onPress={() =>
-              confirmStatusChange(nextStatus, WORKER_NEXT_LABEL[job.status])
-            }
-            disabled={updating}
-            activeOpacity={0.8}
-          >
-            {updating ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
+      <View style={styles.actionContainer}>
+        {job.status === 'pending' && (
+          <TouchableOpacity style={styles.bigBtn} onPress={handleStartJob} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : (
               <>
-                <Ionicons
-                  name={WORKER_NEXT_ICON[job.status] as any}
-                  size={22}
-                  color="#fff"
-                  style={{ marginRight: 10 }}
-                />
-                <Text style={styles.actionBtnText}>
-                  {WORKER_NEXT_LABEL[job.status]}
-                </Text>
+                <Ionicons name="play-circle" size={32} color="#fff" />
+                <Text style={styles.bigBtnText}>START JOB</Text>
               </>
             )}
           </TouchableOpacity>
-        ) : null}
+        )}
+
+        {job.status === 'in_progress' && (
+          <View style={styles.inProgressContainer}>
+            <View style={styles.activeBadge}>
+              <Text style={styles.activeText}>• IN PROGRESS</Text>
+            </View>
+            
+            <View style={styles.toolRow}>
+              <TouchableOpacity style={styles.toolBtn} onPress={handleAddPhoto}>
+                <Ionicons name="camera" size={28} color={Colors.text} />
+                <Text style={styles.toolText}>Add Photo</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.toolBtn, { backgroundColor: Colors.primary }]} 
+                onPress={() => setSignatureModalVisible(true)}
+              >
+                <Ionicons name="checkmark-done-circle" size={28} color="#fff" />
+                <Text style={[styles.toolText, { color: '#fff' }]}>FINISH JOB</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {(job.status === 'complete' || job.status === 'paid') && (
+            <View style={styles.completedBanner}>
+                <Ionicons name="checkmark-circle" size={40} color={Colors.success} />
+                <Text style={styles.completedText}>JOB COMPLETED</Text>
+            </View>
+        )}
       </View>
 
+      {job.photos && job.photos.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Photos</Text>
+          <ScrollView horizontal style={{ flexDirection: 'row' }}>
+            {job.photos.map((url: string, i: number) => (
+              <Image key={i} source={{ uri: url }} style={styles.thumbnail} />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Job Details</Text>
+        <Text style={styles.body}>{job.title}</Text>
+        <Text style={styles.notes}>{job.notes || 'No notes.'}</Text>
+      </View>
+
+      <SignaturePad 
+        visible={signatureModalVisible} 
+        onClose={() => setSignatureModalVisible(false)}
+        onOK={handleSignature} 
+      />
     </ScrollView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f3f4f6' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  section: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  reference: { fontSize: 14, fontWeight: 'bold', color: '#6b7280' },
-  jobTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 4 },
-  scheduledDate: { fontSize: 14, color: '#6b7280', marginTop: 2 },
-  badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#9ca3af',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 12,
-  },
-
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
-  infoLabel: { fontSize: 11, color: '#9ca3af', marginBottom: 2 },
-  infoValue: { fontSize: 15, color: '#111827', fontWeight: '500' },
-  notesText: { fontSize: 15, color: '#374151', lineHeight: 22 },
-
-  actionsContainer: { marginHorizontal: 16, marginTop: 24 },
-  actionBtn: {
-    backgroundColor: '#2563eb',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-    borderRadius: 14,
-    shadowColor: '#2563eb',
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  actionBtnDisabled: { backgroundColor: '#93c5fd' },
-  actionBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 17 },
-  completeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#d1fae5',
-    padding: 20,
-    borderRadius: 14,
-    gap: 12,
-  },
-  completeText: { fontSize: 18, fontWeight: 'bold', color: '#065f46' },
+  container: { flex: 1, backgroundColor: '#f1f5f9' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { flexDirection: 'row', padding: 20, backgroundColor: '#fff', alignItems: 'center' },
+  title: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
+  address: { fontSize: 14, color: '#64748b', marginTop: 4 },
+  mapBtn: { marginLeft: 16 },
+  actionContainer: { padding: 16 },
+  bigBtn: { backgroundColor: Colors.success, padding: 20, borderRadius: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12, elevation: 4 },
+  bigBtnText: { color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
+  inProgressContainer: { gap: 12 },
+  activeBadge: { backgroundColor: '#dcfce7', padding: 8, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#16a34a' },
+  activeText: { color: '#16a34a', fontWeight: '800', fontSize: 12 },
+  toolRow: { flexDirection: 'row', gap: 12 },
+  toolBtn: { flex: 1, backgroundColor: '#fff', padding: 20, borderRadius: 12, alignItems: 'center', gap: 8, elevation: 2 },
+  toolText: { fontWeight: '700', fontSize: 12 },
+  completedBanner: { backgroundColor: '#f0fdf4', padding: 20, borderRadius: 12, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#bbf7d0' },
+  completedText: { color: '#15803d', fontWeight: '900', fontSize: 16 },
+  section: { paddingHorizontal: 16, marginBottom: 16 },
+  sectionTitle: { fontSize: 12, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 8 },
+  thumbnail: { width: 80, height: 80, borderRadius: 8, marginRight: 8, backgroundColor: '#cbd5e1' },
+  card: { margin: 16, padding: 16, backgroundColor: '#fff', borderRadius: 12 },
+  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  body: { fontSize: 16, marginBottom: 8 },
+  notes: { fontSize: 14, color: '#475569', backgroundColor: '#f8fafc', padding: 12, borderRadius: 8 },
 });

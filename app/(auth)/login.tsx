@@ -1,8 +1,18 @@
-import { Link } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { auth } from '../../src/config/firebase'; // Ensure this path is correct based on your folder structure
+import {
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { Colors } from '../../constants/theme';
+import { supabase } from '../../src/config/supabase';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -11,14 +21,25 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password.');
+      Alert.alert('Error', 'Please enter email and password.');
       return;
     }
 
     setLoading(true);
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // AuthContext will detect the change and redirect automatically in app/index.tsx
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      
+      // AuthContext will auto-detect the session change and redirect
+      // via the root _layout.tsx logic (if implemented there), 
+      // or we can manually push if your structure requires it.
+      // Typically, listening to onAuthStateChange is best.
+
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
     } finally {
@@ -27,19 +48,18 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.content}>
-        <Text style={styles.title}>TradeFlow</Text>
-        <Text style={styles.subtitle}>Sign in to your account</Text>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Sign in to access your dashboard.</Text>
+        </View>
 
         <View style={styles.form}>
           <Text style={styles.label}>Email Address</Text>
           <TextInput
             style={styles.input}
-            placeholder="worker@company.com"
+            placeholder="john@example.com"
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
@@ -55,26 +75,13 @@ export default function LoginScreen() {
             onChangeText={setPassword}
           />
 
-          <TouchableOpacity 
-            style={styles.button} 
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
+          <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Sign In</Text>}
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account?</Text>
-          <Link href="/register" asChild>
-            <TouchableOpacity>
-              <Text style={styles.link}> Register Company</Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={styles.linkBtn}>
+            <Text style={styles.linkText}>Don't have an account? Create one</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -82,16 +89,29 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  content: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6b7280', textAlign: 'center', marginBottom: 32 },
-  form: { backgroundColor: '#fff', padding: 24, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 6 },
-  input: { backgroundColor: '#f3f4f6', padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 16, borderWidth: 1, borderColor: '#e5e7eb' },
-  button: { backgroundColor: '#2563eb', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
-  footerText: { color: '#6b7280' },
-  link: { color: '#2563eb', fontWeight: 'bold' },
+  container: { flex: 1, backgroundColor: '#fff', padding: 20, justifyContent: 'center' },
+  header: { marginBottom: 40, alignItems: 'center' },
+  title: { fontSize: 28, fontWeight: '800', color: Colors.primary, marginBottom: 8 },
+  subtitle: { fontSize: 16, color: Colors.textLight },
+  form: { gap: 20 },
+  label: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: -10 },
+  input: {
+    backgroundColor: '#F8FAFC',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    fontSize: 16,
+  },
+  btn: {
+    backgroundColor: Colors.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+    ...Colors.shadow,
+  },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  linkBtn: { alignItems: 'center', marginTop: 10 },
+  linkText: { color: Colors.primary, fontWeight: '600' },
 });

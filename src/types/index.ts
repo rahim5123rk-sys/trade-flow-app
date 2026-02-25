@@ -9,42 +9,20 @@ export interface UserProfile {
   createdAt?: number;
 }
 
-export interface Company {
-  id: string;
-  name: string;
-  ownerId: string;
-  subscriptionStatus: 'active' | 'past_due' | 'canceled' | 'trialing';
-  settings: {
-    nextJobNumber: number;
-    currency: string;
-  };
-}
-
-export type JobStatus =
-  | 'pending'
-  | 'accepted'
-  | 'on_the_way'
-  | 'in_progress'
-  | 'complete'
-  | 'invoiced'
-  | 'paid'
+export type JobStatus = 
+  | 'pending'      // Scheduled / Assigned
+  | 'in_progress'  // Worker is working
+  | 'complete'     // Work done
+  | 'paid'         // Admin only
   | 'cancelled';
 
-export type JobCategory =
-  | 'Gas & Heating'
-  | 'Plumbing'
-  | 'Electrical'
-  | 'HVAC'
-  | 'Carpentry'
-  | 'Building'
-  | 'Roofing'
-  | 'Other';
+// Removed "JobCategory" type entirely
 
 export interface Job {
   id: string;
   companyId: string;
   reference: string;
-  customerId?: string;
+  customerId?: string; // Link to the customer doc
   customerSnapshot: {
     name: string;
     address: string;
@@ -52,26 +30,24 @@ export interface Job {
     email?: string;
   };
   title: string;
-  category: JobCategory;
+  // category: removed; 
   assignedTo: string[];
   status: JobStatus;
   scheduledDate: number;
   estimatedDuration?: string;
   price?: number;
-  paymentStatus?: 'unpaid' | 'paid';
-  paymentMethod?: 'cash' | 'bank_transfer' | 'card';
+  photos?: string[];
+  signature?: string;
   notes?: string;
   createdAt: any;
+  paymentStatus?: 'paid' | 'unpaid';
 }
 
 export interface Customer {
   id: string;
-  companyId: string;
   name: string;
+  address: string;
   phone?: string;
   email?: string;
-  address?: string;
-  propertyType?: 'Residential' | 'Commercial';
-  notes?: string;
-  createdAt: any;
+  companyId: string;
 }

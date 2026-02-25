@@ -1,91 +1,85 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { auth, db } from './../../../src/config/firebase';
-import { Job } from './../../../src/types';
-
-// ─── Status config ─────────────────────────────────────────────────────────────
-
-const STATUS_COLOURS: Record<string, { bg: string; text: string }> = {
-  pending:     { bg: '#fef3c7', text: '#92400e' },
-  accepted:    { bg: '#fff7ed', text: '#9a3412' },
-  on_the_way:  { bg: '#fce7f3', text: '#9d174d' },
-  in_progress: { bg: '#dbeafe', text: '#1e40af' },
-  complete:    { bg: '#dcfce7', text: '#166534' },
-  invoiced:    { bg: '#ede9fe', text: '#5b21b6' },
-  paid:        { bg: '#d1fae5', text: '#065f46' },
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  pending:     'Pending',
-  accepted:    'Accepted',
-  on_the_way:  'On The Way',
-  in_progress: 'In Progress',
-  complete:    'Complete',
-  invoiced:    'Invoiced',
-  paid:        'Paid',
-};
+import { Colors } from '../../../constants/theme';
+import { supabase } from '../../../src/config/supabase';
+import { useAuth } from '../../../src/context/AuthContext';
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const colours = STATUS_COLOURS[status] || { bg: '#f3f4f6', text: '#374151' };
+  let bg = '#f3f4f6';
+  let text = '#374151';
+  let icon: any = 'time-outline';
+
+  switch (status) {
+    case 'pending':
+      bg = '#FFF7ED'; text = '#C2410C'; icon = 'time-outline';
+      break;
+    case 'in_progress':
+      bg = '#EFF6FF'; text = '#1D4ED8'; icon = 'play-circle-outline';
+      break;
+    case 'complete':
+      bg = '#F0FDF4'; text = '#15803D'; icon = 'checkmark-circle-outline';
+      break;
+  }
+
   return (
-    <View style={[styles.badge, { backgroundColor: colours.bg }]}>
-      <Text style={[styles.badgeText, { color: colours.text }]}>
-        {STATUS_LABELS[status] || status.replace('_', ' ')}
+    <View style={[styles.badge, { backgroundColor: bg }]}>
+      <Ionicons name={icon} size={12} color={text} style={{ marginRight: 4 }} />
+      <Text style={[styles.badgeText, { color: text }]}>
+        {status.replace('_', ' ')}
       </Text>
     </View>
   );
 };
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 export default function WorkerJobList() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const { userProfile, user } = useAuth();
+  const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+    fetchJobs();
+  }, [userProfile]);
 
-    const q = query(
-      collection(db, 'jobs'),
-      where('assignedTo', 'array-contains', user.uid)
-    );
+  const fetchJobs = async () => {
+    if (!userProfile?.company_id || !user) return;
+    setLoading(true);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const jobsData = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as Job)
-      );
-      // Sort: active jobs first, then by scheduled date descending
-      jobsData.sort((a, b) => {
-        const activeStatuses = ['pending', 'accepted', 'on_the_way', 'in_progress'];
-        const aActive = activeStatuses.includes(a.status) ? 0 : 1;
-        const bActive = activeStatuses.includes(b.status) ? 0 : 1;
-        if (aActive !== bActive) return aActive - bActive;
-        return b.scheduledDate - a.scheduledDate;
-      });
-      setJobs(jobsData);
-      setLoading(false);
-    });
+    let query = supabase
+      .from('jobs')
+      .select('*')
+      .order('scheduled_date', { ascending: false });
 
-    return unsubscribe;
-  }, []);
+    // Logic: If Admin, show ALL company jobs. If Worker, show only assigned.
+    if (userProfile.role === 'admin') {
+      query = query.eq('company_id', userProfile.company_id);
+    } else {
+      query = query.contains('assigned_to', [user.id]);
+    }
 
-  const renderJob = ({ item }: { item: Job }) => {
-    const scheduledStr = item.scheduledDate
-      ? new Date(item.scheduledDate).toLocaleDateString('en-GB', {
+    const { data, error } = await query;
+    if (data) setJobs(data);
+    
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  const renderJob = ({ item }: { item: any }) => {
+    const scheduledStr = item.scheduled_date
+      ? new Date(item.scheduled_date).toLocaleDateString('en-GB', {
+          weekday: 'short',
           day: 'numeric',
           month: 'short',
-          year: 'numeric',
         })
       : null;
 
@@ -95,23 +89,28 @@ export default function WorkerJobList() {
         activeOpacity={0.7}
         onPress={() => router.push(`/(worker)/jobs/${item.id}`)}
       >
-        <View style={styles.row}>
+        <View style={styles.cardHeader}>
           <Text style={styles.ref}>{item.reference}</Text>
           <StatusBadge status={item.status} />
         </View>
+        
         <Text style={styles.jobTitle}>{item.title}</Text>
-        <Text style={styles.customer}>{item.customerSnapshot.name}</Text>
+        
+        <View style={styles.row}>
+          <Ionicons name="person-outline" size={14} color={Colors.textLight} />
+          <Text style={styles.customer}>{item.customer_snapshot?.name}</Text>
+        </View>
+
         <View style={styles.cardFooter}>
-          <Ionicons name="location-outline" size={13} color="#9ca3af" />
-          <Text style={styles.address} numberOfLines={1}>
-            {item.customerSnapshot.address}
-          </Text>
+          <View style={styles.footerItem}>
+             <Ionicons name="location-outline" size={14} color={Colors.primary} />
+             <Text style={styles.footerText} numberOfLines={1}>{item.customer_snapshot?.address}</Text>
+          </View>
           {scheduledStr && (
-            <>
-              <Text style={styles.dot}>·</Text>
-              <Ionicons name="calendar-outline" size={13} color="#9ca3af" />
-              <Text style={styles.date}>{scheduledStr}</Text>
-            </>
+            <View style={[styles.footerItem, { justifyContent: 'flex-end' }]}>
+               <Ionicons name="calendar-outline" size={14} color={Colors.primary} />
+               <Text style={styles.footerText}>{scheduledStr}</Text>
+            </View>
           )}
         </View>
       </TouchableOpacity>
@@ -120,18 +119,31 @@ export default function WorkerJobList() {
 
   return (
     <View style={styles.container}>
-      {loading ? (
-        <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 40 }} />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Schedule</Text>
+        <Text style={styles.headerSubtitle}>
+            {userProfile?.role === 'admin' ? '👀 Viewing as Admin (All Jobs)' : 'Your assigned jobs'}
+        </Text>
+      </View>
+
+      {loading && !refreshing ? (
+        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={jobs}
           renderItem={renderJob}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          refreshControl={
+             <RefreshControl refreshing={refreshing} onRefresh={fetchJobs} tintColor={Colors.primary}/>
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="briefcase-outline" size={48} color="#d1d5db" />
-              <Text style={styles.empty}>No jobs assigned to you yet.</Text>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="calendar-clear-outline" size={40} color={Colors.textLight} />
+              </View>
+              <Text style={styles.emptyTitle}>No jobs found</Text>
+              <Text style={styles.emptyText}>You have no active jobs assigned at the moment.</Text>
             </View>
           }
         />
@@ -140,31 +152,32 @@ export default function WorkerJobList() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f3f4f6' },
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: { padding: 20, paddingBottom: 10, backgroundColor: '#fff' },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: Colors.text },
+  headerSubtitle: { fontSize: 13, color: Colors.textLight, marginTop: 4 },
   card: {
     backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    borderRadius: 16,
+    marginBottom: 16,
+    ...Colors.shadow,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  ref: { fontWeight: 'bold', fontSize: 14, color: '#6b7280' },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  jobTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
-  customer: { fontSize: 14, color: '#374151', marginBottom: 6 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  address: { fontSize: 13, color: '#9ca3af', flex: 1 },
-  dot: { color: '#d1d5db', fontSize: 13 },
-  date: { fontSize: 13, color: '#9ca3af' },
-  emptyContainer: { alignItems: 'center', marginTop: 80 },
-  empty: { textAlign: 'center', marginTop: 12, color: '#9ca3af', fontSize: 15 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+  ref: { fontWeight: '700', fontSize: 12, color: Colors.textLight, letterSpacing: 0.5 },
+  badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  badgeText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  jobTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 6 },
+  customer: { fontSize: 14, color: Colors.text, fontWeight: '500' },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 12 },
+  footerItem: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  footerText: { fontSize: 13, color: Colors.textLight, fontWeight: '500' },
+  emptyContainer: { alignItems: 'center', marginTop: 60, padding: 20 },
+  emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 8 },
+  emptyText: { textAlign: 'center', color: Colors.textLight, lineHeight: 22 },
 });

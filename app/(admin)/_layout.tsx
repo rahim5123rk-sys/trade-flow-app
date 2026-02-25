@@ -1,58 +1,62 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Alert, TouchableOpacity } from 'react-native';
-import { useAuth } from '../../src/context/AuthContext';
+import React from 'react';
+import { Platform } from 'react-native';
+import { Colors } from '../../constants/theme';
 
 export default function AdminLayout() {
-  const { signOut } = useAuth();
-
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
-    ]);
-  };
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#2563eb',
-        headerRight: () => (
-          <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
-            <Ionicons name="log-out-outline" size={22} color="#ef4444" />
-          </TouchableOpacity>
-        ),
+        headerShown: false,
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.textLight,
+        tabBarStyle: { 
+          backgroundColor: '#ffffff',
+          borderTopWidth: 1, 
+          borderTopColor: '#f1f5f9',
+          height: Platform.OS === 'ios' ? 85 : 70, // Taller bar for modern phones
+          paddingBottom: Platform.OS === 'ios' ? 30 : 12, // Lifts icons above home bar
+          paddingTop: 12,
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOpacity: 0.1,
+          shadowOffset: { width: 0, height: -2 },
+          shadowRadius: 10,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
+        }
       }}
     >
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color }) => <Ionicons name="grid-outline" size={24} color={color} />,
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => <Ionicons name="grid-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="jobs"
         options={{
           title: 'Jobs',
-          headerShown: false,
-          tabBarIcon: ({ color }) => <Ionicons name="briefcase-outline" size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="briefcase-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="customers"
         options={{
-          title: 'Customers',
-          headerShown: false,
-          tabBarIcon: ({ color }) => <Ionicons name="people-circle-outline" size={24} color={color} />,
+          title: 'People',
+          tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="workers"
+        name="settings/index"
         options={{
-          title: 'Workers',
-          headerShown: false,
-          tabBarIcon: ({ color }) => <Ionicons name="people-outline" size={24} color={color} />,
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" size={24} color={color} />,
         }}
       />
     </Tabs>

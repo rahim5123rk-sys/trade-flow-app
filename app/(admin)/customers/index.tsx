@@ -1,134 +1,100 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
+    RefreshControl,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
-import { db } from '../../../src/config/firebase';
+import { Colors } from '../../../constants/theme';
+import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
-
-interface Customer {
-  id: string;
-  name: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  propertyType?: string;
-  createdAt: any;
-}
 
 export default function CustomersListScreen() {
   const { userProfile } = useAuth();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (!userProfile?.companyId) return;
-
-    const q = query(
-      collection(db, 'customers'),
-      where('companyId', '==', userProfile.companyId),
-      orderBy('name', 'asc')
-    );
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      setCustomers(
-        snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Customer))
-      );
-      setLoading(false);
-    });
-
-    return unsub;
+    fetchCustomers();
   }, [userProfile]);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return customers;
-    const s = search.toLowerCase();
-    return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(s) ||
-        c.email?.toLowerCase().includes(s) ||
-        c.phone?.includes(s) ||
-        c.address?.toLowerCase().includes(s)
-    );
-  }, [customers, search]);
+  const fetchCustomers = async () => {
+    if (!userProfile?.company_id) return;
+    setLoading(true);
+    
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('company_id', userProfile.company_id)
+      .order('name', { ascending: true });
 
-  const renderCustomer = ({ item }: { item: Customer }) => (
+    if (data) setCustomers(data);
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  const filteredCustomers = customers.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.address.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const renderCustomer = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.card}
-      activeOpacity={0.7}
       onPress={() => router.push(`/(admin)/customers/${item.id}`)}
     >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {item.name
-            .split(' ')
-            .map((w) => w[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase()}
-        </Text>
+      <View style={styles.row}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{item.name[0]?.toUpperCase()}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.address} numberOfLines={1}>{item.address}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
       </View>
-      <View style={styles.cardContent}>
-        <Text style={styles.name}>{item.name}</Text>
-        {item.address ? (
-          <Text style={styles.detail} numberOfLines={1}>{item.address}</Text>
-        ) : null}
-        {item.phone ? <Text style={styles.detail}>{item.phone}</Text> : null}
-      </View>
-      <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={18} color="#9ca3af" />
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={20} color={Colors.textLight} />
         <TextInput
-          style={styles.searchInput}
+          style={styles.input}
           placeholder="Search customers..."
-          placeholderTextColor="#9ca3af"
           value={search}
           onChangeText={setSearch}
-          autoCapitalize="none"
         />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color="#9ca3af" />
-          </TouchableOpacity>
-        )}
       </View>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 40 }} />
+      {loading && !refreshing ? (
+        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 20 }} />
       ) : (
         <FlatList
-          data={filtered}
+          data={filteredCustomers}
           renderItem={renderCustomer}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+          contentContainerStyle={{ padding: 16 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={fetchCustomers} />
+          }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="people-circle-outline" size={48} color="#d1d5db" />
-              <Text style={styles.empty}>
-                {search ? 'No customers match your search.' : 'No customers yet. Tap + to add one.'}
-              </Text>
-            </View>
+            <Text style={styles.empty}>No customers found.</Text>
           }
         />
       )}
 
       <TouchableOpacity
         style={styles.fab}
-        activeOpacity={0.85}
         onPress={() => router.push('/(admin)/customers/add')}
       >
         <Ionicons name="add" size={30} color="#fff" />
@@ -138,62 +104,15 @@ export default function CustomersListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f3f4f6' },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    gap: 8,
-  },
-  searchInput: { flex: 1, fontSize: 15, color: '#111827' },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: { fontSize: 15, fontWeight: '700', color: '#2563eb' },
-  cardContent: { flex: 1 },
-  name: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 2 },
-  detail: { fontSize: 13, color: '#6b7280' },
-  emptyContainer: { alignItems: 'center', marginTop: 80 },
-  empty: { textAlign: 'center', marginTop: 12, color: '#9ca3af', fontSize: 15 },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 24,
-    backgroundColor: '#2563eb',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#2563eb',
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 16, marginBottom: 8, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.border },
+  input: { marginLeft: 10, flex: 1, fontSize: 16 },
+  card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, ...Colors.shadow },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
+  avatarText: { fontSize: 18, fontWeight: '700', color: Colors.primary },
+  name: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  address: { fontSize: 14, color: Colors.textLight },
+  empty: { textAlign: 'center', marginTop: 40, color: Colors.textLight },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', elevation: 5 },
 });

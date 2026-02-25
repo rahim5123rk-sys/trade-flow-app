@@ -1,160 +1,124 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { db } from '../../../src/config/firebase';
+import { Colors } from '../../../constants/theme';
+import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
-//
-// HOW THE INVITE FLOW WORKS:
-//
-// 1. Admin fills in worker's name + email here.
-// 2. We write a placeholder doc to: invites/{email}
-//    (keyed by email, NOT a random ID — this is the link between invite and real user)
-// 3. The worker downloads the app, goes to Register, and enters the same email.
-// 4. On registration, we look up invites/{email}, find the companyId + role,
-//    and write their real UID to users/{uid} with the correct companyId.
-//
-// This works without Cloud Functions. The invite doc is the handshake.
-//
-// TODO (Phase 2): Send a real invite email via Firebase Extensions (Trigger Email).
 
 export default function AddWorkerScreen() {
   const { userProfile } = useAuth();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleAddWorker = async () => {
-    const trimmedEmail = email.trim().toLowerCase();
-    const trimmedName = name.trim();
-
-    if (!trimmedName || !trimmedEmail) {
-      Alert.alert('Missing Fields', 'Please enter both a name and email address.');
-      return;
+  const copyToClipboard = async () => {
+    if (userProfile?.company_id) {
+      await Clipboard.setStringAsync(userProfile.company_id);
+      Alert.alert('Copied!', 'Company ID copied to clipboard.');
     }
+  };
 
-    // Basic email validation
-    if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
-      return;
-    }
-
-    if (!userProfile?.companyId) {
-      Alert.alert('Error', 'Company context not found. Please log in again.');
-      return;
-    }
-
+  const handleCreateTestWorker = async () => {
+    if (!userProfile?.company_id) return;
     setLoading(true);
 
     try {
-      // Key the invite doc by email so we can look it up during worker registration.
-      // Firestore doc IDs cannot contain '/' so we replace '@' with '_at_' and '.' with '_dot_'.
-      const safeEmailKey = trimmedEmail.replace('@', '_at_').replace(/\./g, '_dot_');
+      const fakeId = Math.random().toString(36).substring(2, 15);
+      
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          id: fakeId, 
+          display_name: `Test Worker ${Math.floor(Math.random() * 100)}`,
+          email: `worker${Date.now()}@test.com`,
+          company_id: userProfile.company_id,
+          role: 'worker',
+          is_test_user: true
+        });
 
-      await setDoc(doc(db, 'invites', safeEmailKey), {
-        displayName: trimmedName,
-        email: trimmedEmail,
-        companyId: userProfile.companyId,
-        role: 'worker',
-        status: 'pending',
-        invitedBy: userProfile.uid,
-        createdAt: serverTimestamp(),
-      });
-
-      Alert.alert(
-        'Worker Invited',
-        `${trimmedName} has been added. Ask them to download TradeFlow and register with ${trimmedEmail}.`,
-        [{ text: 'Done', onPress: () => router.back() }]
-      );
-    } catch (e: any) {
-      console.error('Add worker error:', e);
-      Alert.alert('Error', 'Could not save worker invite. Please try again.');
+      if (error) {
+        console.error(error);
+        Alert.alert('Database Error', 'Could not create test worker. Profile table may require a valid Auth ID.');
+      } else {
+        Alert.alert('Success', 'Test worker created.');
+        router.back();
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to create test worker.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
-      <View style={styles.container}>
+    <ScrollView style={styles.container}>
+      <View style={styles.card}>
+        <Text style={styles.title}>Invite Workers</Text>
         <Text style={styles.subtitle}>
-          Enter the worker's details. They'll register in the app using this email address to be automatically linked to your company.
+          Workers must download the app and "Join Company" using your Company ID below.
         </Text>
 
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. John Doe"
-          autoCapitalize="words"
-          value={name}
-          onChangeText={setName}
-        />
+        <View style={styles.codeBox}>
+          <Text style={styles.codeLabel}>YOUR COMPANY ID</Text>
+          <TouchableOpacity style={styles.codeRow} onPress={copyToClipboard}>
+            <Text style={styles.code}>{userProfile?.company_id || 'Loading...'}</Text>
+            <Ionicons name="copy-outline" size={24} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
 
-        <Text style={styles.label}>Email Address</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="john@example.com"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoCorrect={false}
-          value={email}
-          onChangeText={setEmail}
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleAddWorker}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Add Worker</Text>
-          )}
+        <TouchableOpacity style={[styles.button, styles.primaryBtn]} onPress={copyToClipboard}>
+          <Text style={styles.primaryBtnText}>Copy Company ID</Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+
+      <View style={styles.dividerContainer}>
+        <View style={styles.line} />
+        <Text style={styles.orText}>OR</Text>
+        <View style={styles.line} />
+      </View>
+
+      <TouchableOpacity style={styles.testBtn} onPress={handleCreateTestWorker} disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color={Colors.text} />
+        ) : (
+          <>
+            <Ionicons name="flask" size={20} color={Colors.text} />
+            <View style={{flex: 1}}>
+              <Text style={styles.testBtnTitle}>Generate Test Worker Profile</Text>
+              <Text style={styles.testBtnSub}>Adds a dummy row to your team list for UI testing.</Text>
+            </View>
+          </>
+        )}
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-  subtitle: { color: '#6b7280', marginBottom: 24, fontSize: 14, lineHeight: 20 },
-  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 6 },
-  input: {
-    backgroundColor: '#f9fafb',
-    padding: 14,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#2563eb',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { backgroundColor: '#93c5fd' },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  container: { flex: 1, padding: 20, backgroundColor: Colors.background },
+  card: { backgroundColor: '#fff', padding: 20, borderRadius: 12, ...Colors.shadow },
+  title: { fontSize: 18, fontWeight: '800', color: Colors.text, marginBottom: 4 },
+  subtitle: { color: Colors.textLight, marginBottom: 20, fontSize: 14, lineHeight: 20 },
+  codeBox: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 20 },
+  codeLabel: { fontSize: 10, fontWeight: '700', color: Colors.textLight, marginBottom: 4, letterSpacing: 1 },
+  codeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  code: { fontSize: 18, fontWeight: 'bold', color: Colors.text, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
+  button: { padding: 16, borderRadius: 10, alignItems: 'center' },
+  primaryBtn: { backgroundColor: Colors.primary, ...Colors.shadow },
+  primaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
+  line: { flex: 1, height: 1, backgroundColor: Colors.border },
+  orText: { marginHorizontal: 12, color: Colors.textLight, fontWeight: '600', fontSize: 12 },
+  testBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', gap: 12, borderStyle: 'dashed' },
+  testBtnTitle: { fontWeight: '700', color: Colors.text, fontSize: 15 },
+  testBtnSub: { color: Colors.textLight, fontSize: 12 },
 });

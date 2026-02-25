@@ -1,319 +1,175 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { db } from '../../../src/config/firebase';
+import { Colors } from '../../../constants/theme';
+import { supabase } from '../../../src/config/supabase';
+import { generateJobSheet } from '../../../src/services/pdfGenerator';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Job {
-  id: string;
-  reference: string;
-  status: string;
-  customerSnapshot: {
-    name: string;
-    address: string;
-  };
-  notes?: string;
-  assignedTo: string[];
-  scheduledDate: number;
-  createdAt: any;
-  price?: number;
-  paymentStatus?: string;
-}
-
-// ─── Status config ────────────────────────────────────────────────────────────
-
-const STATUS_FLOW = [
-  'pending',
-  'accepted',
-  'on_the_way',
-  'in_progress',
-  'complete',
-  'invoiced',
-  'paid',
-] as const;
-
-const STATUS_COLOURS: Record<string, { bg: string; text: string }> = {
-  pending:     { bg: '#fef3c7', text: '#92400e' },
-  accepted:    { bg: '#fff7ed', text: '#9a3412' },
-  on_the_way:  { bg: '#fce7f3', text: '#9d174d' },
-  in_progress: { bg: '#dbeafe', text: '#1e40af' },
-  complete:    { bg: '#dcfce7', text: '#166534' },
-  invoiced:    { bg: '#ede9fe', text: '#5b21b6' },
-  paid:        { bg: '#d1fae5', text: '#065f46' },
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  pending:     'Pending',
-  accepted:    'Accepted',
-  on_the_way:  'On The Way',
-  in_progress: 'In Progress',
-  complete:    'Complete',
-  invoiced:    'Invoiced',
-  paid:        'Paid',
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const colours = STATUS_COLOURS[status] || { bg: '#f3f4f6', text: '#374151' };
-  return (
-    <View style={[styles.badge, { backgroundColor: colours.bg }]}>
-      <Text style={[styles.badgeText, { color: colours.text }]}>
-        {STATUS_LABELS[status] || status}
-      </Text>
-    </View>
-  );
-};
-
-const InfoRow = ({ icon, label, value }: { icon: string; label: string; value: string }) => (
-  <View style={styles.infoRow}>
-    <Ionicons name={icon as any} size={18} color="#6b7280" style={{ marginRight: 10 }} />
-    <View>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  </View>
-);
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
+const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'];
 
 export default function AdminJobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [job, setJob] = useState<Job | null>(null);
+  const [job, setJob] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    const docRef = doc(db, 'jobs', id);
-    const unsub = onSnapshot(docRef, (snap) => {
-      if (snap.exists()) {
-        setJob({ id: snap.id, ...snap.data() } as Job);
-      }
-    });
-    return unsub;
+    fetchJob();
   }, [id]);
+
+  const fetchJob = async () => {
+    const { data, error } = await supabase.from('jobs').select('*').eq('id', id).single();
+    if (data) setJob(data);
+  };
 
   const updateStatus = async (newStatus: string) => {
     if (!id) return;
     setUpdating(true);
     try {
-      await updateDoc(doc(db, 'jobs', id), { status: newStatus });
+      await supabase.from('jobs').update({ status: newStatus }).eq('id', id);
+      fetchJob(); // Refresh
     } catch (e) {
-      Alert.alert('Error', 'Could not update job status.');
+      Alert.alert('Error', 'Could not update status.');
     } finally {
       setUpdating(false);
     }
   };
 
-  const confirmStatusChange = (newStatus: string) => {
-    Alert.alert(
-      'Update Status',
-      `Mark job as "${STATUS_LABELS[newStatus]}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Update', onPress: () => updateStatus(newStatus) },
-      ]
-    );
+  const handleGeneratePdf = () => {
+    if (!job) return;
+    generateJobSheet(job);
   };
 
-  if (!job) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
-    );
-  }
+  if (!job) return <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>;
 
-  const currentIndex = STATUS_FLOW.indexOf(job.status as any);
+  const currentIndex = STATUS_FLOW.indexOf(job.status);
   const nextStatus = currentIndex < STATUS_FLOW.length - 1 ? STATUS_FLOW[currentIndex + 1] : null;
 
-  const scheduledDateStr = job.scheduledDate
-    ? new Date(job.scheduledDate).toLocaleDateString('en-GB', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
-    : 'Not scheduled';
-
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-
-      {/* ── Header ── */}
-      <View style={styles.section}>
+    <ScrollView style={styles.container}>
+      <View style={styles.card}>
         <View style={styles.headerRow}>
-          <Text style={styles.reference}>{job.reference}</Text>
-          <StatusBadge status={job.status} />
+          <Text style={styles.ref}>{job.reference}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={styles.badge}>
+                <Text style={styles.badgeText}>{job.status.replace('_', ' ')}</Text>
+            </View>
+            <TouchableOpacity onPress={() => router.push(`/(admin)/jobs/${job.id}/edit`)}>
+                <Ionicons name="create-outline" size={28} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
-        <Text style={styles.scheduledDate}>{scheduledDateStr}</Text>
+        <Text style={styles.date}>
+          {new Date(job.scheduled_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+        </Text>
       </View>
 
-      {/* ── Customer ── */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Customer</Text>
-        <InfoRow icon="person-outline" label="Name" value={job.customerSnapshot.name} />
-        <InfoRow icon="location-outline" label="Address" value={job.customerSnapshot.address} />
+        <Text style={styles.label}>Customer</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Ionicons name="person" size={18} color={Colors.primary} />
+            <Text style={styles.value}>{job.customer_snapshot?.name}</Text>
+          </View>
+          <View style={[styles.row, { marginTop: 8 }]}>
+            <Ionicons name="location" size={18} color={Colors.primary} />
+            <Text style={styles.value}>{job.customer_snapshot?.address}</Text>
+          </View>
+        </View>
       </View>
 
-      {/* ── Notes ── */}
-      {job.notes ? (
+      <View style={styles.section}>
+        <Text style={styles.label}>Job Details</Text>
+        <View style={styles.card}>
+          <Text style={styles.subTitle}>{job.title}</Text>
+          {job.notes ? <Text style={styles.notes}>{job.notes}</Text> : null}
+          {job.price && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Price:</Text>
+              <Text style={styles.priceValue}>£{job.price.toFixed(2)}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {(job.photos?.length || job.signature) ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Job Notes</Text>
-          <Text style={styles.notesText}>{job.notes}</Text>
+            <Text style={styles.label}>Proof of Work</Text>
+            <View style={styles.card}>
+                {job.photos && job.photos.length > 0 && (
+                    <ScrollView horizontal style={{ marginBottom: 12 }}>
+                        {job.photos.map((p: string, i: number) => (
+                            <Image key={i} source={{ uri: p }} style={{ width: 60, height: 60, borderRadius: 6, marginRight: 8 }} />
+                        ))}
+                    </ScrollView>
+                )}
+                {job.signature && (
+                    <View style={{ marginTop: 4 }}>
+                        <Text style={{ fontSize: 10, color: '#888', marginBottom: 4 }}>CUSTOMER SIGNATURE</Text>
+                        <Image source={{ uri: job.signature }} style={{ height: 60, width: 150, resizeMode: 'contain', backgroundColor: '#f9fafb' }} />
+                    </View>
+                )}
+            </View>
         </View>
       ) : null}
 
-      {/* ── Payment ── */}
-      {job.price !== undefined && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment</Text>
-          <InfoRow
-            icon="cash-outline"
-            label="Amount"
-            value={`£${job.price.toFixed(2)}`}
-          />
-          <InfoRow
-            icon="card-outline"
-            label="Payment Status"
-            value={job.paymentStatus || 'Unpaid'}
-          />
-        </View>
-      )}
-
-      {/* ── Status Pipeline ── */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Status Pipeline</Text>
-        <View style={styles.pipelineContainer}>
-          {STATUS_FLOW.map((s, i) => {
-            const isComplete = i <= currentIndex;
-            const isCurrent = i === currentIndex;
-            return (
-              <View key={s} style={styles.pipelineStep}>
-                <View
-                  style={[
-                    styles.pipelineDot,
-                    isComplete && styles.pipelineDotDone,
-                    isCurrent && styles.pipelineDotCurrent,
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.pipelineLabel,
-                    isComplete && styles.pipelineLabelDone,
-                    isCurrent && styles.pipelineLabelCurrent,
-                  ]}
-                >
-                  {STATUS_LABELS[s]}
-                </Text>
-                {i < STATUS_FLOW.length - 1 && (
-                  <View style={[styles.pipelineLine, isComplete && styles.pipelineLineDone]} />
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* ── Actions ── */}
-      <View style={styles.actionsContainer}>
+      <View style={styles.footer}>
         {nextStatus && (
           <TouchableOpacity
-            style={[styles.primaryBtn, updating && styles.disabledBtn]}
-            onPress={() => confirmStatusChange(nextStatus)}
+            style={[styles.btn, styles.primaryBtn, updating && { opacity: 0.7 }]}
+            onPress={() => updateStatus(nextStatus)}
             disabled={updating}
-            activeOpacity={0.8}
           >
-            {updating ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
+            {updating ? <ActivityIndicator color="#fff" /> : (
               <>
-                <Ionicons name="arrow-forward-circle-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.primaryBtnText}>
-                  Move to: {STATUS_LABELS[nextStatus]}
-                </Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.primaryBtnText}>Move to {nextStatus.replace('_', ' ')}</Text>
               </>
             )}
           </TouchableOpacity>
         )}
 
-        {job.status === 'paid' && (
-          <View style={styles.paidBanner}>
-            <Ionicons name="checkmark-circle" size={24} color="#065f46" />
-            <Text style={styles.paidText}>Job Complete & Paid ✓</Text>
-          </View>
-        )}
+        <TouchableOpacity style={[styles.btn, styles.secondaryBtn]} onPress={handleGeneratePdf}>
+          <Ionicons name="document-text-outline" size={20} color={Colors.primary} style={{ marginRight: 8 }} />
+          <Text style={styles.secondaryBtnText}>Generate Job Sheet (PDF)</Text>
+        </TouchableOpacity>
       </View>
-
     </ScrollView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f3f4f6' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
+  container: { flex: 1, backgroundColor: Colors.background, padding: 16 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, ...Colors.shadow, marginBottom: 8 },
+  section: { marginTop: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  reference: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
-  scheduledDate: { marginTop: 6, fontSize: 14, color: '#6b7280' },
-  badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
-  infoLabel: { fontSize: 11, color: '#9ca3af', marginBottom: 1 },
-  infoValue: { fontSize: 15, color: '#111827', fontWeight: '500' },
-  notesText: { fontSize: 15, color: '#374151', lineHeight: 22 },
-
-  // Pipeline
-  pipelineContainer: { flexDirection: 'row', alignItems: 'center' },
-  pipelineStep: { alignItems: 'center', flex: 1, position: 'relative' },
-  pipelineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#d1d5db', marginBottom: 6 },
-  pipelineDotDone: { backgroundColor: '#10b981' },
-  pipelineDotCurrent: { backgroundColor: '#2563eb', width: 14, height: 14, borderRadius: 7 },
-  pipelineLine: { position: 'absolute', top: 5, left: '50%', right: '-50%', height: 2, backgroundColor: '#d1d5db', zIndex: -1 },
-  pipelineLineDone: { backgroundColor: '#10b981' },
-  pipelineLabel: { fontSize: 9, color: '#9ca3af', textAlign: 'center' },
-  pipelineLabelDone: { color: '#10b981' },
-  pipelineLabelCurrent: { color: '#2563eb', fontWeight: '700' },
-
-  // Actions
-  actionsContainer: { marginHorizontal: 16, marginTop: 20 },
-  primaryBtn: {
-    backgroundColor: '#2563eb',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#2563eb',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  disabledBtn: { backgroundColor: '#93c5fd' },
+  ref: { fontSize: 20, fontWeight: '800', color: Colors.text },
+  badge: { backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { fontSize: 12, fontWeight: '700', color: Colors.textLight, textTransform: 'uppercase' },
+  date: { marginTop: 4, color: Colors.textLight, fontSize: 14 },
+  label: { fontSize: 12, fontWeight: '700', color: Colors.textLight, textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  value: { fontSize: 15, color: Colors.text, flex: 1 },
+  subTitle: { fontSize: 16, fontWeight: '600', color: Colors.text, marginBottom: 8 },
+  notes: { fontSize: 14, color: '#4b5563', lineHeight: 20, backgroundColor: '#f9fafb', padding: 10, borderRadius: 8 },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  priceLabel: { fontSize: 14, color: Colors.textLight },
+  priceValue: { fontSize: 18, fontWeight: 'bold', color: Colors.primary },
+  footer: { marginTop: 30, gap: 12, paddingBottom: 40 },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 12 },
+  primaryBtn: { backgroundColor: Colors.primary, ...Colors.shadow },
   primaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  paidBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#d1fae5', padding: 16, borderRadius: 12, gap: 10 },
-  paidText: { fontSize: 16, fontWeight: 'bold', color: '#065f46' },
+  secondaryBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: Colors.border },
+  secondaryBtnText: { color: Colors.primary, fontWeight: '600', fontSize: 16 },
 });
