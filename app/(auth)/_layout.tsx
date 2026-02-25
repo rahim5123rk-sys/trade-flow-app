@@ -9,7 +9,7 @@ export default function AuthLayout() {
       }}
     >
       <Stack.Screen name="login" />
-      <Stack.Screen name="register-company" options={{ headerShown: true, title: 'Create Company' }} />
+      <Stack.Screen name="register" options={{ headerShown: true, title: 'Create Company' }} />
     </Stack>
   );
 }

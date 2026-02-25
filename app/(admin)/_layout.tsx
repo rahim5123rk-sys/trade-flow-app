@@ -40,6 +40,14 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="customers"
+        options={{
+          title: 'Customers',
+          headerShown: false,
+          tabBarIcon: ({ color }) => <Ionicons name="people-circle-outline" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="workers"
         options={{
           title: 'Workers',

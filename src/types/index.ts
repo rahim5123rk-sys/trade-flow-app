@@ -55,11 +55,23 @@ export interface Job {
   category: JobCategory;
   assignedTo: string[];
   status: JobStatus;
-  scheduledDate: number; // Unix timestamp ms
+  scheduledDate: number;
   estimatedDuration?: string;
   price?: number;
   paymentStatus?: 'unpaid' | 'paid';
   paymentMethod?: 'cash' | 'bank_transfer' | 'card';
+  notes?: string;
+  createdAt: any;
+}
+
+export interface Customer {
+  id: string;
+  companyId: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  propertyType?: 'Residential' | 'Commercial';
   notes?: string;
   createdAt: any;
 }

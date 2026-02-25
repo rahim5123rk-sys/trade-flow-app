@@ -5,6 +5,7 @@ export default function JobsLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ title: 'All Jobs' }} />
       <Stack.Screen name="create" options={{ title: 'New Job', presentation: 'modal' }} />
+      <Stack.Screen name="[id]" options={{ title: 'Job Details' }} />
     </Stack>
   );
 }
