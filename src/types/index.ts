@@ -12,7 +12,7 @@ export interface UserProfile {
 export interface Company {
   id: string;
   name: string;
-  ownerId: string; // The user who created it
+  ownerId: string;
   subscriptionStatus: 'active' | 'past_due' | 'canceled' | 'trialing';
   settings: {
     nextJobNumber: number;
@@ -20,17 +20,46 @@ export interface Company {
   };
 }
 
+export type JobStatus =
+  | 'pending'
+  | 'accepted'
+  | 'on_the_way'
+  | 'in_progress'
+  | 'complete'
+  | 'invoiced'
+  | 'paid'
+  | 'cancelled';
+
+export type JobCategory =
+  | 'Gas & Heating'
+  | 'Plumbing'
+  | 'Electrical'
+  | 'HVAC'
+  | 'Carpentry'
+  | 'Building'
+  | 'Roofing'
+  | 'Other';
+
 export interface Job {
   id: string;
   companyId: string;
   reference: string;
-  customerId: string;
+  customerId?: string;
   customerSnapshot: {
     name: string;
     address: string;
+    phone?: string;
+    email?: string;
   };
-  assignedTo: string[]; // Worker UIDs
-  status: 'pending' | 'in_progress' | 'complete' | 'cancelled';
-  scheduledDate: number; // Unix timestamp
+  title: string;
+  category: JobCategory;
+  assignedTo: string[];
+  status: JobStatus;
+  scheduledDate: number; // Unix timestamp ms
+  estimatedDuration?: string;
+  price?: number;
+  paymentStatus?: 'unpaid' | 'paid';
+  paymentMethod?: 'cash' | 'bank_transfer' | 'card';
   notes?: string;
+  createdAt: any;
 }

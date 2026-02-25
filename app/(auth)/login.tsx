@@ -70,7 +70,7 @@ export default function LoginScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account?</Text>
-          <Link href="/register-company" asChild>
+          <Link href="/register" asChild>
             <TouchableOpacity>
               <Text style={styles.link}> Register Company</Text>
             </TouchableOpacity>

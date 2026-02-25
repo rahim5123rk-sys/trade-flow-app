@@ -1,37 +1,33 @@
-// @ts-nocheck
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { Auth, getAuth, initializeAuth } from 'firebase/auth';
+// @ts-ignore — Firebase 12 has a known bug where getReactNativePersistence is missing
+// from the TypeScript type definitions but EXISTS in the React Native runtime bundle.
+// Metro bundler resolves it correctly at runtime. This is a confirmed Firebase issue:
+// https://github.com/firebase/firebase-js-sdk/issues/9316
+import { getReactNativePersistence } from 'firebase/auth';
+import { Firestore, getFirestore } from 'firebase/firestore';
+import { FirebaseStorage, getStorage } from 'firebase/storage';
 
-// Your Firebase Config
 const firebaseConfig = {
-  apiKey: "AIzaSyDXRxI8i81-vaFtr7cSpbTehHashXj1d0g",
-  authDomain: "tradeflow-70e4b.firebaseapp.com",
-  projectId: "tradeflow-70e4b",
-  storageBucket: "tradeflow-70e4b.firebasestorage.app",
-  messagingSenderId: "869934630194",
-  appId: "1:869934630194:web:da4a4a2f0ea753f6e6832b",
-  measurementId: "G-MX0KW54J1R"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// EXPLICITLY TYPE AS ANY TO STOP ERRORS
-let app: any;
-let auth: any;
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-  // @ts-ignore
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage)
-  });
-} else {
-  app = getApp();
-  auth = getAuth(app);
-}
+const auth: Auth = getApps().length > 1
+  ? getAuth(app)
+  : initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
 
-const db = getFirestore(app);
-const storage = getStorage(app);
+const db: Firestore = getFirestore(app);
+const storage: FirebaseStorage = getStorage(app);
 
 export { auth, db, storage };
