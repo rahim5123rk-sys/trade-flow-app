@@ -41,7 +41,6 @@ export default function UnifiedCalendarScreen() {
         .neq('status', 'cancelled')
         .order('scheduled_date', { ascending: true });
 
-      // If Worker, filter by assigned_to
       if (!isAdmin && user) {
         query = query.contains('assigned_to', [user.id]);
       }
@@ -87,6 +86,14 @@ export default function UnifiedCalendarScreen() {
   const selectedDateFormatted = new Date(selectedDate + 'T00:00:00')
     .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  // ✅ NEW: Navigate to create job with the selected date pre-filled
+  const handleCreateJobFromCalendar = () => {
+    router.push({
+      pathname: '/(app)/jobs/create',
+      params: { prefillDate: selectedDate },
+    } as any);
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -126,14 +133,13 @@ export default function UnifiedCalendarScreen() {
             </>
           }
           renderItem={({ item }) => (
-             // Unified route push
              <JobCard job={item} routePrefix="/(app)/jobs/" showTodayBadge={false} />
           )}
           ListEmptyComponent={
             <View style={styles.emptyDay}>
               <Text style={styles.emptyText}>No jobs on this day</Text>
               {isAdmin && (
-                <TouchableOpacity style={styles.addJobBtn} onPress={() => router.push('/(app)/jobs/create' as any)}>
+                <TouchableOpacity style={styles.addJobBtn} onPress={handleCreateJobFromCalendar}>
                    <Ionicons name="add" size={16} color={Colors.primary} />
                    <Text style={styles.addJobText}>Schedule Job</Text>
                 </TouchableOpacity>
@@ -144,7 +150,7 @@ export default function UnifiedCalendarScreen() {
       )}
       
       {isAdmin && (
-        <TouchableOpacity style={styles.fab} onPress={() => router.push('/(app)/jobs/create' as any)}>
+        <TouchableOpacity style={styles.fab} onPress={handleCreateJobFromCalendar}>
            <Ionicons name="add" size={30} color="#FFFFFF" />
         </TouchableOpacity>
       )}

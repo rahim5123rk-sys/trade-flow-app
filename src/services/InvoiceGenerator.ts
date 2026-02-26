@@ -1,5 +1,5 @@
 // ============================================
-// FILE: src/services/invoiceGenerator.ts
+// FILE: src/services/InvoiceGenerator.ts
 // ============================================
 
 import * as Print from 'expo-print';
@@ -16,313 +16,251 @@ export interface InvoiceLineItem {
 export interface InvoiceData {
   invoiceNumber: number;
   invoiceRef?: string;
-  date: string;          // e.g. "29th September 2025"
+  date: string;
   dueDate: string;
-  status: 'Unpaid' | 'Paid' | 'Overdue';
-  // Bill To
+  status: string;
+  
+  // Billing (Granular)
   customerName: string;
   customerCompany?: string;
-  customerAddress: string;
-  // Inspection / Job Address (optional, if different)
-  inspectionName?: string;
-  inspectionAddress?: string;
-  // Line items
+  customerAddress1: string;
+  customerCity: string;
+  customerPostcode: string;
+  
+  // Job Site (Granular)
+  jobAddress1: string;
+  jobCity: string;
+  jobPostcode: string;
+  
+  jobDate?: string;
+  
   items: InvoiceLineItem[];
-  // Totals
-  discountPercent?: number;
-  partialPayment?: number;
-  // Notes & terms
-  notes?: string;
-  terms?: string;
+  discountPercent: number;
+  partialPayment: number;
+  
+  notes?: string;       // Job Specific Notes
+  paymentInfo?: string; // Bank Details (Overridden from UI)
 }
 
-export const generateInvoice = async (
-  invoice: InvoiceData,
-  companyId: string
-) => {
-  // 1. Fetch company details
-  let company: any = {
-    name: 'Your Business',
-    address: '',
-    phone: '',
-    email: '',
-    logo_url: null,
-    trade: '',
-  };
+interface CompanyInfo {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  logoUrl?: string;
+  signatureBase64?: string;
+  invoiceTerms?: string;
+  invoiceNotes?: string;
+}
 
-  try {
-    const { data } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('id', companyId)
-      .single();
-    if (data) company = data;
-  } catch (e) {
-    console.warn('Could not fetch company data for invoice', e);
+async function getCompanyInfo(companyId: string): Promise<CompanyInfo> {
+  const { data } = await supabase.from('companies').select('*').eq('id', companyId).single();
+  const s = data?.settings || {};
+  return {
+    name: data?.name || 'Your Company',
+    email: data?.email || '',
+    phone: data?.phone || '',
+    address: data?.address || '',
+    logoUrl: data?.logo_url || null,
+    signatureBase64: s.signatureBase64 || null,
+    invoiceTerms: s.invoiceTerms || '',
+    invoiceNotes: s.invoiceNotes || '', 
+  };
+}
+
+export async function generateInvoice(data: InvoiceData, companyId: string): Promise<void> {
+  const company = await getCompanyInfo(companyId);
+
+  let subtotal = 0;
+  let totalVat = 0;
+  const lineRows = data.items.map((item) => {
+    const totalExVat = item.quantity * item.unitPrice;
+    const vatAmount = totalExVat * (item.vatPercent / 100);
+    subtotal += totalExVat;
+    totalVat += vatAmount;
+    return { ...item, totalExVat, vatAmount };
+  });
+
+  const discountAmount = subtotal * (data.discountPercent / 100);
+  const adjustedVat = totalVat * ((subtotal - discountAmount) / subtotal) || 0; 
+  const grandTotal = (subtotal - discountAmount) + adjustedVat;
+  const balanceDue = grandTotal - data.partialPayment;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  /* 1. RESET MARGINS TO 0 AND USE PADDING CONTAINER */
+  @page { margin: 0; size: A4; }
+  
+  * { box-sizing: border-box; }
+  
+  body { 
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+    color: #334155; 
+    font-size: 11px; 
+    line-height: 1.3;
+    margin: 0;
+    /* 2. SAFE PADDING - 20mm on all sides */
+    padding: 10mm; 
+    /* Reserve space at bottom for fixed footer so content doesn't overlap */
+    padding-bottom: 45mm; 
+    -webkit-print-color-adjust: exact;
   }
 
-  // 2. Calculate totals
-  const subtotal = invoice.items.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
-    0
-  );
-  const vatTotal = invoice.items.reduce(
-    (sum, item) =>
-      sum + item.quantity * item.unitPrice * (item.vatPercent / 100),
-    0
-  );
-  const discount = invoice.discountPercent
-    ? subtotal * (invoice.discountPercent / 100)
-    : 0;
-  const partial = invoice.partialPayment || 0;
-  const amountDue = subtotal + vatTotal - discount - partial;
+  .row { display: flex; flex-direction: row; justify-content: space-between; gap: 20px; }
+  .col { flex: 1; }
+  .text-right { text-align: right; }
+  .bold { font-weight: 700; color: #0f172a; }
 
-  // 3. Build line item rows
-  const lineItemsHtml = invoice.items
-    .map(
-      (item, i) => `
-      <tr>
-        <td style="text-align:center; padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:13px;">${i + 1}</td>
-        <td style="padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:13px;">${item.description}</td>
-        <td style="text-align:center; padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:13px;">${item.quantity}</td>
-        <td style="text-align:right; padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:13px;">${item.unitPrice.toFixed(2)}</td>
-        <td style="text-align:center; padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:13px;">${item.vatPercent}</td>
-        <td style="text-align:right; padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:13px;">${(item.quantity * item.unitPrice * (item.vatPercent / 100)).toFixed(2)}</td>
-        <td style="text-align:right; padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:13px; font-weight:600;">${(item.quantity * item.unitPrice).toFixed(2)}</td>
-      </tr>`
-    )
-    .join('');
+  /* HEADER */
+  .header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .company-logo { height: 60px; width: auto; object-fit: contain; margin-bottom: 8px; display: block; }
+  .company-title { font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; margin-bottom: 4px; }
+  .company-text { font-size: 10px; color: #475569; display: block; margin-bottom: 1px; }
 
-  // 4. Status colour
-  const statusColor =
-    invoice.status === 'Paid'
-      ? '#10B981'
-      : invoice.status === 'Overdue'
-      ? '#EF4444'
-      : '#F59E0B';
+  .invoice-title { font-size: 24px; font-weight: 800; color: #cbd5e1; text-align: right; margin-bottom: 10px; letter-spacing: 2px; }
+  .meta-row { display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 3px; }
+  .meta-label { font-weight: 600; color: #64748b; font-size: 10px; }
+  .meta-val { font-weight: 700; color: #0f172a; font-size: 10px; min-width: 70px; text-align: right; }
 
-  // 5. Construct HTML matching the uploaded invoice layout
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body {
-            font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            color: #1e293b;
-            padding: 40px;
-            font-size: 14px;
-            line-height: 1.5;
-          }
+  /* ADDRESS GRID */
+  .address-grid { display: flex; gap: 30px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9; }
+  .addr-box { flex: 1; }
+  .addr-header { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
+  .addr-name { font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
+  .addr-text { font-size: 11px; color: #334155; display: block; margin-bottom: 1px; }
 
-          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
-          .logo-box { width: 80px; height: 80px; }
-          .logo-img { max-width: 80px; max-height: 80px; object-fit: contain; }
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 9px; text-transform: uppercase; padding: 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 10px; }
+  .col-desc { width: 45%; }
+  .col-num { text-align: right; white-space: nowrap; }
 
-          .company-info { text-align: right; }
-          .company-name { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
-          .company-detail { font-size: 12px; color: #475569; line-height: 1.6; }
-          .company-detail strong { color: #0f172a; }
+  /* TOTALS */
+  .totals-container { display: flex; justify-content: flex-end; margin-top: 10px; page-break-inside: avoid; }
+  .totals-table { width: 220px; }
+  .t-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 10px; }
+  .t-label { color: #64748b; }
+  .t-val { color: #0f172a; font-weight: 600; }
+  .t-grand { border-top: 2px solid #0f172a; margin-top: 6px; padding-top: 6px; }
+  .t-grand .t-label { font-size: 12px; font-weight: 700; color: #0f172a; }
+  .t-grand .t-val { font-size: 14px; font-weight: 800; color: #0f172a; }
 
-          .invoice-meta { margin-bottom: 24px; }
-          .invoice-number { font-size: 28px; font-weight: 800; color: #0f172a; }
-          .invoice-ref { font-size: 14px; color: #64748b; margin-top: 2px; }
-          .meta-row { display: flex; gap: 4px; margin-top: 4px; font-size: 13px; color: #475569; }
-          .meta-row strong { color: #0f172a; min-width: 80px; display: inline-block; }
-          .status-badge {
-            display: inline-block;
-            margin-top: 8px;
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 700;
-            color: ${statusColor};
-            background: ${statusColor}15;
-          }
+  /* JOB NOTES */
+  .notes-box { margin-top: 20px; padding: 10px; background: #fffbeb; border: 1px dashed #e2e8f0; border-radius: 4px; page-break-inside: avoid; }
+  .notes-title { font-size: 9px; font-weight: 700; color: #b45309; text-transform: uppercase; margin-bottom: 2px; }
+  .notes-content { font-size: 10px; color: #334155; }
 
-          .addresses { display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; }
-          .addr-col { flex: 1; }
-          .addr-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-          .addr-name { font-weight: 700; color: #0f172a; font-size: 14px; }
-          .addr-company { font-size: 13px; color: #475569; font-style: italic; }
-          .addr-text { font-size: 13px; color: #475569; line-height: 1.6; }
+  /* FIXED FOOTER */
+  .footer {
+    position: fixed; 
+    bottom: 15mm; 
+    left: 10mm; 
+    right: 10mm; 
+    height: 35mm;
+    background: #fff;
+    border-top: 1px solid #0f172a;
+    padding-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+  }
 
-          .dates-row { text-align: right; margin-bottom: 16px; font-size: 13px; color: #475569; }
-          .dates-row strong { color: #0f172a; }
+  .pay-info { flex: 1; font-size: 9px; line-height: 1.4; color: #475569; }
+  .pay-title { font-weight: 700; font-size: 9px; color: #0f172a; text-transform: uppercase; margin-bottom: 3px; }
 
-          table.invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-          table.invoice-table thead th {
-            background: #f1f5f9;
-            padding: 10px 8px;
-            font-size: 11px;
-            font-weight: 700;
-            color: #64748b;
-            text-transform: uppercase;
-            text-align: left;
-            border-bottom: 2px solid #e2e8f0;
-          }
-          table.invoice-table thead th:first-child { text-align: center; width: 30px; }
-          table.invoice-table thead th:nth-child(3),
-          table.invoice-table thead th:nth-child(5) { text-align: center; }
-          table.invoice-table thead th:nth-child(4),
-          table.invoice-table thead th:nth-child(6),
-          table.invoice-table thead th:nth-child(7) { text-align: right; }
+  .sig-box { width: 140px; text-align: right; display: flex; flex-direction: column; justify-content: flex-end; }
+  .sig-img { height: 35px; width: auto; object-fit: contain; align-self: flex-end; margin-bottom: 2px; }
+  .sig-line { border-top: 1px solid #cbd5e1; font-size: 8px; color: #94a3b8; padding-top: 2px; text-transform: uppercase; text-align: center; }
 
-          .totals-section { display: flex; justify-content: flex-end; margin-bottom: 30px; }
-          .totals-box { width: 280px; }
-          .total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #64748b; }
-          .total-row span:last-child { font-weight: 600; color: #0f172a; }
-          .grand-total { border-top: 2px solid #0f172a; margin-top: 8px; padding-top: 10px; }
-          .grand-total span { font-size: 16px; font-weight: 800; color: #0f172a; }
+  .terms { position: fixed; bottom: 8mm; left: 0; right: 0; text-align: center; font-size: 8px; color: #94a3b8; }
+</style>
+</head>
+<body>
 
-          .notes-section { margin-bottom: 20px; }
-          .notes-title { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
-          .notes-subtitle { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
-          .notes-text { font-size: 13px; color: #475569; line-height: 1.6; white-space: pre-line; }
+  <div class="header">
+    <div class="col">
+      ${company.logoUrl ? `<img src="${company.logoUrl}" class="company-logo" />` : ''}
+      <div class="company-title">${company.name}</div>
+      <div class="company-text">${company.address.replace(/\n/g, ', ')}</div>
+      <div class="company-text">${company.phone}</div>
+      <div class="company-text">${company.email}</div>
+    </div>
+    <div class="col">
+      <div class="invoice-title">INVOICE</div>
+      <div class="meta-row"><span class="meta-label">Invoice #:</span><span class="meta-val">#${String(data.invoiceNumber).padStart(4, '0')}</span></div>
+      <div class="meta-row"><span class="meta-label">Date:</span><span class="meta-val">${data.date}</span></div>
+      <div class="meta-row"><span class="meta-label">Due Date:</span><span class="meta-val">${data.dueDate}</span></div>
+      ${data.invoiceRef ? `<div class="meta-row"><span class="meta-label">Reference:</span><span class="meta-val">${data.invoiceRef}</span></div>` : ''}
+    </div>
+  </div>
 
-          .terms-section { margin-top: 16px; }
-          .terms-title { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-          .terms-text { font-size: 13px; color: #475569; }
-        </style>
-      </head>
-      <body>
+  <div class="address-grid">
+    <div class="addr-box">
+      <div class="addr-header">Bill To</div>
+      <div class="addr-name">${data.customerName}</div>
+      ${data.customerCompany ? `<div class="addr-text">${data.customerCompany}</div>` : ''}
+      <div class="addr-text">${data.customerAddress1}</div>
+      <div class="addr-text">${data.customerCity}</div>
+      <div class="addr-text">${data.customerPostcode}</div>
+    </div>
 
-        <!-- Header -->
-        <div class="header">
-          <div class="logo-box">
-            ${
-              company.logo_url
-                ? `<img src="${company.logo_url}" class="logo-img" />`
-                : ''
-            }
-          </div>
-          <div class="company-info">
-            <div class="company-name">${company.name}</div>
-            <div class="company-detail">
-              <strong>Address:</strong> ${company.address || ''}<br>
-              <strong>Tel Number:</strong> ${company.phone || ''}<br>
-              ${company.email ? `<strong>Email:</strong> ${company.email}` : ''}
-            </div>
-          </div>
-        </div>
+    <div class="addr-box text-right">
+      <div class="addr-header" style="border-color:transparent;">Job / Site Address</div>
+      <div class="addr-text">${data.jobAddress1}</div>
+      <div class="addr-text">${data.jobCity}</div>
+      <div class="addr-text">${data.jobPostcode}</div>
+      ${data.jobDate ? `<div class="addr-text" style="margin-top:4px; font-weight:600;">Job Date: ${data.jobDate}</div>` : ''}
+    </div>
+  </div>
 
-        <!-- Invoice Meta -->
-        <div class="invoice-meta">
-          <div class="invoice-number">Invoice: #${invoice.invoiceNumber}</div>
-          ${invoice.invoiceRef ? `<div class="invoice-ref">Invoice Ref: ${invoice.invoiceRef}</div>` : ''}
-          <div class="meta-row"><strong>Date:</strong> ${invoice.date}</div>
-          <div class="meta-row"><strong>Due Date:</strong> ${invoice.dueDate}</div>
-          <div class="status-badge">Status ${invoice.status}</div>
-        </div>
+  <table>
+    <thead><tr><th class="col-desc">Description</th><th class="col-num">Qty</th><th class="col-num">Price</th><th class="col-num">VAT</th><th class="col-num">Total</th></tr></thead>
+    <tbody>
+      ${lineRows.map(row => `<tr><td class="col-desc"><div class="bold">${row.description}</div></td><td class="col-num">${row.quantity}</td><td class="col-num">£${row.unitPrice.toFixed(2)}</td><td class="col-num">${row.vatPercent}%</td><td class="col-num">£${row.totalExVat.toFixed(2)}</td></tr>`).join('')}
+    </tbody>
+  </table>
 
-        <!-- Addresses -->
-        <div class="addresses">
-          <div class="addr-col">
-            <div class="addr-label">Bill To:</div>
-            <div class="addr-name">${invoice.customerName}</div>
-            ${invoice.customerCompany ? `<div class="addr-company">${invoice.customerCompany}</div>` : ''}
-            <div class="addr-text">${invoice.customerAddress.replace(/\n/g, '<br>')}</div>
-          </div>
-          ${
-            invoice.inspectionAddress
-              ? `
-          <div class="addr-col" style="text-align: right;">
-            <div class="addr-label">Inspection Address Details</div>
-            ${invoice.inspectionName ? `<div class="addr-name">${invoice.inspectionName}</div>` : ''}
-            <div class="addr-text">${invoice.inspectionAddress.replace(/\n/g, '<br>')}</div>
-          </div>`
-              : ''
-          }
-        </div>
+  <div class="totals-container">
+    <div class="totals-table">
+      <div class="t-row"><span class="t-label">Subtotal</span><span class="t-val">£${subtotal.toFixed(2)}</span></div>
+      ${data.discountPercent > 0 ? `<div class="t-row"><span class="t-label">Discount (${data.discountPercent}%)</span><span class="t-val">-£${discountAmount.toFixed(2)}</span></div>` : ''}
+      <div class="t-row"><span class="t-label">Total VAT</span><span class="t-val">£${adjustedVat.toFixed(2)}</span></div>
+      <div class="t-row t-grand"><span class="t-label">Amount Due</span><span class="t-val">£${balanceDue.toFixed(2)}</span></div>
+      ${data.partialPayment > 0 ? `<div class="t-row" style="margin-top:4px; color:#166534;"><span class="t-label" style="color:inherit;">Paid to Date</span><span class="t-val" style="color:inherit;">-£${data.partialPayment.toFixed(2)}</span></div>` : ''}
+    </div>
+  </div>
 
-        <!-- Dates Row -->
-        <div class="dates-row">
-          <strong>Date:</strong> ${invoice.date} &nbsp;&nbsp;
-          <strong>Due Date:</strong> ${invoice.dueDate}
-        </div>
+  ${data.notes ? `<div class="notes-box"><div class="notes-title">Job Notes</div><div class="notes-content">${data.notes.replace(/\n/g, '<br/>')}</div></div>` : ''}
 
-        <!-- Line Items Table -->
-        <table class="invoice-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Description</th>
-              <th>Quantity</th>
-              <th>Unit Price (£)</th>
-              <th>VAT (%)</th>
-              <th>VAT (£)</th>
-              <th>Total (£)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${lineItemsHtml}
-          </tbody>
-        </table>
-
-        <!-- Totals -->
-        <div class="totals-section">
-          <div class="totals-box">
-            <div class="total-row">
-              <span>Discount %</span>
-              <span>${invoice.discountPercent || 0}</span>
-            </div>
-            <div class="total-row">
-              <span>Subtotal £</span>
-              <span>${(subtotal - discount).toFixed(0)}</span>
-            </div>
-            <div class="total-row">
-              <span>VAT Total £</span>
-              <span>${vatTotal.toFixed(2)}</span>
-            </div>
-            <div class="total-row">
-              <span>Partial Payment</span>
-              <span>${partial}</span>
-            </div>
-            <div class="total-row grand-total">
-              <span>Amount Due £</span>
-              <span>${amountDue.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Notes -->
-        ${
-          invoice.notes
-            ? `
-        <div class="notes-section">
-          <div class="notes-title">Notes</div>
-          <div class="notes-text">${invoice.notes.replace(/\n/g, '<br>')}</div>
-        </div>`
-            : ''
-        }
-
-        <!-- Terms -->
-        ${
-          invoice.terms
-            ? `
-        <div class="terms-section">
-          <div class="terms-title">Terms</div>
-          <div class="terms-text">${invoice.terms}</div>
-        </div>`
-            : ''
-        }
-
-      </body>
-    </html>
+  <div class="footer">
+    <div class="pay-info"><div class="pay-title">Payment Instructions</div><div style="white-space: pre-wrap;">${data.paymentInfo || 'Please update bank details in Settings.'}</div></div>
+    <div class="sig-box">${company.signatureBase64 ? `<img src="${company.signatureBase64}" class="sig-img" />` : '<div style="height:35px;"></div>'}<div class="sig-line">Authorised Signature</div></div>
+  </div>
+  <div class="terms">${company.invoiceTerms || 'Payment Terms: Due on receipt.'}</div>
+</body>
+</html>
   `;
 
-  try {
-    const { uri } = await Print.printToFileAsync({ html });
-    await Sharing.shareAsync(uri, {
-      UTI: '.pdf',
-      mimeType: 'application/pdf',
-    });
-    return uri;
-  } catch (error) {
-    console.error('Error generating invoice PDF:', error);
-    throw error;
+  // 4. PREVENT FREEZE:
+  // Ensure Sharing is available and use 'UTI' for iOS to prevent hanging
+  if (!(await Sharing.isAvailableAsync())) {
+    alert("Sharing is not available on this device");
+    return;
   }
-};
+
+  const { uri } = await Print.printToFileAsync({ html, base64: false });
+  
+  await Sharing.shareAsync(uri, { 
+    mimeType: 'application/pdf', 
+    dialogTitle: `Invoice #${data.invoiceNumber}`,
+    UTI: 'com.adobe.pdf' // Helps iOS handle PDF files specifically
+  });
+}

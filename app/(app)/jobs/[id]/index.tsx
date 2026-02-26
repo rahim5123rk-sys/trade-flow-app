@@ -46,7 +46,6 @@ export default function UnifiedJobDetailScreen() {
 
   const fetchJobData = async () => {
     try {
-      // Basic fetch - RLS will handle security
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
@@ -68,14 +67,20 @@ export default function UnifiedJobDetailScreen() {
     if (!job) return;
     setUpdating(true);
     try {
-      const updateData: Partial<Job> = { status: newStatus as any };
-      if (newStatus === 'paid') updateData.payment_status = 'paid';
+      // ✅ FIX: Only update the status column — no payment_status (doesn't exist in DB)
+      const { error } = await supabase
+        .from('jobs')
+        .update({ status: newStatus })
+        .eq('id', job.id);
 
-      const { error } = await supabase.from('jobs').update(updateData).eq('id', job.id);
-      if (error) throw error;
+      if (error) {
+        console.error('Status update error:', error);
+        throw error;
+      }
       fetchJobData();
-    } catch (e) {
-      Alert.alert('Error', 'Could not update status.');
+    } catch (e: any) {
+      console.error('Status update failed:', e);
+      Alert.alert('Error', e?.message || 'Could not update status.');
     } finally {
       setUpdating(false);
     }
@@ -88,7 +93,8 @@ export default function UnifiedJobDetailScreen() {
   const workerStartJob = async () => {
     setUpdating(true);
     try {
-      await supabase.from('jobs').update({ status: 'in_progress' }).eq('id', id);
+      const { error } = await supabase.from('jobs').update({ status: 'in_progress' }).eq('id', id);
+      if (error) throw error;
       setJob({ ...job, status: 'in_progress' });
       Alert.alert('Job Started');
     } catch (e) {
@@ -147,6 +153,19 @@ export default function UnifiedJobDetailScreen() {
 
   const formatDate = (ts: number) => new Date(ts).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  // Status badge color helper
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'complete': return { bg: '#F0FDF4', text: '#15803D' };
+      case 'paid': return { bg: '#EFF6FF', text: '#2563EB' };
+      case 'in_progress': return { bg: '#FFF7ED', text: '#C2410C' };
+      case 'cancelled': return { bg: '#FEF2F2', text: '#DC2626' };
+      default: return { bg: '#FFF7ED', text: '#C2410C' };
+    }
+  };
+
+  const statusColor = getStatusColor(job.status);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
       
@@ -171,8 +190,8 @@ export default function UnifiedJobDetailScreen() {
         </View>
         
         {/* Status Badge */}
-        <View style={[styles.badge, { alignSelf: 'flex-start', marginTop: 10, backgroundColor: job.status === 'complete' ? '#F0FDF4' : '#FFF7ED' }]}>
-           <Text style={[styles.badgeText, { color: job.status === 'complete' ? '#15803D' : '#C2410C' }]}>
+        <View style={[styles.badge, { alignSelf: 'flex-start', marginTop: 10, backgroundColor: statusColor.bg }]}>
+           <Text style={[styles.badgeText, { color: statusColor.text }]}>
              {job.status.replace('_', ' ')}
            </Text>
         </View>

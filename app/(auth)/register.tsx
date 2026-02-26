@@ -214,10 +214,10 @@ export default function RegisterScreen() {
       
       // Redirect based on role
       if (userRole === 'admin') {
-        router.replace('/(admin)/dashboard');
+        router.replace('/(app)/dashboard');
       } else {
         // Assuming you have this route, or redirect to a worker waiting screen
-        router.replace('/(worker)/jobs'); 
+        router.replace('/(app)/dashboard');
       }
 
     } catch (error: any) {
