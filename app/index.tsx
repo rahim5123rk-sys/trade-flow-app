@@ -5,7 +5,7 @@ import { Colors } from '../constants/theme';
 import { useAuth } from '../src/context/AuthContext';
 
 export default function Index() {
-  const { session, isLoading, role, userProfile } = useAuth();
+  const { session, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -15,22 +15,10 @@ export default function Index() {
     );
   }
 
-  if (!session) {
-    return <Redirect href="/(auth)/login" />;
+  // ✅ FIX: Redirect everyone to the new unified dashboard
+  if (session) {
+    return <Redirect href="/(app)/dashboard" />;
   }
 
-  if (userProfile && role === 'admin') {
-    return <Redirect href="/(admin)/dashboard" />;
-  }
-
-  if (userProfile && role === 'worker') {
-    return <Redirect href="/(worker)/jobs" />;
-  }
-
-  // Session exists but no profile yet — show loading
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-      <ActivityIndicator size="large" color={Colors.primary} />
-    </View>
-  );
+  return <Redirect href="/(auth)/login" />;
 }

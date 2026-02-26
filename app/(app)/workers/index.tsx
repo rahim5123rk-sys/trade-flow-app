@@ -1,28 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 
-export default function WorkersScreen() {
+export default function WorkersListScreen() {
   const { userProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   
-  // ✅ FIX: Get the code from the navigation params
-  const { inviteCode } = useLocalSearchParams(); 
-
   const [workers, setWorkers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,17 +42,9 @@ export default function WorkersScreen() {
     setRefreshing(false);
   };
 
-  // ✅ FIX: Show the 6-digit code in the alert
   const handleAddWorker = () => {
-    if (inviteCode && inviteCode !== '---') {
-        Alert.alert(
-            'Invite Worker', 
-            `Share this code with your team member.\nThey need to enter it when they register.\n\nCode: ${inviteCode}`,
-            [{ text: 'OK' }]
-        );
-    } else {
-        Alert.alert('No Code Found', 'Please go back to Settings and generate an invite code first.');
-    }
+    // ✅ NAVIGATE TO THE INVITE SCREEN
+    router.push('/(app)/workers/add');
   };
 
   const renderWorker = ({ item }: { item: any }) => (
@@ -88,7 +76,7 @@ export default function WorkersScreen() {
             <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.screenTitle}>Team</Text>
-        <View style={{ width: 40 }} /> 
+        <View style={{ width: 40 }} />
       </View>
 
       <FlatList
@@ -110,16 +98,13 @@ export default function WorkersScreen() {
             <Ionicons name="people-outline" size={48} color={Colors.textLight} />
             <Text style={styles.emptyText}>No workers found.</Text>
             <Text style={styles.emptySub}>
-              Tap '+' to see your invite code.
+              Tap '+' to invite a worker.
             </Text>
           </View>
         }
       />
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleAddWorker}
-      >
+      <TouchableOpacity style={styles.fab} onPress={handleAddWorker}>
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
     </View>
@@ -130,59 +115,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', ...Colors.shadow },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 16,
-    ...Colors.shadow,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
+  screenTitle: { fontSize: 24, fontWeight: '800', color: Colors.text },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, marginBottom: 12, borderRadius: 16, ...Colors.shadow },
+  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   avatarText: { fontSize: 20, fontWeight: '800', color: Colors.primary },
   info: { flex: 1 },
   name: { fontWeight: '700', fontSize: 16, color: Colors.text },
   email: { color: Colors.textLight, fontSize: 14 },
-  testBadge: {
-    backgroundColor: '#f1f5f9',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 4,
-  },
+  testBadge: { backgroundColor: '#f1f5f9', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
   testBadgeText: { fontSize: 10, fontWeight: '700', color: '#64748b' },
   actionBtn: { padding: 8 },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 30,
-    backgroundColor: Colors.primary,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
+  fab: { position: 'absolute', right: 20, bottom: 30, backgroundColor: Colors.primary, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', ...Colors.shadow },
   emptyState: { alignItems: 'center', marginTop: 80, gap: 10 },
   emptyText: { fontSize: 18, fontWeight: '700', color: Colors.text },
   emptySub: { color: Colors.textLight },

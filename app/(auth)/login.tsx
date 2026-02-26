@@ -35,9 +35,14 @@ export default function LoginScreen() {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        Alert.alert('Login Failed', error.message);
+      } else {
+        // ✅ FIX: Force redirect to the new unified dashboard
+        router.replace('/(app)/dashboard');
+      }
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
+      Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }

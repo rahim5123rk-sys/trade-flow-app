@@ -8,10 +8,14 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <Stack screenOptions={{ headerShown: false }}>
+          {/* Entry point (redirect logic) */}
           <Stack.Screen name="index" />
+
+          {/* Login/Register screens */}
           <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(admin)" />
-          <Stack.Screen name="(worker)/jobs" />
+
+          {/* ✅ THE NEW UNIFIED APP (This was missing) */}
+          <Stack.Screen name="(app)" />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>

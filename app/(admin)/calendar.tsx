@@ -198,7 +198,7 @@ export default function AdminCalendarScreen() {
             <Text style={styles.emptyText}>No jobs on this day</Text>
             <TouchableOpacity
               style={styles.addJobBtn}
-              onPress={() => router.push('/(admin)/jobs/create')}
+              onPress={() => router.push('/(app)/jobs/create')}
             >
               <Ionicons name="add" size={16} color={Colors.primary} />
               <Text style={styles.addJobText}>Schedule a job</Text>
@@ -210,7 +210,7 @@ export default function AdminCalendarScreen() {
       {/* FAB to create job */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push('/(admin)/jobs/create')}
+        onPress={() => router.push('/(app)/jobs/create')}
       >
         <Ionicons name="add" size={30} color="#FFFFFF" />
       </TouchableOpacity>

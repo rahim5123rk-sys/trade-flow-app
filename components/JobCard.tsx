@@ -10,7 +10,7 @@ import { StatusBadge } from './StatusBadge';
 
 interface JobCardProps {
   job: Job;
-  /** Route prefix for navigation. Default: '/(admin)/jobs/' */
+  /** Route prefix for navigation. Default: '/(app)/jobs/' */
   routePrefix?: string;
   /** Show the date alongside time */
   showDate?: boolean;
@@ -22,7 +22,7 @@ interface JobCardProps {
 
 export function JobCard({
   job,
-  routePrefix = '/(admin)/jobs/',
+  routePrefix = '/(app)/jobs/',
   showDate = false,
   showTodayBadge = true,
   compact = false,

@@ -1,5 +1,5 @@
 // ============================================
-// FILE: app/(admin)/jobs/_layout.tsx
+// FILE: app/(app)/jobs/_layout.tsx
 // ============================================
 
 import { Stack } from 'expo-router';

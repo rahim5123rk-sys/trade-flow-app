@@ -6,24 +6,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Colors } from '../../../../constants/theme';
 import { supabase } from '../../../../src/config/supabase';
 import { useAuth } from '../../../../src/context/AuthContext';
 import {
-    generateInvoice,
-    InvoiceData,
-    InvoiceLineItem,
+  generateInvoice,
+  InvoiceData,
+  InvoiceLineItem,
 } from '../../../../src/services/InvoiceGenerator';
 
 export default function CreateInvoiceScreen() {

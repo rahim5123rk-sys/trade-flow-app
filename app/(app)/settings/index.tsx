@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -23,8 +22,6 @@ import { Colors } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 import { uploadImage } from '../../../src/services/storage';
-
-// --- Reusable Components ---
 
 const SectionHeader = ({ title }: { title: string }) => (
   <Text style={styles.sectionHeader}>{title}</Text>
@@ -118,8 +115,6 @@ const InputField = ({
   </View>
 );
 
-// --- Main Screen ---
-
 export default function SettingsScreen() {
   const { user, userProfile, signOut, refreshProfile } = useAuth();
   const insets = useSafeAreaInsets();
@@ -128,16 +123,15 @@ export default function SettingsScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [workerCount, setWorkerCount] = useState(0);
 
-  // Form State
   const [displayName, setDisplayName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
   const [companyEmail, setCompanyEmail] = useState('');
   const [companyPhone, setCompanyPhone] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
-  const [inviteCode, setInviteCode] = useState(''); // NEW
+  
+  // NOTE: inviteCode state removed from here
 
-  // Preferences State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
 
@@ -164,7 +158,6 @@ export default function SettingsScreen() {
       setCompanyEmail(data.email || '');
       setCompanyPhone(data.phone || '');
       setLogoUrl(data.logo_url || '');
-      setInviteCode(data.invite_code || '---'); // LOAD CODE
     }
   };
 
@@ -178,54 +171,18 @@ export default function SettingsScreen() {
     setWorkerCount(count || 0);
   };
 
-  const handleCopyCode = async () => {
-    await Clipboard.setStringAsync(inviteCode);
-    Alert.alert('Copied!', 'Invite code copied to clipboard.');
-  };
-
-  const handleRegenerateCode = async () => {
-    Alert.alert(
-        'Regenerate Code', 
-        'This will invalidate the old code. Users will need the new code to join.',
-        [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-                text: 'Regenerate', 
-                style: 'destructive',
-                onPress: async () => {
-                    const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-                    const nums = '23456789';
-                    let code = '';
-                    for (let i = 0; i < 3; i++) code += letters.charAt(Math.floor(Math.random() * letters.length));
-                    code += '-';
-                    for (let i = 0; i < 3; i++) code += nums.charAt(Math.floor(Math.random() * nums.length));
-                    
-                    const { error } = await supabase
-                        .from('companies')
-                        .update({ invite_code: code })
-                        .eq('id', userProfile!.company_id);
-                    
-                    if (!error) setInviteCode(code);
-                }
-            }
-        ]
-    );
-  };
-
   const handleLogoUpload = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow access to your photos.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets[0].uri) {
       setIsUploading(true);
       try {
@@ -257,7 +214,6 @@ export default function SettingsScreen() {
          }
          Alert.alert('Check your Inbox', `We sent a confirmation link to ${companyEmail}.`);
       }
-
       if (userProfile?.id) {
         await supabase
           .from('profiles')
@@ -265,7 +221,6 @@ export default function SettingsScreen() {
           .eq('id', userProfile.id);
         await refreshProfile();
       }
-
       if (userProfile?.company_id) {
         await supabase
           .from('companies')
@@ -277,7 +232,6 @@ export default function SettingsScreen() {
           })
           .eq('id', userProfile.company_id);
       }
-
       Alert.alert('Success', 'Settings saved successfully.');
     } catch (error) {
       Alert.alert('Error', 'Failed to save settings.');
@@ -289,14 +243,7 @@ export default function SettingsScreen() {
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-          router.replace('/(auth)/login');
-        },
-      },
+      { text: 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); router.replace('/(auth)/login'); } },
     ]);
   };
 
@@ -312,7 +259,6 @@ export default function SettingsScreen() {
           {isLoading && <ActivityIndicator color={Colors.primary} />}
         </View>
 
-        {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase() || 'U'}</Text>
@@ -323,7 +269,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Branding Section */}
         <SectionHeader title="Branding & Identity" />
         <View style={styles.card}>
           <View style={styles.logoSection}>
@@ -342,39 +287,16 @@ export default function SettingsScreen() {
           <InputField label="Business Name" value={companyName} onChange={setCompanyName} icon="briefcase-outline" placeholder="e.g. Acme Plumbing" />
         </View>
 
-        {/* Team Management */}
         <SectionHeader title="Team Management" />
         <View style={styles.card}>
           <SettingRow
             icon="people-outline"
             label="Manage Team"
             value={workerCount > 0 ? `${workerCount} worker${workerCount !== 1 ? 's' : ''}` : 'No workers yet'}
-            // ✅ CRITICAL FIX: Sending inviteCode to Workers Screen
-            onPress={() => router.push({ pathname: '/(app)/workers', params: { inviteCode } } as any)}
+            onPress={() => router.push('/(app)/workers')}
           />
-          <View style={styles.divider} />
-          
-          <View style={{ paddingVertical: 8 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                <Text style={styles.inputLabel}>Invite Code</Text>
-                <TouchableOpacity onPress={handleRegenerateCode}>
-                    <Text style={{ fontSize: 12, color: Colors.primary, fontWeight: '600' }}>Regenerate</Text>
-                </TouchableOpacity>
-            </View>
-            
-            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                <View style={styles.codeBox}>
-                    <Text style={styles.codeText}>{inviteCode}</Text>
-                </View>
-                <TouchableOpacity style={styles.copyBtn} onPress={handleCopyCode}>
-                    <Ionicons name="copy-outline" size={20} color="#fff" />
-                </TouchableOpacity>
-            </View>
-            <Text style={styles.hint}>Share this code to let workers join your team.</Text>
-          </View>
         </View>
 
-        {/* Contact Details */}
         <SectionHeader title="Contact Information" />
         <View style={styles.card}>
           <InputField label="Business Address" value={companyAddress} onChange={setCompanyAddress} icon="location-outline" placeholder="Full business address" multiline />
@@ -384,7 +306,6 @@ export default function SettingsScreen() {
           <InputField label="Phone Number" value={companyPhone} onChange={setCompanyPhone} icon="call-outline" placeholder="+44 7000 000000" />
         </View>
 
-        {/* Preferences */}
         <SectionHeader title="Preferences" />
         <View style={styles.card}>
           <SettingRow icon="notifications-outline" label="Push Notifications" hasToggle toggleValue={notificationsEnabled} onToggle={setNotificationsEnabled} />
@@ -392,12 +313,6 @@ export default function SettingsScreen() {
           <SettingRow icon="moon-outline" label="Dark Mode" hasToggle toggleValue={darkMode} onToggle={setDarkMode} />
         </View>
 
-        {/* Save Button */}
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSaveChanges} disabled={isLoading}>
-          <Text style={styles.saveBtnText}>{isLoading ? 'Saving...' : 'Save Changes'}</Text>
-        </TouchableOpacity>
-
-        {/* Support & Danger Zone */}
         <SectionHeader title="Support" />
         <View style={styles.card}>
           <SettingRow icon="help-circle-outline" label="Help Center" onPress={() => Linking.openURL('https://google.com')} />
@@ -405,7 +320,7 @@ export default function SettingsScreen() {
           <SettingRow icon="log-out-outline" label="Sign Out" isDestructive onPress={handleSignOut} />
         </View>
 
-        <Text style={styles.versionText}>TradeFlow v1.0.3</Text>
+        <Text style={styles.versionText}>TradeFlow v1.0.4</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -415,30 +330,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC', paddingHorizontal: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   screenTitle: { fontSize: 30, fontWeight: '800', color: Colors.text, letterSpacing: -0.5 },
-  
   profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 20, marginBottom: 30, ...Colors.shadow },
   avatarContainer: { width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   avatarText: { fontSize: 24, fontWeight: '700', color: '#fff' },
   profileName: { fontSize: 18, fontWeight: '700', color: Colors.text },
   profileRole: { fontSize: 13, color: Colors.textLight, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
-
   sectionHeader: { fontSize: 13, fontWeight: '700', color: Colors.textLight, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, marginLeft: 4 },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 24, ...Colors.shadow },
   divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 12 },
-
   logoSection: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
   logoPreview: { width: 70, height: 70, borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   logoImg: { width: '100%', height: '100%' },
   logoLabel: { fontSize: 15, fontWeight: '600', color: Colors.text },
   logoSub: { fontSize: 12, color: Colors.textLight, marginBottom: 8 },
   uploadLink: { fontSize: 13, fontWeight: '700', color: Colors.primary },
-
   inputContainer: { gap: 6 },
   inputLabel: { fontSize: 12, fontWeight: '600', color: Colors.text, marginLeft: 4 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12 },
   input: { flex: 1, paddingVertical: 12, fontSize: 15, color: Colors.text, fontWeight: '500' },
   textArea: { height: 80, textAlignVertical: 'top' },
-
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   iconBox: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   destructiveIconBox: { backgroundColor: '#FEF2F2' },
@@ -446,13 +356,7 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 15, fontWeight: '500', color: Colors.text },
   destructiveText: { color: Colors.danger, fontWeight: '600' },
   rowValue: { fontSize: 13, color: Colors.textLight, marginTop: 2 },
-
   saveBtn: { backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 24, ...Colors.shadow },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   versionText: { textAlign: 'center', color: Colors.textLight, fontSize: 11, marginBottom: 20 },
-
-  codeBox: { flex: 1, backgroundColor: '#F1F5F9', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
-  codeText: { fontSize: 18, fontWeight: '700', letterSpacing: 2, color: Colors.text },
-  copyBtn: { backgroundColor: Colors.primary, padding: 12, borderRadius: 8 },
-  hint: { fontSize: 12, color: Colors.textLight, marginTop: 8, fontStyle: 'italic' },
 });

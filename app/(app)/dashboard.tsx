@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router'; // <--- Added useFocusEffect
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     RefreshControl,
@@ -16,7 +16,7 @@ import { Colors } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
 
-// --- Local Types for Supabase Data (Snake Case) ---
+// --- Types ---
 interface DashboardJob {
   id: string;
   company_id: string;
@@ -25,24 +25,25 @@ interface DashboardJob {
   payment_status?: string;
   scheduled_date: number;
   price?: number;
+  assigned_to?: string[];
   customer_snapshot?: {
     name: string;
     address: string;
   };
 }
 
-// --- Components ---
+// --- Components (Your Original Components) ---
 
 const ActionButton = ({ 
   icon, 
   label, 
-  onPress,
+  onPress, 
   color = Colors.primary 
 }: { 
   icon: keyof typeof Ionicons.glyphMap; 
   label: string; 
-  onPress: () => void;
-  color?: string;
+  onPress: () => void; 
+  color?: string; 
 }) => (
   <TouchableOpacity style={styles.actionBtn} onPress={onPress} activeOpacity={0.7}>
     <View style={[styles.actionIconBox, { backgroundColor: `${color}10` }]}>
@@ -55,13 +56,13 @@ const ActionButton = ({
 const StatPill = ({ 
   label, 
   value, 
-  icon,
+  icon, 
   color 
 }: { 
   label: string; 
   value: string | number; 
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
+  icon: keyof typeof Ionicons.glyphMap; 
+  color: string; 
 }) => (
   <View style={styles.statPill}>
     <View style={[styles.pillIcon, { backgroundColor: `${color}15` }]}>
@@ -84,6 +85,7 @@ const JobCard = ({ job, isToday }: { job: DashboardJob; isToday?: boolean }) => 
     <TouchableOpacity 
       style={styles.jobCard} 
       activeOpacity={0.7}
+      // Point to the unified route
       onPress={() => router.push(`/(app)/jobs/${job.id}` as any)}
     >
       <View style={[styles.jobIndicator, { backgroundColor: statusColor }]} />
@@ -111,28 +113,40 @@ const JobCard = ({ job, isToday }: { job: DashboardJob; isToday?: boolean }) => 
 // --- Main Screen ---
 
 export default function DashboardScreen() {
-  const { userProfile } = useAuth();
+  const { userProfile, user } = useAuth();
   const insets = useSafeAreaInsets();
   const [allJobs, setAllJobs] = useState<DashboardJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [userProfile]);
+  const isAdmin = userProfile?.role === 'admin';
+
+  // ✅ FIX: Reload dashboard whenever screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (userProfile?.company_id) {
+        fetchDashboardData();
+      }
+    }, [userProfile])
+  );
 
   const fetchDashboardData = async () => {
-    // FIX: Accessing company_id (snake_case) as per your error message
     if (!userProfile?.company_id) return;
-    setLoading(true);
+    // Don't set loading to true here to avoid flickering on every focus
 
-    const { data } = await supabase
+    let query = supabase
       .from('jobs')
       .select('*')
       .eq('company_id', userProfile.company_id)
       .neq('status', 'cancelled')
       .order('scheduled_date', { ascending: true });
 
+    // WORKER FILTER: Only show jobs assigned to them
+    if (!isAdmin && user?.id) {
+       query = query.contains('assigned_to', [user.id]);
+    }
+
+    const { data } = await query;
     if (data) setAllJobs(data as any);
     setLoading(false);
     setRefreshing(false);
@@ -140,19 +154,20 @@ export default function DashboardScreen() {
 
   const stats = useMemo(() => {
     const now = new Date();
+    // ✅ FIX: Safer Midnight Calculation
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const endOfDay = startOfDay + 86400000;
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
 
-    // Filter Logic
     const active = allJobs.filter(j => j.status === 'in_progress').length;
     const pending = allJobs.filter(j => j.status === 'pending').length;
     
-    // Revenue (Paid jobs) - Checking snake_case fields
-    const revenue = allJobs
-      .filter(j => j.status === 'paid' || j.payment_status === 'paid')
-      .reduce((sum, j) => sum + (j.price || 0), 0);
+    // Only calculate revenue for Admins
+    const revenue = isAdmin 
+      ? allJobs
+          .filter(j => j.status === 'paid' || j.payment_status === 'paid')
+          .reduce((sum, j) => sum + (j.price || 0), 0)
+      : 0;
 
-    // Schedule Grouping
     const todaysJobs = allJobs.filter(j => 
       j.scheduled_date >= startOfDay && 
       j.scheduled_date < endOfDay
@@ -164,12 +179,12 @@ export default function DashboardScreen() {
     ).slice(0, 5);
 
     return { active, pending, revenue, todaysJobs, upcomingJobs };
-  }, [allJobs]);
+  }, [allJobs, isAdmin]);
 
   const formatCurrency = (amount: number) => 
     `£${amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
 
-  if (loading && !refreshing) {
+  if (loading && allJobs.length === 0) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={Colors.primary} />
@@ -177,7 +192,6 @@ export default function DashboardScreen() {
     );
   }
 
-  // FIX: Using snake_case display_name
   const firstName = userProfile?.display_name?.split(' ')[0] || 'There';
 
   return (
@@ -193,7 +207,7 @@ export default function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Header (Same for both) */}
         <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
           <View>
             <Text style={styles.headerDate}>
@@ -201,12 +215,12 @@ export default function DashboardScreen() {
             </Text>
             <Text style={styles.headerTitle}>Hello, {firstName}</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/(admin)/settings')} style={styles.profileBtn}>
+          <TouchableOpacity onPress={() => router.push('/(app)/settings')} style={styles.profileBtn}>
              <Text style={styles.profileText}>{firstName.charAt(0)}</Text>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Vital Stats - Clean & Horizontal */}
+        {/* Vital Stats - ADMIN sees Revenue, WORKER sees Completed count instead */}
         <Animated.View entering={FadeInDown.delay(200)} style={styles.statsRow}>
           <StatPill 
             label="Active Jobs" 
@@ -220,42 +234,78 @@ export default function DashboardScreen() {
             icon="time" 
             color={Colors.warning} 
           />
-          <StatPill 
-            label="Revenue" 
-            value={formatCurrency(stats.revenue)} 
-            icon="card" 
-            color={Colors.success} 
-          />
+          {isAdmin ? (
+            <StatPill 
+              label="Revenue" 
+              value={formatCurrency(stats.revenue)} 
+              icon="card" 
+              color={Colors.success} 
+            />
+          ) : (
+            <StatPill 
+              label="Completed" 
+              value={allJobs.filter(j => j.status === 'complete').length} 
+              icon="checkmark-circle" 
+              color={Colors.success} 
+            />
+          )}
         </Animated.View>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - ADMIN gets all tools, WORKER gets simple actions */}
         <Animated.View entering={FadeInDown.delay(300)} style={styles.actionGrid}>
-          <ActionButton 
-            label="New Job" 
-            icon="add" 
-            onPress={() => router.push('/(app)/jobs/create')} 
-          />
-          <ActionButton 
-            label="Add Client" 
-            icon="person-add-outline" 
-            color={Colors.text}
-            onPress={() => router.push('/(app)/customers/add')} 
-          />
-          <ActionButton 
-            label="All Jobs" 
-            icon="list-outline" 
-            color={Colors.text}
-            onPress={() => router.push('/(app)/jobs')} 
-          />
-           <ActionButton 
-            label="Team" 
-            icon="people-outline" 
-            color={Colors.text}
-            onPress={() => router.push('/(app)/workers' as any)} 
-          />
+          {isAdmin ? (
+            <>
+              <ActionButton 
+                label="New Job" 
+                icon="add" 
+                onPress={() => router.push('/(app)/jobs/create' as any)} 
+              />
+              <ActionButton 
+                label="Add Client" 
+                icon="person-add-outline" 
+                color={Colors.text}
+                onPress={() => router.push('/(app)/customers/add' as any)} 
+              />
+              <ActionButton 
+                label="All Jobs" 
+                icon="list-outline" 
+                color={Colors.text}
+                onPress={() => router.push('/(app)/jobs')} 
+              />
+              <ActionButton 
+                label="Team" 
+                icon="people-outline" 
+                color={Colors.text}
+                onPress={() => router.push('/(app)/workers' as any)} 
+              />
+            </>
+          ) : (
+             // WORKER ACTIONS (Simplified to fill the space using your same components)
+            <>
+               <TouchableOpacity 
+                 style={[styles.actionBtn, { width: '48%' }]} 
+                 onPress={() => router.push('/(app)/jobs')}
+               >
+                 <View style={[styles.actionIconBox, { backgroundColor: `${Colors.primary}10`, width: '100%' }]}>
+                   <Ionicons name="list-outline" size={24} color={Colors.primary} />
+                 </View>
+                 <Text style={styles.actionLabel}>My Schedule</Text>
+               </TouchableOpacity>
+
+               <TouchableOpacity 
+                 style={[styles.actionBtn, { width: '48%' }]} 
+                 onPress={() => router.push('/(app)/calendar')}
+               >
+                 <View style={[styles.actionIconBox, { backgroundColor: `${Colors.text}10`, width: '100%' }]}>
+                   <Ionicons name="calendar-outline" size={24} color={Colors.text} />
+                 </View>
+                 <Text style={styles.actionLabel}>Calendar View</Text>
+               </TouchableOpacity>
+            </>
+          )}
         </Animated.View>
 
-        {/* Today's Schedule */}
+        {/* Today's Schedule (Same for both) */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Today's Schedule</Text>
           {stats.todaysJobs.length === 0 ? (
@@ -267,7 +317,7 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Upcoming */}
+        {/* Upcoming (Same for both) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Up Next</Text>
@@ -300,6 +350,7 @@ export default function DashboardScreen() {
   );
 }
 
+// --- Styles (Your Exact Original Styles) ---
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

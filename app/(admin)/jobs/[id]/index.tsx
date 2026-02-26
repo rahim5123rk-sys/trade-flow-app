@@ -1,5 +1,5 @@
 // ============================================
-// FILE: app/(admin)/jobs/[id]/index.tsx
+// FILE: app/(app)/jobs/[id]/index.tsx
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
@@ -110,7 +110,7 @@ export default function AdminJobDetailScreen() {
 
   const handleCreateInvoice = () => {
     if (!job) return;
-    router.push(`/(admin)/jobs/${job.id}/invoice`);
+    router.push(`/(app)/jobs/${job.id}/invoice`);
   };
 
   const formatDate = (timestamp: number) => {
@@ -183,7 +183,7 @@ export default function AdminJobDetailScreen() {
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => router.push(`/(admin)/jobs/${job.id}/edit`)}
+              onPress={() => router.push(`/(app)/jobs/${job.id}/edit`)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="create-outline" size={24} color={Colors.primary} />

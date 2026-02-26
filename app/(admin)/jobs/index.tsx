@@ -89,7 +89,7 @@ export default function JobsListScreen() {
   const renderJob = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => router.push(`/(admin)/jobs/${item.id}`)}
+      onPress={() => router.push(`/(app)/jobs/${item.id}`)}
     >
       <View style={styles.cardHeader}>
         <Text style={styles.ref}>{item.reference}</Text>
@@ -192,7 +192,7 @@ export default function JobsListScreen() {
 
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push('/(admin)/jobs/create')}
+        onPress={() => router.push('/(app)/jobs/create')}
       >
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>

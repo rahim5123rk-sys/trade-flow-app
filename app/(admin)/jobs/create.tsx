@@ -1,5 +1,5 @@
 // ============================================
-// FILE: app/(admin)/jobs/create.tsx
+// FILE: app/(app)/jobs/create.tsx
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
@@ -227,7 +227,7 @@ export default function CreateJobScreen() {
       }
 
       Alert.alert('Success', 'Job created successfully.', [
-        { text: 'OK', onPress: () => router.replace('/(admin)/jobs') },
+        { text: 'OK', onPress: () => router.replace('/(app)/jobs') },
       ]);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create job.');
