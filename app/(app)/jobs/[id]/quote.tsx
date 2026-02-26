@@ -1,51 +1,51 @@
 // ============================================
-// FILE: app/(app)/.tsx
+// FILE: app/(app)/quotes/create.tsx
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../../constants/theme';
 import { supabase } from '../../../../src/config/supabase';
 import { useAuth } from '../../../../src/context/AuthContext';
 import {
-  DocumentData,
-  generateDocument,
-  LineItem,
+    DocumentData,
+    generateDocument,
+    LineItem,
 } from '../../../../src/services/DocumentGenerator';
 import { Customer } from '../../../../src/types';
 
-export default function CreateInvoiceScreen() {
+export default function CreateQuoteScreen() {
   const { userProfile } = useAuth();
   const insets = useSafeAreaInsets();
   
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  // Invoice Meta
-  const [invoiceNumber, setInvoiceNumber] = useState('1');
-  const [invoiceRef, setInvoiceRef] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  // Quote Meta
+  const [quoteNumber, setQuoteNumber] = useState('1001');
+  const [quoteRef, setQuoteRef] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
   const [items, setItems] = useState<LineItem[]>([{ description: '', quantity: 1, unitPrice: 0, vatPercent: 0 }]);
   const [discountPercent, setDiscountPercent] = useState('0');
   const [notes, setNotes] = useState(''); 
-  const [paymentInfo, setPaymentInfo] = useState('');
+  const [terms, setTerms] = useState('Valid for 30 days');
 
   // Customer Fields
   const [customerName, setCustomerName] = useState('');
@@ -61,8 +61,8 @@ export default function CreateInvoiceScreen() {
   const [jobCity, setJobCity] = useState('');
   const [jobPostcode, setJobPostcode] = useState('');
 
-  // UI
-  const [editingCustomer, setEditingCustomer] = useState(true);
+  // UI State
+  const [editingCustomer, setEditingCustomer] = useState(true); // Start expanded
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [existingCustomers, setExistingCustomers] = useState<Customer[]>([]);
 
@@ -73,6 +73,7 @@ export default function CreateInvoiceScreen() {
   const loadInitialData = async () => {
     if (!userProfile?.company_id) return;
 
+    // 1. Fetch Customers
     const { data: custData } = await supabase
       .from('customers')
       .select('*')
@@ -81,6 +82,7 @@ export default function CreateInvoiceScreen() {
     
     if (custData) setExistingCustomers(custData as Customer[]);
 
+    // 2. Fetch Settings (Next Quote #, Terms)
     const { data: companyData } = await supabase
       .from('companies')
       .select('settings')
@@ -89,28 +91,31 @@ export default function CreateInvoiceScreen() {
 
     if (companyData?.settings) {
       const s = companyData.settings;
-      if (s.invoiceNotes) setPaymentInfo(s.invoiceNotes);
-      if (s.nextInvoiceNumber) setInvoiceNumber(String(s.nextInvoiceNumber));
+      if (s.quoteTerms) setTerms(s.quoteTerms);
+      if (s.nextQuoteNumber) setQuoteNumber(String(s.nextQuoteNumber));
     }
 
-    const due = new Date();
-    due.setDate(due.getDate() + 14);
-    setDueDate(due.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
+    // Default Expiry (30 days)
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() + 30);
+    setExpiryDate(expiry.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
 
     setLoading(false);
   };
 
+  // --- Customer Selection Logic ---
   const handleSelectCustomer = (cust: Customer) => {
     setCustomerId(cust.id);
     setCustomerName(cust.name);
     setCustomerCompany(cust.company_name || '');
-    setCustomerAddress1(cust.address_line_1 || cust.address || '');
+    setCustomerAddress1(cust.address_line_1 || cust.address || ''); // Fallback
     setCustomerCity(cust.city || '');
     setCustomerPostcode(cust.postal_code || '');
     setShowCustomerPicker(false);
-    setEditingCustomer(false);
+    setEditingCustomer(false); // Collapse after selection
   };
 
+  // --- Item Logic ---
   const addLineItem = () => setItems([...items, { description: '', quantity: 1, unitPrice: 0, vatPercent: 0 }]);
   const removeLineItem = (index: number) => setItems(items.filter((_, i) => i !== index));
   const updateItem = (index: number, field: keyof LineItem, value: string) => {
@@ -132,13 +137,13 @@ export default function CreateInvoiceScreen() {
     try {
       const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      // Save Invoice as a 'Completed' record or 'Invoice' status
+      // 1. Save the Quote to DB (as a Job with status 'Quote')
       const combinedBilling = [customerAddress1, customerCity, customerPostcode].filter(Boolean).join(', ');
       
       await supabase.from('jobs').insert({
         company_id: userProfile.company_id,
-        reference: `INV-${invoiceNumber}`,
-        title: `Invoice for ${customerName}`,
+        reference: quoteRef || `Q-${quoteNumber}`,
+        title: `Quote for ${customerName}`,
         customer_id: customerId, 
         customer_snapshot: {
             name: customerName,
@@ -148,19 +153,20 @@ export default function CreateInvoiceScreen() {
             postal_code: customerPostcode,
             address: combinedBilling
         },
-        status: 'Unpaid', // Or 'Invoice Sent'
+        status: 'Quote', // Separate from active jobs
         scheduled_date: new Date().getTime(),
         price: subtotal,
         notes: notes
       });
 
+      // 2. Generate PDF
       const docData: DocumentData = {
-        type: 'invoice',
-        number: parseInt(invoiceNumber) || 1,
-        reference: invoiceRef || undefined,
+        type: 'quote',
+        number: parseInt(quoteNumber) || 1001,
+        reference: quoteRef || undefined,
         date: today,
-        expiryDate: dueDate || today,
-        status: 'Unpaid',
+        expiryDate: expiryDate || today,
+        status: 'Draft',
         
         customerName,
         customerCompany: customerCompany || undefined,
@@ -176,13 +182,12 @@ export default function CreateInvoiceScreen() {
         discountPercent: parseFloat(discountPercent) || 0,
         partialPayment: 0,
         notes: notes || undefined,
-        paymentInfo: paymentInfo || undefined
       };
 
       await generateDocument(docData, userProfile.company_id);
 
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to generate invoice.');
+      Alert.alert('Error', e.message || 'Failed to generate quote.');
     } finally {
       setGenerating(false);
     }
@@ -194,23 +199,25 @@ export default function CreateInvoiceScreen() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top + 10, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         
+        {/* Header with Back Button */}
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.screenTitle}>New Invoice</Text>
+          <Text style={styles.screenTitle}>New Quote</Text>
           <View style={{ width: 40 }} /> 
         </View>
 
+        {/* Quote Meta */}
         <View style={styles.card}>
           <View style={styles.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={styles.label}>Invoice #</Text>
-              <TextInput style={styles.input} value={invoiceNumber} onChangeText={setInvoiceNumber} keyboardType="number-pad" />
+              <Text style={styles.label}>Quote #</Text>
+              <TextInput style={styles.input} value={quoteNumber} onChangeText={setQuoteNumber} keyboardType="number-pad" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Due Date</Text>
-              <TextInput style={styles.input} value={dueDate} onChangeText={setDueDate} />
+              <Text style={styles.label}>Valid Until</Text>
+              <TextInput style={styles.input} value={expiryDate} onChangeText={setExpiryDate} />
             </View>
           </View>
         </View>
@@ -297,22 +304,27 @@ export default function CreateInvoiceScreen() {
           </View>
         ))}
 
+        {/* Totals */}
         <View style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.totalLabel}>Subtotal</Text>
+            <Text style={styles.totalLabel}>Total Estimate</Text>
             <Text style={styles.totalValue}>£{subtotal.toFixed(2)}</Text>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Notes & Payment</Text>
+        <Text style={styles.sectionTitle}>Scope / Notes</Text>
         <View style={styles.card}>
-          <TextInput style={[styles.input, { minHeight: 60 }]} value={notes} onChangeText={setNotes} placeholder="Notes..." multiline />
-          <Text style={[styles.label, { marginTop: 10 }]}>Payment Instructions</Text>
-          <TextInput style={[styles.input, { minHeight: 80 }]} value={paymentInfo} onChangeText={setPaymentInfo} placeholder="Bank Details..." multiline />
+          <TextInput
+            style={[styles.input, { minHeight: 80 }]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Scope of works, exclusions..."
+            multiline
+          />
         </View>
 
         <TouchableOpacity style={styles.generateBtn} onPress={handleGenerate} disabled={generating}>
-          {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateBtnText}>Generate Invoice PDF</Text>}
+          {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateBtnText}>Generate Quote PDF</Text>}
         </TouchableOpacity>
 
         {/* Customer Picker Modal */}
