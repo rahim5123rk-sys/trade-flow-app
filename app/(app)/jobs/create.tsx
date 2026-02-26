@@ -1,5 +1,6 @@
 // ============================================
 // FILE: app/(app)/jobs/create.tsx
+// Uses shared CustomerSelector component
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +10,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,79 +20,59 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {
+  buildCustomerInsert,
+  buildCustomerSnapshot,
+  CustomerFormData,
+  CustomerSelector,
+  EMPTY_CUSTOMER_FORM,
+} from '../../../components/CustomerSelector';
 import { WorkerPicker } from '../../../components/WorkerPicker';
 import { Colors } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
-import { Customer } from '../../../src/types';
 
 const DURATIONS = ['30 mins', '1 hour', '2 hours', '3 hours', '4 hours', 'Full day', 'Multi-day'];
 
 export default function CreateJobScreen() {
   const { userProfile, user } = useAuth();
-  
-  // ✅ ADDED: Capture the mode from the Dashboard button
-  const { mode } = useLocalSearchParams(); 
+  const { mode, prefillDate } = useLocalSearchParams();
   const isQuoteMode = mode === 'quote';
 
-  // --- Quick Entry Toggle ---
+  // ─── Customer State (shared component) ────────────────────────
+  const [customerForm, setCustomerForm] = useState<CustomerFormData>(EMPTY_CUSTOMER_FORM);
   const [isQuickEntry, setIsQuickEntry] = useState(false);
 
-  const [customerMode, setCustomerMode] = useState<'new' | 'existing'>('new');
-  const [existingCustomers, setExistingCustomers] = useState<Customer[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [showCustomerPicker, setShowCustomerPicker] = useState(false);
-
-  // Customer fields
-  const [customerName, setCustomerName] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [address1, setAddress1] = useState('');
-  const [address2, setAddress2] = useState('');
-  const [city, setCity] = useState('');
-  const [region, setRegion] = useState('');
-  const [postCode, setPostCode] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  
-  // Quick Address field (text only)
-  const [quickAddress, setQuickAddress] = useState('');
-
-  // Job fields
+  // ─── Job Fields ───────────────────────────────────────────────
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [price, setPrice] = useState('');
   const [estimatedDuration, setEstimatedDuration] = useState('1 hour');
 
-  // Scheduling
+  // ─── Scheduling ───────────────────────────────────────────────
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(9, 0, 0, 0);
-  const [scheduledDate, setScheduledDate] = useState<Date>(tomorrow);
+  const [scheduledDate, setScheduledDate] = useState<Date>(() => {
+    if (prefillDate && typeof prefillDate === 'string') {
+      const d = new Date(prefillDate + 'T09:00:00');
+      return isNaN(d.getTime()) ? tomorrow : d;
+    }
+    return tomorrow;
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
 
-  // Worker assignment
+  // ─── Worker Assignment ────────────────────────────────────────
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
-  const [showAssignSection, setShowAssignSection] = useState(false);
   const [hasWorkers, setHasWorkers] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!userProfile?.company_id) return;
-    fetchCustomers();
     checkForWorkers();
   }, [userProfile]);
-
-  const fetchCustomers = async () => {
-    const { data } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('company_id', userProfile?.company_id)
-      .order('name', { ascending: true });
-
-    if (data) setExistingCustomers(data as Customer[]);
-  };
 
   const checkForWorkers = async () => {
     const { count } = await supabase
@@ -100,13 +80,7 @@ export default function CreateJobScreen() {
       .select('id', { count: 'exact', head: true })
       .eq('company_id', userProfile?.company_id)
       .eq('role', 'worker');
-
     setHasWorkers((count || 0) > 0);
-  };
-
-  const handleSelectCustomer = (cust: Customer) => {
-    setSelectedCustomer(cust);
-    setShowCustomerPicker(false);
   };
 
   const adjustDate = (days: number) => {
@@ -126,6 +100,8 @@ export default function CreateJobScreen() {
     if (selected) setScheduledDate(selected);
   };
 
+  // ─── Submit ───────────────────────────────────────────────────
+
   const handleCreateJob = async () => {
     if (!userProfile?.company_id) {
       Alert.alert('Please Wait', 'Your company profile is still loading.');
@@ -137,19 +113,17 @@ export default function CreateJobScreen() {
       return;
     }
 
-    if (customerMode === 'new') {
-      if (!customerName.trim()) {
+    // Validate customer
+    if (!customerForm.customerId) {
+      // New customer mode
+      if (!customerForm.customerName.trim()) {
         Alert.alert('Missing Field', 'Customer Name is required.');
         return;
       }
-      // If full mode, ensure address bits are there
-      if (!isQuickEntry && (!address1.trim() || !postCode.trim())) {
+      if (!isQuickEntry && (!customerForm.addressLine1.trim() || !customerForm.postCode.trim())) {
         Alert.alert('Missing Field', 'Address Line 1 and Post Code are required in Full Mode.');
         return;
       }
-    } else if (!selectedCustomer) {
-      Alert.alert('Missing Field', 'Please select an existing customer.');
-      return;
     }
 
     setLoading(true);
@@ -164,61 +138,51 @@ export default function CreateJobScreen() {
       const currentCount = companyData?.settings?.nextJobNumber || 1;
       const reference = `TF-${new Date().getFullYear()}-${String(currentCount).padStart(4, '0')}`;
 
-      // Logic to determine combined address based on mode
-      const combinedAddress = isQuickEntry 
-        ? quickAddress.trim() || 'No address provided'
-        : [address1, address2, city, region, postCode].filter(Boolean).join(', ');
+      let customerId = customerForm.customerId || '';
+      let finalSnapshot: any;
 
-      let customerId = '';
-      let finalCustomerSnapshot: any = {};
+      if (!customerForm.customerId) {
+        // Create new customer
+        const insertPayload = buildCustomerInsert(customerForm, userProfile.company_id);
 
-      if (customerMode === 'new') {
-        finalCustomerSnapshot = {
-          name: customerName.trim(),
-          company_name: companyName.trim(),
-          address_line_1: isQuickEntry ? '' : address1.trim(),
-          address_line_2: isQuickEntry ? '' : address2.trim(),
-          city: isQuickEntry ? '' : city.trim(),
-          region: isQuickEntry ? '' : region.trim(),
-          postal_code: isQuickEntry ? '' : postCode.trim().toUpperCase(),
-          phone: customerPhone.trim(),
-          email: customerEmail.trim(),
-          address: combinedAddress,
-        };
+        // In quick mode, override address with the single field
+        if (isQuickEntry) {
+          insertPayload.address = customerForm.addressLine1.trim() || 'No address provided';
+          insertPayload.address_line_1 = customerForm.addressLine1.trim();
+        }
 
         const { data: newCust, error: custError } = await supabase
           .from('customers')
-          .insert({
-            company_id: userProfile.company_id,
-            ...finalCustomerSnapshot,
-          })
+          .insert(insertPayload)
           .select()
           .single();
 
         if (custError) throw custError;
         customerId = newCust.id;
-      } else if (selectedCustomer) {
-        customerId = selectedCustomer.id;
-        finalCustomerSnapshot = { ...selectedCustomer };
+        finalSnapshot = buildCustomerSnapshot(customerForm);
+      } else {
+        finalSnapshot = buildCustomerSnapshot(customerForm);
       }
 
       const finalAssignedTo = assignedTo.length > 0 ? assignedTo : user?.id ? [user.id] : [];
 
-      // ✅ ADDED: Create the job row
-      const { data: newJob, error: jobError } = await supabase.from('jobs').insert({
-        company_id: userProfile.company_id,
-        reference,
-        title: title.trim(),
-        customer_id: customerId,
-        customer_snapshot: finalCustomerSnapshot,
-        assigned_to: finalAssignedTo,
-        // If it's a quote, we can mark it as 'Quote' or 'Pending' depending on your workflow preference
-        status: isQuoteMode ? 'Quote' : 'pending', 
-        scheduled_date: scheduledDate.getTime(),
-        estimated_duration: estimatedDuration,
-        price: price ? parseFloat(price) : null,
-        notes: notes.trim() || null,
-      }).select().single();
+      const { data: newJob, error: jobError } = await supabase
+        .from('jobs')
+        .insert({
+          company_id: userProfile.company_id,
+          reference,
+          title: title.trim(),
+          customer_id: customerId,
+          customer_snapshot: finalSnapshot,
+          assigned_to: finalAssignedTo,
+          status: isQuoteMode ? 'Quote' : 'pending',
+          scheduled_date: scheduledDate.getTime(),
+          estimated_duration: estimatedDuration,
+          price: price ? parseFloat(price) : null,
+          notes: notes.trim() || null,
+        })
+        .select()
+        .single();
 
       if (jobError) throw jobError;
 
@@ -229,18 +193,13 @@ export default function CreateJobScreen() {
         })
         .eq('id', userProfile.company_id);
 
-      // ✅ ADDED: Specific Redirect Logic
       if (isQuoteMode && newJob?.id) {
-        // Go to the Quote Generator Screen
-        // We use 'replace' so going 'back' from the quote screen goes to dashboard, not here
         router.replace({ pathname: '/(app)/jobs/[id]/quote', params: { id: newJob.id } });
       } else {
-        // Normal Job Creation Flow
         Alert.alert('Success', 'Job created successfully.', [
           { text: 'OK', onPress: () => router.replace('/(app)/jobs') },
         ]);
       }
-
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create job.');
     } finally {
@@ -251,18 +210,23 @@ export default function CreateJobScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        
-        {/* --- Quick Entry Header --- */}
+
+        {/* Header */}
         <View style={styles.quickToggleRow}>
           <View>
-            {/* ✅ ADDED: Dynamic Title based on Mode */}
-            <Text style={styles.modeTitle}>{isQuoteMode ? 'Start New Quote' : isQuickEntry ? 'Quick Add' : 'Detailed Job'}</Text>
+            <Text style={styles.modeTitle}>
+              {isQuoteMode ? 'Start New Quote' : isQuickEntry ? 'Quick Add' : 'Detailed Job'}
+            </Text>
             <Text style={styles.modeSubtitle}>
-              {isQuoteMode ? 'Enter initial details to generate quote' : (isQuickEntry ? 'Basic info only' : 'Full customer & job details')}
+              {isQuoteMode
+                ? 'Enter initial details to generate quote'
+                : isQuickEntry
+                ? 'Basic info only'
+                : 'Full customer & job details'}
             </Text>
           </View>
-          <TouchableOpacity 
-            style={[styles.modeToggle, isQuickEntry && styles.modeToggleActive]} 
+          <TouchableOpacity
+            style={[styles.modeToggle, isQuickEntry && styles.modeToggleActive]}
             onPress={() => setIsQuickEntry(!isQuickEntry)}
           >
             <Ionicons name={isQuickEntry ? 'flash' : 'list'} size={20} color={isQuickEntry ? '#fff' : Colors.primary} />
@@ -272,147 +236,16 @@ export default function CreateJobScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Customer Mode Toggle */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, customerMode === 'new' && styles.activeTab]}
-            onPress={() => setCustomerMode('new')}
-          >
-            <Text style={[styles.tabText, customerMode === 'new' && styles.activeTabText]}>New Customer</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, customerMode === 'existing' && styles.activeTab]}
-            onPress={() => setCustomerMode('existing')}
-          >
-            <Text style={[styles.tabText, customerMode === 'existing' && styles.activeTabText]}>Existing</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Customer Details */}
-        <View style={styles.card}>
-          {customerMode === 'new' ? (
-            <>
-              <Text style={styles.label}>Contact Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Sarah Jenkins"
-                placeholderTextColor="#94a3b8"
-                value={customerName}
-                onChangeText={setCustomerName}
-              />
-
-              {/* In Quick Mode, use a simple address string */}
-              {isQuickEntry ? (
-                <>
-                  <Text style={styles.label}>Address / Location (Optional)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. 12 High St, WR1"
-                    placeholderTextColor="#94a3b8"
-                    value={quickAddress}
-                    onChangeText={setQuickAddress}
-                  />
-                </>
-              ) : (
-                <>
-                  <Text style={styles.label}>Company Name</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. Jenkins Plumbing Ltd"
-                    placeholderTextColor="#94a3b8"
-                    value={companyName}
-                    onChangeText={setCompanyName}
-                  />
-
-                  <Text style={styles.label}>Address Line 1 *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Street address"
-                    placeholderTextColor="#94a3b8"
-                    value={address1}
-                    onChangeText={setAddress1}
-                  />
-
-                  <Text style={styles.label}>Address Line 2</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Apt / Suite / Unit"
-                    placeholderTextColor="#94a3b8"
-                    value={address2}
-                    onChangeText={setAddress2}
-                  />
-
-                  <View style={styles.row}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text style={styles.label}>City</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Worcester"
-                        placeholderTextColor="#94a3b8"
-                        value={city}
-                        onChangeText={setCity}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Post Code *</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="WR1 1PA"
-                        placeholderTextColor="#94a3b8"
-                        autoCapitalize="characters"
-                        value={postCode}
-                        onChangeText={setPostCode}
-                      />
-                    </View>
-                  </View>
-                </>
-              )}
-
-              {/* Show contact info in both modes if desired, or hide in quick */}
-              <View style={styles.row}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.label}>Phone</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="07700..."
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="phone-pad"
-                    value={customerPhone}
-                    onChangeText={setCustomerPhone}
-                  />
-                </View>
-                {!isQuickEntry && (
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Email</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="email@..."
-                      placeholderTextColor="#94a3b8"
-                      keyboardType="email-address"
-                      value={customerEmail}
-                      onChangeText={setCustomerEmail}
-                    />
-                  </View>
-                )}
-              </View>
-            </>
-          ) : (
-            <>
-              <Text style={styles.label}>Select Customer *</Text>
-              <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowCustomerPicker(true)}>
-                <Text style={selectedCustomer ? styles.pickerText : styles.placeholderText}>
-                  {selectedCustomer ? selectedCustomer.name : 'Tap to search...'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#94a3b8" />
-              </TouchableOpacity>
-              {selectedCustomer && (
-                <View style={{ marginTop: 12 }}>
-                  <Text style={styles.readOnlyText}>{selectedCustomer.address}</Text>
-                </View>
-              )}
-            </>
-          )}
-        </View>
+        {/* ✅ SHARED CUSTOMER SELECTOR */}
+        <CustomerSelector
+          value={customerForm}
+          onChange={setCustomerForm}
+          mode="full"
+          showQuickToggle={false}
+          quickEntry={isQuickEntry}
+          onQuickToggleChange={setIsQuickEntry}
+          showJobAddress={!isQuickEntry}
+        />
 
         {/* Job Details */}
         <Text style={styles.sectionTitle}>Details</Text>
@@ -468,12 +301,15 @@ export default function CreateJobScreen() {
         <Text style={styles.sectionTitle}>Schedule</Text>
         <View style={styles.card}>
           {isQuickEntry ? (
-            <TouchableOpacity style={styles.dateDisplay} onPress={() => { setPickerMode('date'); setShowDatePicker(true); }}>
+            <TouchableOpacity
+              style={styles.dateDisplay}
+              onPress={() => { setPickerMode('date'); setShowDatePicker(true); }}
+            >
               <View style={styles.row}>
                 <Ionicons name="calendar-outline" size={20} color={Colors.primary} style={{ marginRight: 10 }} />
                 <Text style={[styles.dateText, { textAlign: 'left' }]}>
-                  {scheduledDate.toLocaleString('en-GB', { 
-                    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' 
+                  {scheduledDate.toLocaleString('en-GB', {
+                    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                   })}
                 </Text>
               </View>
@@ -531,7 +367,7 @@ export default function CreateJobScreen() {
           </View>
         </Modal>
 
-        {/* Assign To - Only show for Jobs, or Optional for quotes */}
+        {/* Assign To */}
         {hasWorkers && !isQuoteMode && (
           <>
             <Text style={styles.sectionTitle}>Assign To (Optional)</Text>
@@ -545,35 +381,9 @@ export default function CreateJobScreen() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            // ✅ ADDED: Dynamic Button Text
             <Text style={styles.submitText}>{isQuoteMode ? 'Next: Generate Quote' : 'Create Job'}</Text>
           )}
         </TouchableOpacity>
-
-        {/* Customer Picker Modal */}
-        <Modal visible={showCustomerPicker} animationType="slide" transparent>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Select Customer</Text>
-                <TouchableOpacity onPress={() => setShowCustomerPicker(false)}>
-                  <Ionicons name="close" size={24} />
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                data={existingCustomers}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.customerItem} onPress={() => handleSelectCustomer(item)}>
-                    <Text style={styles.customerName}>{item.name}</Text>
-                    <Text style={styles.customerAddr}>{item.address}</Text>
-                  </TouchableOpacity>
-                )}
-                ListEmptyComponent={<Text style={{ padding: 20, textAlign: 'center', color: '#94a3b8' }}>No customers found.</Text>}
-              />
-            </View>
-          </View>
-        </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -581,44 +391,25 @@ export default function CreateJobScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc', padding: 16 },
-  
   quickToggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingHorizontal: 4 },
   modeTitle: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
   modeSubtitle: { fontSize: 13, color: '#64748b' },
   modeToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e2e8f0', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, gap: 6 },
   modeToggleActive: { backgroundColor: Colors.primary },
   modeToggleText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
-
-  tabContainer: { flexDirection: 'row', backgroundColor: '#e2e8f0', borderRadius: 12, padding: 4, marginBottom: 16 },
-  tab: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 10 },
-  activeTab: { backgroundColor: '#fff', elevation: 2 },
-  tabText: { fontWeight: '600', color: '#64748b' },
-  activeTabText: { color: '#0f172a', fontWeight: '700' },
   card: { backgroundColor: '#fff', padding: 16, borderRadius: 16, ...Colors.shadow, marginBottom: 12 },
   label: { fontSize: 11, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 6 },
   input: { backgroundColor: '#f8fafc', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 12, fontSize: 16, color: Colors.text },
   textArea: { minHeight: 90, textAlignVertical: 'top' },
   row: { flexDirection: 'row' },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: '#64748b', marginTop: 16, marginBottom: 8, textTransform: 'uppercase', paddingLeft: 4 },
-  pickerBtn: { backgroundColor: '#f8fafc', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pickerText: { fontSize: 16, color: '#0f172a', fontWeight: '600' },
-  placeholderText: { fontSize: 16, color: '#94a3b8' },
-  readOnlyText: { color: '#64748b', fontSize: 14, fontStyle: 'italic' },
   adjustBtn: { padding: 10, backgroundColor: '#f1f5f9', borderRadius: 10 },
   dateDisplay: { flex: 1, justifyContent: 'center' },
   dateText: { textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#0f172a' },
-  soloAssignHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, marginTop: 8 },
-  soloAssignText: { fontSize: 13, color: Colors.textLight, fontStyle: 'italic' },
   submitBtn: { backgroundColor: Colors.primary, padding: 20, borderRadius: 16, alignItems: 'center', marginTop: 24, marginBottom: 40, ...Colors.shadow },
   submitText: { color: '#fff', fontWeight: '800', fontSize: 17 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 20, maxHeight: '80%', padding: 20 },
   pickerModalContent: { backgroundColor: '#ffffff', borderRadius: 20, padding: 20, alignItems: 'center' },
   confirmBtn: { marginTop: 20, backgroundColor: Colors.primary, padding: 12, borderRadius: 10, width: '100%', alignItems: 'center' },
   confirmBtnText: { color: '#fff', fontWeight: '700' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#0f172a' },
-  customerItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f8fafc' },
-  customerName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
-  customerAddr: { fontSize: 13, color: '#64748b', marginTop: 2 },
 });

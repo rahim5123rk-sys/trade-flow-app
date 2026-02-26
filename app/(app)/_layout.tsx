@@ -20,7 +20,6 @@ export default function AppLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  // Logic: Are they an Admin?
   const isAdmin = userProfile?.role === 'admin';
 
   return (
@@ -68,12 +67,24 @@ export default function AppLayout() {
           ),
         }}
       />
+
+      {/* NEW: Documents tab (Quotes & Invoices) — Admin only */}
+      <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Docs',
+          href: isAdmin ? undefined : null,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="documents-outline" size={22} color={color} />
+          ),
+        }}
+        redirect={!isAdmin}
+      />
       
       <Tabs.Screen
         name="customers"
         options={{
           title: 'Customers',
-          // HIDE THIS TAB IF NOT ADMIN
           href: isAdmin ? undefined : null,
           tabBarIcon: ({ color }) => (
             <Ionicons name="people-outline" size={22} color={color} />
