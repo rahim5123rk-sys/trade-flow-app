@@ -2,17 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, UI } from '../../constants/theme';
@@ -204,7 +204,7 @@ export default function RegisterScreen() {
             );
           }
 
-          // Check if profile already exists
+          // Check if profile already exists with a company
           const { data: existingAuthProfile } = await supabase
             .from('profiles')
             .select('id, company_id')
@@ -216,20 +216,16 @@ export default function RegisterScreen() {
               'An account with this email already exists. Please log in instead.'
             );
           }
-          // If profile exists but no company, we continue to Step 3 logic to fix it.
 
           userId = signInData.user!.id;
         } else {
           throw authError;
         }
       } else {
-        // signUp returned no error but check if we actually got a real user
-        // (Supabase can return a fake user with empty identities for existing emails)
         if (!authData.user) throw new Error('No user returned from sign up.');
 
         const identities = authData.user.identities ?? [];
         if (identities.length === 0) {
-          // This means the email already exists — Supabase returns a fake user to prevent enumeration
           throw new Error(
             'An account with this email already exists. Please log in instead.'
           );
@@ -279,131 +275,87 @@ export default function RegisterScreen() {
       }
 
       console.log('[Register] Session active, token starts with:', currentSession.access_token.substring(0, 20) + '...');
-      console.log('[Register] Step 3: Preparing to create company/profile...');
 
-      // 3. Create Company/Profile via RPC to avoid hanging PostgREST inserts
+      // 3. Create Company/Profile via RPC
       let companyId = '';
       let userRole = '';
 
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+      const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+      const rpcHeaders = {
+        'Content-Type': 'application/json',
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${currentSession.access_token}`,
+      };
+
       if (mode === 'create') {
-        console.log('[Register] Step 3: Creating company + profile (RPC)...');
+        console.log('[Register] Step 3: Calling create RPC via raw fetch...');
         const code = generateInviteCode();
 
-        // --- CHECK EXISTING PROFILE FIRST ---
-        // Prevents timeouts if a trigger on auth.users already created the profile
-        console.log('[Register] Checking for existing profile (5s timeout)...');
-        let existingProfile = null;
-        try {
-          const checkRes = await withTimeout<any>(
-             supabase
-              .from('profiles')
-              .select('id, company_id')
-              .eq('id', userId)
-              .maybeSingle(),
-             5000,
-             'Profile Check'
-          );
-          existingProfile = checkRes.data;
-          console.log('[Register] Profile check complete. Found:', !!existingProfile);
-        } catch (e) {
-          console.warn('[Register] Profile check timed out. Proceeding...');
+        const fetchResponse = await withTimeout(
+          fetch(`${supabaseUrl}/rest/v1/rpc/create_company_and_profile`, {
+            method: 'POST',
+            headers: rpcHeaders,
+            body: JSON.stringify({
+              p_user_id: userId,
+              p_email: email.trim(),
+              p_display_name: fullName.trim(),
+              p_company_name: companyName.trim(),
+              p_company_address: businessAddress.trim(),
+              p_company_phone: businessPhone.trim(),
+              p_trade: trade,
+              p_invite_code: code,
+              p_role: 'admin',
+              p_consent_given_at: new Date().toISOString(),
+            }),
+          }),
+          30000,
+          'Create company/profile RPC (fetch)'
+        );
+
+        const response = fetchResponse as Response;
+        console.log('[Register] Fetch status:', response.status);
+        const rpcData = await response.json();
+        console.log('[Register] Fetch response:', JSON.stringify(rpcData));
+
+        if (response.status !== 200) {
+          throw new Error('RPC failed: ' + JSON.stringify(rpcData));
         }
 
-        let rpcResult;
-        
-        if (existingProfile) {
-           console.log('[Register] NOTICE: Profile already exists (trigger likely fired). Handling manually...');
-           // Simulate RPC success structure for downstream logic
-           if (existingProfile.company_id) {
-             console.log('[Register] Profile already linked to company:', existingProfile.company_id);
-             rpcResult = { data: { company_id: existingProfile.company_id }, error: null };
-           } else {
-             console.log('[Register] Profile exists but no company. Creating company manually...');
-             // 1. Create Company
-             const manualCode = generateInviteCode();
-             const { data: companyData, error: companyError } = await supabase
-              .from('companies')
-              .insert({
-                name: companyName.trim(),
-                address: businessAddress.trim(),
-                phone: businessPhone.trim(),
-                invite_code: manualCode,
-              })
-              .select('id')
-              .single();
-
-             if (companyError) throw new Error('Failed to create company manually: ' + companyError.message);
-             const newCompanyId = companyData.id;
-
-             // 2. Update Profile
-             const { error: updateError } = await supabase
-              .from('profiles')
-              .update({
-                company_id: newCompanyId,
-                role: 'admin',
-                display_name: fullName.trim(),
-                email: email.trim(),
-                trade: trade,
-              })
-              .eq('id', userId);
-
-             if (updateError) throw new Error('Failed to update profile manually: ' + updateError.message);
-             
-             rpcResult = { data: { company_id: newCompanyId }, error: null };
-           }
-        } else {
-            console.log('[Register] No existing profile. Calling RPC with 30s timeout...');
-            rpcResult = await withTimeout<any>(
-            supabase
-                .rpc('create_company_and_profile', {
-                p_user_id: userId,
-                p_email: email.trim(),
-                p_display_name: fullName.trim(),
-                p_company_name: companyName.trim(),
-                p_company_address: businessAddress.trim(),
-                p_company_phone: businessPhone.trim(),
-                p_trade: trade,
-                p_invite_code: code,
-                p_role: 'admin',
-                p_consent_given_at: new Date().toISOString(),
-                })
-                .then((res) => res),
-            30000,
-            'Create company/profile RPC'
-            );
-        }
-
-        if (rpcResult.error) {
-          throw new Error('Failed to create company/profile: ' + rpcResult.error.message);
-        }
-
-        if (!rpcResult.data?.company_id) {
+        companyId = rpcData.company_id;
+        if (!companyId) {
           throw new Error('Company/profile created but no company id returned.');
         }
-
-        companyId = rpcResult.data.company_id;
         userRole = 'admin';
         console.log('[Register] Company created:', companyId);
       } else {
         if (!foundCompany) throw new Error('Company not confirmed');
-        console.log('[Register] Step 3: Joining company + profile (RPC)...');
-        const rpcResult = await withTimeout<any>(
-          supabase
-            .rpc('join_company_and_profile', {
+        console.log('[Register] Step 3: Calling join RPC via raw fetch...');
+
+        const fetchResponse = await withTimeout(
+          fetch(`${supabaseUrl}/rest/v1/rpc/join_company_and_profile`, {
+            method: 'POST',
+            headers: rpcHeaders,
+            body: JSON.stringify({
               p_user_id: userId,
               p_company_id: foundCompany.id,
               p_email: email.trim(),
               p_display_name: fullName.trim(),
               p_role: 'worker',
               p_consent_given_at: new Date().toISOString(),
-            })
-            .then((res) => res),
-          10000,
-          'Join company/profile RPC'
+            }),
+          }),
+          30000,
+          'Join company/profile RPC (fetch)'
         );
 
-        if (rpcResult.error) {
-          throw new Error('Failed to join company/profile: ' + rpcResult.error.message);
+        const response = fetchResponse as Response;
+        console.log('[Register] Join fetch status:', response.status);
+        const rpcData = await response.json();
+        console.log('[Register] Join fetch response:', JSON.stringify(rpcData));
+
+        if (response.status !== 200) {
+          throw new Error('Join RPC failed: ' + JSON.stringify(rpcData));
         }
 
         companyId = foundCompany.id;
@@ -411,8 +363,8 @@ export default function RegisterScreen() {
         console.log('[Register] Joined company:', companyId);
       }
 
-      // 5. Complete
-      console.log('[Register] Step 5: Finalising...');
+      // 4. Complete
+      console.log('[Register] Step 4: Finalising...');
       setRegistering(false);
       const refreshResult = await Promise.race([
         refreshProfile(),
@@ -518,11 +470,11 @@ export default function RegisterScreen() {
 
                 <View style={styles.field}>
                   <Text style={styles.label}>Business Name</Text>
-                  <TextInput style={styles.input} value={companyName} onChangeText={setCompanyName} placeholder="e.g. Smith’s Plumbing Ltd" placeholderTextColor="#94a3b8" />
+                  <TextInput style={styles.input} value={companyName} onChangeText={setCompanyName} placeholder="e.g. Smith's Plumbing Ltd" placeholderTextColor="#94a3b8" />
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={styles.label}>What’s your trade?</Text>
+                  <Text style={styles.label}>What's your trade?</Text>
                   <View style={styles.tradeGrid}>
                     {TRADES.map((t) => (
                       <TouchableOpacity

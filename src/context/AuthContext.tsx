@@ -41,24 +41,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const isRegistering = useRef(false);
 
-
   const fetchProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+      const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-      if (error) {
-        console.error('Profile query error:', error.message, error.code);
+      // Get the current session token
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
+      if (!token) {
+        console.log('No token available for profile fetch');
         return null;
       }
 
-      if (data) {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error('Profile fetch failed:', response.status);
+        return null;
+      }
+
+      const rows = await response.json();
+      if (rows && rows.length > 0) {
         console.log('Profile loaded successfully');
-        setUserProfile(data);
-        return data;
+        setUserProfile(rows[0]);
+        return rows[0];
       }
 
       console.log('No profile found for user');
@@ -71,14 +88,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const initAuth = async () => {
-      // Show login immediately; load session/profile in background
       setIsLoading(false);
       try {
+        // Don't do anything if we're in the middle of registration
+        if (isRegistering.current) return;
+
         const { data: { session } } = await supabase.auth.getSession();
+
+        // Check again after await — registration may have started while we were waiting
+        if (isRegistering.current) return;
+
         setSession(session);
         if (session?.user) {
           const profile = await fetchProfile(session.user.id);
-          // If session exists but no profile, sign out to avoid stuck state
           if (!profile && !isRegistering.current) {
             console.log('Session exists but no profile — signing out');
             await supabase.auth.signOut();
