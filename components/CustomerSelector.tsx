@@ -66,8 +66,7 @@ interface CustomerSelectorProps {
   quickEntry?: boolean;
   onQuickToggleChange?: (isQuick: boolean) => void;
   showJobAddress?: boolean;
-  /** 
-   * 'none' = normal editing (create job)
+  /** * 'none' = normal editing (create job)
    * 'locked' = show read-only summary with Edit button (invoice/quote prefill)
    */
   prefillMode?: 'none' | 'locked';
@@ -95,12 +94,17 @@ export function CustomerSelector({
   const [searchText, setSearchText] = useState('');
   const [isQuick, setIsQuick] = useState(quickEntry);
 
-  // Prefill editing state
-  const [isEditingPrefill, setIsEditingPrefill] = useState(false);
-  const [originalPrefill, setOriginalPrefill] = useState<CustomerFormData | null>(null);
+  // Editing state — tracks when user is modifying an existing customer's details
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalData, setOriginalData] = useState<CustomerFormData | null>(null);
 
+  // UPDATED: Sync customer mode when the ID changes (e.g., saving as new)
   useEffect(() => {
-    if (value.customerId) setCustomerMode('existing');
+    if (value.customerId) {
+      setCustomerMode('existing');
+    } else {
+      setCustomerMode('new');
+    }
   }, [value.customerId]);
 
   useEffect(() => { fetchCustomers(); }, [userProfile?.company_id]);
@@ -141,41 +145,42 @@ export function CustomerSelector({
     onQuickToggleChange?.(val);
   };
 
-  // ─── Prefill Edit Logic ───────────────────────────────────────
+  // ─── Edit existing customer logic ─────────────────────────────
 
-  const startEditingPrefill = () => {
-    setOriginalPrefill({ ...value });
-    setIsEditingPrefill(true);
+  const startEditing = () => {
+    setOriginalData({ ...value });
+    setIsEditing(true);
   };
 
-  const cancelEditingPrefill = () => {
-    if (originalPrefill) onChange(originalPrefill);
-    setIsEditingPrefill(false);
-    setOriginalPrefill(null);
+  const cancelEditing = () => {
+    if (originalData) onChange(originalData);
+    setIsEditing(false);
+    setOriginalData(null);
   };
 
-  const confirmEditingPrefill = async () => {
-    if (!originalPrefill) { setIsEditingPrefill(false); return; }
+  // UPDATED: Properly handles database refreshes and UI state resets
+  const confirmEditing = async () => {
+    if (!originalData) { setIsEditing(false); return; }
 
     // Check if anything changed
     const changed =
-      value.customerName !== originalPrefill.customerName ||
-      value.customerCompany !== originalPrefill.customerCompany ||
-      value.addressLine1 !== originalPrefill.addressLine1 ||
-      value.addressLine2 !== originalPrefill.addressLine2 ||
-      value.city !== originalPrefill.city ||
-      value.region !== originalPrefill.region ||
-      value.postCode !== originalPrefill.postCode ||
-      value.phone !== originalPrefill.phone ||
-      value.email !== originalPrefill.email;
+      value.customerName !== originalData.customerName ||
+      value.customerCompany !== originalData.customerCompany ||
+      value.addressLine1 !== originalData.addressLine1 ||
+      value.addressLine2 !== originalData.addressLine2 ||
+      value.city !== originalData.city ||
+      value.region !== originalData.region ||
+      value.postCode !== originalData.postCode ||
+      value.phone !== originalData.phone ||
+      value.email !== originalData.email;
 
     if (!changed) {
-      setIsEditingPrefill(false);
-      setOriginalPrefill(null);
+      setIsEditing(false);
+      setOriginalData(null);
       return;
     }
 
-    // If existing customer, ask what to do
+    // If this was an existing customer, ask what to do
     if (value.customerId) {
       Alert.alert(
         'Customer Changed',
@@ -184,19 +189,20 @@ export function CustomerSelector({
           {
             text: 'Cancel',
             style: 'cancel',
-            onPress: cancelEditingPrefill,
+            onPress: cancelEditing,
           },
           {
             text: 'Update Existing',
             onPress: async () => {
               try {
                 await updateExistingCustomer(value.customerId!, value);
+                await fetchCustomers(); // Refresh the list from Supabase
                 Alert.alert('Updated', 'Customer details have been updated permanently.');
               } catch (e) {
                 Alert.alert('Error', 'Could not update customer.');
               }
-              setIsEditingPrefill(false);
-              setOriginalPrefill(null);
+              setIsEditing(false);
+              setOriginalData(null);
             },
           },
           {
@@ -204,16 +210,18 @@ export function CustomerSelector({
             style: 'default',
             onPress: () => {
               onChange({ ...value, customerId: null });
+              setCustomerMode('new'); // Force the UI to 'New Customer'
               Alert.alert('Got it', 'A new customer will be created when you save.');
-              setIsEditingPrefill(false);
-              setOriginalPrefill(null);
+              setIsEditing(false);
+              setOriginalData(null);
             },
           },
         ]
       );
     } else {
-      setIsEditingPrefill(false);
-      setOriginalPrefill(null);
+      // New customer — just accept changes
+      setIsEditing(false);
+      setOriginalData(null);
     }
   };
 
@@ -223,7 +231,7 @@ export function CustomerSelector({
       c.address.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const isLocked = prefillMode === 'locked' && !isEditingPrefill;
+  const isLocked = prefillMode === 'locked' && !isEditing;
 
   // ─── Render ───────────────────────────────────────────────────
 
@@ -237,7 +245,7 @@ export function CustomerSelector({
         </View>
       )}
 
-      {/* ─── LOCKED PREFILL VIEW ─── */}
+      {/* ─── LOCKED VIEW (prefilled or selected existing) ─── */}
       {isLocked && value.customerName ? (
         <View style={styles.prefillCard}>
           <View style={styles.prefillHeader}>
@@ -248,7 +256,7 @@ export function CustomerSelector({
               <Text style={styles.prefillName}>{value.customerName}</Text>
               {value.customerCompany ? <Text style={styles.prefillCompany}>{value.customerCompany}</Text> : null}
             </View>
-            <TouchableOpacity style={styles.editBtn} onPress={startEditingPrefill}>
+            <TouchableOpacity style={styles.editBtn} onPress={startEditing}>
               <Ionicons name="create-outline" size={18} color={Colors.primary} />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
@@ -277,8 +285,8 @@ export function CustomerSelector({
         </View>
       ) : null}
 
-      {/* ─── EDITING PREFILL BANNER ─── */}
-      {isEditingPrefill && (
+      {/* ─── EDITING BANNER ─── */}
+      {isEditing && (
         <View style={styles.editingBanner}>
           <Text style={styles.editingTitle}>Editing Customer Details</Text>
           <Text style={styles.editingSub}>Change any fields. You'll choose to update or save as new.</Text>
@@ -288,8 +296,8 @@ export function CustomerSelector({
       {/* ─── EDITABLE FIELDS ─── */}
       {(!isLocked) && (
         <>
-          {/* New / Existing Tabs — only in normal mode */}
-          {!isEditingPrefill && prefillMode === 'none' && (
+          {/* New / Existing Tabs — only in normal mode (not editing) */}
+          {!isEditing && prefillMode === 'none' && (
             <View style={styles.tabContainer}>
               <TouchableOpacity style={[styles.tab, customerMode === 'new' && styles.activeTab]} onPress={() => setCustomerMode('new')}>
                 <Text style={[styles.tabText, customerMode === 'new' && styles.activeTabText]}>New Customer</Text>
@@ -300,8 +308,8 @@ export function CustomerSelector({
             </View>
           )}
 
-          {/* EXISTING mode (not editing prefill) */}
-          {customerMode === 'existing' && !isEditingPrefill ? (
+          {/* EXISTING mode picker (not editing) */}
+          {customerMode === 'existing' && !isEditing ? (
             <View style={styles.card}>
               <Text style={styles.label}>Select Customer *</Text>
               <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowPicker(true)}>
@@ -315,15 +323,23 @@ export function CustomerSelector({
                   <Text style={styles.selectedName}>{value.customerName}</Text>
                   {value.customerCompany ? <Text style={styles.selectedDetail}>{value.customerCompany}</Text> : null}
                   <Text style={styles.selectedDetail}>{[value.addressLine1, value.city, value.postCode].filter(Boolean).join(', ')}</Text>
-                  <TouchableOpacity style={styles.clearBtn} onPress={() => { onChange({ ...EMPTY_CUSTOMER_FORM, sameAsBilling: value.sameAsBilling }); setCustomerMode('new'); }}>
-                    <Ionicons name="close-circle" size={16} color={Colors.danger} />
-                    <Text style={styles.clearText}>Clear & Enter New</Text>
-                  </TouchableOpacity>
+                  
+                  {/* Edit button for existing customer */}
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
+                    <TouchableOpacity style={styles.editSelectedBtn} onPress={startEditing}>
+                      <Ionicons name="create-outline" size={14} color={Colors.primary} />
+                      <Text style={styles.editSelectedText}>Edit Details</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.clearBtn} onPress={() => { onChange({ ...EMPTY_CUSTOMER_FORM, sameAsBilling: value.sameAsBilling }); setCustomerMode('new'); }}>
+                      <Ionicons name="close-circle" size={14} color={Colors.danger} />
+                      <Text style={styles.clearText}>Clear</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ) : null}
             </View>
           ) : (
-            /* NEW mode or EDITING PREFILL */
+            /* NEW mode or EDITING existing */
             <View style={styles.card}>
               <Text style={styles.label}>Contact Name *</Text>
               <TextInput style={styles.input} placeholder="e.g. Sarah Jenkins" placeholderTextColor="#94a3b8" value={value.customerName} onChangeText={(t) => update('customerName', t)} />
@@ -381,13 +397,13 @@ export function CustomerSelector({
                 )}
               </View>
 
-              {/* Confirm / Cancel when editing prefill */}
-              {isEditingPrefill && (
+              {/* Confirm / Cancel when editing existing customer */}
+              {isEditing && (
                 <View style={styles.editActions}>
-                  <TouchableOpacity style={styles.cancelEditBtn} onPress={cancelEditingPrefill}>
+                  <TouchableOpacity style={styles.cancelEditBtn} onPress={cancelEditing}>
                     <Text style={styles.cancelEditText}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.confirmEditBtn} onPress={confirmEditingPrefill}>
+                  <TouchableOpacity style={styles.confirmEditBtn} onPress={confirmEditing}>
                     <Ionicons name="checkmark" size={18} color="#fff" />
                     <Text style={styles.confirmEditText}>Done</Text>
                   </TouchableOpacity>
@@ -399,7 +415,7 @@ export function CustomerSelector({
       )}
 
       {/* ─── JOB / SITE ADDRESS ─── */}
-      {showJobAddress && !isQuick && !isLocked && (
+      {showJobAddress && !isQuick && !isLocked && !isEditing && (
         <View style={styles.jobAddressCard}>
           <View style={[styles.row, { alignItems: 'center', marginBottom: 10 }]}>
             <Text style={styles.jobAddressLabel}>Job / Site Address</Text>
@@ -529,7 +545,9 @@ const styles = StyleSheet.create({
   selectedInfo: { marginTop: 12, padding: 12, backgroundColor: '#f8fafc', borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0' },
   selectedName: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 2 },
   selectedDetail: { fontSize: 13, color: '#64748b', marginBottom: 1 },
-  clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, alignSelf: 'flex-start' },
+  editSelectedBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
+  editSelectedText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
+  clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   clearText: { fontSize: 12, fontWeight: '600', color: '#DC2626' },
   // Prefill locked
   prefillCard: { backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: Colors.primary, shadowColor: '#64748B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },

@@ -225,10 +225,9 @@ export default function DashboardScreen() {
         <Animated.View entering={FadeInDown.delay(300)} style={styles.actionGrid}>
           {isAdmin ? (
             <>
-              {/* Job Management */}
+              {/* Row 1: Core actions */}
               <ActionButton label="New Job" icon="add" onPress={() => router.push('/(app)/jobs/create' as any)} />
               
-              {/* Standalone Quote - Points to dedicated route */}
               <ActionButton 
                 label="New Quote" 
                 icon="document-text-outline" 
@@ -236,7 +235,6 @@ export default function DashboardScreen() {
                 onPress={() => router.push('/(app)/jobs/[id]/quote' as any)} 
               />
               
-              {/* Standalone Invoice - Points to dedicated route */}
               <ActionButton 
                 label="New Invoice" 
                 icon="receipt-outline" 
@@ -246,8 +244,22 @@ export default function DashboardScreen() {
               
               <ActionButton label="Add Client" icon="person-add-outline" color={Colors.text} onPress={() => router.push('/(app)/customers/add' as any)} />
               
+              {/* Row 2: Navigation */}
               <ActionButton label="All Jobs" icon="list-outline" color={Colors.text} onPress={() => router.push('/(app)/jobs')} />
               <ActionButton label="Team" icon="people-outline" color={Colors.text} onPress={() => router.push('/(app)/workers' as any)} />
+
+              {/* ✅ NEW: Documents button — replaces the old tab */}
+              <ActionButton 
+                label="Documents" 
+                icon="documents-outline" 
+                color="#2563eb" 
+                onPress={() => router.push('/(app)/douments' as any)} 
+              />
+              {/* 
+                NOTE: The path above is "douments" because your folder has a typo.
+                Once you rename the folder from douments → documents, update this to:
+                  router.push('/(app)/documents' as any)
+              */}
             </>
           ) : (
             <>

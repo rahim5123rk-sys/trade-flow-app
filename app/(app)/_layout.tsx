@@ -68,19 +68,6 @@ export default function AppLayout() {
         }}
       />
 
-      {/* NEW: Documents tab (Quotes & Invoices) — Admin only */}
-      <Tabs.Screen
-        name="documents"
-        options={{
-          title: 'Docs',
-          href: isAdmin ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="documents-outline" size={22} color={color} />
-          ),
-        }}
-        redirect={!isAdmin}
-      />
-      
       <Tabs.Screen
         name="customers"
         options={{
@@ -103,8 +90,21 @@ export default function AppLayout() {
         }}
       />
 
-      {/* Hidden Screens */}
+      {/* Hidden Screens — NOT in tab bar */}
       <Tabs.Screen name="workers" options={{ href: null }} />
+
+      {/* 
+        IMPORTANT: Hide the documents folder from the tab bar.
+        Documents are now accessed from the Dashboard action grid.
+        
+        NOTE: Your folder is currently named "douments" (typo — missing 'c').
+        You MUST rename it to "documents" in your project:
+          app/(app)/douments/  →  app/(app)/documents/
+        
+        Once renamed, change the name below from "douments" to "documents".
+        Until you rename it, keep this as "douments" so it matches the actual folder.
+      */}
+      <Tabs.Screen name="documents" options={{ href: null }} />
     </Tabs>
   );
 }

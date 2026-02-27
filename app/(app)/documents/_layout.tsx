@@ -1,3 +1,8 @@
+// ============================================
+// FILE: app/(app)/documents/_layout.tsx
+// NOTE: Folder MUST be named "documents" (not "douments")
+// ============================================
+
 import { Stack } from 'expo-router';
 import React from 'react';
 import { Colors } from '../../../constants/theme';
