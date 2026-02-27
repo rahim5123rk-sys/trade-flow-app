@@ -5,6 +5,7 @@
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
 
 export type DocumentType = 'invoice' | 'quote';
@@ -30,11 +31,16 @@ export interface DocumentData {
   customerName: string;
   customerCompany?: string;
   customerAddress1: string;
+  customerAddress2?: string;
   customerCity: string;
   customerPostcode: string;
+
+  customerEmail?: string;
+  customerPhone?: string;
   
   // Job Site (Granular)
   jobAddress1: string;
+  jobAddress2?: string;
   jobCity: string;
   jobPostcode: string;
   
@@ -202,12 +208,16 @@ export async function generateDocument(data: DocumentData, companyId: string): P
       <div class="addr-name">${data.customerName}</div>
       ${data.customerCompany ? `<div class="addr-text">${data.customerCompany}</div>` : ''}
       <div class="addr-text">${data.customerAddress1}</div>
+      ${data.customerAddress2 ? `<div class="addr-text">${data.customerAddress2}</div>` : ''}
       <div class="addr-text">${data.customerCity}</div>
       <div class="addr-text">${data.customerPostcode}</div>
+      ${data.customerPhone ? `<div class="addr-text" style="margin-top:4px;">${data.customerPhone}</div>` : ''}
+      ${data.customerEmail ? `<div class="addr-text">${data.customerEmail}</div>` : ''}
     </div>
     <div class="addr-box text-right">
       <div class="addr-header" style="border-color:transparent;">Job / Site Address</div>
       <div class="addr-text">${data.jobAddress1}</div>
+      ${data.jobAddress2 ? `<div class="addr-text">${data.jobAddress2}</div>` : ''}
       <div class="addr-text">${data.jobCity}</div>
       <div class="addr-text">${data.jobPostcode}</div>
       ${data.jobDate ? `<div class="addr-text" style="margin-top:4px; font-weight:600;">Job Date: ${data.jobDate}</div>` : ''}
@@ -256,5 +266,18 @@ export async function generateDocument(data: DocumentData, companyId: string): P
   }
 
   const { uri } = await Print.printToFileAsync({ html, base64: false });
-  await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `${title} #${data.number}`, UTI: 'com.adobe.pdf' });
+  const shareOptions = {
+    mimeType: 'application/pdf',
+    dialogTitle: `${title} #${data.number}`,
+    UTI: 'com.adobe.pdf',
+  } as const;
+
+  if (Platform.OS === 'ios') {
+    void Sharing.shareAsync(uri, shareOptions).catch((err) => {
+      console.warn('Document share dismissed/failed on iOS:', err);
+    });
+    return;
+  }
+
+  await Sharing.shareAsync(uri, shareOptions);
 }

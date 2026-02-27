@@ -1,23 +1,26 @@
 // ============================================
 // FILE: app/(app)/documents/index.tsx
-// Central Hub for Quotes & Invoices
+// Central Hub for Quotes & Invoices – Modern UI
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
@@ -34,13 +37,28 @@ const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
   Overdue: { color: '#dc2626', bg: '#fef2f2' },
 };
 
+const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.88)';
+const GLASS_BORDER = 'rgba(255,255,255,0.65)';
+
+const isCp12Document = (doc: Document): boolean => {
+  if (doc.type === 'cp12') return true;
+  if (doc.reference?.startsWith('CP12-')) return true;
+  if (!doc.payment_info) return false;
+  try {
+    const parsed = JSON.parse(doc.payment_info);
+    return parsed?.kind === 'cp12';
+  } catch {
+    return false;
+  }
+};
+
 export default function DocumentsHubScreen() {
   const { userProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   const [filter, setFilter] = useState<'all' | 'invoice' | 'quote' | 'unpaid' | 'draft'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -57,11 +75,9 @@ export default function DocumentsHubScreen() {
       .eq('company_id', userProfile.company_id)
       .order('created_at', { ascending: false });
 
-    // Apply exact status/type filters
     if (filter === 'invoice' || filter === 'quote') {
       query = query.eq('type', filter);
     } else if (filter === 'unpaid') {
-      // For 'unpaid', we want both Unpaid and Overdue (using Supabase 'in' filter)
       query = query.in('status', ['Unpaid', 'Overdue']);
     } else if (filter === 'draft') {
       query = query.eq('status', 'Draft');
@@ -75,9 +91,10 @@ export default function DocumentsHubScreen() {
   }, [userProfile?.company_id, filter]);
 
   const handleDelete = (doc: Document) => {
+    const isCp12 = isCp12Document(doc);
     Alert.alert(
-      `Delete ${doc.type === 'invoice' ? 'Invoice' : 'Quote'}`,
-      `Are you sure you want to delete ${doc.type === 'invoice' ? 'Invoice' : 'Quote'} #${doc.number}? This cannot be undone.`,
+      `Delete ${isCp12 ? 'CP12' : doc.type === 'invoice' ? 'Invoice' : 'Quote'}`,
+      `Are you sure you want to delete ${isCp12 ? `CP12 ${doc.reference || `#${doc.number}`}` : `${doc.type === 'invoice' ? 'Invoice' : 'Quote'} #${doc.number}`}? This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -98,192 +115,414 @@ export default function DocumentsHubScreen() {
 
   const getStatusStyle = (status: string) => STATUS_COLORS[status] || STATUS_COLORS.Draft;
 
-  // Apply real-time search filtering on the downloaded data
   const filteredDocuments = documents.filter((doc) => {
     if (!searchQuery) return true;
     return doc.customer_snapshot?.name?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const renderDocument = ({ item }: { item: Document }) => {
+  const renderDocument = ({ item, index }: { item: Document; index: number }) => {
+    const isCp12 = isCp12Document(item);
     const statusStyle = getStatusStyle(item.status);
-    const isInvoice = item.type === 'invoice';
+    const isInvoice = item.type === 'invoice' && !isCp12;
 
-    // The Red Trash button that appears when you swipe left
     const renderRightActions = () => (
-      <TouchableOpacity style={styles.deleteSwipeBtn} onPress={() => handleDelete(item)}>
+      <TouchableOpacity style={s.deleteSwipeBtn} onPress={() => handleDelete(item)}>
         <Ionicons name="trash-outline" size={24} color="#fff" />
-        <Text style={styles.deleteSwipeText}>Delete</Text>
+        <Text style={s.deleteSwipeText}>Delete</Text>
       </TouchableOpacity>
     );
 
     return (
-      <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
-        <TouchableOpacity style={styles.card} activeOpacity={1} onPress={() => router.push(`/(app)/documents/${item.id}` as any)}>
-          <View style={styles.cardTop}>
-            <View style={styles.cardLeft}>
-              <View style={[styles.typeIcon, { backgroundColor: isInvoice ? '#FFF7ED' : '#EFF6FF' }]}>
-                <Ionicons name={isInvoice ? 'receipt-outline' : 'document-text-outline'} size={20} color={isInvoice ? '#C2410C' : '#2563EB'} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardRef}>{isInvoice ? 'INV' : 'QTE'}-{String(item.number).padStart(4, '0')}</Text>
-                <Text style={styles.cardCustomer} numberOfLines={1}>{item.customer_snapshot?.name || 'Unknown Customer'}</Text>
-              </View>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.cardTotal}>£{item.total?.toFixed(2) || '0.00'}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                <Text style={[styles.statusText, { color: statusStyle.color }]}>{item.status}</Text>
-              </View>
-            </View>
-          </View>
+      <Animated.View entering={FadeInRight.delay(Math.min(index * 50, 300)).springify()}>
+        <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+          <TouchableOpacity
+            style={s.card}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/(app)/documents/${item.id}` as any)}
+          >
+            {/* Left accent strip */}
+            <LinearGradient
+              colors={
+                isCp12
+                  ? ['#0EA5E9', '#2563EB'] as readonly [string, string]
+                  : isInvoice
+                  ? ['#F59E0B', '#FBBF24'] as readonly [string, string]
+                  : ['#6366F1', '#818CF8'] as readonly [string, string]
+              }
+              style={s.cardStrip}
+            />
 
-          <View style={styles.cardBottom}>
-            <View style={styles.cardMeta}>
-              <Ionicons name="calendar-outline" size={13} color={Colors.textLight} />
-              <Text style={styles.cardDate}>
-                {new Date(item.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </Text>
+            <View style={s.cardBody}>
+              {/* Top row: type icon + ref + amount */}
+              <View style={s.cardTopRow}>
+                <View style={[s.typeIcon, { backgroundColor: isInvoice ? '#FFF7ED' : '#EEF2FF' }]}>
+                  <Ionicons
+                    name={isCp12 ? 'shield-checkmark-outline' : isInvoice ? 'receipt-outline' : 'document-text-outline'}
+                    size={18}
+                    color={isCp12 ? '#1D4ED8' : isInvoice ? '#C2410C' : '#6366F1'}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.cardRef}>
+                    {isCp12
+                      ? item.reference || `CP12-${String(item.number).padStart(4, '0')}`
+                      : `${isInvoice ? 'INV' : 'QTE'}-${String(item.number).padStart(4, '0')}`}
+                  </Text>
+                  <Text style={s.cardCustomer} numberOfLines={1}>
+                    {item.customer_snapshot?.name || 'Unknown Customer'}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={s.cardTotal}>{isCp12 ? 'CP12' : `£${item.total?.toFixed(2) || '0.00'}`}</Text>
+                  <View style={[s.statusBadge, { backgroundColor: statusStyle.bg }]}>
+                    <View style={[s.statusDot, { backgroundColor: statusStyle.color }]} />
+                    <Text style={[s.statusText, { color: statusStyle.color }]}>{isCp12 ? 'Locked' : item.status}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Bottom meta row */}
+              <View style={s.cardBottomRow}>
+                <View style={s.cardMeta}>
+                  <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
+                  <Text style={s.cardDate}>
+                    {new Date(item.created_at).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+              </View>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
-          </View>
-        </TouchableOpacity>
-      </Swipeable>
+          </TouchableOpacity>
+        </Swipeable>
+      </Animated.View>
     );
   };
 
   return (
-    // GestureHandlerRootView is required for Swipeable to work properly
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        
-        {/* ─── HEADER ─── */}
-        <View style={styles.header}>
-          <Text style={styles.screenTitle}>Document Hub</Text>
-        </View>
+      <View style={s.root}>
+        {/* Background gradient */}
+        <LinearGradient
+          colors={['#EEF2FF', '#E0F2FE', '#F0FDFA']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
 
-        {/* ─── QUICK CREATE ACTIONS ─── */}
-        <View style={styles.createRow}>
-          <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(app)/jobs/new/invoice' as any)}>
-            <View style={[styles.createIconBox, { backgroundColor: '#FFF7ED' }]}>
-              <Ionicons name="receipt" size={24} color="#C2410C" />
+        <View style={{ flex: 1, paddingTop: insets.top }}>
+          {/* Header */}
+          <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
+            <View>
+              <Text style={s.screenTitle}>Documents</Text>
+              <Text style={s.screenSubtitle}>Quotes & Invoices</Text>
             </View>
-            <Text style={styles.createBtnText}>Create Invoice</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(app)/jobs/new/quote' as any)}>
-            <View style={[styles.createIconBox, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="document-text" size={24} color="#2563EB" />
+            <View style={s.countBadge}>
+              <Text style={s.countText}>{documents.length}</Text>
             </View>
-            <Text style={styles.createBtnText}>Create Quote</Text>
-          </TouchableOpacity>
-        </View>
+          </Animated.View>
 
-        {/* ─── SEARCH BAR ─── */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={Colors.textLight} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by customer name..."
-            placeholderTextColor={Colors.textLight}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={Colors.textLight} />
+          {/* Quick Create Actions */}
+          <Animated.View entering={FadeInDown.delay(100).springify()} style={s.createRow}>
+            <TouchableOpacity
+              style={s.createBtn}
+              activeOpacity={0.75}
+              onPress={() => router.push('/(app)/invoice' as any)}
+            >
+              <LinearGradient
+                colors={['#F59E0B', '#FBBF24'] as readonly [string, string]}
+                style={s.createGradient}
+              >
+                <Ionicons name="receipt" size={20} color="#fff" />
+              </LinearGradient>
+              <Text style={s.createBtnText}>New Invoice</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={s.createBtn}
+              activeOpacity={0.75}
+              onPress={() => router.push('/(app)/quote' as any)}
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#A78BFA'] as readonly [string, string]}
+                style={s.createGradient}
+              >
+                <Ionicons name="document-text" size={20} color="#fff" />
+              </LinearGradient>
+              <Text style={s.createBtnText}>New Quote</Text>
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Search Bar */}
+          <Animated.View entering={FadeInDown.delay(150).springify()} style={s.searchWrap}>
+            <View style={s.searchBar}>
+              <Ionicons name="search" size={18} color="#94A3B8" />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Search by customer name..."
+                placeholderTextColor="#94A3B8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* Filter Chips */}
+          <Animated.View entering={FadeInDown.delay(200).springify()}>
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={['all', 'invoice', 'quote', 'unpaid', 'draft'] as const}
+              keyExtractor={(item) => item}
+              contentContainerStyle={s.filterRow}
+              renderItem={({ item }) => {
+                const active = filter === item;
+                return (
+                  <TouchableOpacity
+                    style={[s.filterChip, active && s.filterChipActive]}
+                    onPress={() => setFilter(item)}
+                  >
+                    {active ? (
+                      <LinearGradient
+                        colors={['#6366F1', '#3B82F6'] as readonly [string, string]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={s.filterChipGradient}
+                      >
+                        <Text style={s.filterTextActive}>
+                          {item.charAt(0).toUpperCase() + item.slice(1)}
+                        </Text>
+                      </LinearGradient>
+                    ) : (
+                      <Text style={s.filterText}>
+                        {item.charAt(0).toUpperCase() + item.slice(1)}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </Animated.View>
+
+          {/* Document List */}
+          {loading ? (
+            <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 40 }} />
+          ) : (
+            <FlatList
+              data={filteredDocuments}
+              keyExtractor={(item) => item.id}
+              renderItem={renderDocument}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, paddingTop: 8 }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => {
+                    setRefreshing(true);
+                    fetchDocuments();
+                  }}
+                  tintColor={Colors.primary}
+                />
+              }
+              ListEmptyComponent={
+                <View style={s.emptyCard}>
+                  <View style={s.emptyIconWrap}>
+                    <Ionicons name="documents-outline" size={28} color="#94A3B8" />
+                  </View>
+                  <Text style={s.emptyTitle}>No documents found</Text>
+                  <Text style={s.emptySubtitle}>Try adjusting your filters or search.</Text>
+                </View>
+              }
+            />
           )}
         </View>
-
-        {/* ─── FILTER CHIPS ─── */}
-        <View>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={['all', 'invoice', 'quote', 'unpaid', 'draft'] as const}
-            keyExtractor={(item) => item}
-            contentContainerStyle={styles.filterContainer}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.filterBtn, filter === item && styles.filterActive]}
-                onPress={() => setFilter(item)}
-              >
-                <Text style={[styles.filterText, filter === item && styles.filterActiveText]}>
-                  {item.charAt(0).toUpperCase() + item.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-
-        {/* ─── DOCUMENT LIST ─── */}
-        {loading ? (
-          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 40 }} />
-        ) : (
-          <FlatList
-            data={filteredDocuments}
-            keyExtractor={(item) => item.id}
-            renderItem={renderDocument}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100, paddingTop: 10 }}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDocuments(); }} tintColor={Colors.primary} />
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={48} color={Colors.textLight} />
-                <Text style={styles.emptyTitle}>No documents found</Text>
-                <Text style={styles.emptySub}>Try adjusting your filters or search.</Text>
-              </View>
-            }
-          />
-        )}
       </View>
     </GestureHandlerRootView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16 },
-  screenTitle: { fontSize: 28, fontWeight: '800', color: Colors.text },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#F0F4FF' },
 
-  // Quick Create Grid
-  createRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 16 },
-  createBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 16, alignItems: 'center', ...Colors.shadow },
-  createIconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  createBtnText: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  screenTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
+  screenSubtitle: { fontSize: 13, color: '#94A3B8', fontWeight: '500', marginTop: 2 },
+  countBadge: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  countText: { fontSize: 14, fontWeight: '700', color: '#6366F1' },
 
-  // Search Bar
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 16, marginBottom: 16, paddingHorizontal: 14, height: 46, borderRadius: 12, ...Colors.shadow },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 15, color: Colors.text, height: '100%' },
+  // Quick Create
+  createRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: 16 },
+  createBtn: {
+    flex: 1,
+    backgroundColor: GLASS_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#94A3B8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  createGradient: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  createBtnText: { fontSize: 13, fontWeight: '700', color: '#334155' },
+
+  // Search
+  searchWrap: { paddingHorizontal: 20, marginBottom: 14 },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    paddingHorizontal: 14,
+    height: 46,
+    borderRadius: 14,
+    shadowColor: '#94A3B8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 15, color: '#0F172A', height: '100%' },
 
   // Filters
-  filterContainer: { paddingHorizontal: 16, gap: 8, paddingBottom: 10 },
-  filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#e2e8f0' },
-  filterActive: { backgroundColor: Colors.primary },
-  filterText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
-  filterActiveText: { color: '#fff' },
+  filterRow: { paddingHorizontal: 20, gap: 8, paddingBottom: 12 },
+  filterChip: {
+    borderRadius: 20,
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
+  },
+  filterChipActive: {
+    borderColor: 'transparent',
+  },
+  filterChipGradient: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  filterText: { fontSize: 13, fontWeight: '600', color: '#64748B', paddingHorizontal: 16, paddingVertical: 8 },
+  filterTextActive: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
   // Cards
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12, ...Colors.shadow },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  typeIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  cardRef: { fontSize: 12, fontWeight: '700', color: Colors.textLight },
-  cardCustomer: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
-  cardTotal: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginTop: 4 },
-  statusText: { fontSize: 11, fontWeight: '700' },
-  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: GLASS_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    marginBottom: 10,
+    overflow: 'hidden',
+    shadowColor: '#94A3B8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardStrip: { width: 4, alignSelf: 'stretch' },
+  cardBody: { flex: 1, padding: 16 },
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  typeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardRef: { fontSize: 11, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.3 },
+  cardCustomer: { fontSize: 15, fontWeight: '700', color: '#0F172A', marginTop: 2 },
+  cardTotal: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  statusDot: { width: 5, height: 5, borderRadius: 3 },
+  statusText: { fontSize: 10, fontWeight: '700' },
+  cardBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(241,245,249,0.8)',
+  },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardDate: { fontSize: 12, color: Colors.textLight },
-  
-  // Swipe to Delete
-  deleteSwipeBtn: { backgroundColor: Colors.danger, justifyContent: 'center', alignItems: 'center', width: 80, borderRadius: 14, marginBottom: 12, marginLeft: 10 },
-  deleteSwipeText: { color: '#fff', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  cardDate: { fontSize: 12, color: '#94A3B8' },
 
-  emptyState: { alignItems: 'center', marginTop: 60, gap: 8 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: Colors.text },
-  emptySub: { color: Colors.textLight, fontSize: 14 },
+  // Swipe to Delete
+  deleteSwipeBtn: {
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderRadius: 16,
+    marginBottom: 10,
+    marginLeft: 10,
+  },
+  deleteSwipeText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 4 },
+
+  // Empty state
+  emptyCard: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    backgroundColor: GLASS_BG,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    marginTop: 40,
+  },
+  emptyIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#334155', marginBottom: 4 },
+  emptySubtitle: { fontSize: 13, color: '#94A3B8' },
 });

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/theme';
 
 interface EmptyStateProps {
@@ -19,55 +20,83 @@ export function EmptyState({
   onAction,
 }: EmptyStateProps) {
   return (
-    <View style={styles.container}>
-      <View style={styles.iconCircle}>
-        <Ionicons name={icon} size={40} color={Colors.textLight} />
+    <View style={styles.card}>
+      <View style={styles.accent} />
+      <View style={styles.content}>
+        <View style={styles.iconCircle}>
+          <Ionicons name={icon} size={34} color={Colors.textLight} />
+        </View>
+        <Text style={styles.title}>{title}</Text>
+        {message && <Text style={styles.message}>{message}</Text>}
+        {actionLabel && onAction && (
+          <TouchableOpacity style={styles.actionWrap} onPress={onAction} activeOpacity={0.8}>
+            <LinearGradient
+              colors={['#6366F1', '#3B82F6'] as readonly [string, string]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.action}
+            >
+              <Text style={styles.actionText}>{actionLabel}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {message && <Text style={styles.message}>{message}</Text>}
-      {actionLabel && onAction && (
-        <TouchableOpacity style={styles.action} onPress={onAction}>
-          <Text style={styles.actionText}>{actionLabel}</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.88)',
+    overflow: 'hidden',
+    shadowColor: '#94A3B8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  accent: {
+    height: 3,
+    backgroundColor: '#818CF8',
+  },
+  content: {
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
+    paddingVertical: 44,
+    paddingHorizontal: 28,
   },
   iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#334155',
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
-    fontSize: 14,
-    color: Colors.textLight,
+    fontSize: 13,
+    color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
+  },
+  actionWrap: {
+    marginTop: 20,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   action: {
-    marginTop: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
   },
   actionText: {
     color: '#FFFFFF',

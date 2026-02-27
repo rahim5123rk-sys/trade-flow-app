@@ -1,32 +1,49 @@
+// ============================================
+// FILE: app/(app)/jobs/[id]/index.tsx
+// Glassmorphism job detail screen
+// ============================================
+
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SignaturePad } from '../../../../components/SignaturePad';
-import { Colors } from '../../../../constants/theme';
+import { Colors, UI } from '../../../../constants/theme';
 import { supabase } from '../../../../src/config/supabase';
 import { useAuth } from '../../../../src/context/AuthContext';
 import { generateJobSheet } from '../../../../src/services/pdfGenerator';
 import { uploadImage } from '../../../../src/services/storage';
 import { Job } from '../../../../src/types';
 
-// Admin Status Flow
+const GLASS_BG = UI.glass.bg;
+const GLASS_BORDER = UI.glass.border;
+
 const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'];
 
-export default function UnifiedJobDetailScreen() {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap; gradient: readonly [string, string] }> = {
+  pending:     { label: 'Pending',     color: '#F59E0B', icon: 'time-outline',             gradient: ['#F59E0B', '#FBBF24'] },
+  in_progress: { label: 'In Progress', color: '#3B82F6', icon: 'play-circle-outline',      gradient: ['#3B82F6', '#60A5FA'] },
+  complete:    { label: 'Complete',     color: '#10B981', icon: 'checkmark-circle-outline',  gradient: ['#10B981', '#34D399'] },
+  paid:        { label: 'Paid',         color: '#8B5CF6', icon: 'wallet-outline',            gradient: ['#8B5CF6', '#A78BFA'] },
+  cancelled:   { label: 'Cancelled',    color: '#EF4444', icon: 'close-circle-outline',      gradient: ['#EF4444', '#F87171'] },
+};
+
+export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { user, userProfile } = useAuth();
@@ -46,12 +63,7 @@ export default function UnifiedJobDetailScreen() {
 
   const fetchJobData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', id)
-        .single();
-
+      const { data, error } = await supabase.from('jobs').select('*').eq('id', id).single();
       if (error) throw error;
       setJob(data);
     } catch (e) {
@@ -62,24 +74,15 @@ export default function UnifiedJobDetailScreen() {
     }
   };
 
-  // --- ADMIN ACTIONS ---
+  // --- Admin actions ---
   const adminUpdateStatus = async (newStatus: string) => {
     if (!job) return;
     setUpdating(true);
     try {
-      // ✅ FIX: Only update the status column — no payment_status (doesn't exist in DB)
-      const { error } = await supabase
-        .from('jobs')
-        .update({ status: newStatus })
-        .eq('id', job.id);
-
-      if (error) {
-        console.error('Status update error:', error);
-        throw error;
-      }
+      const { error } = await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id);
+      if (error) throw error;
       fetchJobData();
     } catch (e: any) {
-      console.error('Status update failed:', e);
       Alert.alert('Error', e?.message || 'Could not update status.');
     } finally {
       setUpdating(false);
@@ -87,17 +90,16 @@ export default function UnifiedJobDetailScreen() {
   };
 
   const handleGeneratePdf = () => job && generateJobSheet(job);
-  const handleCreateInvoice = () => job && router.push(`/(app)/jobs/${job.id}/invoice` as any);
-  
-  // --- WORKER ACTIONS ---
+  const handleCreateInvoice = () => job && router.push({ pathname: '/(app)/invoice', params: { id: job.id } } as any);
+
+  // --- Worker actions ---
   const workerStartJob = async () => {
     setUpdating(true);
     try {
       const { error } = await supabase.from('jobs').update({ status: 'in_progress' }).eq('id', id);
       if (error) throw error;
       setJob({ ...job, status: 'in_progress' });
-      Alert.alert('Job Started');
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Could not start job.');
     } finally {
       setUpdating(false);
@@ -106,18 +108,17 @@ export default function UnifiedJobDetailScreen() {
 
   const workerAddPhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.5,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5,
     });
     if (!result.canceled) {
       setUpdating(true);
       try {
         const url = await uploadImage(result.assets[0].uri, 'job-photos');
-        const currentPhotos = job.photos || [];
-        const newPhotos = [...currentPhotos, url];
+        const newPhotos = [...(job.photos || []), url];
         await supabase.from('jobs').update({ photos: newPhotos }).eq('id', id);
         setJob({ ...job, photos: newPhotos });
-      } catch (e) {
+      } catch {
         Alert.alert('Upload Failed', 'Could not save photo.');
       } finally {
         setUpdating(false);
@@ -132,7 +133,7 @@ export default function UnifiedJobDetailScreen() {
       await supabase.from('jobs').update({ signature, status: 'complete' }).eq('id', id);
       Alert.alert('Job Complete', 'Job has been signed off.');
       router.back();
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Could not save signature.');
     } finally {
       setUpdating(false);
@@ -144,189 +145,450 @@ export default function UnifiedJobDetailScreen() {
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${address}`);
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>;
-  if (!job) return <View style={styles.center}><Text>Job not found.</Text></View>;
+  // --- Loading / empty ---
+  if (loading) {
+    return (
+      <View style={[styles.loadingWrap, { paddingTop: insets.top }]}>
+        <LinearGradient colors={UI.gradients.appBackground} style={StyleSheet.absoluteFill} />
+        <ActivityIndicator size="large" color={UI.brand.primary} />
+      </View>
+    );
+  }
+  if (!job) {
+    return (
+      <View style={[styles.loadingWrap, { paddingTop: insets.top }]}>
+        <LinearGradient colors={UI.gradients.appBackground} style={StyleSheet.absoluteFill} />
+        <Text style={{ color: UI.text.muted }}>Job not found.</Text>
+      </View>
+    );
+  }
 
-  const nextStatus = isAdmin 
-    ? (STATUS_FLOW[STATUS_FLOW.indexOf(job.status) + 1] || null) 
-    : null;
+  const status = STATUS_CONFIG[job.status] || STATUS_CONFIG.pending;
+  const nextStatus = isAdmin ? (STATUS_FLOW[STATUS_FLOW.indexOf(job.status) + 1] || null) : null;
+  const nextStatusConfig = nextStatus ? STATUS_CONFIG[nextStatus] : null;
 
-  const formatDate = (ts: number) => new Date(ts).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-
-  // Status badge color helper
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'complete': return { bg: '#F0FDF4', text: '#15803D' };
-      case 'paid': return { bg: '#EFF6FF', text: '#2563EB' };
-      case 'in_progress': return { bg: '#FFF7ED', text: '#C2410C' };
-      case 'cancelled': return { bg: '#FEF2F2', text: '#DC2626' };
-      default: return { bg: '#FFF7ED', text: '#C2410C' };
-    }
-  };
-
-  const statusColor = getStatusColor(job.status);
+  const formatDate = (ts: number) =>
+    new Date(ts).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-      
-      {/* 1. Header (Shared) */}
-      <View style={styles.card}>
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.ref}>{job.reference}</Text>
-            <Text style={styles.customerName}>{job.customer_snapshot?.name}</Text>
-            <Text style={styles.date}>{formatDate(job.scheduled_date)}</Text>
+    <View style={styles.root}>
+      <LinearGradient colors={UI.gradients.appBackground} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+
+      {/* ─── Custom header ─── */}
+      <View style={[styles.headerBar, { paddingTop: insets.top + 4 }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={22} color={UI.brand.primary} />
+          <Text style={styles.backText}>Jobs</Text>
+        </TouchableOpacity>
+        {isAdmin && (
+          <TouchableOpacity style={styles.editBtn} onPress={() => router.push(`/(app)/jobs/${job.id}/edit` as any)} activeOpacity={0.7}>
+            <Ionicons name="create-outline" size={20} color={UI.brand.primary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ─── Hero card ─── */}
+        <Animated.View entering={FadeInDown.delay(50).duration(400)} style={styles.heroCard}>
+          <LinearGradient colors={status.gradient} style={styles.heroStrip} />
+          <View style={styles.heroBody}>
+            <View style={styles.heroTop}>
+              <Text style={styles.heroRef}>{job.reference}</Text>
+              <View style={[styles.statusPill, { backgroundColor: `${status.color}18` }]}>
+                <Ionicons name={status.icon} size={13} color={status.color} />
+                <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+              </View>
+            </View>
+            <Text style={styles.heroTitle} numberOfLines={2}>{job.title}</Text>
+            <View style={styles.heroDivider} />
+            <View style={styles.heroMeta}>
+              <View style={styles.metaItem}>
+                <Ionicons name="person-outline" size={14} color={UI.text.muted} />
+                <Text style={styles.metaText} numberOfLines={1}>{job.customer_snapshot?.name || 'Unknown'}</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons name="calendar-outline" size={14} color={UI.text.muted} />
+                <Text style={styles.metaText}>{formatDate(job.scheduled_date)}</Text>
+              </View>
+            </View>
           </View>
-          
-          {isAdmin ? (
-            <TouchableOpacity onPress={() => router.push(`/(app)/jobs/${job.id}/edit` as any)}>
-               <Ionicons name="create-outline" size={24} color={Colors.primary} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={openMaps}>
-               <Ionicons name="navigate-circle" size={42} color={Colors.primary} />
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        {/* Status Badge */}
-        <View style={[styles.badge, { alignSelf: 'flex-start', marginTop: 10, backgroundColor: statusColor.bg }]}>
-           <Text style={[styles.badgeText, { color: statusColor.text }]}>
-             {job.status.replace('_', ' ')}
-           </Text>
-        </View>
-      </View>
+        </Animated.View>
 
-      {/* 2. Worker Action Zone */}
-      {!isAdmin && (
-         <View style={styles.actionContainer}>
-            {job.status === 'pending' && (
-                <TouchableOpacity style={styles.bigBtn} onPress={workerStartJob} disabled={updating}>
-                    <Ionicons name="play-circle" size={32} color="#fff" />
-                    <Text style={styles.bigBtnText}>START JOB</Text>
-                </TouchableOpacity>
-            )}
-            {job.status === 'in_progress' && (
-                <View style={styles.toolRow}>
-                    <TouchableOpacity style={styles.toolBtn} onPress={workerAddPhoto}>
-                        <Ionicons name="camera" size={28} color={Colors.text} />
-                        <Text style={styles.toolText}>Add Photo</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.toolBtn, { backgroundColor: Colors.primary }]} onPress={() => setSignatureModalVisible(true)}>
-                        <Ionicons name="checkmark-done-circle" size={28} color="#fff" />
-                        <Text style={[styles.toolText, { color: '#fff' }]}>FINISH JOB</Text>
-                    </TouchableOpacity>
+        {/* ─── Worker action zone ─── */}
+        {!isAdmin && job.status === 'pending' && (
+          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+            <TouchableOpacity onPress={workerStartJob} disabled={updating} activeOpacity={0.85}>
+              <LinearGradient colors={UI.gradients.blue} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bigAction}>
+                {updating ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="play-circle" size={28} color="#fff" />
+                    <Text style={styles.bigActionText}>Start Job</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {!isAdmin && job.status === 'in_progress' && (
+          <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.workerTools}>
+            <TouchableOpacity style={styles.toolCard} onPress={workerAddPhoto} activeOpacity={0.75}>
+              <View style={[styles.toolIconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+                <Ionicons name="camera" size={22} color="#3B82F6" />
+              </View>
+              <Text style={styles.toolLabel}>Add Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => setSignatureModalVisible(true)} style={{ flex: 1 }}>
+              <LinearGradient colors={['#10B981', '#34D399'] as const} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.finishCard}>
+                <Ionicons name="checkmark-done-circle" size={22} color="#fff" />
+                <Text style={styles.finishLabel}>Finish Job</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* ─── Location card ─── */}
+        {job.customer_snapshot?.address && (
+          <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+            <TouchableOpacity style={styles.glassCard} onPress={openMaps} activeOpacity={0.75}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+                  <Ionicons name="location" size={16} color="#3B82F6" />
                 </View>
+                <Text style={styles.sectionTitle}>Location</Text>
+                <Ionicons name="open-outline" size={16} color={UI.text.muted} style={{ marginLeft: 'auto' }} />
+              </View>
+              <Text style={styles.addressText}>{job.customer_snapshot.address}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* ─── Details card ─── */}
+        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+          <View style={styles.glassCard}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
+                <Ionicons name="document-text" size={16} color={UI.brand.primary} />
+              </View>
+              <Text style={styles.sectionTitle}>Details</Text>
+            </View>
+
+            {job.notes ? (
+              <View style={styles.notesBox}>
+                <Text style={styles.notesLabel}>Notes</Text>
+                <Text style={styles.notesText}>{job.notes}</Text>
+              </View>
+            ) : (
+              <Text style={[styles.notesText, { color: UI.text.muted }]}>No notes added.</Text>
             )}
-         </View>
-      )}
 
-      {/* 3. Job Details (Shared) */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Job Details</Text>
-        <View style={styles.card}>
-           <Text style={styles.subTitle}>{job.title}</Text>
-           <View style={styles.row}>
-              <Ionicons name="location-outline" size={18} color={Colors.primary} />
-              <Text style={styles.value}>{job.customer_snapshot?.address}</Text>
-           </View>
-           {job.notes && (
-             <View style={styles.noteContainer}>
-               <Text style={styles.noteLabel}>NOTES:</Text>
-               <Text style={styles.notes}>{job.notes}</Text>
-             </View>
-           )}
-           {isAdmin && job.price != null && (
-             <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Price: £{job.price.toFixed(2)}</Text>
-             </View>
-           )}
-        </View>
-      </View>
+            {isAdmin && job.price != null && (
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Price</Text>
+                <Text style={styles.priceValue}>£{job.price.toFixed(2)}</Text>
+              </View>
+            )}
+          </View>
+        </Animated.View>
 
-      {/* 4. Proof of Work (Shared) */}
-      {(job.photos?.length > 0 || job.signature) && (
-        <View style={styles.section}>
-          <Text style={styles.label}>Proof of Work</Text>
-          <View style={styles.card}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {job.photos?.map((uri: string, idx: number) => (
-                 <Image key={idx} source={{ uri }} style={styles.proofImage} />
-              ))}
-            </ScrollView>
-            {job.signature && (
-               <View style={styles.signatureContainer}>
+        {/* ─── Proof of work ─── */}
+        {(job.photos?.length > 0 || job.signature) && (
+          <Animated.View entering={FadeInDown.delay(250).duration(400)}>
+            <View style={styles.glassCard}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
+                  <Ionicons name="images" size={16} color="#10B981" />
+                </View>
+                <Text style={styles.sectionTitle}>Proof of Work</Text>
+              </View>
+
+              {job.photos?.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                  {job.photos.map((uri: string, idx: number) => (
+                    <Image key={idx} source={{ uri }} style={styles.proofImage} />
+                  ))}
+                </ScrollView>
+              )}
+
+              {job.signature && (
+                <View style={styles.signatureWrap}>
                   <Text style={styles.signatureLabel}>Customer Signature</Text>
                   <Image source={{ uri: job.signature }} style={styles.signatureImage} />
-               </View>
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ─── Admin actions ─── */}
+        {isAdmin && (
+          <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.adminActions}>
+            {nextStatus && nextStatusConfig && (
+              <TouchableOpacity onPress={() => adminUpdateStatus(nextStatus)} disabled={updating} activeOpacity={0.85}>
+                <LinearGradient colors={nextStatusConfig.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.actionBtnGradient}>
+                  {updating ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name={nextStatusConfig.icon} size={18} color="#fff" />
+                      <Text style={styles.actionBtnText}>Move to {nextStatusConfig.label}</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
             )}
-          </View>
-        </View>
-      )}
 
-      {/* 5. Admin Footer Actions */}
-      {isAdmin && (
-        <View style={styles.footer}>
-           {nextStatus && (
-             <TouchableOpacity style={[styles.btn, styles.primaryBtn]} onPress={() => adminUpdateStatus(nextStatus)} disabled={updating}>
-                {updating ? <ActivityIndicator color="#fff" /> : (
-                   <Text style={styles.primaryBtnText}>Move to {nextStatus.replace('_', ' ')}</Text>
-                )}
-             </TouchableOpacity>
-           )}
-           <TouchableOpacity style={[styles.btn, styles.invoiceBtn]} onPress={handleCreateInvoice}>
-              <Text style={styles.primaryBtnText}>Create Invoice</Text>
-           </TouchableOpacity>
-           <TouchableOpacity style={[styles.btn, styles.secondaryBtn]} onPress={handleGeneratePdf}>
-              <Text style={styles.secondaryBtnText}>Generate PDF</Text>
-           </TouchableOpacity>
-        </View>
-      )}
+            <View style={styles.adminRow}>
+              <TouchableOpacity style={styles.adminCard} onPress={handleCreateInvoice} activeOpacity={0.75}>
+                <View style={[styles.adminCardIcon, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
+                  <Ionicons name="receipt-outline" size={18} color="#10B981" />
+                </View>
+                <Text style={styles.adminCardLabel}>Invoice</Text>
+              </TouchableOpacity>
 
-      <SignaturePad visible={signatureModalVisible} onClose={() => setSignatureModalVisible(false)} onOK={workerFinishJob} />
-    </ScrollView>
+              <TouchableOpacity style={styles.adminCard} onPress={handleGeneratePdf} activeOpacity={0.75}>
+                <View style={[styles.adminCardIcon, { backgroundColor: 'rgba(139,92,246,0.1)' }]}>
+                  <Ionicons name="download-outline" size={18} color="#8B5CF6" />
+                </View>
+                <Text style={styles.adminCardLabel}>PDF</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.adminCard} onPress={() => router.push(`/(app)/jobs/${job.id}/edit` as any)} activeOpacity={0.75}>
+                <View style={[styles.adminCardIcon, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+                  <Ionicons name="create-outline" size={18} color="#3B82F6" />
+                </View>
+                <Text style={styles.adminCardLabel}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
+      </ScrollView>
+
+      <SignaturePad
+        visible={signatureModalVisible}
+        onClose={() => setSignatureModalVisible(false)}
+        onOK={workerFinishJob}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, padding: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, ...Colors.shadow, marginBottom: 8 },
-  section: { marginTop: 16 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  ref: { fontSize: 12, fontWeight: '700', color: Colors.textLight },
-  customerName: { fontSize: 20, fontWeight: '800', color: Colors.text, marginVertical: 4 },
-  date: { fontSize: 14, color: Colors.textLight },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  
-  actionContainer: { marginVertical: 10 },
-  bigBtn: { backgroundColor: Colors.success, padding: 18, borderRadius: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
-  bigBtnText: { color: '#fff', fontSize: 18, fontWeight: '900' },
-  toolRow: { flexDirection: 'row', gap: 12 },
-  toolBtn: { flex: 1, backgroundColor: '#fff', padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 2 },
-  toolText: { fontWeight: '700', fontSize: 12 },
+  root: { flex: 1, backgroundColor: Colors.background },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
 
-  label: { fontSize: 12, fontWeight: '700', color: Colors.textLight, textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
-  subTitle: { fontSize: 16, fontWeight: '600', color: Colors.text, marginBottom: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  value: { fontSize: 15, color: Colors.text, flex: 1 },
-  noteContainer: { backgroundColor: '#f9fafb', padding: 10, borderRadius: 8, marginTop: 12 },
-  noteLabel: { fontSize: 10, fontWeight: 'bold', color: '#6b7280' },
-  notes: { fontSize: 14, color: '#374151' },
-  priceRow: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
-  priceLabel: { fontSize: 16, fontWeight: '700', color: Colors.primary },
-  
-  proofImage: { width: 80, height: 80, borderRadius: 8, marginRight: 8, backgroundColor: '#f3f4f6' },
-  signatureContainer: { marginTop: 12 },
-  signatureLabel: { fontSize: 10, color: '#888', marginBottom: 4, textTransform: 'uppercase', fontWeight: '700' },
-  signatureImage: { height: 60, width: 150, resizeMode: 'contain', backgroundColor: '#f9fafb', borderRadius: 6, borderWidth: 1, borderColor: '#e5e7eb' },
-  
-  footer: { marginTop: 24, gap: 12 },
-  btn: { alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 12 },
-  primaryBtn: { backgroundColor: Colors.primary },
-  primaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  invoiceBtn: { backgroundColor: Colors.success },
-  secondaryBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: Colors.border },
-  secondaryBtnText: { color: Colors.primary, fontWeight: '600', fontSize: 16 },
+  // ── Header ──
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingRight: 12,
+    gap: 2,
+  },
+  backText: { fontSize: 16, color: UI.brand.primary, fontWeight: '600' },
+  editBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  scroll: { flex: 1 },
+
+  // ── Hero card ──
+  heroCard: {
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginBottom: 12,
+    ...Colors.shadow,
+  },
+  heroStrip: { height: 4 },
+  heroBody: { padding: 16 },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  heroRef: { fontSize: 11, fontWeight: '800', color: UI.text.muted, letterSpacing: 0.5 },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  statusText: { fontSize: 12, fontWeight: '700' },
+  heroTitle: { fontSize: 22, fontWeight: '800', color: UI.text.title, lineHeight: 28 },
+  heroDivider: {
+    height: 1,
+    backgroundColor: 'rgba(148,163,184,0.18)',
+    marginVertical: 12,
+  },
+  heroMeta: { gap: 8 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  metaText: { fontSize: 14, color: UI.text.body, fontWeight: '500', flex: 1 },
+
+  // ── Worker actions ──
+  bigAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  bigActionText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+
+  workerTools: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  toolCard: {
+    flex: 1,
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    gap: 8,
+    ...Colors.shadow,
+  },
+  toolIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolLabel: { fontSize: 13, fontWeight: '700', color: UI.text.title },
+  finishCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  finishLabel: { color: '#fff', fontSize: 13, fontWeight: '800' },
+
+  // ── Glass card (reusable) ──
+  glassCard: {
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    ...Colors.shadow,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  sectionIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: UI.text.title },
+
+  // ── Location ──
+  addressText: { fontSize: 14, color: UI.text.body, lineHeight: 20, marginLeft: 38 },
+
+  // ── Details ──
+  notesBox: {
+    backgroundColor: 'rgba(99,102,241,0.05)',
+    padding: 12,
+    borderRadius: 10,
+  },
+  notesLabel: { fontSize: 10, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', marginBottom: 4, letterSpacing: 0.5 },
+  notesText: { fontSize: 14, color: UI.text.body, lineHeight: 20 },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(148,163,184,0.15)',
+  },
+  priceLabel: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
+  priceValue: { fontSize: 20, fontWeight: '800', color: UI.brand.primary },
+
+  // ── Proof of work ──
+  proofImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    marginRight: 8,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+  },
+  signatureWrap: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(148,163,184,0.15)' },
+  signatureLabel: { fontSize: 10, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 },
+  signatureImage: { height: 60, width: 150, resizeMode: 'contain', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(148,163,184,0.15)' },
+
+  // ── Admin actions ──
+  adminActions: { marginTop: 4, gap: 12, marginBottom: 12 },
+  actionBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 15,
+    borderRadius: 14,
+  },
+  actionBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  adminRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  adminCard: {
+    flex: 1,
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    gap: 6,
+    ...Colors.shadow,
+  },
+  adminCardIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminCardLabel: { fontSize: 12, fontWeight: '700', color: UI.text.title },
 });

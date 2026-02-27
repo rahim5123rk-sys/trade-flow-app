@@ -312,11 +312,11 @@ export default function RegisterScreen() {
 
                 <View style={styles.field}>
                   <Text style={styles.label}>Business Name</Text>
-                  <TextInput style={styles.input} value={companyName} onChangeText={setCompanyName} placeholder="e.g. Smith's Plumbing Ltd" placeholderTextColor="#94a3b8" />
+                  <TextInput style={styles.input} value={companyName} onChangeText={setCompanyName} placeholder="e.g. Smith’s Plumbing Ltd" placeholderTextColor="#94a3b8" />
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={styles.label}>What's your trade?</Text>
+                  <Text style={styles.label}>What’s your trade?</Text>
                   <View style={styles.tradeGrid}>
                     {TRADES.map((t) => (
                       <TouchableOpacity

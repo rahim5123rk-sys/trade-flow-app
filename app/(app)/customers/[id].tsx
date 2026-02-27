@@ -7,21 +7,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import {
-  CustomerFormData,
-  CustomerSelector,
-  EMPTY_CUSTOMER_FORM
+    CustomerFormData,
+    CustomerSelector,
+    EMPTY_CUSTOMER_FORM
 } from '../../../components/CustomerSelector';
 import { Colors } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
@@ -70,8 +70,11 @@ export default function CustomerDetailScreen() {
         email: custData.email || '',
         sameAsBilling: true,
         jobAddressLine1: '',
+        jobAddressLine2: '',
         jobCity: '',
         jobPostCode: '',
+        siteContactName: '',
+        siteContactEmail: '',
       });
     }
 

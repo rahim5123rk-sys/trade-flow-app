@@ -33,6 +33,8 @@ export interface Job {
     postal_code?: string;
     phone?: string;
     email?: string;
+    site_contact_name?: string;
+    site_contact_email?: string;
     address: string;
   };
   title: string;
@@ -65,7 +67,7 @@ export interface Customer {
 
 // ─── NEW: Document type for quotes & invoices ───────────────────
 
-export type DocumentType = 'invoice' | 'quote';
+export type DocumentType = 'invoice' | 'quote' | 'cp12';
 
 export type DocumentStatus = 
   | 'Draft'
@@ -98,6 +100,7 @@ export interface Document {
     name: string;
     company_name?: string;
     address_line_1?: string;
+    address_line_2?: string;
     city?: string;
     postal_code?: string;
     phone?: string;
@@ -106,6 +109,7 @@ export interface Document {
   };
   job_address?: {
     address_line_1: string;
+    address_line_2?: string;
     city: string;
     postcode: string;
   };

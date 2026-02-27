@@ -1,5 +1,6 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
 
 // Matches your Supabase snake_case structure
@@ -252,7 +253,19 @@ export const generateJobSheet = async (job: JobData) => {
 
   try {
     const { uri } = await Print.printToFileAsync({ html });
-    await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    const shareOptions = {
+      UTI: '.pdf',
+      mimeType: 'application/pdf',
+    } as const;
+
+    if (Platform.OS === 'ios') {
+      void Sharing.shareAsync(uri, shareOptions).catch((err) => {
+        console.warn('Job PDF share dismissed/failed on iOS:', err);
+      });
+      return;
+    }
+
+    await Sharing.shareAsync(uri, shareOptions);
   } catch (error) {
     console.error('Error generating PDF:', error);
   }

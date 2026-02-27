@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -8,6 +9,7 @@ import {
     Image,
     KeyboardAvoidingView,
     Linking,
+    PanResponder,
     Platform,
     ScrollView,
     StyleSheet,
@@ -17,12 +19,16 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import { Colors } from '../../../constants/theme';
+import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 import { uploadImage } from '../../../src/services/storage';
+
+const GLASS_BG = UI.glass.bg;
+const GLASS_BORDER = UI.glass.border;
 
 // --- Signature Constants & HTML ---
 const SIG_HEIGHT = 160;
@@ -106,7 +112,7 @@ const SettingRow = ({
       <Ionicons
         name={icon}
         size={20}
-        color={isDestructive ? Colors.danger : Colors.primary}
+        color={isDestructive ? UI.brand.danger : UI.brand.primary}
       />
     </View>
     <View style={styles.rowContent}>
@@ -119,7 +125,7 @@ const SettingRow = ({
       <Switch
         value={toggleValue}
         onValueChange={onToggle}
-        trackColor={{ false: '#E2E8F0', true: Colors.primary }}
+        trackColor={{ false: '#E2E8F0', true: UI.brand.primary }}
         thumbColor={'#fff'}
       />
     ) : (
@@ -135,7 +141,9 @@ const InputField = ({
   icon,
   placeholder,
   multiline = false,
-  minHeight
+  minHeight,
+  autoCapitalize = 'none',
+  keyboardType,
 }: {
   label: string;
   value: string;
@@ -144,6 +152,8 @@ const InputField = ({
   placeholder: string;
   multiline?: boolean;
   minHeight?: number;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
 }) => (
   <View style={styles.inputContainer}>
     <Text style={styles.inputLabel}>{label}</Text>
@@ -152,7 +162,7 @@ const InputField = ({
         <Ionicons
           name={icon}
           size={20}
-          color={Colors.textLight}
+          color={UI.text.muted}
           style={{ marginRight: 10, marginTop: multiline ? 8 : 0 }}
         />
       )}
@@ -167,7 +177,8 @@ const InputField = ({
         placeholder={placeholder}
         placeholderTextColor="#94A3B8"
         multiline={multiline}
-        autoCapitalize="none"
+        autoCapitalize={autoCapitalize}
+        keyboardType={keyboardType}
       />
     </View>
   </View>
@@ -194,6 +205,7 @@ export default function SettingsScreen() {
   const [companyAddress, setCompanyAddress] = useState('');
   const [companyEmail, setCompanyEmail] = useState('');
   const [companyPhone, setCompanyPhone] = useState('');
+  const [companyTrade, setCompanyTrade] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
 
   // Invoice & Signature Fields
@@ -228,6 +240,7 @@ export default function SettingsScreen() {
       setCompanyAddress(data.address || '');
       setCompanyEmail(data.email || '');
       setCompanyPhone(data.phone || '');
+      setCompanyTrade(data.trade || '');
       setLogoUrl(data.logo_url || '');
       
       // Load Settings JSON
@@ -303,29 +316,7 @@ export default function SettingsScreen() {
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
-      // 1. Auth Email Update (if changed)
-      if (companyEmail && user?.email && companyEmail.trim().toLowerCase() !== user.email.toLowerCase()) {
-         const { error: authError } = await supabase.auth.updateUser({ 
-           email: companyEmail.trim() 
-         });
-         if (authError) {
-           Alert.alert('Cannot Update Email', authError.message);
-           setIsSaving(false);
-           return;
-         }
-         Alert.alert('Check your Inbox', `We sent a confirmation link to ${companyEmail}.`);
-      }
-
-      // 2. Profile Update
-      if (userProfile?.id) {
-        await supabase
-          .from('profiles')
-          .update({ display_name: displayName })
-          .eq('id', userProfile.id);
-        await refreshProfile();
-      }
-
-      // 3. Company & Settings Update
+      // Update settings
       if (userProfile?.company_id) {
         const { data: currentData } = await supabase.from('companies').select('settings').eq('id', userProfile.company_id).single();
         const currentSettings = currentData?.settings || {};
@@ -337,11 +328,12 @@ export default function SettingsScreen() {
             address: companyAddress,
             email: companyEmail.trim(),
             phone: companyPhone,
+            trade: companyTrade,
             settings: { 
                 ...currentSettings, 
                 invoiceTerms, 
                 invoiceNotes, 
-                signatureBase64: savedSignatureBase64 
+                signatureBase64: savedSignatureBase64,
             },
           })
           .eq('id', userProfile.company_id);
@@ -361,32 +353,89 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const handleSwipeClose = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(app)/dashboard' as any);
+  };
+
+  const swipeResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        gesture.dx > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx > 90 && Math.abs(gesture.dy) < 70) {
+          handleSwipeClose();
+        }
+      },
+    })
+  ).current;
+
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+      {...swipeResponder.panHandlers}
+    >
+      <LinearGradient
+        colors={UI.gradients.appBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.headerRow}>
-          <Text style={styles.screenTitle}>Settings</Text>
-          {isLoading && <ActivityIndicator color={Colors.primary} />}
-        </View>
+        <Animated.View entering={FadeInDown.delay(40).springify()} style={styles.headerRow}>
+          <View>
+            <Text style={styles.screenTitle}>Settings</Text>
+            <Text style={styles.screenSubtitle}>Business profile & preferences</Text>
+          </View>
+          {isLoading ? (
+            <ActivityIndicator color={UI.brand.primary} />
+          ) : (
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleBadgeText}>{userProfile?.role === 'admin' ? 'ADMIN' : 'WORKER'}</Text>
+            </View>
+          )}
+        </Animated.View>
 
         {/* --- Profile Card --- */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
+        <Animated.View entering={FadeInDown.delay(70).springify()} style={styles.profileCard}>
+          <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarContainer}>
             <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase() || 'U'}</Text>
-          </View>
+          </LinearGradient>
           <View style={{ flex: 1 }}>
             <Text style={styles.profileName}>{displayName || 'User'}</Text>
             <Text style={styles.profileRole}>{userProfile?.role === 'admin' ? 'Administrator' : 'Worker'}</Text>
           </View>
+        </Animated.View>
+
+        {/* --- User & Company --- */}
+        <SectionHeader title="Details" />
+        <View style={styles.card}>
+          <SettingRow
+            icon="person-circle-outline"
+            label="User Details"
+            value="Name, email, Gas Safe, licence & OFTEC"
+            onPress={() => router.push('/(app)/settings/user-details')}
+          />
+          <View style={styles.divider} />
+          <SettingRow
+            icon="business-outline"
+            label="Company Details"
+            value="Company name, address, telephone & trade"
+            onPress={() => router.push('/(app)/settings/company-details')}
+          />
         </View>
 
         {/* --- Branding --- */}
-        <SectionHeader title="Branding & Identity" />
+        <SectionHeader title="Branding" />
         <View style={styles.card}>
           <View style={styles.logoSection}>
             <View style={styles.logoPreview}>
@@ -400,8 +449,6 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.divider} />
-          <InputField label="Business Name" value={companyName} onChange={setCompanyName} icon="briefcase-outline" placeholder="e.g. Acme Plumbing" />
         </View>
 
         {/* --- Team Management --- */}
@@ -413,16 +460,6 @@ export default function SettingsScreen() {
             value={workerCount > 0 ? `${workerCount} worker${workerCount !== 1 ? 's' : ''}` : 'No workers yet'}
             onPress={() => router.push('/(app)/workers')}
           />
-        </View>
-
-        {/* --- Contact Information --- */}
-        <SectionHeader title="Contact Information" />
-        <View style={styles.card}>
-          <InputField label="Business Address" value={companyAddress} onChange={setCompanyAddress} icon="location-outline" placeholder="Full business address" multiline />
-          <View style={{ height: 16 }} />
-          <InputField label="Email Address" value={companyEmail} onChange={setCompanyEmail} icon="mail-outline" placeholder="contact@business.com" />
-          <View style={{ height: 16 }} />
-          <InputField label="Phone Number" value={companyPhone} onChange={setCompanyPhone} icon="call-outline" placeholder="+44 7000 000000" />
         </View>
 
         {/* --- Invoice Defaults (NEW) --- */}
@@ -508,7 +545,9 @@ export default function SettingsScreen() {
 
         {/* --- Save Button --- */}
         <TouchableOpacity style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} onPress={handleSaveChanges} disabled={isSaving}>
-          {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+          <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveBtnGradient}>
+            {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+          </LinearGradient>
         </TouchableOpacity>
 
         {/* --- Support --- */}
@@ -526,59 +565,105 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC', paddingHorizontal: 20 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  screenTitle: { fontSize: 30, fontWeight: '800', color: Colors.text, letterSpacing: -0.5 },
+  container: { flex: 1, backgroundColor: 'transparent', paddingHorizontal: 16 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  screenTitle: { fontSize: 30, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
+  screenSubtitle: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
+  roleBadge: {
+    backgroundColor: 'rgba(99,102,241,0.12)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  roleBadgeText: { fontSize: 11, fontWeight: '800', color: UI.brand.primary, letterSpacing: 0.6 },
   
   // Profile Card
-  profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 20, marginBottom: 30, ...Colors.shadow },
-  avatarContainer: { width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 26,
+    ...Colors.shadow,
+  },
+  avatarContainer: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   avatarText: { fontSize: 24, fontWeight: '700', color: '#fff' },
-  profileName: { fontSize: 18, fontWeight: '700', color: Colors.text },
-  profileRole: { fontSize: 13, color: Colors.textLight, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  profileName: { fontSize: 18, fontWeight: '700', color: UI.text.title },
+  profileRole: { fontSize: 13, color: UI.text.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  sectionHeader: { fontSize: 13, fontWeight: '700', color: Colors.textLight, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, marginLeft: 4 },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 24, ...Colors.shadow },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 12 },
+  sectionHeader: { fontSize: 12, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, marginLeft: 4 },
+  card: {
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 22,
+    ...Colors.shadow,
+  },
+  divider: { height: 1, backgroundColor: 'rgba(148,163,184,0.18)', marginVertical: 12 },
 
   // Logo
   logoSection: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
-  logoPreview: { width: 70, height: 70, borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  logoPreview: {
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.75)' : '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
   logoImg: { width: '100%', height: '100%' },
-  logoLabel: { fontSize: 15, fontWeight: '600', color: Colors.text },
-  logoSub: { fontSize: 12, color: Colors.textLight, marginBottom: 8 },
-  uploadLink: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  logoLabel: { fontSize: 15, fontWeight: '700', color: UI.text.title },
+  logoSub: { fontSize: 12, color: UI.text.muted, marginBottom: 8 },
+  uploadLink: { fontSize: 13, fontWeight: '700', color: UI.brand.primary },
 
   // Inputs
   inputContainer: { gap: 6 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: Colors.text, marginLeft: 4 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12 },
-  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: Colors.text, fontWeight: '500' },
+  inputLabel: { fontSize: 12, fontWeight: '700', color: UI.text.body, marginLeft: 4 },
+  fieldHint: { fontSize: 12, color: UI.text.muted, marginTop: 8, marginLeft: 4 },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.78)' : '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+  },
+  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: UI.text.title, fontWeight: '500' },
   textArea: { height: '100%', textAlignVertical: 'top', paddingTop: 12 },
 
   // Settings Row
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  iconBox: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  iconBox: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(99,102,241,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   destructiveIconBox: { backgroundColor: '#FEF2F2' },
   rowContent: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: '500', color: Colors.text },
+  rowLabel: { fontSize: 15, fontWeight: '600', color: UI.text.title },
   destructiveText: { color: Colors.danger, fontWeight: '600' },
-  rowValue: { fontSize: 13, color: Colors.textLight, marginTop: 2 },
+  rowValue: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
 
   // Signature Styles
-  hint: { fontSize: 12, color: Colors.textLight, fontStyle: 'italic', marginBottom: 12 },
+  hint: { fontSize: 12, color: UI.text.muted, fontStyle: 'italic', marginBottom: 12 },
   signaturePreview: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, padding: 8, backgroundColor: '#fefefe', marginBottom: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   signaturePadWrapper: { borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, borderStyle: 'dashed', backgroundColor: '#fefefe', overflow: 'hidden', marginBottom: 8, position: 'relative' },
   sigPadLabel: { position: 'absolute', bottom: 6, right: 10, flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.5 },
   sigPadLabelText: { fontSize: 11, color: '#cbd5e1' },
   sigActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
   sigBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#f1f5f9' },
-  sigBtnPrimary: { backgroundColor: Colors.primary },
+  sigBtnPrimary: { backgroundColor: UI.brand.primary },
   sigBtnDanger: { backgroundColor: '#FEF2F2' },
-  sigBtnText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
+  sigBtnText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
 
   // Buttons
-  saveBtn: { backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 24, ...Colors.shadow },
+  saveBtn: { borderRadius: 14, overflow: 'hidden', marginBottom: 24, ...Colors.shadow },
+  saveBtnGradient: { paddingVertical: 16, alignItems: 'center' },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  versionText: { textAlign: 'center', color: Colors.textLight, fontSize: 11, marginBottom: 20 },
+  versionText: { textAlign: 'center', color: UI.text.muted, fontSize: 11, marginBottom: 20 },
 });

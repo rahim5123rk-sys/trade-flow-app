@@ -97,9 +97,7 @@ export default function WorkersListScreen() {
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color={Colors.textLight} />
             <Text style={styles.emptyText}>No workers found.</Text>
-            <Text style={styles.emptySub}>
-              Tap '+' to invite a worker.
-            </Text>
+            <Text style={styles.emptySub}>Tap + to invite a worker.</Text>
           </View>
         }
       />

@@ -24,14 +24,11 @@ export default function JobsLayout() {
         }} 
       />
 
-      {/* 3. Job Details */}
+      {/* 3. Job Details — custom header, no native bar */}
       <Stack.Screen 
         name="[id]/index" 
         options={{ 
-            headerShown: true, 
-            title: 'Job Details',
-            headerTintColor: Colors.primary,
-            headerBackTitle: "", // ✅ Fixed: Use empty string instead of headerBackTitleVisible
+            headerShown: false,
         }} 
       />
 
@@ -46,15 +43,6 @@ export default function JobsLayout() {
         }} 
       />
 
-      {/* 5. Invoice */}
-      <Stack.Screen 
-        name="[id]/invoice" 
-        options={{ 
-            headerShown: true,
-            title: 'Invoice',
-            headerTintColor: Colors.primary
-        }} 
-      />
     </Stack>
   );
 }

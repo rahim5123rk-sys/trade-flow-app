@@ -1,16 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { Colors } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
@@ -18,7 +16,6 @@ import { useAuth } from '../../../src/context/AuthContext';
 
 export default function AddWorkerScreen() {
   const { userProfile } = useAuth();
-  const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,37 +68,6 @@ export default function AddWorkerScreen() {
     );
   };
 
-  const handleCreateTestWorker = async () => {
-    if (!userProfile?.company_id) return;
-    setLoading(true);
-
-    try {
-      const fakeId = Math.random().toString(36).substring(2, 15);
-      
-      const { error } = await supabase
-        .from('profiles')
-        .insert({
-          id: fakeId, 
-          display_name: `Test Worker ${Math.floor(Math.random() * 100)}`,
-          email: `worker${Date.now()}@test.com`,
-          company_id: userProfile.company_id,
-          role: 'worker',
-          is_test_user: true
-        });
-
-      if (error) {
-        Alert.alert('Error', 'Could not create test worker.');
-      } else {
-        Alert.alert('Success', 'Test worker created.');
-        router.back();
-      }
-    } catch (e) {
-      Alert.alert('Error', 'Failed to create test worker.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <ScrollView style={styles.container}>
       <View style={styles.card}>
@@ -126,26 +92,6 @@ export default function AddWorkerScreen() {
             <Text style={styles.regenText}>Regenerate Code</Text>
         </TouchableOpacity>
       </View>
-
-      <View style={styles.dividerContainer}>
-        <View style={styles.line} />
-        <Text style={styles.orText}>DEVELOPER TOOLS</Text>
-        <View style={styles.line} />
-      </View>
-
-      <TouchableOpacity style={styles.testBtn} onPress={handleCreateTestWorker} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color={Colors.text} />
-        ) : (
-          <>
-            <Ionicons name="flask" size={20} color={Colors.text} />
-            <View style={{flex: 1}}>
-              <Text style={styles.testBtnTitle}>Create Test Worker</Text>
-              <Text style={styles.testBtnSub}>Adds a dummy profile to your team list.</Text>
-            </View>
-          </>
-        )}
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -164,11 +110,4 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   regenBtn: { alignItems: 'center', marginTop: 16 },
   regenText: { color: Colors.danger, fontWeight: '600', fontSize: 14 },
-  
-  dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
-  line: { flex: 1, height: 1, backgroundColor: Colors.border },
-  orText: { marginHorizontal: 12, color: Colors.textLight, fontWeight: '600', fontSize: 10 },
-  testBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', gap: 12, borderStyle: 'dashed' },
-  testBtnTitle: { fontWeight: '700', color: Colors.text, fontSize: 15 },
-  testBtnSub: { color: Colors.textLight, fontSize: 12 },
 });

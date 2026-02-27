@@ -8,24 +8,24 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import {
-  buildCustomerInsert,
-  buildCustomerSnapshot,
-  CustomerFormData,
-  CustomerSelector,
-  EMPTY_CUSTOMER_FORM,
+    buildCustomerInsert,
+    buildCustomerSnapshot,
+    CustomerFormData,
+    CustomerSelector,
+    EMPTY_CUSTOMER_FORM,
 } from '../../../components/CustomerSelector';
 import { WorkerPicker } from '../../../components/WorkerPicker';
 import { Colors } from '../../../constants/theme';
@@ -194,11 +194,10 @@ export default function CreateJobScreen() {
         .eq('id', userProfile.company_id);
 
       if (isQuoteMode && newJob?.id) {
-        router.replace({ pathname: '/(app)/jobs/[id]/quote', params: { id: newJob.id } });
+        router.replace({ pathname: '/(app)/quote', params: { id: newJob.id } });
       } else {
-        Alert.alert('Success', 'Job created successfully.', [
-          { text: 'OK', onPress: () => router.replace('/(app)/jobs') },
-        ]);
+        Alert.alert('Success', 'Job created successfully.');
+        router.replace('/(app)/jobs/index' as any);
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create job.');
