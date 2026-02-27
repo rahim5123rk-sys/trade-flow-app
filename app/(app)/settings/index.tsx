@@ -381,11 +381,25 @@ export default function SettingsScreen() {
 
                       if (!userId) return;
 
-                      // Delete user profile
-                      await supabase.from('profiles').delete().eq('id', userId);
-
-                      // If admin, delete company data
+                      // If admin, delete all company data
                       if (userProfile?.role === 'admin' && companyId) {
+                        // Delete job activity logs
+                        await supabase.from('job_activity').delete().eq('company_id', companyId);
+
+                        // Clean up storage files
+                        try {
+                          const { data: jobPhotos } = await supabase.storage.from('job-photos').list();
+                          if (jobPhotos && jobPhotos.length > 0) {
+                            await supabase.storage.from('job-photos').remove(jobPhotos.map(f => f.name));
+                          }
+                          const { data: logos } = await supabase.storage.from('logos').list();
+                          if (logos && logos.length > 0) {
+                            await supabase.storage.from('logos').remove(logos.map(f => f.name));
+                          }
+                        } catch {
+                          // Storage cleanup is best-effort
+                        }
+
                         // Delete documents
                         await supabase.from('documents').delete().eq('company_id', companyId);
                         // Delete jobs
@@ -395,6 +409,9 @@ export default function SettingsScreen() {
                         // Delete company
                         await supabase.from('companies').delete().eq('id', companyId);
                       }
+
+                      // Delete user profile
+                      await supabase.from('profiles').delete().eq('id', userId);
 
                       // Sign out and delete auth user
                       await supabase.auth.signOut();

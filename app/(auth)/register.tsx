@@ -226,7 +226,7 @@ export default function RegisterScreen() {
       }
 
     } catch (error: any) {
-      console.error(error);
+      console.error('Registration failed:', (error?.message || '').replace(/[\w.-]+@[\w.-]+/g, '[REDACTED]'));
       setRegistering(false);
       Alert.alert('Registration Failed', error.message);
     } finally {

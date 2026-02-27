@@ -134,11 +134,41 @@ export default function CustomerDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete Customer', 'Are you sure?', [
+    Alert.alert('Delete Customer', 'This will permanently delete the customer and anonymise their data in existing jobs and documents.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-        await supabase.from('customers').delete().eq('id', id);
-        router.back();
+        try {
+          const anonymised = {
+            name: '[Deleted Customer]',
+            company_name: null,
+            address: '[Address removed]',
+            address_line_1: '[Removed]',
+            address_line_2: null,
+            city: null,
+            region: null,
+            postal_code: null,
+            email: null,
+            phone: null,
+          };
+
+          // Anonymise customer_snapshot in jobs
+          await supabase
+            .from('jobs')
+            .update({ customer_snapshot: anonymised })
+            .eq('customer_id', id);
+
+          // Anonymise customer_snapshot in documents
+          await supabase
+            .from('documents')
+            .update({ customer_snapshot: anonymised })
+            .eq('customer_id', id);
+
+          // Delete the customer record
+          await supabase.from('customers').delete().eq('id', id);
+          router.back();
+        } catch (error: any) {
+          Alert.alert('Error', error.message || 'Failed to delete customer.');
+        }
       }}
     ]);
   };

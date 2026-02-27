@@ -37,38 +37,51 @@ export default function AddCustomerScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleImportContact = async () => {
-    try {
-      const { status } = await Contacts.requestPermissionsAsync();
+    // GDPR: Show disclosure before requesting contacts permission
+    Alert.alert(
+      'Import from Contacts',
+      'TradeFlow will access your contacts to pre-fill the customer\'s name, phone, email, and address. Only the contact you select will be used — no data is uploaded until you save.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            try {
+              const { status } = await Contacts.requestPermissionsAsync();
 
-      if (status !== 'granted') {
-        Alert.alert('Permission denied', 'Sorry, we need contacts permission to do this.');
-        return;
-      }
+              if (status !== 'granted') {
+                Alert.alert('Permission denied', 'Contacts permission is required to import.');
+                return;
+              }
 
-      const contact = await Contacts.presentContactPickerAsync();
+              const contact = await Contacts.presentContactPickerAsync();
 
-      if (contact) {
-        if (contact.name) setCustomerName(contact.name);
+              if (contact) {
+                if (contact.name) setCustomerName(contact.name);
 
-        if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
-          setPhone(contact.phoneNumbers[0].number || '');
-        }
+                if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+                  setPhone(contact.phoneNumbers[0].number || '');
+                }
 
-        if (contact.emails && contact.emails.length > 0) {
-          setEmail(contact.emails[0].email || '');
-        }
+                if (contact.emails && contact.emails.length > 0) {
+                  setEmail(contact.emails[0].email || '');
+                }
 
-        if (contact.addresses && contact.addresses.length > 0) {
-          const addr = contact.addresses[0];
-          if (addr.street) setAddress1(addr.street);
-          if (addr.city) setCity(addr.city);
-          if (addr.region) setRegion(addr.region);
-          if (addr.postalCode) setPostCode(addr.postalCode);
-        }
-      }
-    } catch (e) {
-      console.log('Error picking contact', e);
-    }
+                if (contact.addresses && contact.addresses.length > 0) {
+                  const addr = contact.addresses[0];
+                  if (addr.street) setAddress1(addr.street);
+                  if (addr.city) setCity(addr.city);
+                  if (addr.region) setRegion(addr.region);
+                  if (addr.postalCode) setPostCode(addr.postalCode);
+                }
+              }
+            } catch (e) {
+              console.log('Error picking contact');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSave = async () => {
