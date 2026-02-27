@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+    buildCustomerInsert,
     buildCustomerSnapshot,
     CustomerFormData,
     CustomerSelector,
@@ -88,7 +89,7 @@ export default function CreateQuoteScreen() {
     setExpiryDate(expiry.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
 
     // 3. AUTO-PREFILL from job if navigating from a job
-    if (id && id !== '[id]') {
+    if (id && id !== 'new' && id !== '[id]') {
       const { data: jobData } = await supabase
         .from('jobs')
         .select('*')
@@ -153,8 +154,8 @@ export default function CreateQuoteScreen() {
     return { snapshot, jobAddr, today };
   };
 
-  // ─── Save to documents table ──────────────────────────────────
-  const handleSave = async () => {
+  // ─── Save to documents table (As Draft) ──────────────────────────────────
+  const handleSaveDraft = async () => {
     if (!userProfile?.company_id) return;
     if (!validate()) return;
 
@@ -163,6 +164,18 @@ export default function CreateQuoteScreen() {
     try {
       const { snapshot, jobAddr } = buildDocData();
 
+      let finalCustomerId = customerForm.customerId;
+      if (!finalCustomerId) {
+        const insertData = buildCustomerInsert(customerForm, userProfile.company_id);
+        const { data: newCust, error: custErr } = await supabase
+          .from('customers')
+          .insert(insertData)
+          .select('id')
+          .single();
+        if (custErr) throw new Error('Failed to create new customer.');
+        finalCustomerId = newCust.id;
+      }
+
       const { error } = await supabase.from('documents').insert({
         company_id: userProfile.company_id,
         type: 'quote',
@@ -170,8 +183,8 @@ export default function CreateQuoteScreen() {
         reference: quoteRef || null,
         date: new Date().toISOString(),
         expiry_date: expiryDate || null,
-        status: 'Draft',
-        customer_id: customerForm.customerId || null,
+        status: 'Draft', // Explicitly Draft
+        customer_id: finalCustomerId,
         customer_snapshot: snapshot,
         job_id: jobId || null,
         job_address: {
@@ -188,7 +201,6 @@ export default function CreateQuoteScreen() {
 
       if (error) throw error;
 
-      // Increment quote number in company settings
       const { data: companyData } = await supabase
         .from('companies')
         .select('settings')
@@ -206,7 +218,7 @@ export default function CreateQuoteScreen() {
         })
         .eq('id', userProfile.company_id);
 
-      Alert.alert('Saved', 'Quote saved successfully.', [
+      Alert.alert('Saved', 'Quote saved as draft.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (e: any) {
@@ -216,7 +228,7 @@ export default function CreateQuoteScreen() {
     }
   };
 
-  // ─── Save & Generate PDF ──────────────────────────────────────
+  // ─── Save & Generate PDF (Changes status to Sent) ──────────────────────────────────────
   const handleSaveAndGenerate = async () => {
     if (!userProfile?.company_id) return;
     if (!validate()) return;
@@ -226,7 +238,18 @@ export default function CreateQuoteScreen() {
     try {
       const { snapshot, jobAddr, today } = buildDocData();
 
-      // 1. Save to documents table
+      let finalCustomerId = customerForm.customerId;
+      if (!finalCustomerId) {
+        const insertData = buildCustomerInsert(customerForm, userProfile.company_id);
+        const { data: newCust, error: custErr } = await supabase
+          .from('customers')
+          .insert(insertData)
+          .select('id')
+          .single();
+        if (custErr) throw new Error('Failed to create new customer.');
+        finalCustomerId = newCust.id;
+      }
+
       const { data: docRecord, error: insertError } = await supabase.from('documents').insert({
         company_id: userProfile.company_id,
         type: 'quote',
@@ -234,8 +257,8 @@ export default function CreateQuoteScreen() {
         reference: quoteRef || null,
         date: new Date().toISOString(),
         expiry_date: expiryDate || null,
-        status: 'Draft',
-        customer_id: customerForm.customerId || null,
+        status: 'Sent', // Assumes they are sending it
+        customer_id: finalCustomerId,
         customer_snapshot: snapshot,
         job_id: jobId || null,
         job_address: {
@@ -252,7 +275,6 @@ export default function CreateQuoteScreen() {
 
       if (insertError) throw insertError;
 
-      // 2. Increment quote number
       const { data: companyData } = await supabase
         .from('companies')
         .select('settings')
@@ -270,25 +292,21 @@ export default function CreateQuoteScreen() {
         })
         .eq('id', userProfile.company_id);
 
-      // 3. Generate PDF
       const docData: DocumentData = {
         type: 'quote',
         number: parseInt(quoteNumber) || 1001,
         reference: quoteRef || undefined,
         date: today,
         expiryDate: expiryDate || today,
-        status: 'Draft',
-
+        status: 'Sent',
         customerName: customerForm.customerName,
         customerCompany: customerForm.customerCompany || undefined,
         customerAddress1: customerForm.addressLine1,
         customerCity: customerForm.city,
         customerPostcode: customerForm.postCode,
-
         jobAddress1: jobAddr.jobAddress1,
         jobCity: jobAddr.jobCity,
         jobPostcode: jobAddr.jobPostcode,
-
         items,
         discountPercent: parseFloat(discountPercent) || 0,
         partialPayment: 0,
@@ -452,12 +470,9 @@ export default function CreateQuoteScreen() {
         </View>
 
         {/* Action Buttons */}
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving || generating}>
-          {saving ? <ActivityIndicator color="#fff" /> : (
-            <>
-              <Ionicons name="save-outline" size={20} color="#fff" />
-              <Text style={styles.saveBtnText}>Save Quote</Text>
-            </>
+        <TouchableOpacity style={styles.draftBtn} onPress={handleSaveDraft} disabled={saving || generating}>
+          {saving ? <ActivityIndicator color="#64748b" /> : (
+            <Text style={styles.draftBtnText}>Save as Draft</Text>
           )}
         </TouchableOpacity>
 
@@ -514,24 +529,20 @@ const styles = StyleSheet.create({
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 8 },
   addLink: { fontSize: 13, fontWeight: '700', color: Colors.primary },
 
-  // Totals
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   totalLabel: { fontSize: 16, fontWeight: '600', color: '#64748b' },
   totalValue: { fontSize: 18, fontWeight: '800', color: Colors.primary },
 
   // Buttons
-  saveBtn: {
-    flexDirection: 'row',
+  draftBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.success,
+    backgroundColor: '#e2e8f0',
     padding: 16,
     borderRadius: 12,
     marginTop: 10,
-    ...Colors.shadow,
   },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  draftBtnText: { color: '#64748b', fontWeight: '700', fontSize: 16 },
   generateBtn: {
     flexDirection: 'row',
     alignItems: 'center',

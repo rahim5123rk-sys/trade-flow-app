@@ -246,20 +246,14 @@ export default function DashboardScreen() {
               
               {/* Row 2: Navigation */}
               <ActionButton label="All Jobs" icon="list-outline" color={Colors.text} onPress={() => router.push('/(app)/jobs')} />
-              <ActionButton label="Team" icon="people-outline" color={Colors.text} onPress={() => router.push('/(app)/workers' as any)} />
-
-              {/* ✅ NEW: Documents button — replaces the old tab */}
+              <ActionButton label="Customers" icon="people-outline" color={Colors.text} onPress={() => router.push('/(app)/customers' as any)} />
+              <ActionButton label="Team" icon="briefcase-outline" color={Colors.text} onPress={() => router.push('/(app)/workers' as any)} />
               <ActionButton 
                 label="Documents" 
                 icon="documents-outline" 
                 color="#2563eb" 
-                onPress={() => router.push('/(app)/douments' as any)} 
+                onPress={() => router.push('/(app)/documents' as any)} 
               />
-              {/* 
-                NOTE: The path above is "douments" because your folder has a typo.
-                Once you rename the folder from douments → documents, update this to:
-                  router.push('/(app)/documents' as any)
-              */}
             </>
           ) : (
             <>

@@ -20,8 +20,6 @@ export default function AppLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  const isAdmin = userProfile?.role === 'admin';
-
   return (
     <Tabs
       screenOptions={{
@@ -67,18 +65,6 @@ export default function AppLayout() {
           ),
         }}
       />
-
-      <Tabs.Screen
-        name="customers"
-        options={{
-          title: 'Customers',
-          href: isAdmin ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="people-outline" size={22} color={color} />
-          ),
-        }}
-        redirect={!isAdmin}
-      />
       
       <Tabs.Screen
         name="settings/index"
@@ -90,21 +76,23 @@ export default function AppLayout() {
         }}
       />
 
-      {/* Hidden Screens — NOT in tab bar */}
-      <Tabs.Screen name="workers" options={{ href: null }} />
+      {/* ─── HIDDEN SCREENS ─── */}
+      {/* href: null cleanly removes them from the tab bar but keeps them accessible via router.push */}
+      
+      <Tabs.Screen 
+        name="customers" 
+        options={{ href: null }} 
+      />
+      
+      <Tabs.Screen 
+        name="workers" 
+        options={{ href: null }} 
+      />
 
-      {/* 
-        IMPORTANT: Hide the documents folder from the tab bar.
-        Documents are now accessed from the Dashboard action grid.
-        
-        NOTE: Your folder is currently named "douments" (typo — missing 'c').
-        You MUST rename it to "documents" in your project:
-          app/(app)/douments/  →  app/(app)/documents/
-        
-        Once renamed, change the name below from "douments" to "documents".
-        Until you rename it, keep this as "douments" so it matches the actual folder.
-      */}
-      <Tabs.Screen name="documents" options={{ href: null }} />
+      <Tabs.Screen 
+        name="documents" 
+        options={{ href: null }} 
+      />
     </Tabs>
   );
 }
