@@ -50,12 +50,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (data) {
-        console.log('Profile loaded:', data.display_name, data.role);
+        console.log('Profile loaded successfully');
         setUserProfile(data);
         return data;
       }
 
-      console.log('No profile found for user:', userId);
+      console.log('No profile found for user');
       return null;
     } catch (e) {
       console.error('Error loading profile', e);
@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
 
       if (isRegistering.current) {
-        console.log('Auth state changed during registration — skipping profile fetch');
+        console.log('Auth state changed during registration — skipping');
         return;
       }
 

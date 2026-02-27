@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { File, Paths } from 'expo-file-system/next';
+import * as Sharing from 'expo-sharing';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -12,6 +14,7 @@ import {
     PanResponder,
     Platform,
     ScrollView,
+    Share,
     StyleSheet,
     Switch,
     Text,
@@ -353,6 +356,139 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete My Account',
+      'This will permanently delete your account and all associated data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you absolutely sure?',
+              'Type DELETE to confirm. All your data including customers, jobs, documents and certificates will be permanently removed.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, Delete Everything',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      const userId = user?.id;
+                      const companyId = userProfile?.company_id;
+
+                      if (!userId) return;
+
+                      // Delete user profile
+                      await supabase.from('profiles').delete().eq('id', userId);
+
+                      // If admin, delete company data
+                      if (userProfile?.role === 'admin' && companyId) {
+                        // Delete documents
+                        await supabase.from('documents').delete().eq('company_id', companyId);
+                        // Delete jobs
+                        await supabase.from('jobs').delete().eq('company_id', companyId);
+                        // Delete customers
+                        await supabase.from('customers').delete().eq('company_id', companyId);
+                        // Delete company
+                        await supabase.from('companies').delete().eq('id', companyId);
+                      }
+
+                      // Sign out and delete auth user
+                      await supabase.auth.signOut();
+                      router.replace('/(auth)/login');
+                      Alert.alert('Account Deleted', 'Your account and data have been permanently deleted.');
+                    } catch (error: any) {
+                      Alert.alert('Error', error.message || 'Failed to delete account.');
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const handleExportData = async () => {
+    try {
+      const userId = user?.id;
+      const companyId = userProfile?.company_id;
+      if (!userId || !companyId) {
+        Alert.alert('Error', 'No active session.');
+        return;
+      }
+
+      Alert.alert('Export Data', 'This will generate a JSON file with all your personal data.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Export',
+          onPress: async () => {
+            try {
+              // Gather all user data
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('id, email, display_name, role, created_at')
+                .eq('id', userId)
+                .single();
+
+              const { data: company } = await supabase
+                .from('companies')
+                .select('name, address, email, phone, trade, created_at')
+                .eq('id', companyId)
+                .single();
+
+              const { data: customers } = await supabase
+                .from('customers')
+                .select('name, company_name, address_line1, address_line2, city, county, postcode, email, phone, created_at')
+                .eq('company_id', companyId);
+
+              const { data: jobs } = await supabase
+                .from('jobs')
+                .select('title, description, status, scheduled_date, created_at, customer_snapshot')
+                .eq('company_id', companyId);
+
+              const { data: documents } = await supabase
+                .from('documents')
+                .select('type, status, total, created_at')
+                .eq('company_id', companyId);
+
+              const exportData = {
+                exportDate: new Date().toISOString(),
+                exportedBy: userId,
+                profile,
+                company,
+                customers: customers || [],
+                jobs: (jobs || []).map((j: any) => ({ ...j, customer_snapshot: undefined })),
+                documents: (documents || []).map((d: any) => ({ type: d.type, status: d.status, total: d.total, created_at: d.created_at })),
+              };
+
+              const json = JSON.stringify(exportData, null, 2);
+              const file = new File(Paths.cache, 'tradeflow-data-export.json');
+              file.write(json);
+
+              if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(file.uri, {
+                  mimeType: 'application/json',
+                  dialogTitle: 'TradeFlow Data Export',
+                });
+              } else {
+                Alert.alert('Exported', 'Data has been saved to your device.');
+              }
+            } catch (error: any) {
+              Alert.alert('Export Failed', error.message || 'Could not export data.');
+            }
+          },
+        },
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to export data.');
+    }
+  };
+
   const handleSwipeClose = () => {
     if (router.canGoBack()) {
       router.back();
@@ -550,12 +686,38 @@ export default function SettingsScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
+        {/* --- Legal & Privacy --- */}
+        <SectionHeader title="Legal & Privacy" />
+        <View style={styles.card}>
+          <SettingRow
+            icon="shield-checkmark-outline"
+            label="Privacy Policy"
+            value="How we handle your data"
+            onPress={() => router.push('/(app)/settings/privacy-policy')}
+          />
+          <View style={styles.divider} />
+          <SettingRow
+            icon="document-text-outline"
+            label="Terms of Service"
+            onPress={() => router.push('/(app)/settings/terms-of-service')}
+          />
+          <View style={styles.divider} />
+          <SettingRow
+            icon="download-outline"
+            label="Export My Data"
+            value="Download all your data (JSON)"
+            onPress={handleExportData}
+          />
+        </View>
+
         {/* --- Support --- */}
         <SectionHeader title="Support" />
         <View style={styles.card}>
           <SettingRow icon="help-circle-outline" label="Help Center" onPress={() => Linking.openURL('https://google.com')} />
           <View style={styles.divider} />
           <SettingRow icon="log-out-outline" label="Sign Out" isDestructive onPress={handleSignOut} />
+          <View style={styles.divider} />
+          <SettingRow icon="trash-outline" label="Delete My Account" isDestructive onPress={handleDeleteAccount} />
         </View>
 
         <Text style={styles.versionText}>TradeFlow v1.0.5</Text>

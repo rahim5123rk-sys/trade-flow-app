@@ -108,7 +108,15 @@ export default function LoginScreen() {
           >
             <Text style={styles.linkText}>Don’t have an account? Create one</Text>
           </TouchableOpacity>
-        </View>
+          <View style={styles.legalLinks}>
+            <TouchableOpacity onPress={() => router.push('/(app)/settings/privacy-policy' as any)}>
+              <Text style={styles.legalText}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalDot}>•</Text>
+            <TouchableOpacity onPress={() => router.push('/(app)/settings/terms-of-service' as any)}>
+              <Text style={styles.legalText}>Terms of Service</Text>
+            </TouchableOpacity>
+          </View>        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -159,4 +167,7 @@ const styles = StyleSheet.create({
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   linkBtn: { alignItems: 'center', marginTop: 10 },
   linkText: { color: Colors.primary, fontWeight: '600' },
+  legalLinks: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20, gap: 8 },
+  legalText: { fontSize: 12, color: '#94A3B8', textDecorationLine: 'underline' },
+  legalDot: { fontSize: 12, color: '#CBD5E1' },
 });

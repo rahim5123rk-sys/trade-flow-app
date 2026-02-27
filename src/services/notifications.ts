@@ -72,7 +72,7 @@ export async function registerForPushNotifications(
     });
 
     const token = tokenData;
-    console.log('Push token:', token);
+    console.log('Push token registered');
 
     const { error } = await supabase
       .from('profiles')
@@ -95,7 +95,7 @@ export function setupNotificationListeners(
 ): () => void {
   const receivedSubscription =
     Notifications.addNotificationReceivedListener((notification) => {
-      console.log('Notification received:', notification.request.content);
+      console.log('Notification received');
     });
 
   const responseSubscription =

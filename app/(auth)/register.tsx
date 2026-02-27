@@ -67,6 +67,9 @@ export default function RegisterScreen() {
   // Step 3 (Create): Contact Details
   const [businessAddress, setBusinessAddress] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');
+
+  // GDPR Consent
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const TOTAL_STEPS = 3;
 
@@ -81,7 +84,9 @@ export default function RegisterScreen() {
   const validateStep1 = () => {
     if (!fullName.trim()) return 'Please enter your name.';
     if (!email.trim() || !email.includes('@')) return 'Please enter a valid email.';
-    if (password.length < 6) return 'Password must be at least 6 characters.';
+    if (password.length < 8) return 'Password must be at least 8 characters.';
+    if (!/[A-Z]/.test(password)) return 'Password must contain an uppercase letter.';
+    if (!/[0-9]/.test(password)) return 'Password must contain a number.';
     return null;
   };
 
@@ -292,7 +297,7 @@ export default function RegisterScreen() {
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>
-              <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Min 6 characters" placeholderTextColor="#94a3b8" secureTextEntry />
+              <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Min 8 chars, 1 uppercase, 1 number" placeholderTextColor="#94a3b8" secureTextEntry />
             </View>
 
             <TouchableOpacity style={styles.nextBtn} onPress={goNext}>
@@ -386,10 +391,27 @@ export default function RegisterScreen() {
               </View>
             )}
 
+            {/* GDPR Consent */}
             <TouchableOpacity
-              style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+              style={styles.consentRow}
+              onPress={() => setAcceptedTerms(!acceptedTerms)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                {acceptedTerms && <Ionicons name="checkmark" size={14} color="#fff" />}
+              </View>
+              <Text style={styles.consentText}>
+                I agree to the{' '}
+                <Text style={styles.consentLink} onPress={() => router.push('/(app)/settings/privacy-policy' as any)}>Privacy Policy</Text>
+                {' '}and{' '}
+                <Text style={styles.consentLink} onPress={() => router.push('/(app)/settings/terms-of-service' as any)}>Terms of Service</Text>
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.submitBtn, (loading || !acceptedTerms) && { opacity: 0.7 }]}
               onPress={handleRegister}
-              disabled={loading}
+              disabled={loading || !acceptedTerms}
             >
               {loading ? (
                 <View style={styles.loadingRow}>
@@ -447,6 +469,11 @@ const styles = StyleSheet.create({
   submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16, paddingHorizontal: 4 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center', marginTop: 1 },
+  checkboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  consentText: { flex: 1, fontSize: 13, color: Colors.textLight, lineHeight: 20 },
+  consentLink: { color: Colors.primary, fontWeight: '600', textDecorationLine: 'underline' },
   confirmContainer: { alignItems: 'center', backgroundColor: '#F8FAFC', padding: 30, borderRadius: 20, marginBottom: 20 },
   confirmTitle: { fontSize: 22, fontWeight: '800', color: Colors.text, marginTop: 16 },
   confirmCompany: { fontSize: 18, color: Colors.primary, fontWeight: '600', marginTop: 4, marginBottom: 12 },
