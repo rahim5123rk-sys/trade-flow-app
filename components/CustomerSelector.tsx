@@ -1,7 +1,6 @@
 // ============================================
 // FILE: components/CustomerSelector.tsx
 // Shared customer selection/creation component
-// Used by: Create Job, Invoice, Quote
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
@@ -67,6 +66,9 @@ interface CustomerSelectorProps {
   onQuickToggleChange?: (isQuick: boolean) => void;
   showJobAddress?: boolean;
   prefillMode?: 'none' | 'locked';
+  // NEW PROPS FOR STANDALONE EDITING
+  hideTabs?: boolean;
+  showActions?: boolean;
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -80,6 +82,8 @@ export function CustomerSelector({
   onQuickToggleChange,
   showJobAddress = true,
   prefillMode = 'none',
+  hideTabs = false,    // Default to showing tabs
+  showActions = true,  // Default to showing internal "Done" buttons
 }: CustomerSelectorProps) {
   const { userProfile } = useAuth();
 
@@ -140,8 +144,6 @@ export function CustomerSelector({
     onQuickToggleChange?.(val);
   };
 
-  // ─── Edit existing customer logic ─────────────────────────────
-
   const startEditing = () => {
     setOriginalData({ ...value });
     setIsEditing(true);
@@ -153,7 +155,6 @@ export function CustomerSelector({
     setOriginalData(null);
   };
 
-  // Detects if the user has changed anything while editing
   const hasChanged = originalData ? (
     value.customerName !== originalData.customerName ||
     value.customerCompany !== originalData.customerCompany ||
@@ -166,8 +167,6 @@ export function CustomerSelector({
     value.email !== originalData.email
   ) : false;
 
-  // ─── Database Action Handlers (Built-In) ───
-  
   const handleUpdateExisting = async () => {
     try {
       await updateExistingCustomer(value.customerId!, value);
@@ -182,7 +181,7 @@ export function CustomerSelector({
 
   const handleCreateCustomerInDB = async () => {
     if (!value.customerName || !value.addressLine1 || !value.postCode) {
-      Alert.alert('Missing Info', 'Contact Name, Address Line 1, and Post Code are required to save.');
+      Alert.alert('Missing Info', 'Name, Address, and Post Code are required.');
       return;
     }
     try {
@@ -194,17 +193,14 @@ export function CustomerSelector({
         .single();
         
       if (error) throw error;
-      
-      // Update the form with the new database ID and lock it in as an existing customer
       onChange({ ...value, customerId: newCust.id });
       setCustomerMode('existing');
       await fetchCustomers();
-      
-      Alert.alert('Success', 'Customer successfully saved to your database!');
+      Alert.alert('Success', 'Customer saved to database.');
       setIsEditing(false);
       setOriginalData(null);
     } catch (e) {
-      Alert.alert('Error', 'Could not create customer. Please check your connection.');
+      Alert.alert('Error', 'Could not create customer.');
     }
   };
 
@@ -216,11 +212,11 @@ export function CustomerSelector({
 
   const isLocked = prefillMode === 'locked' && !isEditing;
 
-  // ─── Render ───────────────────────────────────────────────────
+  // Logic to determine if we show inputs or the picker
+  const showInputs = hideTabs || isEditing || customerMode === 'new';
 
   return (
     <View>
-      {/* Quick Toggle */}
       {showQuickToggle && (
         <View style={styles.quickToggleRow}>
           <Text style={styles.quickLabel}>Quick Entry</Text>
@@ -228,7 +224,6 @@ export function CustomerSelector({
         </View>
       )}
 
-      {/* ─── LOCKED VIEW (prefilled or selected existing) ─── */}
       {isLocked && value.customerName ? (
         <View style={styles.prefillCard}>
           <View style={styles.prefillHeader}>
@@ -244,32 +239,20 @@ export function CustomerSelector({
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.prefillDivider} />
-          <View style={styles.prefillRow}>
-            <Ionicons name="location-outline" size={16} color={Colors.textLight} />
-            <Text style={styles.prefillText}>{[value.addressLine1, value.city, value.postCode].filter(Boolean).join(', ') || 'No address'}</Text>
-          </View>
-          {value.phone && (
-            <View style={styles.prefillRow}>
-              <Ionicons name="call-outline" size={16} color={Colors.textLight} />
-              <Text style={styles.prefillText}>{value.phone}</Text>
-            </View>
-          )}
         </View>
       ) : null}
 
       {isEditing && (
         <View style={styles.editingBanner}>
-          <Text style={styles.editingTitle}>Editing Customer Details</Text>
+          <Text style={styles.editingTitle}>Editing Details</Text>
           <Text style={styles.editingSub}>Update this record or split it into a new customer.</Text>
         </View>
       )}
 
-      {/* ─── EDITABLE FIELDS ─── */}
       {(!isLocked) && (
         <>
-          {/* Tabs */}
-          {!isEditing && prefillMode === 'none' && (
+          {/* Tabs - Only show if not hidden and not currently in mid-edit */}
+          {!hideTabs && !isEditing && prefillMode === 'none' && (
             <View style={styles.tabContainer}>
               <TouchableOpacity style={[styles.tab, customerMode === 'new' && styles.activeTab]} onPress={() => { setCustomerMode('new'); onChange({ ...EMPTY_CUSTOMER_FORM, sameAsBilling: value.sameAsBilling }); }}>
                 <Text style={[styles.tabText, customerMode === 'new' && styles.activeTabText]}>New Customer</Text>
@@ -280,8 +263,8 @@ export function CustomerSelector({
             </View>
           )}
 
-          {/* EXISTING mode picker */}
-          {customerMode === 'existing' && !isEditing ? (
+          {!showInputs ? (
+            /* EXISTING mode picker */
             <View style={styles.card}>
               <Text style={styles.label}>Select Customer *</Text>
               <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowPicker(true)}>
@@ -308,7 +291,7 @@ export function CustomerSelector({
               )}
             </View>
           ) : (
-            /* NEW mode or EDITING existing */
+            /* Input fields (Standalone Edit or New Mode) */
             <View style={styles.card}>
               <Text style={styles.label}>Contact Name *</Text>
               <TextInput style={styles.input} placeholder="e.g. Sarah Jenkins" placeholderTextColor="#94a3b8" value={value.customerName} onChangeText={(t) => update('customerName', t)} />
@@ -366,11 +349,10 @@ export function CustomerSelector({
                 )}
               </View>
 
-              {/* DYNAMIC BUTTONS FOR EDITING */}
-              {isEditing && (
+              {/* ACTION BUTTONS (Only if showActions is true) */}
+              {showActions && isEditing && (
                 <View style={{ marginTop: 10 }}>
                   {!hasChanged ? (
-                    // IF NO CHANGES: Show standard Cancel/Done
                     <View style={styles.editActions}>
                       <TouchableOpacity style={styles.cancelEditBtn} onPress={cancelEditing}>
                         <Text style={styles.cancelEditText}>Cancel</Text>
@@ -381,7 +363,6 @@ export function CustomerSelector({
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    // IF CHANGES DETECTED: Show Update and Save as New
                     <View style={{ gap: 10 }}>
                       <View style={{ flexDirection: 'row', gap: 10 }}>
                         <TouchableOpacity style={styles.cancelEditBtn} onPress={cancelEditing}>
@@ -401,8 +382,7 @@ export function CustomerSelector({
                 </View>
               )}
 
-              {/* CREATE BUTTON FOR BRAND NEW CUSTOMERS */}
-              {!isEditing && customerMode === 'new' && value.customerName.length > 0 && (
+              {showActions && !isEditing && customerMode === 'new' && value.customerName.length > 0 && (
                 <TouchableOpacity 
                   style={[styles.confirmEditBtn, { backgroundColor: Colors.success, marginTop: 16 }]} 
                   onPress={handleCreateCustomerInDB}
@@ -411,7 +391,6 @@ export function CustomerSelector({
                   <Text style={styles.confirmEditText}>Save Customer to Database</Text>
                 </TouchableOpacity>
               )}
-
             </View>
           )}
         </>
@@ -449,23 +428,19 @@ export function CustomerSelector({
             </View>
             <View style={styles.modalSearchBox}>
               <Ionicons name="search" size={18} color={Colors.textLight} />
-              <TextInput style={styles.modalSearchInput} placeholder="Search customers..." placeholderTextColor="#94a3b8" value={searchText} onChangeText={setSearchText} />
-              {searchText.length > 0 && <TouchableOpacity onPress={() => setSearchText('')}><Ionicons name="close-circle" size={18} color={Colors.textLight} /></TouchableOpacity>}
+              <TextInput style={styles.modalSearchInput} placeholder="Search..." placeholderTextColor="#94a3b8" value={searchText} onChangeText={setSearchText} />
             </View>
             <FlatList
               data={filteredCustomers}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.customerItem} onPress={() => handleSelectCustomer(item)}>
-                  <View style={styles.customerAvatar}><Text style={styles.customerAvatarText}>{item.name[0]?.toUpperCase()}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.customerName}>{item.name}</Text>
-                    {item.company_name ? <Text style={styles.customerCompanyText}>{item.company_name}</Text> : null}
                     <Text style={styles.customerAddr}>{item.address}</Text>
                   </View>
                 </TouchableOpacity>
               )}
-              ListEmptyComponent={<Text style={{ padding: 20, textAlign: 'center', color: '#94a3b8' }}>No customers found.</Text>}
             />
           </View>
         </View>
@@ -579,9 +554,6 @@ const styles = StyleSheet.create({
   modalSearchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', paddingHorizontal: 12, marginBottom: 12 },
   modalSearchInput: { flex: 1, paddingVertical: 10, paddingHorizontal: 8, fontSize: 15, color: '#0f172a' },
   customerItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f8fafc', gap: 12 },
-  customerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
-  customerAvatarText: { fontSize: 15, fontWeight: '700', color: Colors.primary },
   customerName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
-  customerCompanyText: { fontSize: 13, color: Colors.primary, fontWeight: '500' },
   customerAddr: { fontSize: 13, color: '#64748b', marginTop: 2 },
 });

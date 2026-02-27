@@ -6,7 +6,7 @@ import { Colors } from '../../constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 
 export default function AppLayout() {
-  const { session, isLoading, userProfile } = useAuth();
+  const { session, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -65,19 +65,20 @@ export default function AppLayout() {
           ),
         }}
       />
-      
+
+      {/* ─── DOCUMENTS (Now Visible) ─── */}
       <Tabs.Screen
-        name="settings/index"
+        name="documents"
         options={{
-          title: 'Settings',
+          title: 'Documents',
           tabBarIcon: ({ color }) => (
-            <Ionicons name="settings-outline" size={22} color={color} />
+            <Ionicons name="document-text-outline" size={22} color={color} />
           ),
         }}
       />
 
       {/* ─── HIDDEN SCREENS ─── */}
-      {/* href: null cleanly removes them from the tab bar but keeps them accessible via router.push */}
+      {/* href: null removes them from the tab bar UI while keeping the routes functional */}
       
       <Tabs.Screen 
         name="customers" 
@@ -89,9 +90,14 @@ export default function AppLayout() {
         options={{ href: null }} 
       />
 
-      <Tabs.Screen 
-        name="documents" 
-        options={{ href: null }} 
+      <Tabs.Screen
+        name="settings/index"
+        options={{
+          href: null,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="settings-outline" size={22} color={color} />
+          ),
+        }}
       />
     </Tabs>
   );
