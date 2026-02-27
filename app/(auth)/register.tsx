@@ -2,20 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
+import { Colors, UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
 
@@ -93,24 +93,24 @@ export default function RegisterScreen() {
   const checkInviteCode = async () => {
     setLoading(true);
     try {
-        const { data, error } = await supabase
+      const { data, error } = await supabase
         .from('companies')
         .select('id, name')
         .eq('invite_code', inviteCode.trim().toUpperCase())
         .single();
 
-        setLoading(false);
-        
-        if (error || !data) {
-            Alert.alert('Invalid Code', 'No company found with this invite code.');
-            return false;
-        }
-        setFoundCompany(data);
-        return true;
-    } catch (e) {
-        setLoading(false);
-        Alert.alert('Error', 'Failed to validate code.');
+      setLoading(false);
+
+      if (error || !data) {
+        Alert.alert('Invalid Code', 'No company found with this invite code.');
         return false;
+      }
+      setFoundCompany(data);
+      return true;
+    } catch (e) {
+      setLoading(false);
+      Alert.alert('Error', 'Failed to validate code.');
+      return false;
     }
   };
 
@@ -159,76 +159,277 @@ export default function RegisterScreen() {
     setRegistering(true);
 
     try {
-      // 1. Create Auth User
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-      });
+      const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number, label: string) => {
+        return await Promise.race([
+          Promise.resolve(promise),
+          new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+          ),
+        ]);
+      };
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("No user returned");
+      // 1. Create Auth User (or recover existing orphaned auth user)
+      let userId: string;
+      console.log('[Register] Step 1: Creating auth user...');
 
-      const userId = authData.user.id;
+      const { data: authData, error: authError } = await withTimeout(
+        supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        }),
+        15000,
+        'signUp'
+      );
+
+      console.log('[Register] signUp result — error:', authError?.message ?? 'none',
+        'user:', authData?.user?.id ?? 'null',
+        'session:', authData?.session ? 'yes' : 'no');
+
+      if (authError) {
+        // If user already exists in auth.users, try signing in instead
+        if (authError.message?.toLowerCase().includes('already registered')) {
+          console.log('[Register] User exists in auth — trying sign-in to recover...');
+          const { data: signInData, error: signInError } = await withTimeout(
+            supabase.auth.signInWithPassword({
+              email: email.trim(),
+              password,
+            }),
+            10000,
+            'signInWithPassword (recovery)'
+          );
+
+          if (signInError) {
+            throw new Error(
+              'An account with this email already exists. If this is your account, try logging in instead.'
+            );
+          }
+
+          // Check if profile already exists
+          const { data: existingAuthProfile } = await supabase
+            .from('profiles')
+            .select('id, company_id')
+            .eq('id', signInData.user!.id)
+            .maybeSingle();
+
+          if (existingAuthProfile && existingAuthProfile.company_id) {
+            throw new Error(
+              'An account with this email already exists. Please log in instead.'
+            );
+          }
+          // If profile exists but no company, we continue to Step 3 logic to fix it.
+
+          userId = signInData.user!.id;
+        } else {
+          throw authError;
+        }
+      } else {
+        // signUp returned no error but check if we actually got a real user
+        // (Supabase can return a fake user with empty identities for existing emails)
+        if (!authData.user) throw new Error('No user returned from sign up.');
+
+        const identities = authData.user.identities ?? [];
+        if (identities.length === 0) {
+          // This means the email already exists — Supabase returns a fake user to prevent enumeration
+          throw new Error(
+            'An account with this email already exists. Please log in instead.'
+          );
+        }
+
+        userId = authData.user.id;
+        console.log('[Register] Auth user created:', userId);
+      }
+
+      // 2. Ensure we have an active session
+      console.log('[Register] Step 2: Verifying session...');
+      let currentSession = authData?.session ?? null;
+
+      if (!currentSession) {
+        console.log('[Register] No session from signUp — signing in...');
+        const { data: signInData, error: loginError } = await withTimeout(
+          supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          }),
+          10000,
+          'signInWithPassword (session)'
+        );
+        if (loginError) {
+          throw new Error(
+            'Account created but could not sign in. Please go back and log in with your email and password.'
+          );
+        }
+        currentSession = signInData.session;
+      }
+
+      if (!currentSession) {
+        console.log('[Register] Still no session — attempting refreshSession...');
+        const { data: refreshData, error: refreshError } = await withTimeout(
+          supabase.auth.refreshSession(),
+          10000,
+          'refreshSession'
+        );
+        if (refreshError) {
+          throw new Error('Could not establish a session. Please try logging in manually.');
+        }
+        currentSession = refreshData.session ?? null;
+      }
+
+      if (!currentSession) {
+        throw new Error('Could not establish a session. Please try logging in manually.');
+      }
+
+      console.log('[Register] Session active, token starts with:', currentSession.access_token.substring(0, 20) + '...');
+      console.log('[Register] Step 3: Preparing to create company/profile...');
+
+      // 3. Create Company/Profile via RPC to avoid hanging PostgREST inserts
       let companyId = '';
       let userRole = '';
 
       if (mode === 'create') {
-        // --- FLOW A: Create Company ---
+        console.log('[Register] Step 3: Creating company + profile (RPC)...');
         const code = generateInviteCode();
-        const { data: company, error: companyError } = await supabase
-          .from('companies')
-          .insert({
-            name: companyName.trim(),
-            address: businessAddress.trim(),
-            phone: businessPhone.trim(),
-            email: email.trim(), // Default to user email
-            trade: trade,
-            invite_code: code,
-            settings: { nextJobNumber: 1 },
-          })
-          .select()
-          .single();
 
-        if (companyError) throw companyError;
-        companyId = company.id;
+        // --- CHECK EXISTING PROFILE FIRST ---
+        // Prevents timeouts if a trigger on auth.users already created the profile
+        console.log('[Register] Checking for existing profile (5s timeout)...');
+        let existingProfile = null;
+        try {
+          const checkRes = await withTimeout<any>(
+             supabase
+              .from('profiles')
+              .select('id, company_id')
+              .eq('id', userId)
+              .maybeSingle(),
+             5000,
+             'Profile Check'
+          );
+          existingProfile = checkRes.data;
+          console.log('[Register] Profile check complete. Found:', !!existingProfile);
+        } catch (e) {
+          console.warn('[Register] Profile check timed out. Proceeding...');
+        }
+
+        let rpcResult;
+        
+        if (existingProfile) {
+           console.log('[Register] NOTICE: Profile already exists (trigger likely fired). Handling manually...');
+           // Simulate RPC success structure for downstream logic
+           if (existingProfile.company_id) {
+             console.log('[Register] Profile already linked to company:', existingProfile.company_id);
+             rpcResult = { data: { company_id: existingProfile.company_id }, error: null };
+           } else {
+             console.log('[Register] Profile exists but no company. Creating company manually...');
+             // 1. Create Company
+             const manualCode = generateInviteCode();
+             const { data: companyData, error: companyError } = await supabase
+              .from('companies')
+              .insert({
+                name: companyName.trim(),
+                address: businessAddress.trim(),
+                phone: businessPhone.trim(),
+                invite_code: manualCode,
+              })
+              .select('id')
+              .single();
+
+             if (companyError) throw new Error('Failed to create company manually: ' + companyError.message);
+             const newCompanyId = companyData.id;
+
+             // 2. Update Profile
+             const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                company_id: newCompanyId,
+                role: 'admin',
+                display_name: fullName.trim(),
+                email: email.trim(),
+                trade: trade,
+              })
+              .eq('id', userId);
+
+             if (updateError) throw new Error('Failed to update profile manually: ' + updateError.message);
+             
+             rpcResult = { data: { company_id: newCompanyId }, error: null };
+           }
+        } else {
+            console.log('[Register] No existing profile. Calling RPC with 30s timeout...');
+            rpcResult = await withTimeout<any>(
+            supabase
+                .rpc('create_company_and_profile', {
+                p_user_id: userId,
+                p_email: email.trim(),
+                p_display_name: fullName.trim(),
+                p_company_name: companyName.trim(),
+                p_company_address: businessAddress.trim(),
+                p_company_phone: businessPhone.trim(),
+                p_trade: trade,
+                p_invite_code: code,
+                p_role: 'admin',
+                p_consent_given_at: new Date().toISOString(),
+                })
+                .then((res) => res),
+            30000,
+            'Create company/profile RPC'
+            );
+        }
+
+        if (rpcResult.error) {
+          throw new Error('Failed to create company/profile: ' + rpcResult.error.message);
+        }
+
+        if (!rpcResult.data?.company_id) {
+          throw new Error('Company/profile created but no company id returned.');
+        }
+
+        companyId = rpcResult.data.company_id;
         userRole = 'admin';
-
+        console.log('[Register] Company created:', companyId);
       } else {
-        // --- FLOW B: Join Company ---
-        if (!foundCompany) throw new Error("Company not confirmed");
+        if (!foundCompany) throw new Error('Company not confirmed');
+        console.log('[Register] Step 3: Joining company + profile (RPC)...');
+        const rpcResult = await withTimeout<any>(
+          supabase
+            .rpc('join_company_and_profile', {
+              p_user_id: userId,
+              p_company_id: foundCompany.id,
+              p_email: email.trim(),
+              p_display_name: fullName.trim(),
+              p_role: 'worker',
+              p_consent_given_at: new Date().toISOString(),
+            })
+            .then((res) => res),
+          10000,
+          'Join company/profile RPC'
+        );
+
+        if (rpcResult.error) {
+          throw new Error('Failed to join company/profile: ' + rpcResult.error.message);
+        }
+
         companyId = foundCompany.id;
         userRole = 'worker';
+        console.log('[Register] Joined company:', companyId);
       }
 
-      // 2. Create Profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          email: email.trim(),
-          display_name: fullName.trim(),
-          company_id: companyId,
-          role: userRole as any,
-        });
-
-      if (profileError) throw profileError;
-
-      // 3. Complete
+      // 5. Complete
+      console.log('[Register] Step 5: Finalising...');
       setRegistering(false);
-      await refreshProfile();
-      
-      // Redirect based on role
-      if (userRole === 'admin') {
-        router.replace('/(app)/dashboard');
-      } else {
-        // Assuming you have this route, or redirect to a worker waiting screen
-        router.replace('/(app)/dashboard');
+      const refreshResult = await Promise.race([
+        refreshProfile(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+      if (!refreshResult) {
+        console.warn('[Register] refreshProfile timed out or returned null');
       }
+      router.replace('/(app)/dashboard');
 
     } catch (error: any) {
-      console.error('Registration failed:', (error?.message || '').replace(/[\w.-]+@[\w.-]+/g, '[REDACTED]'));
+      const msg = error?.message || 'An unknown error occurred';
+      console.error('[Register] FAILED:', msg);
       setRegistering(false);
-      Alert.alert('Registration Failed', error.message);
+      // Sign out to clean up any partial session so user can retry
+      try { await supabase.auth.signOut(); } catch (_) {}
+      Alert.alert('Registration Failed', msg);
     } finally {
       setLoading(false);
     }
@@ -277,13 +478,13 @@ export default function RegisterScreen() {
                 style={[styles.modeBtn, mode === 'create' && styles.modeBtnActive]} 
                 onPress={() => setMode('create')}>
                 <Ionicons name="briefcase-outline" size={20} color={mode === 'create' ? '#fff' : Colors.text} />
-                <Text style={[styles.modeText, mode === 'create' && { color: '#fff' }]}>New Company</Text>
+                <Text style={[styles.modeText, mode === 'create' && { color: UI.text.white }]}>New Company</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.modeBtn, mode === 'join' && styles.modeBtnActive]} 
                 onPress={() => setMode('join')}>
                 <Ionicons name="people-outline" size={20} color={mode === 'join' ? '#fff' : Colors.text} />
-                <Text style={[styles.modeText, mode === 'join' && { color: '#fff' }]}>Join Team</Text>
+                <Text style={[styles.modeText, mode === 'join' && { color: UI.text.white }]}>Join Team</Text>
               </TouchableOpacity>
             </View>
 
@@ -302,7 +503,7 @@ export default function RegisterScreen() {
 
             <TouchableOpacity style={styles.nextBtn} onPress={goNext}>
               <Text style={styles.nextBtnText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Ionicons name="arrow-forward" size={20} color={UI.text.white} />
             </TouchableOpacity>
           </View>
         )}
@@ -357,7 +558,7 @@ export default function RegisterScreen() {
 
             <TouchableOpacity style={styles.nextBtn} onPress={goNext}>
               <Text style={styles.nextBtnText}>{mode === 'join' ? 'Verify Code' : 'Continue'}</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Ionicons name="arrow-forward" size={20} color={UI.text.white} />
             </TouchableOpacity>
           </View>
         )}
@@ -398,13 +599,13 @@ export default function RegisterScreen() {
               activeOpacity={0.7}
             >
               <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
-                {acceptedTerms && <Ionicons name="checkmark" size={14} color="#fff" />}
+                {acceptedTerms && <Ionicons name="checkmark" size={14} color={UI.text.white} />}
               </View>
               <Text style={styles.consentText}>
                 I agree to the{' '}
-                <Text style={styles.consentLink} onPress={() => router.push('/(app)/settings/privacy-policy' as any)}>Privacy Policy</Text>
+                <Text style={styles.consentLink} onPress={() => router.push('/(auth)/privacy-policy' as any)}>Privacy Policy</Text>
                 {' '}and{' '}
-                <Text style={styles.consentLink} onPress={() => router.push('/(app)/settings/terms-of-service' as any)}>Terms of Service</Text>
+                <Text style={styles.consentLink} onPress={() => router.push('/(auth)/terms-of-service' as any)}>Terms of Service</Text>
               </Text>
             </TouchableOpacity>
 
@@ -415,12 +616,12 @@ export default function RegisterScreen() {
             >
               {loading ? (
                 <View style={styles.loadingRow}>
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={UI.text.white} />
                   <Text style={styles.submitBtnText}>{mode === 'create' ? 'Creating Account...' : 'Joining Team...'}</Text>
                 </View>
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle" size={22} color="#fff" />
+                  <Ionicons name="checkmark-circle" size={22} color={UI.text.white} />
                   <Text style={styles.submitBtnText}>{mode === 'create' ? 'Create My Account' : 'Join Team'}</Text>
                 </>
               )}
@@ -435,46 +636,46 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#fff' },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: UI.surface.elevated, justifyContent: 'center', alignItems: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
   stepLabel: { fontSize: 14, fontWeight: '600', color: Colors.textLight },
-  progressTrack: { height: 4, backgroundColor: '#f1f5f9', marginHorizontal: 24, borderRadius: 2, overflow: 'hidden' },
+  progressTrack: { height: 4, backgroundColor: UI.surface.elevated, marginHorizontal: 24, borderRadius: 2, overflow: 'hidden' },
   progressBar: { height: '100%', backgroundColor: Colors.primary, borderRadius: 2 },
   scrollContainer: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 },
   
   title: { fontSize: 26, fontWeight: '800', color: Colors.text, marginTop: 32, marginBottom: 6 },
   subtitle: { fontSize: 15, color: Colors.textLight, lineHeight: 22, marginBottom: 28 },
   
-  modeContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', padding: 4, borderRadius: 12, marginBottom: 24 },
+  modeContainer: { flexDirection: 'row', backgroundColor: UI.surface.elevated, padding: 4, borderRadius: 12, marginBottom: 24 },
   modeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, gap: 8 },
   modeBtnActive: { backgroundColor: Colors.primary, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
   modeText: { fontWeight: '600', color: Colors.text },
 
   field: { marginBottom: 20 },
   label: { fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 8 },
-  input: { backgroundColor: '#f8fafc', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, fontSize: 16, color: Colors.text },
+  input: { backgroundColor: UI.surface.base, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, fontSize: 16, color: Colors.text },
   codeInput: { textAlign: 'center', fontSize: 24, letterSpacing: 3, fontWeight: '700', textTransform: 'uppercase' },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
   
   tradeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tradeChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: '#f1f5f9', borderWidth: 1.5, borderColor: '#f1f5f9' },
-  tradeChipActive: { backgroundColor: '#EFF6FF', borderColor: Colors.primary },
+  tradeChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: UI.surface.elevated, borderWidth: 1.5, borderColor: UI.surface.elevated },
+  tradeChipActive: { backgroundColor: UI.surface.base, borderColor: Colors.primary },
   tradeChipText: { fontSize: 14, fontWeight: '500', color: Colors.textLight },
   tradeChipTextActive: { color: Colors.primary, fontWeight: '700' },
   
   nextBtn: { flexDirection: 'row', backgroundColor: Colors.primary, padding: 18, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, ...Colors.shadow },
-  nextBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  nextBtnText: { color: UI.text.white, fontWeight: 'bold', fontSize: 16 },
   
   submitBtn: { flexDirection: 'row', backgroundColor: Colors.success, padding: 18, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12, elevation: 4 },
-  submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  submitBtnText: { color: UI.text.white, fontWeight: 'bold', fontSize: 16 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
   consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16, paddingHorizontal: 4 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center', marginTop: 1 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: UI.surface.border, justifyContent: 'center', alignItems: 'center', marginTop: 1 },
   checkboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   consentText: { flex: 1, fontSize: 13, color: Colors.textLight, lineHeight: 20 },
   consentLink: { color: Colors.primary, fontWeight: '600', textDecorationLine: 'underline' },
-  confirmContainer: { alignItems: 'center', backgroundColor: '#F8FAFC', padding: 30, borderRadius: 20, marginBottom: 20 },
+  confirmContainer: { alignItems: 'center', backgroundColor: UI.surface.base, padding: 30, borderRadius: 20, marginBottom: 20 },
   confirmTitle: { fontSize: 22, fontWeight: '800', color: Colors.text, marginTop: 16 },
   confirmCompany: { fontSize: 18, color: Colors.primary, fontWeight: '600', marginTop: 4, marginBottom: 12 },
   confirmText: { textAlign: 'center', color: Colors.textLight, lineHeight: 22 },

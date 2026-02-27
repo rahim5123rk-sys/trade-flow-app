@@ -8,7 +8,7 @@ import {
     View,
     ViewStyle,
 } from 'react-native';
-import { Colors } from './../constants/theme';
+import { Colors, UI } from './../constants/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -73,9 +73,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   label: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: UI.text.secondary,
     textTransform: 'uppercase',
     marginBottom: 6,
     marginLeft: 2,
@@ -86,9 +86,9 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: UI.surface.base,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: UI.surface.divider,
     borderRadius: 12,
     paddingHorizontal: 12,
   },

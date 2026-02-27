@@ -3,11 +3,12 @@ import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { HapticTab } from '../../components/haptic-tab';
-import { Colors } from '../../constants/theme';
+import { Colors, UI } from '../../constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 
 export default function AppLayout() {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, role } = useAuth();
+  const isAdmin = role === 'admin';
 
   if (isLoading) {
     return (
@@ -26,8 +27,8 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarActiveTintColor: '#6366F1',
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarActiveTintColor: UI.brand.primary,
+        tabBarInactiveTintColor: UI.text.muted,
         tabBarShowLabel: true,
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
@@ -70,6 +71,7 @@ export default function AppLayout() {
         name="documents"
         options={{
           title: 'Docs',
+          href: isAdmin ? undefined : null,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={24} color={color} />
           ),
@@ -84,6 +86,8 @@ export default function AppLayout() {
       <Tabs.Screen name="settings/index" options={{ href: null }} />
       <Tabs.Screen name="settings/user-details" options={{ href: null }} />
       <Tabs.Screen name="settings/company-details" options={{ href: null }} />
+      <Tabs.Screen name="settings/privacy-policy" options={{ href: null }} />
+      <Tabs.Screen name="settings/terms-of-service" options={{ href: null }} />
       <Tabs.Screen name="cp12" options={{ href: null }} />
     </Tabs>
   );
@@ -100,12 +104,12 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   tabBg: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: UI.surface.base,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0,0,0,0.06)',
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     marginTop: 2,
   },

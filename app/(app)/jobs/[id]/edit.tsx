@@ -190,7 +190,7 @@ export default function EditJobScreen() {
             <View style={styles.glassCard}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
-                  <Ionicons name="calendar" size={15} color="#3B82F6" />
+                  <Ionicons name="calendar" size={15} color={UI.status.inProgress} />
                 </View>
                 <Text style={styles.sectionTitle}>Schedule</Text>
               </View>
@@ -244,7 +244,7 @@ export default function EditJobScreen() {
               <View style={[styles.glassCard, { flex: 1, marginRight: 6 }]}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.iconWrap, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
-                    <Ionicons name="cash" size={15} color="#10B981" />
+                    <Ionicons name="cash" size={15} color={UI.status.complete} />
                   </View>
                   <Text style={styles.sectionTitle}>Price</Text>
                 </View>
@@ -265,7 +265,7 @@ export default function EditJobScreen() {
               <View style={[styles.glassCard, { flex: 1, marginLeft: 6 }]}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.iconWrap, { backgroundColor: 'rgba(139,92,246,0.1)' }]}>
-                    <Ionicons name="hourglass" size={15} color="#8B5CF6" />
+                    <Ionicons name="hourglass" size={15} color={UI.status.paid} />
                   </View>
                   <Text style={styles.sectionTitle}>Duration</Text>
                 </View>
@@ -289,7 +289,7 @@ export default function EditJobScreen() {
             <View style={styles.glassCard}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(245,158,11,0.1)' }]}>
-                  <Ionicons name="create" size={15} color="#F59E0B" />
+                  <Ionicons name="create" size={15} color={UI.status.pending} />
                 </View>
                 <Text style={styles.sectionTitle}>Notes</Text>
               </View>
@@ -312,7 +312,7 @@ export default function EditJobScreen() {
               <View style={styles.glassCard}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.iconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
-                    <Ionicons name="people" size={15} color="#3B82F6" />
+                    <Ionicons name="people" size={15} color={UI.status.inProgress} />
                   </View>
                   <Text style={styles.sectionTitle}>Assigned Workers</Text>
                 </View>
@@ -335,10 +335,10 @@ export default function EditJobScreen() {
                 style={styles.saveBtn}
               >
                 {saving ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={UI.text.white} />
                 ) : (
                   <>
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    <Ionicons name="checkmark-circle" size={20} color={UI.text.white} />
                     <Text style={styles.saveBtnText}>Save Changes</Text>
                   </>
                 )}
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     ...Colors.shadow,
   },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveBtnText: { color: UI.text.white, fontWeight: '700', fontSize: 16 },
 
   // ── Modal ──
   modalOverlay: {
@@ -543,5 +543,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
-  confirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  confirmBtnText: { color: UI.text.white, fontWeight: '700', fontSize: 15 },
 });

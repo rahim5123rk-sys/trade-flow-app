@@ -27,7 +27,7 @@ import { Colors, UI } from '../../../../constants/theme';
 import { supabase } from '../../../../src/config/supabase';
 import { useAuth } from '../../../../src/context/AuthContext';
 import { generateJobSheet } from '../../../../src/services/pdfGenerator';
-import { uploadImage } from '../../../../src/services/storage';
+import { uploadImage, getSignedUrl, getSignedUrls } from '../../../../src/services/storage';
 import { Job } from '../../../../src/types';
 
 const GLASS_BG = UI.glass.bg;
@@ -35,12 +35,15 @@ const GLASS_BORDER = UI.glass.border;
 
 const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'];
 
+const isValidUUID = (s: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap; gradient: readonly [string, string] }> = {
-  pending:     { label: 'Pending',     color: '#F59E0B', icon: 'time-outline',             gradient: ['#F59E0B', '#FBBF24'] },
-  in_progress: { label: 'In Progress', color: '#3B82F6', icon: 'play-circle-outline',      gradient: ['#3B82F6', '#60A5FA'] },
-  complete:    { label: 'Complete',     color: '#10B981', icon: 'checkmark-circle-outline',  gradient: ['#10B981', '#34D399'] },
-  paid:        { label: 'Paid',         color: '#8B5CF6', icon: 'wallet-outline',            gradient: ['#8B5CF6', '#A78BFA'] },
-  cancelled:   { label: 'Cancelled',    color: '#EF4444', icon: 'close-circle-outline',      gradient: ['#EF4444', '#F87171'] },
+  pending:     { label: 'Pending',     color: UI.status.pending, icon: 'time-outline',             gradient: UI.gradients.amberLight },
+  in_progress: { label: 'In Progress', color: UI.status.inProgress, icon: 'play-circle-outline',      gradient: UI.gradients.blueLight },
+  complete:    { label: 'Complete',     color: UI.status.complete, icon: 'checkmark-circle-outline',  gradient: UI.gradients.successLight },
+  paid:        { label: 'Paid',         color: UI.status.paid, icon: 'wallet-outline',            gradient: UI.gradients.violet },
+  cancelled:   { label: 'Cancelled',    color: UI.brand.danger, icon: 'close-circle-outline',      gradient: [UI.brand.danger, '#F87171'] },
 };
 
 export default function JobDetailScreen() {
@@ -52,12 +55,14 @@ export default function JobDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [signatureModalVisible, setSignatureModalVisible] = useState(false);
+  const [resolvedPhotos, setResolvedPhotos] = useState<string[]>([]);
 
   const isAdmin = userProfile?.role === 'admin';
 
   useFocusEffect(
     useCallback(() => {
-      if (user && id) fetchJobData();
+      if (user && id && isValidUUID(id)) fetchJobData();
+      else if (id && !isValidUUID(id)) setLoading(false);
     }, [user, id])
   );
 
@@ -66,6 +71,13 @@ export default function JobDetailScreen() {
       const { data, error } = await supabase.from('jobs').select('*').eq('id', id).single();
       if (error) throw error;
       setJob(data);
+      // Resolve private storage refs to signed URLs for display
+      if (data?.photos?.length) {
+        const signed = await getSignedUrls(data.photos);
+        setResolvedPhotos(signed);
+      } else {
+        setResolvedPhotos([]);
+      }
     } catch (e) {
       console.error('Error fetching job:', e);
       Alert.alert('Error', 'Could not load job details.');
@@ -107,6 +119,11 @@ export default function JobDetailScreen() {
   };
 
   const workerAddPhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera access is required to take photos.');
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.5,
@@ -114,10 +131,13 @@ export default function JobDetailScreen() {
     if (!result.canceled) {
       setUpdating(true);
       try {
-        const url = await uploadImage(result.assets[0].uri, 'job-photos');
-        const newPhotos = [...(job.photos || []), url];
+        const storageRef = await uploadImage(result.assets[0].uri, 'job-photos');
+        const newPhotos = [...(job.photos || []), storageRef];
         await supabase.from('jobs').update({ photos: newPhotos }).eq('id', id);
         setJob({ ...job, photos: newPhotos });
+        // Resolve the new photo for display
+        const signedUrl = await getSignedUrl(storageRef);
+        setResolvedPhotos(prev => [...prev, signedUrl]);
       } catch {
         Alert.alert('Upload Failed', 'Could not save photo.');
       } finally {
@@ -224,10 +244,10 @@ export default function JobDetailScreen() {
             <TouchableOpacity onPress={workerStartJob} disabled={updating} activeOpacity={0.85}>
               <LinearGradient colors={UI.gradients.blue} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bigAction}>
                 {updating ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={UI.text.white} />
                 ) : (
                   <>
-                    <Ionicons name="play-circle" size={28} color="#fff" />
+                    <Ionicons name="play-circle" size={28} color={UI.text.white} />
                     <Text style={styles.bigActionText}>Start Job</Text>
                   </>
                 )}
@@ -240,13 +260,13 @@ export default function JobDetailScreen() {
           <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.workerTools}>
             <TouchableOpacity style={styles.toolCard} onPress={workerAddPhoto} activeOpacity={0.75}>
               <View style={[styles.toolIconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
-                <Ionicons name="camera" size={22} color="#3B82F6" />
+                <Ionicons name="camera" size={22} color={UI.status.inProgress} />
               </View>
               <Text style={styles.toolLabel}>Add Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.85} onPress={() => setSignatureModalVisible(true)} style={{ flex: 1 }}>
-              <LinearGradient colors={['#10B981', '#34D399'] as const} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.finishCard}>
-                <Ionicons name="checkmark-done-circle" size={22} color="#fff" />
+              <LinearGradient colors={UI.gradients.successLight} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.finishCard}>
+                <Ionicons name="checkmark-done-circle" size={22} color={UI.text.white} />
                 <Text style={styles.finishLabel}>Finish Job</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -259,7 +279,7 @@ export default function JobDetailScreen() {
             <TouchableOpacity style={styles.glassCard} onPress={openMaps} activeOpacity={0.75}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
-                  <Ionicons name="location" size={16} color="#3B82F6" />
+                  <Ionicons name="location" size={16} color={UI.status.inProgress} />
                 </View>
                 <Text style={styles.sectionTitle}>Location</Text>
                 <Ionicons name="open-outline" size={16} color={UI.text.muted} style={{ marginLeft: 'auto' }} />
@@ -298,19 +318,19 @@ export default function JobDetailScreen() {
         </Animated.View>
 
         {/* ─── Proof of work ─── */}
-        {(job.photos?.length > 0 || job.signature) && (
+        {(resolvedPhotos.length > 0 || job.signature) && (
           <Animated.View entering={FadeInDown.delay(250).duration(400)}>
             <View style={styles.glassCard}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
-                  <Ionicons name="images" size={16} color="#10B981" />
+                  <Ionicons name="images" size={16} color={UI.status.complete} />
                 </View>
                 <Text style={styles.sectionTitle}>Proof of Work</Text>
               </View>
 
-              {job.photos?.length > 0 && (
+              {resolvedPhotos.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                  {job.photos.map((uri: string, idx: number) => (
+                  {resolvedPhotos.map((uri: string, idx: number) => (
                     <Image key={idx} source={{ uri }} style={styles.proofImage} />
                   ))}
                 </ScrollView>
@@ -333,10 +353,10 @@ export default function JobDetailScreen() {
               <TouchableOpacity onPress={() => adminUpdateStatus(nextStatus)} disabled={updating} activeOpacity={0.85}>
                 <LinearGradient colors={nextStatusConfig.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.actionBtnGradient}>
                   {updating ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={UI.text.white} />
                   ) : (
                     <>
-                      <Ionicons name={nextStatusConfig.icon} size={18} color="#fff" />
+                      <Ionicons name={nextStatusConfig.icon} size={18} color={UI.text.white} />
                       <Text style={styles.actionBtnText}>Move to {nextStatusConfig.label}</Text>
                     </>
                   )}
@@ -347,21 +367,21 @@ export default function JobDetailScreen() {
             <View style={styles.adminRow}>
               <TouchableOpacity style={styles.adminCard} onPress={handleCreateInvoice} activeOpacity={0.75}>
                 <View style={[styles.adminCardIcon, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
-                  <Ionicons name="receipt-outline" size={18} color="#10B981" />
+                  <Ionicons name="receipt-outline" size={18} color={UI.status.complete} />
                 </View>
                 <Text style={styles.adminCardLabel}>Invoice</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.adminCard} onPress={handleGeneratePdf} activeOpacity={0.75}>
                 <View style={[styles.adminCardIcon, { backgroundColor: 'rgba(139,92,246,0.1)' }]}>
-                  <Ionicons name="download-outline" size={18} color="#8B5CF6" />
+                  <Ionicons name="download-outline" size={18} color={UI.status.paid} />
                 </View>
                 <Text style={styles.adminCardLabel}>PDF</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.adminCard} onPress={() => router.push(`/(app)/jobs/${job.id}/edit` as any)} activeOpacity={0.75}>
                 <View style={[styles.adminCardIcon, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
-                  <Ionicons name="create-outline" size={18} color="#3B82F6" />
+                  <Ionicons name="create-outline" size={18} color={UI.status.inProgress} />
                 </View>
                 <Text style={styles.adminCardLabel}>Edit</Text>
               </TouchableOpacity>
@@ -460,7 +480,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 12,
   },
-  bigActionText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  bigActionText: { color: UI.text.white, fontSize: 17, fontWeight: '800' },
 
   workerTools: {
     flexDirection: 'row',
@@ -494,7 +514,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  finishLabel: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  finishLabel: { color: UI.text.white, fontSize: 13, fontWeight: '800' },
 
   // ── Glass card (reusable) ──
   glassCard: {
@@ -566,7 +586,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 14,
   },
-  actionBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  actionBtnText: { color: UI.text.white, fontSize: 16, fontWeight: '700' },
 
   adminRow: {
     flexDirection: 'row',

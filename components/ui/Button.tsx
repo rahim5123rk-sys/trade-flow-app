@@ -10,7 +10,7 @@ import {
     View,
     ViewStyle,
 } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { Colors, UI } from '../../constants/theme';
 
 interface ButtonProps {
   title: string;
@@ -38,17 +38,17 @@ export function Button({
   const isSecondary = variant === 'secondary';
 
   const textColor = {
-    primary: '#FFFFFF',
-    secondary: '#334155',
-    danger: '#FFFFFF',
-    success: '#FFFFFF',
+    primary: UI.surface.card,
+    secondary: UI.text.bodyLight,
+    danger: UI.surface.card,
+    success: UI.surface.card,
     ghost: Colors.primary,
   }[variant];
 
   const gradientColors: Record<'primary' | 'danger' | 'success', readonly [string, string]> = {
-    primary: ['#6366F1', '#3B82F6'],
-    danger: ['#EF4444', '#DC2626'],
-    success: ['#10B981', '#34D399'],
+    primary: UI.gradients.primary,
+    danger: UI.gradients.danger,
+    success: UI.gradients.success,
   };
 
   const paddingVertical = { sm: 10, md: 14, lg: 18 }[size];
@@ -127,9 +127,9 @@ const styles = StyleSheet.create({
   },
   secondaryContainer: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.65)',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.88)',
-    shadowColor: '#94A3B8',
+    borderColor: 'rgba(255,255,255,0.80)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.92)',
+    shadowColor: UI.text.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   ghostInner: {
-    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    backgroundColor: 'rgba(29, 78, 216, 0.08)',
   },
   text: {
     fontWeight: '700',

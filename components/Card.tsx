@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
-import { Colors } from './../constants/theme';
+import { Colors, UI} from './../constants/theme';
 
 interface CardProps {
   children: React.ReactNode;
@@ -33,7 +33,7 @@ export function Card({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: UI.surface.card,
     borderRadius: 16,
     marginBottom: 12,
   },

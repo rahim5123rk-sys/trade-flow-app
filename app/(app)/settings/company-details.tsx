@@ -211,7 +211,7 @@ export default function CompanyDetailsScreen() {
 
         <TouchableOpacity style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} onPress={handleSave} disabled={isSaving || isLoading}>
           <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveBtnGradient}>
-            {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Company Details</Text>}
+            {isSaving ? <ActivityIndicator color={UI.text.white} /> : <Text style={styles.saveBtnText}>Save Company Details</Text>}
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.65)' : '#fff',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.80)' : '#fff',
     borderWidth: 1,
     borderColor: GLASS_BORDER,
   },
@@ -248,9 +248,9 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.78)' : '#F8FAFC',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.78)' : UI.surface.base,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: UI.surface.divider,
     borderRadius: 12,
     paddingHorizontal: 12,
   },
@@ -262,9 +262,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 16,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(241,245,249,0.8)' : '#F1F5F9',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(241,245,249,0.8)' : UI.surface.elevated,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: UI.surface.divider,
   },
   tradeChipActive: { backgroundColor: 'rgba(99,102,241,0.12)', borderColor: UI.brand.primary },
   tradeChipText: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
@@ -272,5 +272,5 @@ const styles = StyleSheet.create({
 
   saveBtn: { borderRadius: 14, overflow: 'hidden', ...Colors.shadow },
   saveBtnGradient: { paddingVertical: 16, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveBtnText: { color: UI.text.white, fontSize: 16, fontWeight: '700' },
 });

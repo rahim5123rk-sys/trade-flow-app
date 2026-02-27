@@ -15,9 +15,41 @@ import {
 import { Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Onboarding, { OnboardingTip } from '../../../components/Onboarding';
 import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+
+const JOBS_TIPS: OnboardingTip[] = [
+  {
+    title: 'Your Jobs List 📋',
+    description: 'All your active jobs appear here, sorted by date. Swipe left on a job for quick actions.',
+    icon: 'briefcase-outline',
+    arrowDirection: 'none',
+    accent: '#1D4ED8',
+  },
+  {
+    title: 'Filter Jobs',
+    description: 'Use the filter tabs at the top to switch between All Jobs and My Jobs.',
+    icon: 'funnel-outline',
+    arrowDirection: 'up',
+    accent: '#7C3AED',
+  },
+  {
+    title: 'Swipe Actions',
+    description: 'Swipe any job left to quickly mark it In Progress, Complete, or Delete it.',
+    icon: 'swap-horizontal-outline',
+    arrowDirection: 'down',
+    accent: '#059669',
+  },
+  {
+    title: 'Create New Jobs',
+    description: 'Tap the + button at the bottom right to create a new job with customer details, scheduling and pricing.',
+    icon: 'add-circle-outline',
+    arrowDirection: 'down',
+    accent: '#D97706',
+  },
+];
 
   const GLASS_BG = UI.glass.bg;
   const GLASS_BORDER = UI.glass.border;
@@ -129,40 +161,40 @@ export default function UnifiedJobList() {
         {/* Show contextual status action */}
         {isPending && (
           <TouchableOpacity
-            style={[styles.swipeActionBtn, { backgroundColor: '#3B82F6' }]}
+            style={[styles.swipeActionBtn, { backgroundColor: UI.status.inProgress }]}
             onPress={() => { closeOpenRow(); handleUpdateJobStatus(item.id, 'in_progress'); }}
           >
-            <Ionicons name="play" size={18} color="#fff" />
+            <Ionicons name="play" size={18} color={UI.text.white} />
             <Text style={styles.swipeActionText}>Start</Text>
           </TouchableOpacity>
         )}
 
         {isInProgress && (
           <TouchableOpacity
-            style={[styles.swipeActionBtn, { backgroundColor: '#10B981' }]}
+            style={[styles.swipeActionBtn, { backgroundColor: UI.status.complete }]}
             onPress={() => { closeOpenRow(); handleUpdateJobStatus(item.id, 'complete'); }}
           >
-            <Ionicons name="checkmark-circle" size={18} color="#fff" />
+            <Ionicons name="checkmark-circle" size={18} color={UI.text.white} />
             <Text style={styles.swipeActionText}>Done</Text>
           </TouchableOpacity>
         )}
 
         {isComplete && (
           <TouchableOpacity
-            style={[styles.swipeActionBtn, { backgroundColor: '#F59E0B' }]}
+            style={[styles.swipeActionBtn, { backgroundColor: UI.status.pending }]}
             onPress={() => { closeOpenRow(); handleUpdateJobStatus(item.id, 'pending'); }}
           >
-            <Ionicons name="refresh" size={18} color="#fff" />
+            <Ionicons name="refresh" size={18} color={UI.text.white} />
             <Text style={styles.swipeActionText}>Reopen</Text>
           </TouchableOpacity>
         )}
 
         {isAdmin && (
           <TouchableOpacity
-            style={[styles.swipeActionBtn, { backgroundColor: '#EF4444' }]}
+            style={[styles.swipeActionBtn, { backgroundColor: UI.brand.danger }]}
             onPress={() => { closeOpenRow(); handleDeleteJob(item.id); }}
           >
-            <Ionicons name="trash" size={18} color="#fff" />
+            <Ionicons name="trash" size={18} color={UI.text.white} />
             <Text style={styles.swipeActionText}>Delete</Text>
           </TouchableOpacity>
         )}
@@ -182,7 +214,7 @@ export default function UnifiedJobList() {
       <Animated.View entering={FadeInDown.delay(40).springify()} style={styles.header}>
         <View>
           <Text style={styles.title}>Jobs</Text>
-          <Text style={styles.subtitle}>All scheduled work</Text>
+          <Text style={styles.subtitle}>{isAdmin ? 'All scheduled work' : 'Your assigned jobs'}</Text>
         </View>
         <View style={styles.countBadge}>
           <Text style={styles.countText}>{jobs.length}</Text>
@@ -236,7 +268,7 @@ export default function UnifiedJobList() {
                   activeOpacity={0.72}
                 >
                   <LinearGradient
-                    colors={item.status === 'complete' ? ['#10B981', '#34D399'] as const : UI.gradients.primary}
+                    colors={item.status === 'complete' ? UI.gradients.successLight : UI.gradients.primary}
                     style={styles.cardStrip}
                   />
 
@@ -262,7 +294,7 @@ export default function UnifiedJobList() {
                         <Ionicons name="calendar-outline" size={13} color={UI.text.muted} />
                         <Text style={styles.date}>{new Date(item.scheduled_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                      <Ionicons name="chevron-forward" size={16} color={UI.surface.border} />
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -271,7 +303,7 @@ export default function UnifiedJobList() {
           )}
           ListEmptyComponent={
             <View style={styles.emptyCard}>
-              <Ionicons name="briefcase-outline" size={32} color="#CBD5E1" />
+              <Ionicons name="briefcase-outline" size={32} color={UI.surface.border} />
               <Text style={styles.empty}>No jobs found.</Text>
             </View>
           }
@@ -285,10 +317,13 @@ export default function UnifiedJobList() {
           activeOpacity={0.85}
         >
           <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabGradient}>
-            <Ionicons name="add" size={28} color="#fff" />
+            <Ionicons name="add" size={28} color={UI.text.white} />
           </LinearGradient>
         </TouchableOpacity>
       )}
+
+      {/* First-run onboarding */}
+      <Onboarding screenKey="jobs" tips={JOBS_TIPS} />
     </View>
   );
 }
@@ -368,7 +403,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.65)',
+    backgroundColor: 'rgba(255,255,255,0.80)',
     borderRadius: 999,
     paddingVertical: 5,
     paddingHorizontal: 9,
@@ -399,7 +434,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
   },
-  swipeActionText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  swipeActionText: { color: UI.text.white, fontSize: 10, fontWeight: '700' },
   fab: {
     position: 'absolute',
     right: 20,

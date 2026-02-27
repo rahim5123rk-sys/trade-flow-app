@@ -54,10 +54,10 @@ const StepIndicator = ({ current }: { current: number }) => (
             style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}
           >
             {isDone ? (
-              <Ionicons name="checkmark" size={12} color="#fff" />
+              <Ionicons name="checkmark" size={12} color={UI.text.white} />
             ) : (
               <Text
-                style={[s.stepDotText, (isActive || isDone) && { color: '#fff' }]}
+                style={[s.stepDotText, (isActive || isDone) && { color: UI.text.white }]}
               >
                 {step}
               </Text>
@@ -108,6 +108,7 @@ export default function ReviewSign() {
 
   // Loading state for PDF generation
   const [generating, setGenerating] = useState(false);
+  const [generatingMode, setGeneratingMode] = useState<'save' | 'share' | null>(null);
 
   // Date picker state
   const [showInspDate, setShowInspDate] = useState(false);
@@ -134,7 +135,7 @@ export default function ReviewSign() {
   };
 
   // ── complete ──
-  const handleComplete = async () => {
+  const handleComplete = async (mode: 'save' | 'share') => {
     if (!customerSignature) {
       Alert.alert('Signature Required', 'Please capture the customer\'s signature before completing.');
       return;
@@ -146,6 +147,7 @@ export default function ReviewSign() {
     }
 
     setGenerating(true);
+    setGeneratingMode(mode);
     try {
       const pdfData: CP12PdfData = {
         landlordName: landlordForm.customerName || '',
@@ -225,17 +227,18 @@ export default function ReviewSign() {
         if (fallbackError) throw fallbackError;
       }
 
-      await generateCP12PdfFromPayload(lockedPayload);
+      await generateCP12PdfFromPayload(lockedPayload, mode);
 
+      const actionText = mode === 'share' ? 'saved & shared' : 'saved';
       Alert.alert(
-        'CP12 Complete',
-        `Gas Safety Record saved to Documents as a locked snapshot.\n\nFuture customer edits will not change this saved CP12.\n\n${appliances.length} appliance(s) inspected.`,
+        'CP12 Complete ✓',
+        `Gas Safety Record ${actionText} to Documents.\n\n${appliances.length} appliance(s) inspected.\nRef: ${cp12Reference}`,
         [
           {
             text: 'Done',
             onPress: () => {
               resetCP12();
-              router.replace('/(app)/dashboard');
+              router.replace('/(app)/documents' as any);
             },
           },
         ],
@@ -244,13 +247,14 @@ export default function ReviewSign() {
       Alert.alert('PDF Error', err?.message || 'Failed to generate CP12 PDF.');
     } finally {
       setGenerating(false);
+      setGeneratingMode(null);
     }
   };
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <LinearGradient
-        colors={['#EEF2FF', '#E0F2FE', '#F0FDFA']}
+        colors={UI.gradients.appBackground}
         style={StyleSheet.absoluteFill}
       />
 
@@ -270,7 +274,7 @@ export default function ReviewSign() {
               onPress={() => router.back()}
               activeOpacity={0.7}
             >
-              <Ionicons name="chevron-back" size={20} color="#6366F1" />
+              <Ionicons name="chevron-back" size={20} color={UI.brand.primary} />
             </TouchableOpacity>
             <View>
               <Text style={s.title}>Review & Sign</Text>
@@ -284,7 +288,7 @@ export default function ReviewSign() {
           <Animated.View entering={FadeInDown.delay(80).duration(400)} style={s.card}>
             <View style={s.sectionHeader}>
               <View style={s.sectionIconWrap}>
-                <Ionicons name="calendar-outline" size={16} color="#6366F1" />
+                <Ionicons name="calendar-outline" size={16} color={UI.brand.primary} />
               </View>
               <Text style={s.sectionTitle}>Dates</Text>
             </View>
@@ -297,7 +301,7 @@ export default function ReviewSign() {
                 activeOpacity={0.7}
                 onPress={() => setShowInspDate(true)}
               >
-                <Ionicons name="calendar" size={18} color="#6366F1" style={{ marginRight: 10 }} />
+                <Ionicons name="calendar" size={18} color={UI.brand.primary} style={{ marginRight: 10 }} />
                 <Text style={s.inputValue}>{inspectionDate}</Text>
               </TouchableOpacity>
               {showInspDate && (
@@ -318,7 +322,7 @@ export default function ReviewSign() {
                 activeOpacity={0.7}
                 onPress={() => setShowDueDate(true)}
               >
-                <Ionicons name="calendar" size={18} color="#F59E0B" style={{ marginRight: 10 }} />
+                <Ionicons name="calendar" size={18} color={UI.status.pending} style={{ marginRight: 10 }} />
                 <Text style={s.inputValue}>{nextDueDate}</Text>
               </TouchableOpacity>
               {showDueDate && (
@@ -336,7 +340,7 @@ export default function ReviewSign() {
           <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.card}>
             <View style={s.sectionHeader}>
               <View style={s.sectionIconWrap}>
-                <Ionicons name="document-text-outline" size={16} color="#6366F1" />
+                <Ionicons name="document-text-outline" size={16} color={UI.brand.primary} />
               </View>
               <Text style={s.sectionTitle}>Certificate Reference</Text>
             </View>
@@ -344,7 +348,7 @@ export default function ReviewSign() {
             <View style={s.inputContainer}>
               <Text style={s.inputLabel}>Cert Ref Number</Text>
               <View style={s.inputWrapper}>
-                <Ionicons name="barcode-outline" size={18} color="#6366F1" style={{ marginRight: 10 }} />
+                <Ionicons name="barcode-outline" size={18} color={UI.brand.primary} style={{ marginRight: 10 }} />
                 <TextInput
                   style={s.input}
                   value={certRef}
@@ -360,7 +364,7 @@ export default function ReviewSign() {
           <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.card}>
             <View style={s.sectionHeader}>
               <View style={s.sectionIconWrap}>
-                <Ionicons name="pencil-outline" size={16} color="#6366F1" />
+                <Ionicons name="pencil-outline" size={16} color={UI.brand.primary} />
               </View>
               <Text style={s.sectionTitle}>Customer Signature</Text>
             </View>
@@ -380,7 +384,7 @@ export default function ReviewSign() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="refresh" size={16} color="#6366F1" />
+                  <Ionicons name="refresh" size={16} color={UI.brand.primary} />
                   <Text style={s.resignText}>Re-sign</Text>
                 </TouchableOpacity>
               </View>
@@ -391,10 +395,10 @@ export default function ReviewSign() {
                 activeOpacity={0.7}
               >
                 <LinearGradient
-                  colors={['#EEF2FF', '#E0E7FF']}
+                  colors={UI.gradients.soft}
                   style={s.signatureBtnGradient}
                 >
-                  <Ionicons name="pencil" size={22} color="#6366F1" />
+                  <Ionicons name="pencil" size={22} color={UI.brand.primary} />
                   <Text style={s.signatureBtnText}>Tap to Capture Signature</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -408,26 +412,48 @@ export default function ReviewSign() {
         entering={FadeInDown.delay(300).duration(400)}
         style={[s.bottomBar, { bottom: TAB_BAR_HEIGHT }]}
       >
-        <TouchableOpacity
-          style={s.completeBtn}
-          activeOpacity={0.85}
-          onPress={handleComplete}
-          disabled={generating}
-        >
-          <LinearGradient
-            colors={generating ? ['#94A3B8', '#94A3B8'] : ['#10B981', '#059669']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={s.completeGradient}
+        <View style={s.bottomBtnRow}>
+          {/* Save CP12 */}
+          <TouchableOpacity
+            style={s.saveCp12Btn}
+            activeOpacity={0.85}
+            onPress={() => handleComplete('save')}
+            disabled={generating}
           >
-            {generating ? (
-              <ActivityIndicator color="#fff" size="small" />
+            {generating && generatingMode === 'save' ? (
+              <ActivityIndicator color={UI.brand.primary} size="small" />
             ) : (
-              <Ionicons name="checkmark-done-circle" size={22} color="#fff" />
+              <>
+                <Ionicons name="download-outline" size={20} color={UI.brand.primary} />
+                <Text style={s.saveCp12Text}>Save PDF</Text>
+              </>
             )}
-            <Text style={s.completeText}>{generating ? 'Generating PDF...' : 'Complete CP12'}</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          </TouchableOpacity>
+
+          {/* Save & Share */}
+          <TouchableOpacity
+            style={s.shareBtn}
+            activeOpacity={0.85}
+            onPress={() => handleComplete('share')}
+            disabled={generating}
+          >
+            <LinearGradient
+              colors={generating && generatingMode === 'share' ? [UI.text.muted, UI.text.muted] as readonly [string, string] : UI.gradients.success}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.shareGradient}
+            >
+              {generating && generatingMode === 'share' ? (
+                <ActivityIndicator color={UI.text.white} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="share-outline" size={20} color={UI.text.white} />
+                  <Text style={s.shareText}>Save & Share</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* Signature modal */}
@@ -453,8 +479,8 @@ const s = StyleSheet.create({
     backgroundColor: GLASS_BG, borderWidth: 1, borderColor: GLASS_BORDER,
     justifyContent: 'center', alignItems: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
-  subtitleText: { fontSize: 13, color: '#64748B', fontWeight: '500', marginTop: 2 },
+  title: { fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
+  subtitleText: { fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2 },
 
   // Steps
   stepRow: {
@@ -465,19 +491,19 @@ const s = StyleSheet.create({
   stepItem: { alignItems: 'center', gap: 6 },
   stepDot: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: UI.surface.divider, justifyContent: 'center', alignItems: 'center',
   },
-  stepDotActive: { backgroundColor: '#6366F1' },
-  stepDotDone: { backgroundColor: '#10B981' },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: '#94A3B8' },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8' },
-  stepLabelActive: { color: '#6366F1' },
+  stepDotActive: { backgroundColor: UI.brand.primary },
+  stepDotDone: { backgroundColor: UI.status.complete },
+  stepDotText: { fontSize: 12, fontWeight: '700', color: UI.text.muted },
+  stepLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted },
+  stepLabelActive: { color: UI.brand.primary },
 
   // Card
   card: {
     backgroundColor: GLASS_BG, borderRadius: 18, borderWidth: 1, borderColor: GLASS_BORDER,
     padding: 18, marginBottom: 16,
-    shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 4 },
+    shadowColor: UI.text.muted, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
 
@@ -485,40 +511,40 @@ const s = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   sectionIconWrap: {
     width: 28, height: 28, borderRadius: 8,
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center',
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: UI.text.title },
 
   // Inputs
   inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 6 },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6 },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: UI.surface.base, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
-  input: { flex: 1, fontSize: 15, color: '#0F172A', padding: 0 },
-  inputValue: { fontSize: 15, color: '#0F172A', fontWeight: '500' },
+  input: { flex: 1, fontSize: 15, color: UI.text.title, padding: 0 },
+  inputValue: { fontSize: 15, color: UI.text.title, fontWeight: '500' },
 
   // Signature
   signaturePreview: {
-    borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0',
+    borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     backgroundColor: '#fff', padding: 12, alignItems: 'center',
   },
   signatureImage: { width: '100%', height: 160, borderRadius: 8 },
   resignBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginTop: 12, paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 10, backgroundColor: '#EEF2FF',
+    borderRadius: 10, backgroundColor: UI.surface.primaryLight,
   },
-  resignText: { fontSize: 13, fontWeight: '600', color: '#6366F1' },
+  resignText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
   signatureBtn: { borderRadius: 14, overflow: 'hidden' },
   signatureBtnGradient: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 32, gap: 10, borderRadius: 14,
     borderWidth: 2, borderColor: '#C7D2FE', borderStyle: 'dashed',
   },
-  signatureBtnText: { fontSize: 15, fontWeight: '600', color: '#6366F1' },
+  signatureBtnText: { fontSize: 15, fontWeight: '600', color: UI.brand.primary },
 
   // Bottom
   bottomBar: {
@@ -527,10 +553,24 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(248,250,252,0.92)',
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.06)',
   },
-  completeBtn: { borderRadius: 16, overflow: 'hidden' },
-  completeGradient: {
+  bottomBtnRow: { flexDirection: 'row', gap: 10 },
+  saveCp12Btn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: UI.surface.primaryLight,
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+  },
+  saveCp12Text: { fontSize: 15, fontWeight: '700', color: UI.brand.primary },
+  shareBtn: { flex: 1, borderRadius: 16, overflow: 'hidden' },
+  shareGradient: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 16, gap: 8,
   },
-  completeText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  shareText: { fontSize: 15, fontWeight: '700', color: UI.text.white },
 });

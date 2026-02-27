@@ -12,7 +12,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
+import { Colors, UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 
 export default function LoginScreen() {
@@ -38,7 +38,6 @@ export default function LoginScreen() {
       if (error) {
         Alert.alert('Login Failed', error.message);
       } else {
-        // ✅ FIX: Force redirect to the new unified dashboard
         router.replace('/(app)/dashboard');
       }
     } catch (error: any) {
@@ -96,7 +95,7 @@ export default function LoginScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={UI.text.white} />
             ) : (
               <Text style={styles.btnText}>Sign In</Text>
             )}
@@ -109,14 +108,15 @@ export default function LoginScreen() {
             <Text style={styles.linkText}>Don’t have an account? Create one</Text>
           </TouchableOpacity>
           <View style={styles.legalLinks}>
-            <TouchableOpacity onPress={() => router.push('/(app)/settings/privacy-policy' as any)}>
+            <TouchableOpacity onPress={() => router.push('/(auth)/privacy-policy' as any)}>
               <Text style={styles.legalText}>Privacy Policy</Text>
             </TouchableOpacity>
             <Text style={styles.legalDot}>•</Text>
-            <TouchableOpacity onPress={() => router.push('/(app)/settings/terms-of-service' as any)}>
+            <TouchableOpacity onPress={() => router.push('/(auth)/terms-of-service' as any)}>
               <Text style={styles.legalText}>Terms of Service</Text>
             </TouchableOpacity>
-          </View>        </View>
+          </View>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     marginBottom: -8,
   },
   input: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: UI.surface.base,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
@@ -164,10 +164,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     ...Colors.shadow,
   },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  btnText: { color: UI.text.white, fontSize: 16, fontWeight: 'bold' },
   linkBtn: { alignItems: 'center', marginTop: 10 },
   linkText: { color: Colors.primary, fontWeight: '600' },
   legalLinks: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20, gap: 8 },
-  legalText: { fontSize: 12, color: '#94A3B8', textDecorationLine: 'underline' },
-  legalDot: { fontSize: 12, color: '#CBD5E1' },
+  legalText: { fontSize: 12, color: UI.text.muted, textDecorationLine: 'underline' },
+  legalDot: { fontSize: 12, color: UI.surface.border },
+
 });

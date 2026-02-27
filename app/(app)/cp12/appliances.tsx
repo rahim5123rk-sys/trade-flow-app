@@ -60,9 +60,9 @@ const StepIndicator = ({ current }: { current: number }) => (
             style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}
           >
             {isDone ? (
-              <Ionicons name="checkmark" size={12} color="#fff" />
+              <Ionicons name="checkmark" size={12} color={UI.text.white} />
             ) : (
-              <Text style={[s.stepDotText, (isActive || isDone) && { color: '#fff' }]}>
+              <Text style={[s.stepDotText, (isActive || isDone) && { color: UI.text.white }]}>
                 {step}
               </Text>
             )}
@@ -192,8 +192,7 @@ function DropdownSelector({
         <Ionicons
           name={open ? 'chevron-up' : 'chevron-down'}
           size={18}
-          color="#94A3B8"
-        />
+          color={UI.text.muted}         />
       </TouchableOpacity>
       {open && (
         <Animated.View entering={FadeInUp.duration(200)} style={s.dropdownList}>
@@ -215,7 +214,7 @@ function DropdownSelector({
                 {opt}
               </Text>
               {value === opt && (
-                <Ionicons name="checkmark" size={16} color="#6366F1" />
+                <Ionicons name="checkmark" size={16} color={UI.brand.primary} />
               )}
             </TouchableOpacity>
           ))}
@@ -306,7 +305,7 @@ export default function AppliancesScreen() {
   return (
     <View style={s.root}>
       <LinearGradient
-        colors={['#EEF2FF', '#E0F2FE', '#F0FDFA']}
+        colors={UI.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -361,10 +360,10 @@ export default function AppliancesScreen() {
                   <Text style={s.applianceLocation}>{a.location}</Text>
                 </View>
                 <TouchableOpacity onPress={() => handleEdit(a)} style={s.iconBtn}>
-                  <Ionicons name="pencil-outline" size={18} color="#6366F1" />
+                  <Ionicons name="pencil-outline" size={18} color={UI.brand.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleRemove(a.id)} style={s.iconBtn}>
-                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  <Ionicons name="trash-outline" size={18} color={UI.brand.danger} />
                 </TouchableOpacity>
               </View>
               <View style={s.applianceMeta}>
@@ -381,8 +380,8 @@ export default function AppliancesScreen() {
                   <Text
                     style={[
                       s.metaValue,
-                      a.applianceSafeToUse === 'Yes' && { color: '#10B981' },
-                      a.applianceSafeToUse === 'No' && { color: '#EF4444' },
+                      a.applianceSafeToUse === 'Yes' && { color: UI.status.complete },
+                      a.applianceSafeToUse === 'No' && { color: UI.brand.danger },
                     ]}
                   >
                     {a.applianceSafeToUse || '–'}
@@ -401,10 +400,10 @@ export default function AppliancesScreen() {
                 onPress={handleStartAdd}
               >
                 <LinearGradient
-                  colors={['#6366F1', '#818CF8']}
+                  colors={UI.gradients.primary}
                   style={s.addBtnGradient}
                 >
-                  <Ionicons name="add-circle-outline" size={22} color="#fff" />
+                  <Ionicons name="add-circle-outline" size={22} color={UI.text.white} />
                   <Text style={s.addBtnText}>Add Appliance</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -413,7 +412,7 @@ export default function AppliancesScreen() {
 
           {!canAddMore && !showForm && (
             <View style={s.maxNotice}>
-              <Ionicons name="information-circle" size={16} color="#6366F1" />
+              <Ionicons name="information-circle" size={16} color={UI.brand.primary} />
               <Text style={s.maxNoticeText}>Maximum of {MAX_APPLIANCES} appliances reached</Text>
             </View>
           )}
@@ -431,7 +430,7 @@ export default function AppliancesScreen() {
                     resetForm();
                   }}
                 >
-                  <Ionicons name="close-circle" size={26} color="#94A3B8" />
+                  <Ionicons name="close-circle" size={26} color={UI.text.muted} />
                 </TouchableOpacity>
               </View>
 
@@ -563,12 +562,12 @@ export default function AppliancesScreen() {
               {/* ── Save ── */}
               <TouchableOpacity style={s.saveBtn} activeOpacity={0.85} onPress={handleSave}>
                 <LinearGradient
-                  colors={['#10B981', '#059669']}
+                  colors={UI.gradients.success}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={s.saveBtnGradient}
                 >
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+                  <Ionicons name="checkmark-circle-outline" size={20} color={UI.text.white} />
                   <Text style={s.saveBtnText}>
                     {editingId ? 'Update Appliance' : 'Save & Continue'}
                   </Text>
@@ -591,13 +590,13 @@ export default function AppliancesScreen() {
               disabled={appliances.length === 0}
             >
               <LinearGradient
-                colors={['#6366F1', '#4F46E5']}
+                colors={UI.gradients.primaryDark}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={s.nextGradient}
               >
                 <Text style={s.nextText}>Next: Final Checks</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                <Ionicons name="arrow-forward" size={20} color={UI.text.white} />
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -652,119 +651,119 @@ const s = StyleSheet.create({
     backgroundColor: GLASS_BG, borderWidth: 1, borderColor: GLASS_BORDER,
     justifyContent: 'center', alignItems: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: '#64748B', fontWeight: '500', marginTop: 2 },
+  title: { fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2 },
 
   // Step
   stepRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 24, paddingVertical: 14, backgroundColor: GLASS_BG, borderRadius: 16, borderWidth: 1, borderColor: GLASS_BORDER },
   stepItem: { alignItems: 'center', gap: 6 },
-  stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
-  stepDotActive: { backgroundColor: '#6366F1' },
-  stepDotDone: { backgroundColor: '#10B981' },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: '#94A3B8' },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8' },
-  stepLabelActive: { color: '#6366F1' },
+  stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: UI.surface.divider, justifyContent: 'center', alignItems: 'center' },
+  stepDotActive: { backgroundColor: UI.brand.primary },
+  stepDotDone: { backgroundColor: UI.status.complete },
+  stepDotText: { fontSize: 12, fontWeight: '700', color: UI.text.muted },
+  stepLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted },
+  stepLabelActive: { color: UI.brand.primary },
 
   // Appliance card
   applianceCard: {
     backgroundColor: GLASS_BG, borderRadius: 18, borderWidth: 1, borderColor: GLASS_BORDER,
     padding: 16, marginBottom: 12,
-    shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
+    shadowColor: UI.text.muted, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
   applianceHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  applianceNum: { width: 30, height: 30, borderRadius: 10, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
-  applianceNumText: { fontSize: 14, fontWeight: '800', color: '#6366F1' },
-  applianceName: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
-  applianceLocation: { fontSize: 12, color: '#64748B', marginTop: 1 },
-  iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
-  applianceMeta: { flexDirection: 'row', gap: 16, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  applianceNum: { width: 30, height: 30, borderRadius: 10, backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  applianceNumText: { fontSize: 14, fontWeight: '800', color: UI.brand.primary },
+  applianceName: { fontSize: 15, fontWeight: '700', color: UI.text.title },
+  applianceLocation: { fontSize: 12, color: UI.text.muted, marginTop: 1 },
+  iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: UI.surface.base, justifyContent: 'center', alignItems: 'center' },
+  applianceMeta: { flexDirection: 'row', gap: 16, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: UI.surface.elevated },
   metaItem: {},
-  metaLabel: { fontSize: 10, fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  metaValue: { fontSize: 13, fontWeight: '600', color: '#334155' },
+  metaLabel: { fontSize: 10, fontWeight: '600', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  metaValue: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight },
 
   // Add button
   addBtn: { borderRadius: 16, overflow: 'hidden', marginBottom: 12 },
   addBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  addBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  addBtnText: { fontSize: 15, fontWeight: '700', color: UI.text.white },
 
   maxNotice: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', paddingVertical: 14 },
-  maxNoticeText: { fontSize: 13, fontWeight: '600', color: '#6366F1' },
+  maxNoticeText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
 
   // Form card
   formCard: {
     backgroundColor: GLASS_BG, borderRadius: 20, borderWidth: 1, borderColor: GLASS_BORDER,
     padding: 18, marginBottom: 12,
-    shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 4,
+    shadowColor: UI.text.muted, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 4,
   },
   formHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  formTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
+  formTitle: { fontSize: 18, fontWeight: '800', color: UI.text.title },
 
   // Inputs
   inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 6 },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6 },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: UI.surface.base, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
-  input: { flex: 1, fontSize: 15, color: '#0F172A', padding: 0 },
+  input: { flex: 1, fontSize: 15, color: UI.text.title, padding: 0 },
 
   // Chips
   chipRow: { flexDirection: 'row', gap: 8 },
   chip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
-    backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: UI.surface.elevated, borderWidth: 1, borderColor: UI.surface.divider,
   },
-  chipActive: { backgroundColor: '#EEF2FF', borderColor: '#6366F1' },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  chipTextActive: { color: '#6366F1' },
+  chipActive: { backgroundColor: UI.surface.primaryLight, borderColor: UI.brand.primary },
+  chipText: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
+  chipTextActive: { color: UI.brand.primary },
 
   // Dropdown
   dropdownTrigger: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: UI.surface.base, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 12,
   },
-  dropdownText: { fontSize: 15, color: '#0F172A', fontWeight: '500' },
-  dropdownPlaceholder: { fontSize: 15, color: '#94A3B8' },
+  dropdownText: { fontSize: 15, color: UI.text.title, fontWeight: '500' },
+  dropdownPlaceholder: { fontSize: 15, color: UI.text.muted },
   dropdownList: {
     marginTop: 4, borderRadius: 14, backgroundColor: '#fff',
-    borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden',
+    borderWidth: 1, borderColor: UI.surface.divider, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 6,
   },
   dropdownOption: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F1F5F9',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: UI.surface.elevated,
   },
-  dropdownOptionActive: { backgroundColor: '#EEF2FF' },
-  dropdownOptionText: { fontSize: 14, fontWeight: '500', color: '#334155' },
-  dropdownOptionTextActive: { color: '#6366F1', fontWeight: '600' },
+  dropdownOptionActive: { backgroundColor: UI.surface.primaryLight },
+  dropdownOptionText: { fontSize: 14, fontWeight: '500', color: UI.text.bodyLight },
+  dropdownOptionTextActive: { color: UI.brand.primary, fontWeight: '600' },
 
   // FGA
   fgaSection: { marginBottom: 16 },
-  fgaLabel: { fontSize: 14, fontWeight: '700', color: '#334155', marginBottom: 8 },
+  fgaLabel: { fontSize: 14, fontWeight: '700', color: UI.text.bodyLight, marginBottom: 8 },
   fgaGrid: { flexDirection: 'row', gap: 8 },
   fgaField: { flex: 1 },
-  fgaFieldLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  fgaFieldLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   fgaInputRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   fgaInput: {
-    flex: 1, fontSize: 14, color: '#0F172A',
-    backgroundColor: '#F8FAFC', borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0',
+    flex: 1, fontSize: 14, color: UI.text.title,
+    backgroundColor: UI.surface.base, borderRadius: 10, borderWidth: 1, borderColor: UI.surface.divider,
     paddingHorizontal: 10, paddingVertical: Platform.OS === 'ios' ? 10 : 8, textAlign: 'center',
   },
   naBtn: {
     paddingHorizontal: 8, paddingVertical: 8, borderRadius: 8,
-    backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: UI.surface.elevated, borderWidth: 1, borderColor: UI.surface.divider,
   },
   naBtnActive: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
-  naBtnText: { fontSize: 10, fontWeight: '700', color: '#94A3B8' },
-  naBtnTextActive: { color: '#EF4444' },
+  naBtnText: { fontSize: 10, fontWeight: '700', color: UI.text.muted },
+  naBtnTextActive: { color: UI.brand.danger },
 
   // Divider
   divider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
-  dividerText: { fontSize: 12, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: UI.surface.divider },
+  dividerText: { fontSize: 12, fontWeight: '700', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   // Row
   row: { flexDirection: 'row', gap: 12 },
@@ -773,7 +772,7 @@ const s = StyleSheet.create({
   // Save
   saveBtn: { borderRadius: 16, overflow: 'hidden', marginTop: 8 },
   saveBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  saveBtnText: { fontSize: 15, fontWeight: '700', color: UI.text.white },
 
   // Bottom bar
   bottomBar: {
@@ -784,5 +783,5 @@ const s = StyleSheet.create({
   },
   nextBtn: { borderRadius: 16, overflow: 'hidden' },
   nextGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  nextText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  nextText: { fontSize: 16, fontWeight: '700', color: UI.text.white },
 });

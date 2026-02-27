@@ -28,7 +28,7 @@ import {
     EMPTY_CUSTOMER_FORM,
 } from '../../../components/CustomerSelector';
 import { WorkerPicker } from '../../../components/WorkerPicker';
-import { Colors } from '../../../constants/theme';
+import { Colors, UI} from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 
@@ -229,7 +229,7 @@ export default function CreateJobScreen() {
             onPress={() => setIsQuickEntry(!isQuickEntry)}
           >
             <Ionicons name={isQuickEntry ? 'flash' : 'list'} size={20} color={isQuickEntry ? '#fff' : Colors.primary} />
-            <Text style={[styles.modeToggleText, isQuickEntry && { color: '#fff' }]}>
+            <Text style={[styles.modeToggleText, isQuickEntry && { color: UI.text.white }]}>
               {isQuickEntry ? 'Quick' : 'Full'}
             </Text>
           </TouchableOpacity>
@@ -378,7 +378,7 @@ export default function CreateJobScreen() {
 
         <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.7 }]} onPress={handleCreateJob} disabled={loading}>
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={UI.text.white} />
           ) : (
             <Text style={styles.submitText}>{isQuoteMode ? 'Next: Generate Quote' : 'Create Job'}</Text>
           )}
@@ -389,26 +389,26 @@ export default function CreateJobScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc', padding: 16 },
+  container: { flex: 1, backgroundColor: UI.surface.base, padding: 16 },
   quickToggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingHorizontal: 4 },
-  modeTitle: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
-  modeSubtitle: { fontSize: 13, color: '#64748b' },
-  modeToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e2e8f0', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, gap: 6 },
+  modeTitle: { fontSize: 20, fontWeight: '800', color: UI.text.title },
+  modeSubtitle: { fontSize: 13, color: UI.text.muted },
+  modeToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: UI.surface.divider, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, gap: 6 },
   modeToggleActive: { backgroundColor: Colors.primary },
   modeToggleText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
   card: { backgroundColor: '#fff', padding: 16, borderRadius: 16, ...Colors.shadow, marginBottom: 12 },
-  label: { fontSize: 11, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 6 },
-  input: { backgroundColor: '#f8fafc', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 12, fontSize: 16, color: Colors.text },
+  label: { fontSize: 11, fontWeight: '700', color: UI.text.muted, textTransform: 'uppercase', marginBottom: 6 },
+  input: { backgroundColor: UI.surface.base, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider, marginBottom: 12, fontSize: 16, color: Colors.text },
   textArea: { minHeight: 90, textAlignVertical: 'top' },
   row: { flexDirection: 'row' },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: '#64748b', marginTop: 16, marginBottom: 8, textTransform: 'uppercase', paddingLeft: 4 },
-  adjustBtn: { padding: 10, backgroundColor: '#f1f5f9', borderRadius: 10 },
+  sectionTitle: { fontSize: 13, fontWeight: '700', color: UI.text.muted, marginTop: 16, marginBottom: 8, textTransform: 'uppercase', paddingLeft: 4 },
+  adjustBtn: { padding: 10, backgroundColor: UI.surface.elevated, borderRadius: 10 },
   dateDisplay: { flex: 1, justifyContent: 'center' },
-  dateText: { textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#0f172a' },
+  dateText: { textAlign: 'center', fontSize: 16, fontWeight: '700', color: UI.text.title },
   submitBtn: { backgroundColor: Colors.primary, padding: 20, borderRadius: 16, alignItems: 'center', marginTop: 24, marginBottom: 40, ...Colors.shadow },
-  submitText: { color: '#fff', fontWeight: '800', fontSize: 17 },
+  submitText: { color: UI.text.white, fontWeight: '800', fontSize: 17 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   pickerModalContent: { backgroundColor: '#ffffff', borderRadius: 20, padding: 20, alignItems: 'center' },
   confirmBtn: { marginTop: 20, backgroundColor: Colors.primary, padding: 12, borderRadius: 10, width: '100%', alignItems: 'center' },
-  confirmBtnText: { color: '#fff', fontWeight: '700' },
+  confirmBtnText: { color: UI.text.white, fontWeight: '700' },
 });

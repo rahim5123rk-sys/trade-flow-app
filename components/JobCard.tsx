@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../constants/theme';
+import { Colors, UI} from '../constants/theme';
 import { Job } from '../src/types';
 import { formatCalendarDate, formatTime, isToday } from '../src/utils/dates';
 import { formatCurrency, getStatusStyle } from '../src/utils/formatting';
@@ -114,12 +114,12 @@ export function JobCard({
 const styles = StyleSheet.create({
   // Full card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: UI.surface.card,
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: UI.surface.elevated,
     ...Colors.shadow,
   },
   cardHeader: {
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: UI.surface.elevated,
     paddingTop: 12,
   },
   footerLeft: {
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   todayText: {
-    color: '#FFFFFF',
+    color: UI.surface.card,
     fontSize: 9,
     fontWeight: '700',
   },
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   compactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: UI.surface.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,

@@ -19,6 +19,7 @@ import {
     View,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { UI } from '../constants/theme';
 import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
 import { Customer } from '../src/types';
@@ -26,8 +27,8 @@ import { Customer } from '../src/types';
 // ─── Design tokens ──────────────────────────────────────────────────
 
 const GLASS_BG =
-  Platform.OS === 'ios' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.88)';
-const GLASS_BORDER = 'rgba(255,255,255,0.65)';
+  Platform.OS === 'ios' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.92)';
+const GLASS_BORDER = 'rgba(255,255,255,0.80)';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -271,7 +272,7 @@ export function CustomerSelector({
   // ─── Avatar bubble ──────────────────────────────────────────────
   const renderAvatar = (name: string, size: number = 44) => (
     <LinearGradient
-      colors={['#6366F1', '#818CF8']}
+      colors={UI.gradients.primary}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }]}
@@ -288,14 +289,14 @@ export function CustomerSelector({
       {showQuickToggle && (
         <Animated.View entering={FadeIn.duration(300)} style={s.quickRow}>
           <View style={s.quickLeft}>
-            <Ionicons name="flash" size={16} color="#F59E0B" />
+            <Ionicons name="flash" size={16} color={UI.status.pending} />
             <Text style={s.quickLabel}>Quick Entry</Text>
           </View>
           <Switch
             value={isQuick}
             onValueChange={handleToggleQuick}
-            trackColor={{ false: '#e2e8f0', true: '#818CF8' }}
-            thumbColor={isQuick ? '#6366F1' : '#f4f4f5'}
+            trackColor={{ false: UI.surface.divider, true: UI.brand.accent }}
+            thumbColor={isQuick ? UI.brand.primary : '#f4f4f5'}
           />
         </Animated.View>
       )}
@@ -304,7 +305,7 @@ export function CustomerSelector({
       {isLocked && value.customerName ? (
         <Animated.View entering={FadeInDown.duration(350).springify()} style={s.prefillCard}>
           <LinearGradient
-            colors={['#6366F1', '#818CF8']}
+            colors={UI.gradients.primary}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={s.prefillAccent}
@@ -319,7 +320,7 @@ export function CustomerSelector({
                 ) : null}
               </View>
               <TouchableOpacity style={s.editPill} onPress={startEditing}>
-                <Ionicons name="create-outline" size={15} color="#6366F1" />
+                <Ionicons name="create-outline" size={15} color={UI.brand.primary} />
                 <Text style={s.editPillText}>Edit</Text>
               </TouchableOpacity>
             </View>
@@ -331,7 +332,7 @@ export function CustomerSelector({
       {isEditing && (
         <Animated.View entering={FadeInDown.duration(300)} style={s.editBanner}>
           <View style={s.editBannerIcon}>
-            <Ionicons name="pencil" size={16} color="#F59E0B" />
+            <Ionicons name="pencil" size={16} color={UI.status.pending} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.editBannerTitle}>Editing Details</Text>
@@ -367,17 +368,17 @@ export function CustomerSelector({
                   >
                     {active ? (
                       <LinearGradient
-                        colors={['#6366F1', '#818CF8']}
+                        colors={UI.gradients.primary}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={s.tabGradient}
                       >
-                        <Ionicons name={icon as any} size={16} color="#fff" />
+                        <Ionicons name={icon as any} size={16} color={UI.text.white} />
                         <Text style={s.tabTextActive}>{label}</Text>
                       </LinearGradient>
                     ) : (
                       <View style={s.tabInner}>
-                        <Ionicons name={icon as any} size={16} color="#94a3b8" />
+                        <Ionicons name={icon as any} size={16} color={UI.text.muted} />
                         <Text style={s.tabText}>{label}</Text>
                       </View>
                     )}
@@ -401,7 +402,7 @@ export function CustomerSelector({
               >
                 <View style={s.pickerLeft}>
                   <View style={s.pickerIconWrap}>
-                    <Ionicons name="search" size={18} color="#6366F1" />
+                    <Ionicons name="search" size={18} color={UI.brand.primary} />
                   </View>
                   <Text
                     style={
@@ -411,7 +412,7 @@ export function CustomerSelector({
                     {value.customerName || 'Search customers…'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-down" size={18} color="#94a3b8" />
+                <Ionicons name="chevron-down" size={18} color={UI.text.muted} />
               </TouchableOpacity>
 
               {value.customerName ? (
@@ -437,8 +438,8 @@ export function CustomerSelector({
                   </View>
                   <View style={s.selectedActions}>
                     <TouchableOpacity style={s.actionChip} onPress={startEditing}>
-                      <Ionicons name="create-outline" size={14} color="#6366F1" />
-                      <Text style={[s.actionChipText, { color: '#6366F1' }]}>
+                      <Ionicons name="create-outline" size={14} color={UI.brand.primary} />
+                      <Text style={[s.actionChipText, { color: UI.brand.primary }]}>
                         Edit
                       </Text>
                     </TouchableOpacity>
@@ -455,9 +456,8 @@ export function CustomerSelector({
                       <Ionicons
                         name="close-circle"
                         size={14}
-                        color="#EF4444"
-                      />
-                      <Text style={[s.actionChipText, { color: '#EF4444' }]}>
+                        color={UI.brand.danger}                       />
+                      <Text style={[s.actionChipText, { color: UI.brand.danger }]}>
                         Clear
                       </Text>
                     </TouchableOpacity>
@@ -564,12 +564,12 @@ export function CustomerSelector({
                         onPress={() => setIsEditing(false)}
                       >
                         <LinearGradient
-                          colors={['#6366F1', '#818CF8']}
+                          colors={UI.gradients.primary}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
                           style={s.gradientBtn}
                         >
-                          <Ionicons name="checkmark" size={18} color="#fff" />
+                          <Ionicons name="checkmark" size={18} color={UI.text.white} />
                           <Text style={s.gradientBtnText}>Done</Text>
                         </LinearGradient>
                       </TouchableOpacity>
@@ -586,12 +586,12 @@ export function CustomerSelector({
                           onPress={handleUpdateExisting}
                         >
                           <LinearGradient
-                            colors={['#6366F1', '#818CF8']}
+                            colors={UI.gradients.primary}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
                             style={s.gradientBtn}
                           >
-                            <Ionicons name="sync" size={18} color="#fff" />
+                            <Ionicons name="sync" size={18} color={UI.text.white} />
                             <Text style={s.gradientBtnText}>Update Existing</Text>
                           </LinearGradient>
                         </TouchableOpacity>
@@ -602,12 +602,12 @@ export function CustomerSelector({
                         onPress={handleCreateCustomerInDB}
                       >
                         <LinearGradient
-                          colors={['#10B981', '#34D399']}
+                          colors={UI.gradients.successLight}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
                           style={[s.gradientBtn, { paddingVertical: 14 }]}
                         >
-                          <Ionicons name="add-circle-outline" size={20} color="#fff" />
+                          <Ionicons name="add-circle-outline" size={20} color={UI.text.white} />
                           <Text style={s.gradientBtnText}>Save as New Customer</Text>
                         </LinearGradient>
                       </TouchableOpacity>
@@ -627,12 +627,12 @@ export function CustomerSelector({
                       onPress={handleCreateCustomerInDB}
                     >
                       <LinearGradient
-                        colors={['#10B981', '#34D399']}
+                        colors={UI.gradients.successLight}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={[s.gradientBtn, { marginTop: 6 }]}
                       >
-                        <Ionicons name="save-outline" size={20} color="#fff" />
+                        <Ionicons name="save-outline" size={20} color={UI.text.white} />
                         <Text style={s.gradientBtnText}>
                           Save Customer to Database
                         </Text>
@@ -652,7 +652,7 @@ export function CustomerSelector({
           style={s.jobCard}
         >
           <LinearGradient
-            colors={['#3B82F6', '#60A5FA']}
+            colors={UI.gradients.blueLight}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={s.jobAccent}
@@ -660,16 +660,16 @@ export function CustomerSelector({
           <View style={s.jobBody}>
             <View style={[s.row, { alignItems: 'center', marginBottom: 10 }]}>
               <View style={s.jobLabelRow}>
-                <Ionicons name="location" size={16} color="#3B82F6" />
+                <Ionicons name="location" size={16} color={UI.status.inProgress} />
                 <Text style={s.jobLabel}>Job / Site Address</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontSize: 12, color: '#94a3b8' }}>Same</Text>
+                <Text style={{ fontSize: 12, color: UI.text.muted }}>Same</Text>
                 <Switch
                   value={value.sameAsBilling}
                   onValueChange={(val) => update('sameAsBilling', val)}
-                  trackColor={{ false: '#e2e8f0', true: '#818CF8' }}
-                  thumbColor={value.sameAsBilling ? '#6366F1' : '#f4f4f5'}
+                  trackColor={{ false: UI.surface.divider, true: UI.brand.accent }}
+                  thumbColor={value.sameAsBilling ? UI.brand.primary : '#f4f4f5'}
                 />
               </View>
             </View>
@@ -715,10 +715,10 @@ export function CustomerSelector({
             <View style={s.modalHeader}>
               <View style={s.modalTitleRow}>
                 <LinearGradient
-                  colors={['#6366F1', '#818CF8']}
+                  colors={UI.gradients.primary}
                   style={s.modalTitleIcon}
                 >
-                  <Ionicons name="people" size={18} color="#fff" />
+                  <Ionicons name="people" size={18} color={UI.text.white} />
                 </LinearGradient>
                 <Text style={s.modalTitle}>Select Customer</Text>
               </View>
@@ -726,13 +726,13 @@ export function CustomerSelector({
                 style={s.modalClose}
                 onPress={() => setShowPicker(false)}
               >
-                <Ionicons name="close" size={20} color="#64748b" />
+                <Ionicons name="close" size={20} color={UI.text.muted} />
               </TouchableOpacity>
             </View>
 
             {/* Search */}
             <View style={s.modalSearch}>
-              <Ionicons name="search" size={18} color="#94a3b8" />
+              <Ionicons name="search" size={18} color={UI.text.muted} />
               <TextInput
                 style={s.modalSearchInput}
                 placeholder="Search by name, address, email…"
@@ -743,7 +743,7 @@ export function CustomerSelector({
               />
               {searchText.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchText('')}>
-                  <Ionicons name="close-circle" size={18} color="#cbd5e1" />
+                  <Ionicons name="close-circle" size={18} color={UI.surface.border} />
                 </TouchableOpacity>
               )}
             </View>
@@ -763,7 +763,7 @@ export function CustomerSelector({
               contentContainerStyle={{ paddingBottom: 20 }}
               ListEmptyComponent={
                 <View style={s.emptyList}>
-                  <Ionicons name="search-outline" size={40} color="#cbd5e1" />
+                  <Ionicons name="search-outline" size={40} color={UI.surface.border} />
                   <Text style={s.emptyText}>No customers found</Text>
                   <Text style={s.emptySubText}>
                     Try a different search term
@@ -789,7 +789,7 @@ export function CustomerSelector({
                         {item.address}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+                    <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
                   </TouchableOpacity>
                 </Animated.View>
               )}
@@ -940,7 +940,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 4,
   },
   quickLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  quickLabel: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  quickLabel: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
 
   // Tabs
   tabBar: {
@@ -968,8 +968,8 @@ const s = StyleSheet.create({
     gap: 6,
     paddingVertical: 11,
   },
-  tabText: { fontWeight: '600', color: '#94a3b8', fontSize: 14 },
-  tabTextActive: { fontWeight: '700', color: '#fff', fontSize: 14 },
+  tabText: { fontWeight: '600', color: UI.text.muted, fontSize: 14 },
+  tabTextActive: { fontWeight: '700', color: UI.text.white, fontSize: 14 },
 
   // Glass card
   card: {
@@ -978,7 +978,7 @@ const s = StyleSheet.create({
     borderColor: GLASS_BORDER,
     padding: 16,
     borderRadius: 18,
-    shadowColor: '#64748B',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -990,7 +990,7 @@ const s = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748b',
+    color: UI.text.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 6,
@@ -999,23 +999,23 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   input: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.8)' : '#f8fafc',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.8)' : UI.surface.base,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: UI.surface.divider,
     fontSize: 16,
-    color: '#0f172a',
+    color: UI.text.title,
   },
   row: { flexDirection: 'row' },
 
   // Picker button
   pickerBtn: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.8)' : '#f8fafc',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.8)' : UI.surface.base,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: UI.surface.divider,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -1029,29 +1029,29 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pickerText: { fontSize: 16, color: '#0f172a', fontWeight: '600' },
-  placeholderText: { fontSize: 16, color: '#94a3b8' },
+  pickerText: { fontSize: 16, color: UI.text.title, fontWeight: '600' },
+  placeholderText: { fontSize: 16, color: UI.text.muted },
 
   // Selected customer card
   selectedCard: {
     marginTop: 14,
     padding: 14,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.7)' : '#f8fafc',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.7)' : UI.surface.base,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: UI.surface.divider,
   },
   selectedRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  selectedName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
-  selectedCompany: { fontSize: 13, color: '#6366F1', fontWeight: '500', marginTop: 1 },
-  selectedAddr: { fontSize: 13, color: '#64748b', marginTop: 2 },
+  selectedName: { fontSize: 16, fontWeight: '700', color: UI.text.title },
+  selectedCompany: { fontSize: 13, color: UI.brand.primary, fontWeight: '500', marginTop: 1 },
+  selectedAddr: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
   selectedActions: {
     flexDirection: 'row',
     gap: 10,
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: UI.surface.elevated,
   },
   actionChip: {
     flexDirection: 'row',
@@ -1073,7 +1073,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
     flexDirection: 'row',
     overflow: 'hidden',
-    shadowColor: '#64748B',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -1082,8 +1082,8 @@ const s = StyleSheet.create({
   prefillAccent: { width: 4 },
   prefillBody: { flex: 1, padding: 14 },
   prefillRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  prefillName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
-  prefillCompany: { fontSize: 13, color: '#6366F1', fontWeight: '500', marginTop: 1 },
+  prefillName: { fontSize: 16, fontWeight: '700', color: UI.text.title },
+  prefillCompany: { fontSize: 13, color: UI.brand.primary, fontWeight: '500', marginTop: 1 },
   editPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1093,7 +1093,7 @@ const s = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 10,
   },
-  editPillText: { fontSize: 13, fontWeight: '600', color: '#6366F1' },
+  editPillText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
 
   // Editing banner
   editBanner: {
@@ -1130,7 +1130,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelBtnText: { fontWeight: '600', color: '#64748b', fontSize: 15 },
+  cancelBtnText: { fontWeight: '600', color: UI.text.muted, fontSize: 15 },
   gradientBtnWrap: { flex: 1, borderRadius: 12, overflow: 'hidden' },
   gradientBtn: {
     flexDirection: 'row',
@@ -1140,7 +1140,7 @@ const s = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 16,
   },
-  gradientBtnText: { fontWeight: '700', color: '#fff', fontSize: 15 },
+  gradientBtnText: { fontWeight: '700', color: UI.text.white, fontSize: 15 },
 
   // Job address card
   jobCard: {
@@ -1151,7 +1151,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
     flexDirection: 'row',
     overflow: 'hidden',
-    shadowColor: '#64748B',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -1160,11 +1160,11 @@ const s = StyleSheet.create({
   jobAccent: { width: 4 },
   jobBody: { flex: 1, padding: 14 },
   jobLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
-  jobLabel: { fontSize: 13, fontWeight: '700', color: '#3B82F6' },
+  jobLabel: { fontSize: 13, fontWeight: '700', color: UI.status.inProgress },
 
   // Avatar
   avatar: { justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: '#fff', fontWeight: '800' },
+  avatarText: { color: UI.text.white, fontWeight: '800' },
 
   // Modal
   overlay: {
@@ -1201,12 +1201,12 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: UI.text.title },
   modalClose: {
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: UI.surface.elevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1215,10 +1215,10 @@ const s = StyleSheet.create({
   modalSearch: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: UI.surface.base,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
+    borderColor: UI.surface.divider,
     paddingHorizontal: 14,
     marginBottom: 8,
     gap: 8,
@@ -1227,11 +1227,11 @@ const s = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#0f172a',
+    color: UI.text.title,
   },
   modalCount: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: UI.text.muted,
     fontWeight: '600',
     marginBottom: 8,
     paddingLeft: 4,
@@ -1245,14 +1245,14 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: UI.surface.elevated,
   },
-  customerName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
-  customerCompany: { fontSize: 12, color: '#6366F1', fontWeight: '500', marginTop: 1 },
-  customerAddr: { fontSize: 13, color: '#94a3b8', marginTop: 2 },
+  customerName: { fontSize: 16, fontWeight: '700', color: UI.text.title },
+  customerCompany: { fontSize: 12, color: UI.brand.primary, fontWeight: '500', marginTop: 1 },
+  customerAddr: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
 
   // Empty list
   emptyList: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyText: { fontSize: 16, fontWeight: '700', color: '#94a3b8' },
-  emptySubText: { fontSize: 13, color: '#cbd5e1' },
+  emptyText: { fontSize: 16, fontWeight: '700', color: UI.text.muted },
+  emptySubText: { fontSize: 13, color: UI.surface.border },
 });

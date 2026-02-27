@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI} from '../../../constants/theme';
+import { Colors, UI} from '../../constants/theme';
 
 const SECTIONS = [
   {

@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../../constants/theme';
+import { Colors, UI} from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 
@@ -103,7 +103,7 @@ export default function WorkersListScreen() {
       />
 
       <TouchableOpacity style={styles.fab} onPress={handleAddWorker}>
-        <Ionicons name="add" size={30} color="#fff" />
+        <Ionicons name="add" size={30} color={UI.text.white} />
       </TouchableOpacity>
     </View>
   );
@@ -115,13 +115,13 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', ...Colors.shadow },
   screenTitle: { fontSize: 24, fontWeight: '800', color: Colors.text },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, marginBottom: 12, borderRadius: 16, ...Colors.shadow },
-  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: UI.surface.base, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   avatarText: { fontSize: 20, fontWeight: '800', color: Colors.primary },
   info: { flex: 1 },
   name: { fontWeight: '700', fontSize: 16, color: Colors.text },
   email: { color: Colors.textLight, fontSize: 14 },
-  testBadge: { backgroundColor: '#f1f5f9', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
-  testBadgeText: { fontSize: 10, fontWeight: '700', color: '#64748b' },
+  testBadge: { backgroundColor: UI.surface.elevated, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
+  testBadgeText: { fontSize: 10, fontWeight: '700', color: UI.text.muted },
   actionBtn: { padding: 8 },
   fab: { position: 'absolute', right: 20, bottom: 30, backgroundColor: Colors.primary, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', ...Colors.shadow },
   emptyState: { alignItems: 'center', marginTop: 80, gap: 10 },

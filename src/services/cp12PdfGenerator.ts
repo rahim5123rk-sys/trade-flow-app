@@ -8,6 +8,7 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
 import { CP12Appliance, CP12FinalChecks } from '../types/cp12';
+import { getSignedUrl } from './storage';
 
 // ─── Data contract ──────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ async function getCompanyAndEngineer(
       email: data?.email || '',
       phone: data?.phone || '',
       address: data?.address || '',
-      logoUrl: data?.logo_url || '',
+      logoUrl: data?.logo_url ? await getSignedUrl(data.logo_url) : '',
       signatureBase64: s.signatureBase64 || '',
     },
     engineer: {
@@ -627,17 +628,22 @@ ${appRows}
 </html>`;
 }
 
-async function shareHtmlAsPdf(html: string, title: string): Promise<void> {
-  if (!(await Sharing.isAvailableAsync())) {
-    throw new Error('Sharing is not available on this device');
-  }
-
+async function printHtmlToPdf(html: string): Promise<string> {
   const { uri } = await Print.printToFileAsync({
     html,
     base64: false,
     width: 842, // A4 landscape width in points (297mm)
     height: 595, // A4 landscape height in points (210mm)
   });
+  return uri;
+}
+
+async function shareHtmlAsPdf(html: string, title: string): Promise<void> {
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('Sharing is not available on this device');
+  }
+
+  const uri = await printHtmlToPdf(html);
 
   const shareOptions = {
     mimeType: 'application/pdf',
@@ -671,12 +677,22 @@ export async function buildCP12LockedPayload(
   };
 }
 
-export async function generateCP12PdfFromPayload(payload: CP12LockedPayload): Promise<void> {
+export async function generateCP12PdfFromPayload(
+  payload: CP12LockedPayload,
+  mode: 'share' | 'save' = 'share',
+): Promise<void> {
   const html = buildHtml(payload.pdfData, payload.company, payload.engineer);
-  await shareHtmlAsPdf(
-    html,
-    `CP12 - ${payload.pdfData.landlordName || 'Gas Safety Record'}`,
-  );
+  const title = `CP12 - ${payload.pdfData.landlordName || 'Gas Safety Record'}`;
+
+  if (mode === 'save') {
+    const uri = await printHtmlToPdf(html);
+    // On iOS, printToFileAsync already saves to a temp location the user can preview
+    // Use the native print dialog which offers "Save to Files"
+    await Print.printAsync({ uri });
+    return;
+  }
+
+  await shareHtmlAsPdf(html, title);
 }
 
 // ─── Public API ─────────────────────────────────────────────────
@@ -685,7 +701,8 @@ export async function generateCP12Pdf(
   data: CP12PdfData,
   companyId: string,
   userId: string,
+  mode: 'share' | 'save' = 'share',
 ): Promise<void> {
   const payload = await buildCP12LockedPayload(data, companyId, userId);
-  await generateCP12PdfFromPayload(payload);
+  await generateCP12PdfFromPayload(payload, mode);
 }

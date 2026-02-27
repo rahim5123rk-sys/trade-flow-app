@@ -7,6 +7,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
+import { getSignedUrl } from './storage';
 
 export type DocumentType = 'invoice' | 'quote';
 
@@ -68,19 +69,22 @@ interface CompanyInfo {
 async function getCompanyInfo(companyId: string): Promise<CompanyInfo> {
   const { data } = await supabase.from('companies').select('*').eq('id', companyId).single();
   const s = data?.settings || {};
+  // Resolve private storage ref to signed URL
+  const resolvedLogo = data?.logo_url ? await getSignedUrl(data.logo_url) : undefined;
+
   return {
     name: data?.name || 'Your Company',
     email: data?.email || '',
     phone: data?.phone || '',
     address: data?.address || '',
-    logoUrl: data?.logo_url || null,
+    logoUrl: resolvedLogo,
     signatureBase64: s.signatureBase64 || null,
     invoiceTerms: s.invoiceTerms || '',
     quoteTerms: s.quoteTerms || '',
   };
 }
 
-export async function generateDocument(data: DocumentData, companyId: string): Promise<void> {
+export async function generateDocument(data: DocumentData, companyId: string, mode: 'share' | 'save' = 'share'): Promise<void> {
   const company = await getCompanyInfo(companyId);
   const isQuote = data.type === 'quote';
 
@@ -259,6 +263,12 @@ export async function generateDocument(data: DocumentData, companyId: string): P
 </body>
 </html>
   `;
+
+  if (mode === 'save') {
+    const { uri } = await Print.printToFileAsync({ html, base64: false });
+    await Print.printAsync({ uri });
+    return;
+  }
 
   if (!(await Sharing.isAvailableAsync())) {
     alert("Sharing is not available on this device");

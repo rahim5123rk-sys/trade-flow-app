@@ -41,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const isRegistering = useRef(false);
 
+
   const fetchProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
@@ -48,6 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .eq('id', userId)
         .single();
+
+      if (error) {
+        console.error('Profile query error:', error.message, error.code);
+        return null;
+      }
 
       if (data) {
         console.log('Profile loaded successfully');
@@ -58,34 +64,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('No profile found for user');
       return null;
     } catch (e) {
-      console.error('Error loading profile', e);
+      console.error('Error loading profile:', e);
       return null;
     }
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      }
+    const initAuth = async () => {
+      // Show login immediately; load session/profile in background
       setIsLoading(false);
-    });
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id);
+          // If session exists but no profile, sign out to avoid stuck state
+          if (!profile && !isRegistering.current) {
+            console.log('Session exists but no profile — signing out');
+            await supabase.auth.signOut();
+            setSession(null);
+          }
+        }
+      } catch (e) {
+        console.error('Auth init error:', e);
+      }
+    };
+    initAuth();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-
+      // Guard FIRST — don't touch any state during registration
       if (isRegistering.current) {
-        console.log('Auth state changed during registration — skipping');
+        console.log('Auth state changed during registration — skipping entirely');
         return;
       }
+
+      setSession(session);
 
       if (session?.user) {
         await fetchProfile(session.user.id);
       } else {
         setUserProfile(null);
+        setIsLoading(false);
       }
     });
 
@@ -103,14 +124,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshProfile = async (): Promise<UserProfile | null> => {
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    if (currentSession?.user) {
+    try {
+      // Prefer the in-memory session to avoid SecureStore hangs
+      if (session?.user) {
+        return await fetchProfile(session.user.id);
+      }
+
+      // Fallback to getSession with a timeout safeguard
+      const sessionResult: any = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+
+      if (!sessionResult || !sessionResult.data?.session) {
+        console.warn('refreshProfile: no session or timed out');
+        return null;
+      }
+
+      const currentSession = sessionResult.data.session as Session;
       setSession(currentSession);
-      const profile = await fetchProfile(currentSession.user.id);
-      return profile;
+      return await fetchProfile(currentSession.user.id);
+    } catch (e) {
+      console.error('refreshProfile error:', e);
+      return null;
     }
-    console.log('refreshProfile: no active session');
-    return null;
   };
 
   const setRegistering = (value: boolean) => {

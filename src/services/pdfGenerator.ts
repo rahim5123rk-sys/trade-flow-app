@@ -2,6 +2,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
+import { getSignedUrl, getSignedUrls } from './storage';
 
 // Matches your Supabase snake_case structure
 interface JobData {
@@ -46,7 +47,11 @@ export const generateJobSheet = async (job: JobData) => {
     console.warn("Could not fetch company data for PDF", e);
   }
 
-  // 2. Format Data
+  // 2. Resolve private storage URLs
+  const logoUrl = companyData.logo_url ? await getSignedUrl(companyData.logo_url) : null;
+  const photoUrls = job.photos?.length ? await getSignedUrls(job.photos) : [];
+
+  // 3. Format Data
   const jobDate = new Date(job.scheduled_date);
   const dateStr = jobDate.toLocaleDateString('en-GB', {
     day: 'numeric', month: 'short', year: 'numeric'
@@ -57,7 +62,7 @@ export const generateJobSheet = async (job: JobData) => {
   const statusColor = isPaid ? '#10B981' : '#64748B'; // Green if paid, Grey otherwise
   const statusText = isPaid ? 'PAID' : job.status.replace('_', ' ').toUpperCase();
 
-  // 3. Construct HTML
+  // 4. Construct HTML
   const html = `
     <!DOCTYPE html>
     <html>
@@ -132,8 +137,8 @@ export const generateJobSheet = async (job: JobData) => {
 
         <div class="header-row">
           <div class="logo-box">
-             ${companyData.logo_url 
-               ? `<img src="${companyData.logo_url}" class="logo-img" />` 
+             ${logoUrl 
+               ? `<img src="${logoUrl}" class="logo-img" />` 
                : `<span style="font-size: 30px; font-weight: bold; color: #cbd5e1;">TF</span>`
              }
           </div>
@@ -210,11 +215,11 @@ export const generateJobSheet = async (job: JobData) => {
           </div>
         </div>
 
-        ${job.photos && job.photos.length > 0 ? `
+        ${photoUrls.length > 0 ? `
           <div style="margin-top: 20px;">
             <div class="section-title">Site Photos</div>
             <div class="photo-grid">
-              ${job.photos.map(url => `
+              ${photoUrls.map(url => `
                 <div class="photo-frame">
                   <img src="${url}" class="photo-img" />
                 </div>

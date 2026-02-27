@@ -1,6 +1,6 @@
 // ============================================
 // FILE: app/(app)/documents/index.tsx
-// Central Hub for Quotes & Invoices – Modern UI
+// Central Hub for Quotes, Invoices & CP12s
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
@@ -22,23 +22,39 @@ import {
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../../constants/theme';
+import { Colors, UI} from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 import { Document } from '../../../src/types';
 
+// ─── Constants ──────────────────────────────────────────────────
+
 const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
-  Draft: { color: '#64748b', bg: '#f1f5f9' },
-  Sent: { color: '#2563eb', bg: '#eff6ff' },
+  Draft: { color: UI.text.muted, bg: UI.surface.elevated },
+  Sent: { color: UI.brand.accent, bg: '#eff6ff' },
   Accepted: { color: '#15803d', bg: '#f0fdf4' },
-  Declined: { color: '#dc2626', bg: '#fef2f2' },
+  Declined: { color: UI.brand.danger, bg: '#fef2f2' },
   Unpaid: { color: '#c2410c', bg: '#fff7ed' },
   Paid: { color: '#047857', bg: '#f0fdf4' },
-  Overdue: { color: '#dc2626', bg: '#fef2f2' },
+  Overdue: { color: UI.brand.danger, bg: '#fef2f2' },
+  Issued: { color: '#0284c7', bg: '#f0f9ff' },
 };
 
-const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.88)';
-const GLASS_BORDER = 'rgba(255,255,255,0.65)';
+const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.92)';
+const GLASS_BORDER = 'rgba(255,255,255,0.80)';
+
+type FilterType = 'all' | 'invoice' | 'quote' | 'cp12' | 'unpaid' | 'draft';
+
+const FILTERS: { key: FilterType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'all', label: 'All', icon: 'albums-outline' },
+  { key: 'invoice', label: 'Invoices', icon: 'receipt-outline' },
+  { key: 'quote', label: 'Quotes', icon: 'document-text-outline' },
+  { key: 'cp12', label: 'CP12', icon: 'shield-checkmark-outline' },
+  { key: 'unpaid', label: 'Unpaid', icon: 'alert-circle-outline' },
+  { key: 'draft', label: 'Drafts', icon: 'create-outline' },
+];
+
+// ─── Helpers ────────────────────────────────────────────────────
 
 const isCp12Document = (doc: Document): boolean => {
   if (doc.type === 'cp12') return true;
@@ -52,14 +68,15 @@ const isCp12Document = (doc: Document): boolean => {
   }
 };
 
+// ─── Screen ─────────────────────────────────────────────────────
+
 export default function DocumentsHubScreen() {
   const { userProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  const [filter, setFilter] = useState<'all' | 'invoice' | 'quote' | 'unpaid' | 'draft'>('all');
+  const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -75,8 +92,12 @@ export default function DocumentsHubScreen() {
       .eq('company_id', userProfile.company_id)
       .order('created_at', { ascending: false });
 
-    if (filter === 'invoice' || filter === 'quote') {
-      query = query.eq('type', filter);
+    if (filter === 'invoice') {
+      query = query.eq('type', 'invoice');
+    } else if (filter === 'quote') {
+      query = query.eq('type', 'quote');
+    } else if (filter === 'cp12') {
+      query = query.eq('type', 'cp12');
     } else if (filter === 'unpaid') {
       query = query.in('status', ['Unpaid', 'Overdue']);
     } else if (filter === 'draft') {
@@ -85,16 +106,34 @@ export default function DocumentsHubScreen() {
 
     const { data, error } = await query;
     if (error) console.error('Error fetching documents:', error);
-    if (data) setDocuments(data as Document[]);
+
+    if (data) {
+      // For the cp12 filter, also include legacy quote-type CP12s
+      if (filter === 'cp12') {
+        const legacyCp12Query = await supabase
+          .from('documents')
+          .select('*')
+          .eq('company_id', userProfile.company_id)
+          .neq('type', 'cp12')
+          .ilike('reference', 'CP12-%')
+          .order('created_at', { ascending: false });
+        const merged = [...data, ...(legacyCp12Query.data || [])];
+        const unique = merged.filter((d, i, arr) => arr.findIndex((x) => x.id === d.id) === i);
+        setDocuments(unique as Document[]);
+      } else {
+        setDocuments(data as Document[]);
+      }
+    }
     setLoading(false);
     setRefreshing(false);
   }, [userProfile?.company_id, filter]);
 
   const handleDelete = (doc: Document) => {
     const isCp12 = isCp12Document(doc);
+    const label = isCp12 ? 'CP12 Certificate' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
     Alert.alert(
-      `Delete ${isCp12 ? 'CP12' : doc.type === 'invoice' ? 'Invoice' : 'Quote'}`,
-      `Are you sure you want to delete ${isCp12 ? `CP12 ${doc.reference || `#${doc.number}`}` : `${doc.type === 'invoice' ? 'Invoice' : 'Quote'} #${doc.number}`}? This cannot be undone.`,
+      `Delete ${label}`,
+      `Are you sure you want to delete ${isCp12 ? `${doc.reference || `CP12 #${doc.number}`}` : `${doc.type === 'invoice' ? 'Invoice' : 'Quote'} #${doc.number}`}? This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -113,79 +152,102 @@ export default function DocumentsHubScreen() {
     );
   };
 
-  const getStatusStyle = (status: string) => STATUS_COLORS[status] || STATUS_COLORS.Draft;
+  // ─── Stats ──────────────────────────────────────────────────
+
+  const stats = {
+    invoices: documents.filter((d) => d.type === 'invoice' && !isCp12Document(d)).length,
+    quotes: documents.filter((d) => d.type === 'quote' && !isCp12Document(d)).length,
+    cp12s: documents.filter((d) => isCp12Document(d)).length,
+  };
+
+  // ─── Filtered list ────────────────────────────────────────────
 
   const filteredDocuments = documents.filter((doc) => {
+    // CP12 filter: also catch legacy ones stored as 'quote' type
+    if (filter === 'cp12' && !isCp12Document(doc)) return false;
+    // For non-CP12 filters, exclude CP12 docs from invoice/quote views
+    if (filter === 'invoice' && isCp12Document(doc)) return false;
+    if (filter === 'quote' && isCp12Document(doc)) return false;
+
     if (!searchQuery) return true;
-    return doc.customer_snapshot?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    return (
+      doc.customer_snapshot?.name?.toLowerCase().includes(q) ||
+      doc.reference?.toLowerCase().includes(q) ||
+      String(doc.number).includes(q)
+    );
   });
+
+  // ─── Render card ──────────────────────────────────────────────
 
   const renderDocument = ({ item, index }: { item: Document; index: number }) => {
     const isCp12 = isCp12Document(item);
-    const statusStyle = getStatusStyle(item.status);
+    const statusStyle = STATUS_COLORS[item.status] || STATUS_COLORS.Draft;
     const isInvoice = item.type === 'invoice' && !isCp12;
 
     const renderRightActions = () => (
-      <TouchableOpacity style={s.deleteSwipeBtn} onPress={() => handleDelete(item)}>
-        <Ionicons name="trash-outline" size={24} color="#fff" />
-        <Text style={s.deleteSwipeText}>Delete</Text>
+      <TouchableOpacity style={st.deleteSwipeBtn} onPress={() => handleDelete(item)}>
+        <Ionicons name="trash-outline" size={24} color={UI.text.white} />
+        <Text style={st.deleteSwipeText}>Delete</Text>
       </TouchableOpacity>
     );
+
+    // Card gradient & icon config
+    const cardConfig = isCp12
+      ? { gradient: UI.gradients.cp12, icon: 'shield-checkmark-outline' as const, iconBg: UI.surface.base, iconColor: UI.brand.primary }
+      : isInvoice
+        ? { gradient: UI.gradients.amberLight, icon: 'receipt-outline' as const, iconBg: '#FFF7ED', iconColor: '#C2410C' }
+        : { gradient: UI.gradients.primary, icon: 'document-text-outline' as const, iconBg: UI.surface.primaryLight, iconColor: UI.brand.primary };
 
     return (
       <Animated.View entering={FadeInRight.delay(Math.min(index * 50, 300)).springify()}>
         <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
           <TouchableOpacity
-            style={s.card}
+            style={st.card}
             activeOpacity={0.7}
             onPress={() => router.push(`/(app)/documents/${item.id}` as any)}
           >
-            {/* Left accent strip */}
-            <LinearGradient
-              colors={
-                isCp12
-                  ? ['#0EA5E9', '#2563EB'] as readonly [string, string]
-                  : isInvoice
-                  ? ['#F59E0B', '#FBBF24'] as readonly [string, string]
-                  : ['#6366F1', '#818CF8'] as readonly [string, string]
-              }
-              style={s.cardStrip}
-            />
+            <LinearGradient colors={[...cardConfig.gradient]} style={st.cardStrip} />
 
-            <View style={s.cardBody}>
-              {/* Top row: type icon + ref + amount */}
-              <View style={s.cardTopRow}>
-                <View style={[s.typeIcon, { backgroundColor: isInvoice ? '#FFF7ED' : '#EEF2FF' }]}>
-                  <Ionicons
-                    name={isCp12 ? 'shield-checkmark-outline' : isInvoice ? 'receipt-outline' : 'document-text-outline'}
-                    size={18}
-                    color={isCp12 ? '#1D4ED8' : isInvoice ? '#C2410C' : '#6366F1'}
-                  />
+            <View style={st.cardBody}>
+              {/* Top row */}
+              <View style={st.cardTopRow}>
+                <View style={[st.typeIcon, { backgroundColor: cardConfig.iconBg }]}>
+                  <Ionicons name={cardConfig.icon} size={18} color={cardConfig.iconColor} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.cardRef}>
+                  <Text style={st.cardRef}>
                     {isCp12
                       ? item.reference || `CP12-${String(item.number).padStart(4, '0')}`
                       : `${isInvoice ? 'INV' : 'QTE'}-${String(item.number).padStart(4, '0')}`}
                   </Text>
-                  <Text style={s.cardCustomer} numberOfLines={1}>
+                  <Text style={st.cardCustomer} numberOfLines={1}>
                     {item.customer_snapshot?.name || 'Unknown Customer'}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={s.cardTotal}>{isCp12 ? 'CP12' : `£${item.total?.toFixed(2) || '0.00'}`}</Text>
-                  <View style={[s.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                    <View style={[s.statusDot, { backgroundColor: statusStyle.color }]} />
-                    <Text style={[s.statusText, { color: statusStyle.color }]}>{isCp12 ? 'Locked' : item.status}</Text>
+                  {isCp12 ? (
+                    <View style={st.cp12Badge}>
+                      <Ionicons name="shield-checkmark" size={12} color={UI.text.white} />
+                      <Text style={st.cp12BadgeText}>CP12</Text>
+                    </View>
+                  ) : (
+                    <Text style={st.cardTotal}>£{item.total?.toFixed(2) || '0.00'}</Text>
+                  )}
+                  <View style={[st.statusBadge, { backgroundColor: isCp12 ? UI.surface.base : statusStyle.bg }]}>
+                    <View style={[st.statusDot, { backgroundColor: isCp12 ? '#0284c7' : statusStyle.color }]} />
+                    <Text style={[st.statusText, { color: isCp12 ? '#0284c7' : statusStyle.color }]}>
+                      {isCp12 ? 'Issued' : item.status}
+                    </Text>
                   </View>
                 </View>
               </View>
 
-              {/* Bottom meta row */}
-              <View style={s.cardBottomRow}>
-                <View style={s.cardMeta}>
-                  <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
-                  <Text style={s.cardDate}>
+              {/* Bottom meta */}
+              <View style={st.cardBottomRow}>
+                <View style={st.cardMeta}>
+                  <Ionicons name="calendar-outline" size={12} color={UI.text.muted} />
+                  <Text style={st.cardDate}>
                     {new Date(item.created_at).toLocaleDateString('en-GB', {
                       day: 'numeric',
                       month: 'short',
@@ -193,7 +255,13 @@ export default function DocumentsHubScreen() {
                     })}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                {isCp12 && item.expiry_date && (
+                  <View style={st.cardMeta}>
+                    <Ionicons name="time-outline" size={12} color={UI.status.pending} />
+                    <Text style={[st.cardDate, { color: UI.status.pending }]}>Due: {item.expiry_date}</Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-forward" size={16} color={UI.surface.border} />
               </View>
             </View>
           </TouchableOpacity>
@@ -202,12 +270,13 @@ export default function DocumentsHubScreen() {
     );
   };
 
+  // ─── Screen ───────────────────────────────────────────────────
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={s.root}>
-        {/* Background gradient */}
+      <View style={st.root}>
         <LinearGradient
-          colors={['#EEF2FF', '#E0F2FE', '#F0FDFA']}
+          colors={UI.gradients.appBackground}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -215,54 +284,70 @@ export default function DocumentsHubScreen() {
 
         <View style={{ flex: 1, paddingTop: insets.top }}>
           {/* Header */}
-          <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
+          <Animated.View entering={FadeInDown.delay(50).springify()} style={st.header}>
             <View>
-              <Text style={s.screenTitle}>Documents</Text>
-              <Text style={s.screenSubtitle}>Quotes & Invoices</Text>
+              <Text style={st.screenTitle}>Documents</Text>
+              <Text style={st.screenSubtitle}>Invoices, Quotes & CP12s</Text>
             </View>
-            <View style={s.countBadge}>
-              <Text style={s.countText}>{documents.length}</Text>
+            <View style={st.headerBadges}>
+              <View style={[st.countBadge, { backgroundColor: '#FFF7ED' }]}>
+                <Ionicons name="receipt-outline" size={12} color="#C2410C" />
+                <Text style={[st.countText, { color: '#C2410C' }]}>{stats.invoices}</Text>
+              </View>
+              <View style={[st.countBadge, { backgroundColor: UI.surface.primaryLight }]}>
+                <Ionicons name="document-text-outline" size={12} color={UI.brand.primary} />
+                <Text style={[st.countText, { color: UI.brand.primary }]}>{stats.quotes}</Text>
+              </View>
+              <View style={[st.countBadge, { backgroundColor: UI.surface.base }]}>
+                <Ionicons name="shield-checkmark-outline" size={12} color={UI.brand.primary} />
+                <Text style={[st.countText, { color: UI.brand.primary }]}>{stats.cp12s}</Text>
+              </View>
             </View>
           </Animated.View>
 
-          {/* Quick Create Actions */}
-          <Animated.View entering={FadeInDown.delay(100).springify()} style={s.createRow}>
+          {/* Quick Create */}
+          <Animated.View entering={FadeInDown.delay(100).springify()} style={st.createRow}>
             <TouchableOpacity
-              style={s.createBtn}
+              style={st.createBtn}
               activeOpacity={0.75}
               onPress={() => router.push('/(app)/invoice' as any)}
             >
-              <LinearGradient
-                colors={['#F59E0B', '#FBBF24'] as readonly [string, string]}
-                style={s.createGradient}
-              >
-                <Ionicons name="receipt" size={20} color="#fff" />
+              <LinearGradient colors={UI.gradients.amberLight} style={st.createGradient}>
+                <Ionicons name="receipt" size={18} color={UI.text.white} />
               </LinearGradient>
-              <Text style={s.createBtnText}>New Invoice</Text>
+              <Text style={st.createBtnText}>Invoice</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={s.createBtn}
+              style={st.createBtn}
               activeOpacity={0.75}
               onPress={() => router.push('/(app)/quote' as any)}
             >
-              <LinearGradient
-                colors={['#8B5CF6', '#A78BFA'] as readonly [string, string]}
-                style={s.createGradient}
-              >
-                <Ionicons name="document-text" size={20} color="#fff" />
+              <LinearGradient colors={UI.gradients.violet} style={st.createGradient}>
+                <Ionicons name="document-text" size={18} color={UI.text.white} />
               </LinearGradient>
-              <Text style={s.createBtnText}>New Quote</Text>
+              <Text style={st.createBtnText}>Quote</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={st.createBtn}
+              activeOpacity={0.75}
+              onPress={() => router.push('/(app)/cp12' as any)}
+            >
+              <LinearGradient colors={UI.gradients.cp12} style={st.createGradient}>
+                <Ionicons name="shield-checkmark" size={18} color={UI.text.white} />
+              </LinearGradient>
+              <Text style={st.createBtnText}>CP12</Text>
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Search Bar */}
-          <Animated.View entering={FadeInDown.delay(150).springify()} style={s.searchWrap}>
-            <View style={s.searchBar}>
-              <Ionicons name="search" size={18} color="#94A3B8" />
+          {/* Search */}
+          <Animated.View entering={FadeInDown.delay(150).springify()} style={st.searchWrap}>
+            <View style={st.searchBar}>
+              <Ionicons name="search" size={18} color={UI.text.muted} />
               <TextInput
-                style={s.searchInput}
-                placeholder="Search by customer name..."
+                style={st.searchInput}
+                placeholder="Search by name, ref or number..."
                 placeholderTextColor="#94A3B8"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -270,7 +355,7 @@ export default function DocumentsHubScreen() {
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                  <Ionicons name="close-circle" size={18} color={UI.text.muted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -281,31 +366,35 @@ export default function DocumentsHubScreen() {
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              data={['all', 'invoice', 'quote', 'unpaid', 'draft'] as const}
-              keyExtractor={(item) => item}
-              contentContainerStyle={s.filterRow}
+              data={FILTERS}
+              keyExtractor={(item) => item.key}
+              contentContainerStyle={st.filterRow}
               renderItem={({ item }) => {
-                const active = filter === item;
+                const active = filter === item.key;
                 return (
                   <TouchableOpacity
-                    style={[s.filterChip, active && s.filterChipActive]}
-                    onPress={() => setFilter(item)}
+                    style={[st.filterChip, active && st.filterChipActive]}
+                    onPress={() => setFilter(item.key)}
                   >
                     {active ? (
                       <LinearGradient
-                        colors={['#6366F1', '#3B82F6'] as readonly [string, string]}
+                        colors={
+                          item.key === 'cp12'
+                            ? (UI.gradients.cp12)
+                            : (UI.gradients.primary)
+                        }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
-                        style={s.filterChipGradient}
+                        style={st.filterChipGradient}
                       >
-                        <Text style={s.filterTextActive}>
-                          {item.charAt(0).toUpperCase() + item.slice(1)}
-                        </Text>
+                        <Ionicons name={item.icon} size={13} color={UI.text.white} style={{ marginRight: 4 }} />
+                        <Text style={st.filterTextActive}>{item.label}</Text>
                       </LinearGradient>
                     ) : (
-                      <Text style={s.filterText}>
-                        {item.charAt(0).toUpperCase() + item.slice(1)}
-                      </Text>
+                      <View style={st.filterChipInner}>
+                        <Ionicons name={item.icon} size={13} color={UI.text.muted} style={{ marginRight: 4 }} />
+                        <Text style={st.filterText}>{item.label}</Text>
+                      </View>
                     )}
                   </TouchableOpacity>
                 );
@@ -333,12 +422,27 @@ export default function DocumentsHubScreen() {
                 />
               }
               ListEmptyComponent={
-                <View style={s.emptyCard}>
-                  <View style={s.emptyIconWrap}>
-                    <Ionicons name="documents-outline" size={28} color="#94A3B8" />
+                <View style={st.emptyCard}>
+                  <View style={st.emptyIconWrap}>
+                    <Ionicons
+                      name={filter === 'cp12' ? 'shield-checkmark-outline' : 'documents-outline'}
+                      size={28}
+                      color={UI.text.muted}                     />
                   </View>
-                  <Text style={s.emptyTitle}>No documents found</Text>
-                  <Text style={s.emptySubtitle}>Try adjusting your filters or search.</Text>
+                  <Text style={st.emptyTitle}>
+                    {filter === 'cp12'
+                      ? 'No CP12 certificates yet'
+                      : filter === 'invoice'
+                        ? 'No invoices found'
+                        : filter === 'quote'
+                          ? 'No quotes found'
+                          : 'No documents found'}
+                  </Text>
+                  <Text style={st.emptySubtitle}>
+                    {filter === 'cp12'
+                      ? 'Create your first gas safety certificate above.'
+                      : 'Try adjusting your filters or create one above.'}
+                  </Text>
                 </View>
               }
             />
@@ -349,7 +453,9 @@ export default function DocumentsHubScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// ─── Styles ─────────────────────────────────────────────────────
+
+const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F0F4FF' },
 
   // Header
@@ -361,46 +467,49 @@ const s = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 20,
   },
-  screenTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
-  screenSubtitle: { fontSize: 13, color: '#94A3B8', fontWeight: '500', marginTop: 2 },
+  screenTitle: { fontSize: 28, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
+  screenSubtitle: { fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2 },
+  headerBadges: { flexDirection: 'row', gap: 6 },
   countBadge: {
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
     paddingVertical: 5,
-    borderRadius: 12,
+    borderRadius: 10,
   },
-  countText: { fontSize: 14, fontWeight: '700', color: '#6366F1' },
+  countText: { fontSize: 12, fontWeight: '700' },
 
   // Quick Create
-  createRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: 16 },
+  createRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 16 },
   createBtn: {
     flex: 1,
     backgroundColor: GLASS_BG,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: GLASS_BORDER,
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
-    shadowColor: '#94A3B8',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
   },
   createGradient: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
-    shadowColor: '#0F172A',
+    marginBottom: 8,
+    shadowColor: UI.text.title,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 4,
   },
-  createBtnText: { fontSize: 13, fontWeight: '700', color: '#334155' },
+  createBtnText: { fontSize: 12, fontWeight: '700', color: UI.text.bodyLight },
 
   // Search
   searchWrap: { paddingHorizontal: 20, marginBottom: 14 },
@@ -413,13 +522,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     height: 46,
     borderRadius: 14,
-    shadowColor: '#94A3B8',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 15, color: '#0F172A', height: '100%' },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 15, color: UI.text.title, height: '100%' },
 
   // Filters
   filterRow: { paddingHorizontal: 20, gap: 8, paddingBottom: 12 },
@@ -430,15 +539,21 @@ const s = StyleSheet.create({
     borderColor: GLASS_BORDER,
     overflow: 'hidden',
   },
-  filterChipActive: {
-    borderColor: 'transparent',
-  },
+  filterChipActive: { borderColor: 'transparent' },
   filterChipGradient: {
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  filterText: { fontSize: 13, fontWeight: '600', color: '#64748B', paddingHorizontal: 16, paddingVertical: 8 },
-  filterTextActive: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  filterChipInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  filterText: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
+  filterTextActive: { fontSize: 13, fontWeight: '700', color: UI.text.white },
 
   // Cards
   card: {
@@ -449,7 +564,7 @@ const s = StyleSheet.create({
     borderColor: GLASS_BORDER,
     marginBottom: 10,
     overflow: 'hidden',
-    shadowColor: '#94A3B8',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -465,9 +580,19 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardRef: { fontSize: 11, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.3 },
-  cardCustomer: { fontSize: 15, fontWeight: '700', color: '#0F172A', marginTop: 2 },
-  cardTotal: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
+  cardRef: { fontSize: 11, fontWeight: '700', color: UI.text.muted, letterSpacing: 0.3 },
+  cardCustomer: { fontSize: 15, fontWeight: '700', color: UI.text.title, marginTop: 2 },
+  cardTotal: { fontSize: 17, fontWeight: '800', color: UI.text.title },
+  cp12Badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: UI.brand.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  cp12BadgeText: { fontSize: 11, fontWeight: '800', color: UI.text.white, letterSpacing: 0.5 },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -489,11 +614,11 @@ const s = StyleSheet.create({
     borderTopColor: 'rgba(241,245,249,0.8)',
   },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardDate: { fontSize: 12, color: '#94A3B8' },
+  cardDate: { fontSize: 12, color: UI.text.muted },
 
   // Swipe to Delete
   deleteSwipeBtn: {
-    backgroundColor: '#EF4444',
+    backgroundColor: UI.brand.danger,
     justifyContent: 'center',
     alignItems: 'center',
     width: 80,
@@ -501,7 +626,7 @@ const s = StyleSheet.create({
     marginBottom: 10,
     marginLeft: 10,
   },
-  deleteSwipeText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 4 },
+  deleteSwipeText: { color: UI.text.white, fontSize: 11, fontWeight: '700', marginTop: 4 },
 
   // Empty state
   emptyCard: {
@@ -518,11 +643,11 @@ const s = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: UI.surface.elevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#334155', marginBottom: 4 },
-  emptySubtitle: { fontSize: 13, color: '#94A3B8' },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: UI.text.bodyLight, marginBottom: 4 },
+  emptySubtitle: { fontSize: 13, color: UI.text.muted, textAlign: 'center' },
 });

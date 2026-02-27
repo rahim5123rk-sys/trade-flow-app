@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { File, Paths } from 'expo-file-system/next';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { File, Paths } from 'expo-file-system/next';
-import * as Sharing from 'expo-sharing';
 import { router } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -14,21 +14,52 @@ import {
     PanResponder,
     Platform,
     ScrollView,
-    Share,
     StyleSheet,
     Switch,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
+import Onboarding, { OnboardingTip } from '../../../components/Onboarding';
 import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
-import { uploadImage } from '../../../src/services/storage';
+import { getSignedUrl, uploadImage } from '../../../src/services/storage';
+
+const SETTINGS_TIPS: OnboardingTip[] = [
+  {
+    title: 'Settings & Profile ⚙️',
+    description: 'Manage your company info, signature, invoice defaults and account preferences here.',
+    icon: 'settings-outline',
+    arrowDirection: 'none',
+    accent: '#1D4ED8',
+  },
+  {
+    title: 'Company Details',
+    description: 'Add your company name, address, phone and email. These appear on your invoices and quotes.',
+    icon: 'business-outline',
+    arrowDirection: 'down',
+    accent: '#7C3AED',
+  },
+  {
+    title: 'Your Signature',
+    description: 'Draw your signature once and it will be used on all your documents automatically.',
+    icon: 'create-outline',
+    arrowDirection: 'down',
+    accent: '#059669',
+  },
+  {
+    title: 'Invoice Defaults',
+    description: 'Set your default payment terms, bank details and footer notes so every invoice is ready to send.',
+    icon: 'receipt-outline',
+    arrowDirection: 'down',
+    accent: '#D97706',
+  },
+];
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -54,7 +85,7 @@ const sigCanvasHTML = `
   c.width = c.offsetWidth * 2;
   c.height = c.offsetHeight * 2;
   ctx.scale(2, 2);
-  ctx.strokeStyle = '#1e293b';
+  ctx.strokeStyle = UI.text.body;
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -128,11 +159,11 @@ const SettingRow = ({
       <Switch
         value={toggleValue}
         onValueChange={onToggle}
-        trackColor={{ false: '#E2E8F0', true: UI.brand.primary }}
+        trackColor={{ false: UI.surface.divider, true: UI.brand.primary }}
         thumbColor={'#fff'}
       />
     ) : (
-      <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+      <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
     )}
   </TouchableOpacity>
 );
@@ -191,6 +222,7 @@ const InputField = ({
 
 export default function SettingsScreen() {
   const { user, userProfile, signOut, refreshProfile } = useAuth();
+  const isAdmin = userProfile?.role === 'admin';
   const insets = useSafeAreaInsets();
   const sigWebViewRef = useRef<WebView>(null);
 
@@ -226,33 +258,50 @@ export default function SettingsScreen() {
       setDisplayName(userProfile.display_name || '');
       loadCompanyData();
       loadWorkerCount();
+    } else {
+      setIsLoading(false);
     }
   }, [userProfile]);
 
   const loadCompanyData = async () => {
-    if (!userProfile?.company_id) return;
-
-    const { data } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('id', userProfile.company_id)
-      .single();
-
-    if (data) {
-      setCompanyName(data.name || '');
-      setCompanyAddress(data.address || '');
-      setCompanyEmail(data.email || '');
-      setCompanyPhone(data.phone || '');
-      setCompanyTrade(data.trade || '');
-      setLogoUrl(data.logo_url || '');
-      
-      // Load Settings JSON
-      const s = data.settings || {};
-      if (s.invoiceTerms) setInvoiceTerms(s.invoiceTerms);
-      if (s.invoiceNotes) setInvoiceNotes(s.invoiceNotes);
-      if (s.signatureBase64) setSavedSignatureBase64(s.signatureBase64);
+    if (!userProfile?.company_id) {
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false);
+
+    try {
+      const { data } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', userProfile.company_id)
+        .single();
+
+      if (data) {
+        setCompanyName(data.name || '');
+        setCompanyAddress(data.address || '');
+        setCompanyEmail(data.email || '');
+        setCompanyPhone(data.phone || '');
+        setCompanyTrade(data.trade || '');
+
+        // Resolve private storage ref to signed URL for display
+        if (data.logo_url) {
+          const signed = await getSignedUrl(data.logo_url);
+          setLogoUrl(signed);
+        } else {
+          setLogoUrl('');
+        }
+        
+        // Load Settings JSON
+        const s = data.settings || {};
+        if (s.invoiceTerms) setInvoiceTerms(s.invoiceTerms);
+        if (s.invoiceNotes) setInvoiceNotes(s.invoiceNotes);
+        if (s.signatureBase64) setSavedSignatureBase64(s.signatureBase64);
+      }
+    } catch (error) {
+      console.error('Failed to load company data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loadWorkerCount = async () => {
@@ -301,12 +350,14 @@ export default function SettingsScreen() {
     if (!result.canceled && result.assets[0].uri) {
       setIsUploading(true);
       try {
-        const url = await uploadImage(result.assets[0].uri, 'logos');
-        setLogoUrl(url);
+        const storageRef = await uploadImage(result.assets[0].uri, 'logos');
+        // Store the storage ref in DB, resolve signed URL for display
         await supabase
           .from('companies')
-          .update({ logo_url: url })
+          .update({ logo_url: storageRef })
           .eq('id', userProfile!.company_id);
+        const signedUrl = await getSignedUrl(storageRef);
+        setLogoUrl(signedUrl);
       } catch (error) {
         Alert.alert('Upload Failed', 'Could not upload image.');
       } finally {
@@ -547,7 +598,7 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInDown.delay(40).springify()} style={styles.headerRow}>
           <View>
             <Text style={styles.screenTitle}>Settings</Text>
-            <Text style={styles.screenSubtitle}>Business profile & preferences</Text>
+            <Text style={styles.screenSubtitle}>{isAdmin ? 'Business profile & preferences' : 'Your profile & preferences'}</Text>
           </View>
           {isLoading ? (
             <ActivityIndicator color={UI.brand.primary} />
@@ -578,67 +629,84 @@ export default function SettingsScreen() {
             value="Name, email, Gas Safe, licence & OFTEC"
             onPress={() => router.push('/(app)/settings/user-details')}
           />
-          <View style={styles.divider} />
-          <SettingRow
-            icon="business-outline"
-            label="Company Details"
-            value="Company name, address, telephone & trade"
-            onPress={() => router.push('/(app)/settings/company-details')}
-          />
+          {isAdmin && (
+            <>
+              <View style={styles.divider} />
+              <SettingRow
+                icon="business-outline"
+                label="Company Details"
+                value="Company name, address, telephone & trade"
+                onPress={() => router.push('/(app)/settings/company-details')}
+              />
+            </>
+          )}
         </View>
 
-        {/* --- Branding --- */}
-        <SectionHeader title="Branding" />
-        <View style={styles.card}>
-          <View style={styles.logoSection}>
-            <View style={styles.logoPreview}>
-              {isUploading ? <ActivityIndicator size="small" /> : logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImg} /> : <Ionicons name="image-outline" size={32} color="#CBD5E1" />}
+        {/* --- Branding (Admin only) --- */}
+        {isAdmin && (
+          <>
+            <SectionHeader title="Branding" />
+            <View style={styles.card}>
+              <View style={styles.logoSection}>
+                <View style={styles.logoPreview}>
+                  {isUploading ? <ActivityIndicator size="small" /> : logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImg} /> : <Ionicons name="image-outline" size={32} color={UI.surface.border} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.logoLabel}>Company Logo</Text>
+                  <Text style={styles.logoSub}>Used on invoices and job sheets.</Text>
+                  <TouchableOpacity onPress={handleLogoUpload}>
+                    <Text style={styles.uploadLink}>Upload New Image</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.logoLabel}>Company Logo</Text>
-              <Text style={styles.logoSub}>Used on invoices and job sheets.</Text>
-              <TouchableOpacity onPress={handleLogoUpload}>
-                <Text style={styles.uploadLink}>Upload New Image</Text>
-              </TouchableOpacity>
+          </>
+        )}
+
+        {/* --- Team Management (Admin only) --- */}
+        {isAdmin && (
+          <>
+            <SectionHeader title="Team Management" />
+            <View style={styles.card}>
+              <SettingRow
+                icon="people-outline"
+                label="Manage Team"
+                value={workerCount > 0 ? `${workerCount} worker${workerCount !== 1 ? 's' : ''}` : 'No workers yet'}
+                onPress={() => router.push('/(app)/workers')}
+              />
             </View>
-          </View>
-        </View>
+          </>
+        )}
 
-        {/* --- Team Management --- */}
-        <SectionHeader title="Team Management" />
-        <View style={styles.card}>
-          <SettingRow
-            icon="people-outline"
-            label="Manage Team"
-            value={workerCount > 0 ? `${workerCount} worker${workerCount !== 1 ? 's' : ''}` : 'No workers yet'}
-            onPress={() => router.push('/(app)/workers')}
-          />
-        </View>
+        {/* --- Invoice Defaults (Admin only) --- */}
+        {isAdmin && (
+          <>
+            <SectionHeader title="Invoice Defaults" />
+            <View style={styles.card}>
+              <InputField 
+                label="Payment Terms" 
+                value={invoiceTerms} 
+                onChange={setInvoiceTerms} 
+                placeholder="e.g. 14 days"
+                icon="time-outline"
+              />
+              <View style={{ height: 16 }} />
+              <InputField 
+                label="Notes & Payment Instructions" 
+                value={invoiceNotes} 
+                onChange={setInvoiceNotes} 
+                placeholder={"Bank details, sort code, etc."}
+                icon="document-text-outline"
+                multiline
+                minHeight={100}
+              />
+            </View>
+          </>
+        )}
 
-        {/* --- Invoice Defaults (NEW) --- */}
-        <SectionHeader title="Invoice Defaults" />
-        <View style={styles.card}>
-          <InputField 
-            label="Payment Terms" 
-            value={invoiceTerms} 
-            onChange={setInvoiceTerms} 
-            placeholder="e.g. 14 days"
-            icon="time-outline"
-          />
-          <View style={{ height: 16 }} />
-          <InputField 
-            label="Notes & Payment Instructions" 
-            value={invoiceNotes} 
-            onChange={setInvoiceNotes} 
-            placeholder={"Bank details, sort code, etc."}
-            icon="document-text-outline"
-            multiline
-            minHeight={100}
-          />
-        </View>
-
-        {/* --- Signature (NEW) --- */}
-        <SectionHeader title="Digital Signature" />
+        {/* --- Signature (Admin only) --- */}
+        {isAdmin && <SectionHeader title="Digital Signature" />}
+        {isAdmin && (
         <View style={styles.card}>
           <Text style={styles.hint}>Used for signing off invoices and job sheets.</Text>
           
@@ -670,7 +738,7 @@ export default function SettingsScreen() {
                   onMessage={handleWebViewMessage}
                 />
                 <View style={styles.sigPadLabel}>
-                  <Ionicons name="pencil" size={12} color="#cbd5e1" />
+                  <Ionicons name="pencil" size={12} color={UI.surface.border} />
                   <Text style={styles.sigPadLabelText}>Sign here</Text>
                 </View>
               </View>
@@ -680,13 +748,22 @@ export default function SettingsScreen() {
                   <Text style={[styles.sigBtnText, { color: Colors.textLight }]}>Reset</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.sigBtn, styles.sigBtnPrimary]} onPress={saveSignature}>
-                  <Ionicons name="checkmark" size={16} color="#fff" />
-                  <Text style={[styles.sigBtnText, { color: '#fff' }]}>Save Signature</Text>
+                  <Ionicons name="checkmark" size={16} color={UI.text.white} />
+                  <Text style={[styles.sigBtnText, { color: UI.text.white }]}>Save Signature</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
         </View>
+        )}
+
+        {isAdmin && (
+          <TouchableOpacity style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} onPress={handleSaveChanges} disabled={isSaving}>
+            <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveBtnGradient}>
+              {isSaving ? <ActivityIndicator color={UI.text.white} /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         {/* --- Preferences --- */}
         <SectionHeader title="Preferences" />
@@ -695,13 +772,6 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <SettingRow icon="moon-outline" label="Dark Mode" hasToggle toggleValue={darkMode} onToggle={setDarkMode} />
         </View>
-
-        {/* --- Save Button --- */}
-        <TouchableOpacity style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} onPress={handleSaveChanges} disabled={isSaving}>
-          <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveBtnGradient}>
-            {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
-          </LinearGradient>
-        </TouchableOpacity>
 
         {/* --- Legal & Privacy --- */}
         <SectionHeader title="Legal & Privacy" />
@@ -739,6 +809,9 @@ export default function SettingsScreen() {
 
         <Text style={styles.versionText}>TradeFlow v1.0.5</Text>
       </ScrollView>
+
+      {/* First-run onboarding */}
+      <Onboarding screenKey="settings" tips={SETTINGS_TIPS} />
     </KeyboardAvoidingView>
   );
 }
@@ -769,7 +842,7 @@ const styles = StyleSheet.create({
     ...Colors.shadow,
   },
   avatarContainer: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  avatarText: { fontSize: 24, fontWeight: '700', color: '#fff' },
+  avatarText: { fontSize: 24, fontWeight: '700', color: UI.text.white },
   profileName: { fontSize: 18, fontWeight: '700', color: UI.text.title },
   profileRole: { fontSize: 13, color: UI.text.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
 
@@ -791,9 +864,9 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 12,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.75)' : '#F8FAFC',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.75)' : UI.surface.base,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: UI.surface.divider,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -810,9 +883,9 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.78)' : '#F8FAFC',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.78)' : UI.surface.base,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: UI.surface.divider,
     borderRadius: 12,
     paddingHorizontal: 12,
   },
@@ -830,12 +903,12 @@ const styles = StyleSheet.create({
 
   // Signature Styles
   hint: { fontSize: 12, color: UI.text.muted, fontStyle: 'italic', marginBottom: 12 },
-  signaturePreview: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, padding: 8, backgroundColor: '#fefefe', marginBottom: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  signaturePadWrapper: { borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, borderStyle: 'dashed', backgroundColor: '#fefefe', overflow: 'hidden', marginBottom: 8, position: 'relative' },
+  signaturePreview: { borderWidth: 1, borderColor: UI.surface.divider, borderRadius: 12, padding: 8, backgroundColor: '#fefefe', marginBottom: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  signaturePadWrapper: { borderWidth: 2, borderColor: UI.surface.divider, borderRadius: 12, borderStyle: 'dashed', backgroundColor: '#fefefe', overflow: 'hidden', marginBottom: 8, position: 'relative' },
   sigPadLabel: { position: 'absolute', bottom: 6, right: 10, flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.5 },
-  sigPadLabelText: { fontSize: 11, color: '#cbd5e1' },
+  sigPadLabelText: { fontSize: 11, color: UI.surface.border },
   sigActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
-  sigBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#f1f5f9' },
+  sigBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: UI.surface.elevated },
   sigBtnPrimary: { backgroundColor: UI.brand.primary },
   sigBtnDanger: { backgroundColor: '#FEF2F2' },
   sigBtnText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
@@ -843,6 +916,6 @@ const styles = StyleSheet.create({
   // Buttons
   saveBtn: { borderRadius: 14, overflow: 'hidden', marginBottom: 24, ...Colors.shadow },
   saveBtnGradient: { paddingVertical: 16, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveBtnText: { color: UI.text.white, fontSize: 16, fontWeight: '700' },
   versionText: { textAlign: 'center', color: UI.text.muted, fontSize: 11, marginBottom: 20 },
 });

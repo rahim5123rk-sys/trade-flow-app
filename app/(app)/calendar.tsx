@@ -76,7 +76,7 @@ export default function UnifiedCalendarScreen() {
       if (marks[dateStr].dots.length < 3) marks[dateStr].dots.push({ key: job.id, color });
     });
 
-    const selectedConfig = { selected: true, selectedColor: Colors.primary, selectedTextColor: '#FFFFFF' };
+    const selectedConfig = { selected: true, selectedColor: Colors.primary, selectedTextColor: UI.surface.card };
     marks[selectedDate] = marks[selectedDate] ? { ...marks[selectedDate], ...selectedConfig } : selectedConfig;
     return marks;
   }, [jobs, selectedDate]);
@@ -138,7 +138,7 @@ export default function UnifiedCalendarScreen() {
             </View>
           </View>
 
-          <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+          <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
         </TouchableOpacity>
       </Animated.View>
     );
@@ -203,7 +203,7 @@ export default function UnifiedCalendarScreen() {
           renderItem={renderDayJob}
           ListEmptyComponent={
             <View style={styles.emptyDay}>
-              <Ionicons name="calendar-clear-outline" size={34} color="#CBD5E1" />
+              <Ionicons name="calendar-clear-outline" size={34} color={UI.surface.border} />
               <Text style={styles.emptyText}>No jobs on this day</Text>
               {isAdmin && (
                 <TouchableOpacity style={styles.addJobBtn} onPress={handleCreateJobFromCalendar}>
@@ -219,7 +219,7 @@ export default function UnifiedCalendarScreen() {
       {isAdmin && (
         <TouchableOpacity style={styles.fab} onPress={handleCreateJobFromCalendar} activeOpacity={0.85}>
           <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabGradient}>
-            <Ionicons name="add" size={28} color="#FFFFFF" />
+            <Ionicons name="add" size={28} color={UI.surface.card} />
           </LinearGradient>
         </TouchableOpacity>
       )}
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.65)',
+    backgroundColor: 'rgba(255,255,255,0.80)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,

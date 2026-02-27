@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useRef } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SignatureScreen, { SignatureViewRef } from 'react-native-signature-canvas';
-import { Colors } from '../constants/theme';
+import { Colors, UI} from '../constants/theme';
 
 interface SignaturePadProps {
   visible: boolean;
@@ -66,5 +66,5 @@ const styles = StyleSheet.create({
   secondaryBtn: { flex: 1, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
   secondaryBtnText: { fontWeight: '600', color: Colors.text },
   primaryBtn: { flex: 1, padding: 16, borderRadius: 12, backgroundColor: Colors.primary, alignItems: 'center' },
-  primaryBtnText: { fontWeight: 'bold', color: '#fff' },
+  primaryBtnText: { fontWeight: 'bold', color: UI.text.white },
 });

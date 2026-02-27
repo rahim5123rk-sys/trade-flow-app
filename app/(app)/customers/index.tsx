@@ -12,7 +12,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../../constants/theme';
+import { Colors, UI} from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 
@@ -122,7 +122,7 @@ export default function CustomersListScreen() {
         style={styles.fab}
         onPress={() => router.push('/(app)/customers/add')}
       >
-        <Ionicons name="add" size={30} color="#fff" />
+        <Ionicons name="add" size={30} color={UI.text.white} />
       </TouchableOpacity>
     </View>
   );
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: UI.surface.base,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -10,7 +10,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Colors } from '../../../constants/theme';
+import { Colors, UI} from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 
@@ -101,13 +101,13 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', padding: 20, borderRadius: 12, ...Colors.shadow },
   title: { fontSize: 20, fontWeight: '800', color: Colors.text, marginBottom: 4 },
   subtitle: { color: Colors.textLight, marginBottom: 20, fontSize: 14, lineHeight: 20 },
-  codeBox: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 20 },
+  codeBox: { backgroundColor: UI.surface.base, padding: 16, borderRadius: 8, borderWidth: 1, borderColor: UI.surface.divider, marginBottom: 20 },
   codeLabel: { fontSize: 10, fontWeight: '700', color: Colors.textLight, marginBottom: 4, letterSpacing: 1 },
   codeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   code: { fontSize: 28, fontWeight: 'bold', color: Colors.text, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', letterSpacing: 2 },
   button: { padding: 16, borderRadius: 10, alignItems: 'center' },
   primaryBtn: { backgroundColor: Colors.primary, ...Colors.shadow },
-  primaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  primaryBtnText: { color: UI.text.white, fontWeight: 'bold', fontSize: 16 },
   regenBtn: { alignItems: 'center', marginTop: 16 },
   regenText: { color: Colors.danger, fontWeight: '600', fontSize: 14 },
 });

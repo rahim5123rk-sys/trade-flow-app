@@ -46,12 +46,12 @@ const StepIndicator = ({ current }: { current: number }) => (
             ]}
           >
             {isDone ? (
-              <Ionicons name="checkmark" size={12} color="#fff" />
+              <Ionicons name="checkmark" size={12} color={UI.text.white} />
             ) : (
               <Text
                 style={[
                   s.stepDotText,
-                  (isActive || isDone) && { color: '#fff' },
+                  (isActive || isDone) && { color: UI.text.white },
                 ]}
               >
                 {step}
@@ -157,7 +157,7 @@ export default function CP12DetailsScreen() {
   return (
     <View style={s.root}>
       <LinearGradient
-        colors={['#EEF2FF', '#E0F2FE', '#F0FDFA']}
+        colors={UI.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -196,10 +196,10 @@ export default function CP12DetailsScreen() {
           <Animated.View entering={FadeInDown.delay(150).springify()}>
             <View style={s.sectionHeader}>
               <LinearGradient
-                colors={['#6366F1', '#3B82F6']}
+                colors={UI.gradients.primary}
                 style={s.sectionIcon}
               >
-                <Ionicons name="person" size={16} color="#fff" />
+                <Ionicons name="person" size={16} color={UI.text.white} />
               </LinearGradient>
               <Text style={s.sectionTitle}>Landlord Details</Text>
             </View>
@@ -218,10 +218,10 @@ export default function CP12DetailsScreen() {
           <Animated.View entering={FadeInDown.delay(250).springify()}>
             <View style={[s.sectionHeader, { marginTop: 24 }]}>
               <LinearGradient
-                colors={['#10B981', '#34D399']}
+                colors={UI.gradients.successLight}
                 style={s.sectionIcon}
               >
-                <Ionicons name="people" size={16} color="#fff" />
+                <Ionicons name="people" size={16} color={UI.text.white} />
               </LinearGradient>
               <Text style={s.sectionTitle}>Tenant Details</Text>
               <View style={s.optionalBadge}>
@@ -262,10 +262,10 @@ export default function CP12DetailsScreen() {
           <Animated.View entering={FadeInDown.delay(350).springify()}>
             <View style={[s.sectionHeader, { marginTop: 24 }]}>
               <LinearGradient
-                colors={['#F59E0B', '#FBBF24']}
+                colors={UI.gradients.amberLight}
                 style={s.sectionIcon}
               >
-                <Ionicons name="home" size={16} color="#fff" />
+                <Ionicons name="home" size={16} color={UI.text.white} />
               </LinearGradient>
               <Text style={s.sectionTitle}>Property Address</Text>
             </View>
@@ -322,7 +322,7 @@ export default function CP12DetailsScreen() {
 
               {propertyAddress ? (
                 <View style={s.previewRow}>
-                  <Ionicons name="location" size={14} color="#10B981" />
+                  <Ionicons name="location" size={14} color={UI.status.complete} />
                   <Text style={s.previewText} numberOfLines={2}>
                     {propertyAddress}
                   </Text>
@@ -343,13 +343,13 @@ export default function CP12DetailsScreen() {
             onPress={handleNext}
           >
             <LinearGradient
-              colors={['#6366F1', '#4F46E5']}
+              colors={UI.gradients.primaryDark}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={s.nextGradient}
             >
               <Text style={s.nextText}>Next: Add Appliances</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Ionicons name="arrow-forward" size={20} color={UI.text.white} />
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -376,8 +376,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: '#64748B', fontWeight: '500', marginTop: 2 },
+  title: { fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2 },
 
   // Step indicator
   stepRow: {
@@ -396,15 +396,15 @@ const s = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: UI.surface.divider,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  stepDotActive: { backgroundColor: '#6366F1' },
-  stepDotDone: { backgroundColor: '#10B981' },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: '#94A3B8' },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8' },
-  stepLabelActive: { color: '#6366F1' },
+  stepDotActive: { backgroundColor: UI.brand.primary },
+  stepDotDone: { backgroundColor: UI.status.complete },
+  stepDotText: { fontSize: 12, fontWeight: '700', color: UI.text.muted },
+  stepLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted },
+  stepLabelActive: { color: UI.brand.primary },
 
   // Sections
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
@@ -415,7 +415,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: '#0F172A' },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: UI.text.title },
 
   // Optional badge
   optionalBadge: {
@@ -425,7 +425,7 @@ const s = StyleSheet.create({
     borderRadius: 6,
     marginLeft: 'auto',
   },
-  optionalText: { fontSize: 10, fontWeight: '700', color: '#10B981', textTransform: 'uppercase', letterSpacing: 0.5 },
+  optionalText: { fontSize: 10, fontWeight: '700', color: UI.status.complete, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   // Card
   card: {
@@ -434,7 +434,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: GLASS_BORDER,
     padding: 16,
-    shadowColor: '#94A3B8',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -443,18 +443,18 @@ const s = StyleSheet.create({
 
   // Inputs
   inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 6 },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: UI.surface.base,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: UI.surface.divider,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
-  input: { flex: 1, fontSize: 15, color: '#0F172A', padding: 0 },
+  input: { flex: 1, fontSize: 15, color: UI.text.title, padding: 0 },
 
   // Row (side-by-side fields)
   row: { flexDirection: 'row', gap: 10 },
@@ -462,7 +462,7 @@ const s = StyleSheet.create({
   // Hint text
   hintText: {
     fontSize: 12,
-    color: '#64748B',
+    color: UI.text.muted,
     fontWeight: '500',
     marginBottom: 14,
     lineHeight: 18,
@@ -477,7 +477,7 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: UI.surface.primaryLight,
     marginTop: 2,
   },
   autofillText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
@@ -490,9 +490,9 @@ const s = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: UI.surface.elevated,
   },
-  previewText: { fontSize: 13, color: '#334155', fontWeight: '500', flex: 1 },
+  previewText: { fontSize: 13, color: UI.text.bodyLight, fontWeight: '500', flex: 1 },
 
   // Bottom bar
   bottomBar: {
@@ -513,5 +513,5 @@ const s = StyleSheet.create({
     paddingVertical: 16,
     gap: 8,
   },
-  nextText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  nextText: { fontSize: 16, fontWeight: '700', color: UI.text.white },
 });

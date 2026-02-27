@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { Colors, UI } from '../../constants/theme';
 
 interface EmptyStateProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -31,7 +31,7 @@ export function EmptyState({
         {actionLabel && onAction && (
           <TouchableOpacity style={styles.actionWrap} onPress={onAction} activeOpacity={0.8}>
             <LinearGradient
-              colors={['#6366F1', '#3B82F6'] as readonly [string, string]}
+              colors={UI.gradients.primary}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.action}
@@ -49,10 +49,10 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.65)',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.88)',
+    borderColor: 'rgba(255,255,255,0.80)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.92)',
     overflow: 'hidden',
-    shadowColor: '#94A3B8',
+    shadowColor: UI.text.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   },
   accent: {
     height: 3,
-    backgroundColor: '#818CF8',
+    backgroundColor: UI.brand.accent,
   },
   content: {
     alignItems: 'center',
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: UI.surface.elevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -79,13 +79,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#334155',
+    color: UI.text.bodyLight,
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: UI.text.muted,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   actionText: {
-    color: '#FFFFFF',
+    color: UI.surface.card,
     fontWeight: '700',
     fontSize: 14,
   },

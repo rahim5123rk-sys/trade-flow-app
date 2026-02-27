@@ -23,7 +23,7 @@ import {
     CustomerSelector,
     EMPTY_CUSTOMER_FORM
 } from '../../../components/CustomerSelector';
-import { Colors } from '../../../constants/theme';
+import { Colors, UI} from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 
@@ -193,11 +193,11 @@ export default function CustomerDetailScreen() {
         onPress={() => router.push(isJob ? `/(app)/jobs/${item.id}` : `/(app)/documents/${item.id}` as any)}
       >
         <View style={styles.historyLeft}>
-          <View style={[styles.iconCircle, { backgroundColor: isJob ? '#EFF6FF' : (item.type === 'invoice' ? '#FFF7ED' : '#F5F3FF') }]}>
+          <View style={[styles.iconCircle, { backgroundColor: isJob ? UI.surface.base : (item.type === 'invoice' ? '#FFF7ED' : '#F5F3FF') }]}>
             <Ionicons 
               name={isJob ? 'briefcase' : (item.type === 'invoice' ? 'receipt' : 'document-text')} 
               size={18} 
-              color={isJob ? Colors.primary : (item.type === 'invoice' ? '#C2410C' : '#7C3AED')} 
+              color={isJob ? Colors.primary : (item.type === 'invoice' ? '#C2410C' : UI.brand.secondary)} 
             />
           </View>
           <View>
@@ -231,7 +231,7 @@ export default function CustomerDetailScreen() {
           />
 
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-            <TouchableOpacity style={[styles.btn, { flex: 1, backgroundColor: '#e2e8f0' }]} onPress={() => setEditing(false)}>
+            <TouchableOpacity style={[styles.btn, { flex: 1, backgroundColor: UI.surface.divider }]} onPress={() => setEditing(false)}>
               <Text style={{ color: Colors.text }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.btn, { flex: 1 }]} onPress={handleUpdate}>
@@ -291,16 +291,16 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', padding: 20, borderRadius: 16, marginBottom: 16, ...Colors.shadow },
   name: { fontSize: 22, fontWeight: '800', color: Colors.text, marginBottom: 4 },
   companyText: { fontSize: 14, fontWeight: '600', color: Colors.primary, marginBottom: 4 },
-  detail: { fontSize: 14, color: '#64748b', marginBottom: 2 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#64748b', marginBottom: 12, textTransform: 'uppercase', paddingLeft: 4 },
+  detail: { fontSize: 14, color: UI.text.muted, marginBottom: 2 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: UI.text.muted, marginBottom: 12, textTransform: 'uppercase', paddingLeft: 4 },
   historyCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 10, ...Colors.shadow },
   historyLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   iconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   historyTitle: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  historyDate: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  historyDate: { fontSize: 12, color: UI.text.muted, marginTop: 2 },
   historyStatus: { fontSize: 10, fontWeight: '800' },
   historyPrice: { fontSize: 14, fontWeight: '700', color: Colors.text, marginTop: 2 },
-  emptyText: { color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', marginTop: 40 },
+  emptyText: { color: UI.text.muted, fontStyle: 'italic', textAlign: 'center', marginTop: 40 },
   btn: { backgroundColor: Colors.primary, padding: 16, borderRadius: 12, alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: '800' },
+  btnText: { color: UI.text.white, fontWeight: '800' },
 });

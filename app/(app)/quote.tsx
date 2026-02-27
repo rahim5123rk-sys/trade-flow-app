@@ -31,6 +31,7 @@ import {
     getJobAddress,
     prefillFromJob,
 } from '../../components/CustomerSelector';
+import { UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
 import {
@@ -41,8 +42,8 @@ import {
 
 // ─── Design tokens ──────────────────────────────────────────────────
 const GLASS_BG =
-  Platform.OS === 'ios' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.88)';
-const GLASS_BORDER = 'rgba(255,255,255,0.65)';
+  Platform.OS === 'ios' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.92)';
+const GLASS_BORDER = 'rgba(255,255,255,0.80)';
 
 const fmtCurrency = (n: number) =>
   `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
@@ -379,7 +380,7 @@ export default function CreateQuoteScreen() {
   if (loading)
     return (
       <View style={st.center}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <ActivityIndicator size="large" color={UI.brand.primary} />
       </View>
     );
 
@@ -389,7 +390,7 @@ export default function CreateQuoteScreen() {
       style={{ flex: 1 }}
     >
       <LinearGradient
-        colors={['#EEF2FF', '#F8FAFC', '#F1F5F9']}
+        colors={UI.gradients.appBackground}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -409,7 +410,7 @@ export default function CreateQuoteScreen() {
               onPress={() => router.back()}
               style={st.backBtn}
             >
-              <Ionicons name="arrow-back" size={22} color="#334155" />
+              <Ionicons name="arrow-back" size={22} color={UI.text.bodyLight} />
             </TouchableOpacity>
             <View style={st.headerCenter}>
               <Text style={st.screenTitle}>New Quote</Text>
@@ -427,7 +428,7 @@ export default function CreateQuoteScreen() {
           >
             <View style={st.cardHeader}>
               <View style={st.cardIconWrap}>
-                <Ionicons name="calculator" size={18} color="#6366F1" />
+                <Ionicons name="calculator" size={18} color={UI.brand.primary} />
               </View>
               <Text style={st.cardTitle}>Quote Details</Text>
             </View>
@@ -453,7 +454,7 @@ export default function CreateQuoteScreen() {
             </View>
             {quoteRef ? (
               <View style={st.refRow}>
-                <Ionicons name="link" size={14} color="#6366F1" />
+                <Ionicons name="link" size={14} color={UI.brand.primary} />
                 <Text style={st.refLabel}>Job Ref:</Text>
                 <Text style={st.refValue}>{quoteRef}</Text>
               </View>
@@ -467,7 +468,7 @@ export default function CreateQuoteScreen() {
               style={st.prefillBanner}
             >
               <View style={st.prefillIconWrap}>
-                <Ionicons name="checkmark" size={14} color="#10B981" />
+                <Ionicons name="checkmark" size={14} color={UI.status.complete} />
               </View>
               <Text style={st.prefillText}>
                 Customer details prefilled from job
@@ -493,7 +494,7 @@ export default function CreateQuoteScreen() {
               style={st.editPrefillBtn}
               onPress={() => setPrefilled(false)}
             >
-              <Ionicons name="create-outline" size={15} color="#6366F1" />
+              <Ionicons name="create-outline" size={15} color={UI.brand.primary} />
               <Text style={st.editPrefillText}>Edit Customer Details</Text>
             </TouchableOpacity>
           )}
@@ -505,12 +506,12 @@ export default function CreateQuoteScreen() {
           >
             <View style={st.sectionLeft}>
               <View style={[st.cardIconWrap, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
-                <Ionicons name="list" size={16} color="#6366F1" />
+                <Ionicons name="list" size={16} color={UI.brand.primary} />
               </View>
               <Text style={st.sectionTitle}>Line Items</Text>
             </View>
             <TouchableOpacity style={st.addBtn} onPress={addLineItem}>
-              <Ionicons name="add" size={16} color="#6366F1" />
+              <Ionicons name="add" size={16} color={UI.brand.primary} />
               <Text style={st.addBtnText}>Add Item</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -535,7 +536,7 @@ export default function CreateQuoteScreen() {
                     style={st.lineRemove}
                     onPress={() => removeLineItem(index)}
                   >
-                    <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                    <Ionicons name="trash-outline" size={14} color={UI.brand.danger} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -596,7 +597,7 @@ export default function CreateQuoteScreen() {
                   { backgroundColor: 'rgba(239,68,68,0.1)' },
                 ]}
               >
-                <Ionicons name="pricetag" size={16} color="#EF4444" />
+                <Ionicons name="pricetag" size={16} color={UI.brand.danger} />
               </View>
               <Text style={st.cardTitle}>Discount</Text>
             </View>
@@ -616,7 +617,7 @@ export default function CreateQuoteScreen() {
             style={st.totalsCard}
           >
             <LinearGradient
-              colors={['#6366F1', '#818CF8']}
+              colors={UI.gradients.primary}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
               style={st.totalsAccent}
@@ -631,7 +632,7 @@ export default function CreateQuoteScreen() {
                   <Text style={st.totalLabel}>
                     Discount ({discountPercent}%)
                   </Text>
-                  <Text style={[st.totalValue, { color: '#EF4444' }]}>
+                  <Text style={[st.totalValue, { color: UI.brand.danger }]}>
                     -{fmtCurrency(discount)}
                   </Text>
                 </View>
@@ -656,7 +657,7 @@ export default function CreateQuoteScreen() {
                   { backgroundColor: 'rgba(59,130,246,0.1)' },
                 ]}
               >
-                <Ionicons name="document-text" size={16} color="#3B82F6" />
+                <Ionicons name="document-text" size={16} color={UI.status.inProgress} />
               </View>
               <Text style={st.cardTitle}>Scope & Notes</Text>
             </View>
@@ -682,7 +683,7 @@ export default function CreateQuoteScreen() {
                   { backgroundColor: 'rgba(16,185,129,0.1)' },
                 ]}
               >
-                <Ionicons name="shield-checkmark" size={16} color="#10B981" />
+                <Ionicons name="shield-checkmark" size={16} color={UI.status.complete} />
               </View>
               <Text style={st.cardTitle}>Terms</Text>
             </View>
@@ -707,10 +708,10 @@ export default function CreateQuoteScreen() {
               activeOpacity={0.7}
             >
               {saving ? (
-                <ActivityIndicator color="#64748b" />
+                <ActivityIndicator color={UI.text.muted} />
               ) : (
                 <>
-                  <Ionicons name="document-outline" size={18} color="#64748b" />
+                  <Ionicons name="document-outline" size={18} color={UI.text.muted} />
                   <Text style={st.draftBtnText}>Save as Draft</Text>
                 </>
               )}
@@ -723,19 +724,19 @@ export default function CreateQuoteScreen() {
               style={st.generateWrap}
             >
               <LinearGradient
-                colors={['#6366F1', '#818CF8']}
+                colors={UI.gradients.primary}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={st.generateBtn}
               >
                 {generating ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={UI.text.white} />
                 ) : (
                   <>
                     <Ionicons
                       name="download-outline"
                       size={20}
-                      color="#fff"
+                      color={UI.text.white}
                     />
                     <Text style={st.generateBtnText}>
                       Save & Generate PDF
@@ -755,7 +756,7 @@ export default function CreateQuoteScreen() {
 
 const st = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: UI.surface.base },
 
   // Header
   headerRow: {
@@ -774,8 +775,8 @@ const st = StyleSheet.create({
     alignItems: 'center',
   },
   headerCenter: { flex: 1, marginLeft: 12 },
-  screenTitle: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
-  screenSubtitle: { fontSize: 13, color: '#94a3b8', marginTop: 2 },
+  screenTitle: { fontSize: 22, fontWeight: '800', color: UI.text.title },
+  screenSubtitle: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
 
   // Glass card
   card: {
@@ -785,7 +786,7 @@ const st = StyleSheet.create({
     padding: 16,
     borderRadius: 18,
     marginBottom: 12,
-    shadowColor: '#64748B',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -805,26 +806,26 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#334155' },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: UI.text.bodyLight },
 
   // Labels & inputs
   label: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748b',
+    color: UI.text.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 5,
   },
   input: {
     backgroundColor:
-      Platform.OS === 'ios' ? 'rgba(248,250,252,0.8)' : '#f8fafc',
+      Platform.OS === 'ios' ? 'rgba(248,250,252,0.8)' : UI.surface.base,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: UI.surface.divider,
     fontSize: 15,
-    color: '#0f172a',
+    color: UI.text.title,
     marginBottom: 8,
   },
   row: { flexDirection: 'row' },
@@ -840,8 +841,8 @@ const st = StyleSheet.create({
     borderRadius: 10,
     marginTop: 4,
   },
-  refLabel: { fontSize: 12, fontWeight: '600', color: '#64748b' },
-  refValue: { fontSize: 14, fontWeight: '700', color: '#6366F1' },
+  refLabel: { fontSize: 12, fontWeight: '600', color: UI.text.muted },
+  refValue: { fontSize: 14, fontWeight: '700', color: UI.brand.primary },
 
   // Prefill
   prefillBanner: {
@@ -863,7 +864,7 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  prefillText: { fontSize: 13, fontWeight: '600', color: '#059669' },
+  prefillText: { fontSize: 13, fontWeight: '600', color: UI.brand.success },
   editPrefillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -872,7 +873,7 @@ const st = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 12,
   },
-  editPrefillText: { fontSize: 13, fontWeight: '600', color: '#6366F1' },
+  editPrefillText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
 
   // Section header
   sectionHeader: {
@@ -883,7 +884,7 @@ const st = StyleSheet.create({
     marginTop: 8,
   },
   sectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#334155' },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: UI.text.bodyLight },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -893,7 +894,7 @@ const st = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 10,
   },
-  addBtnText: { fontSize: 13, fontWeight: '700', color: '#6366F1' },
+  addBtnText: { fontSize: 13, fontWeight: '700', color: UI.brand.primary },
 
   // Line item card
   lineCard: {
@@ -903,7 +904,7 @@ const st = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     marginBottom: 8,
-    shadowColor: '#64748B',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -920,13 +921,13 @@ const st = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
-  lineBadgeText: { fontSize: 11, fontWeight: '800', color: '#6366F1' },
+  lineBadgeText: { fontSize: 11, fontWeight: '800', color: UI.brand.primary },
   lineTotal: {
     flex: 1,
     textAlign: 'right',
     fontSize: 15,
     fontWeight: '700',
-    color: '#334155',
+    color: UI.text.bodyLight,
     marginRight: 8,
   },
   lineRemove: {
@@ -947,7 +948,7 @@ const st = StyleSheet.create({
     marginBottom: 12,
     flexDirection: 'row',
     overflow: 'hidden',
-    shadowColor: '#64748B',
+    shadowColor: UI.text.muted,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -961,16 +962,16 @@ const st = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  totalLabel: { fontSize: 15, fontWeight: '600', color: '#64748b' },
-  totalValue: { fontSize: 16, fontWeight: '700', color: '#334155' },
+  totalLabel: { fontSize: 15, fontWeight: '600', color: UI.text.muted },
+  totalValue: { fontSize: 16, fontWeight: '700', color: UI.text.bodyLight },
   totalDivider: {
     height: 2,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: UI.surface.divider,
     borderRadius: 1,
     marginVertical: 8,
   },
-  grandTotalLabel: { fontSize: 18, fontWeight: '800', color: '#0f172a' },
-  grandTotalValue: { fontSize: 22, fontWeight: '800', color: '#6366F1' },
+  grandTotalLabel: { fontSize: 18, fontWeight: '800', color: UI.text.title },
+  grandTotalValue: { fontSize: 22, fontWeight: '800', color: UI.brand.primary },
 
   // Actions
   actions: { marginTop: 8, gap: 10 },
@@ -985,7 +986,7 @@ const st = StyleSheet.create({
     padding: 16,
     borderRadius: 14,
   },
-  draftBtnText: { color: '#64748b', fontWeight: '700', fontSize: 16 },
+  draftBtnText: { color: UI.text.muted, fontWeight: '700', fontSize: 16 },
   generateWrap: { borderRadius: 14, overflow: 'hidden' },
   generateBtn: {
     flexDirection: 'row',
@@ -994,5 +995,5 @@ const st = StyleSheet.create({
     gap: 8,
     padding: 16,
   },
-  generateBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  generateBtnText: { color: UI.text.white, fontWeight: '700', fontSize: 16 },
 });

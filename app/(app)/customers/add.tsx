@@ -18,7 +18,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Colors } from '../../../constants/theme';
+import { Colors, UI} from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 
@@ -251,7 +251,7 @@ export default function AddCustomerScreen() {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={UI.text.white} />
           ) : (
             <Text style={styles.btnText}>Save Customer</Text>
           )}
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: UI.surface.base,
     borderWidth: 1,
     borderColor: '#BFDBFE',
     borderRadius: 12,
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748b',
+    color: UI.text.muted,
     marginTop: 16,
     marginBottom: 8,
     textTransform: 'uppercase',
@@ -301,16 +301,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748b',
+    color: UI.text.muted,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: UI.surface.base,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: UI.surface.divider,
     marginBottom: 12,
     fontSize: 16,
     color: Colors.text,
@@ -325,5 +325,5 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     ...Colors.shadow,
   },
-  btnText: { color: '#fff', fontWeight: '800', fontSize: 17 },
+  btnText: { color: UI.text.white, fontWeight: '800', fontSize: 17 },
 });

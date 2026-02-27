@@ -42,9 +42,9 @@ const StepIndicator = ({ current }: { current: number }) => (
             style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}
           >
             {isDone ? (
-              <Ionicons name="checkmark" size={12} color="#fff" />
+              <Ionicons name="checkmark" size={12} color={UI.text.white} />
             ) : (
-              <Text style={[s.stepDotText, (isActive || isDone) && { color: '#fff' }]}>
+              <Text style={[s.stepDotText, (isActive || isDone) && { color: UI.text.white }]}>
                 {step}
               </Text>
             )}
@@ -90,7 +90,7 @@ const SectionDivider = ({ title, icon }: { title: string; icon?: keyof typeof Io
   <View style={s.sectionHeader}>
     {icon && (
       <View style={s.sectionIconWrap}>
-        <Ionicons name={icon} size={16} color="#6366F1" />
+        <Ionicons name={icon} size={16} color={UI.brand.primary} />
       </View>
     )}
     <Text style={s.sectionTitle}>{title}</Text>
@@ -133,7 +133,7 @@ export default function FinalChecksScreen() {
   return (
     <View style={s.root}>
       <LinearGradient
-        colors={['#EEF2FF', '#E0F2FE', '#F0FDFA']}
+        colors={UI.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -173,20 +173,20 @@ export default function FinalChecksScreen() {
           {/* Summary banner */}
           <Animated.View entering={FadeInDown.delay(150).springify()} style={s.summaryBanner}>
             <View style={s.summaryRow}>
-              <Ionicons name="person" size={14} color="#6366F1" />
+              <Ionicons name="person" size={14} color={UI.brand.primary} />
               <Text style={s.summaryText}>
                 {landlordForm.customerName || 'Landlord'}
               </Text>
             </View>
             {tenantName ? (
               <View style={s.summaryRow}>
-                <Ionicons name="people" size={14} color="#10B981" />
+                <Ionicons name="people" size={14} color={UI.status.complete} />
                 <Text style={s.summaryText}>{tenantName}</Text>
               </View>
             ) : null}
             {propertyAddress ? (
               <View style={s.summaryRow}>
-                <Ionicons name="home" size={14} color="#F59E0B" />
+                <Ionicons name="home" size={14} color={UI.status.pending} />
                 <Text style={s.summaryText} numberOfLines={1}>
                   {propertyAddress}
                 </Text>
@@ -364,13 +364,13 @@ export default function FinalChecksScreen() {
             onPress={handleNext}
           >
             <LinearGradient
-              colors={['#6366F1', '#4F46E5']}
+              colors={UI.gradients.primaryDark}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={s.completeGradient}
             >
               <Text style={s.completeText}>Next: Review & Sign</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Ionicons name="arrow-forward" size={20} color={UI.text.white} />
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -425,18 +425,18 @@ const s = StyleSheet.create({
     backgroundColor: GLASS_BG, borderWidth: 1, borderColor: GLASS_BORDER,
     justifyContent: 'center', alignItems: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
-  subtitleText: { fontSize: 13, color: '#64748B', fontWeight: '500', marginTop: 2 },
+  title: { fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
+  subtitleText: { fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2 },
 
   // Steps
   stepRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 24, paddingVertical: 14, backgroundColor: GLASS_BG, borderRadius: 16, borderWidth: 1, borderColor: GLASS_BORDER },
   stepItem: { alignItems: 'center', gap: 6 },
-  stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
-  stepDotActive: { backgroundColor: '#6366F1' },
-  stepDotDone: { backgroundColor: '#10B981' },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: '#94A3B8' },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8' },
-  stepLabelActive: { color: '#6366F1' },
+  stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: UI.surface.divider, justifyContent: 'center', alignItems: 'center' },
+  stepDotActive: { backgroundColor: UI.brand.primary },
+  stepDotDone: { backgroundColor: UI.status.complete },
+  stepDotText: { fontSize: 12, fontWeight: '700', color: UI.text.muted },
+  stepLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted },
+  stepLabelActive: { color: UI.brand.primary },
 
   // Summary banner
   summaryBanner: {
@@ -444,43 +444,43 @@ const s = StyleSheet.create({
     padding: 14, marginBottom: 20, gap: 8,
   },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  summaryText: { fontSize: 13, fontWeight: '600', color: '#334155', flex: 1 },
+  summaryText: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, flex: 1 },
 
   // Card
   card: {
     backgroundColor: GLASS_BG, borderRadius: 18, borderWidth: 1, borderColor: GLASS_BORDER,
     padding: 18, marginBottom: 16,
-    shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
+    shadowColor: UI.text.muted, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
 
   // Section header
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  sectionIconWrap: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
+  sectionIconWrap: { width: 28, height: 28, borderRadius: 8, backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: UI.text.title },
 
   // Check rows
   checkRow: { marginBottom: 16 },
-  checkLabel: { fontSize: 14, fontWeight: '600', color: '#334155', marginBottom: 8 },
+  checkLabel: { fontSize: 14, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 8 },
 
   // Chips
   chipRow: { flexDirection: 'row', gap: 8 },
   chip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
-    backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: UI.surface.elevated, borderWidth: 1, borderColor: UI.surface.divider,
   },
-  chipActive: { backgroundColor: '#EEF2FF', borderColor: '#6366F1' },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  chipTextActive: { color: '#6366F1' },
+  chipActive: { backgroundColor: UI.surface.primaryLight, borderColor: UI.brand.primary },
+  chipText: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
+  chipTextActive: { color: UI.brand.primary },
 
   // Inputs
   inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 6 },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6 },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: UI.surface.base, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
-  input: { flex: 1, fontSize: 15, color: '#0F172A', padding: 0 },
+  input: { flex: 1, fontSize: 15, color: UI.text.title, padding: 0 },
   textAreaWrapper: { alignItems: 'flex-start', minHeight: 100 },
   textArea: { minHeight: 88, textAlignVertical: 'top' },
 
@@ -496,5 +496,5 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 16, gap: 8,
   },
-  completeText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  completeText: { fontSize: 16, fontWeight: '700', color: UI.text.white },
 });

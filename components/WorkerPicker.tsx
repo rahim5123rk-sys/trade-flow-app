@@ -11,7 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Colors } from '../constants/theme';
+import { Colors, UI} from '../constants/theme';
 import { supabase } from '../src/config/supabase';
 
 interface Worker {
@@ -144,18 +144,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: UI.surface.base,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: UI.surface.divider,
   },
   itemSelected: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: UI.surface.base,
     borderColor: Colors.primary,
   },
   info: { flex: 1 },
-  name: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
-  email: { fontSize: 12, color: '#64748b' },
+  name: { fontSize: 14, fontWeight: '700', color: UI.text.title },
+  email: { fontSize: 12, color: UI.text.muted },
   textSelected: { color: Colors.primary },
   emptyContainer: {
     padding: 16,
