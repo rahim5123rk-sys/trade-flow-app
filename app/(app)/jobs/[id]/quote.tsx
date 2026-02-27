@@ -1,5 +1,6 @@
 // ============================================
 // FILE: app/(app)/jobs/[id]/quote.tsx
+// Saves to `documents` table (not jobs)
 // Uses shared CustomerSelector + auto-prefills from job
 // ============================================
 
@@ -43,6 +44,7 @@ export default function CreateQuoteScreen() {
 
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // ─── Customer (shared component) ──────────────────────────────
   const [customerForm, setCustomerForm] = useState<CustomerFormData>(EMPTY_CUSTOMER_FORM);
@@ -56,6 +58,9 @@ export default function CreateQuoteScreen() {
   const [discountPercent, setDiscountPercent] = useState('0');
   const [notes, setNotes] = useState('');
   const [terms, setTerms] = useState('Valid for 30 days');
+
+  // ─── Job link (if coming from a job) ──────────────────────────
+  const [jobId, setJobId] = useState<string | null>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -82,7 +87,7 @@ export default function CreateQuoteScreen() {
     expiry.setDate(expiry.getDate() + 30);
     setExpiryDate(expiry.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
 
-    // 3. ✅ AUTO-PREFILL from job if navigating from a job
+    // 3. AUTO-PREFILL from job if navigating from a job
     if (id && id !== '[id]') {
       const { data: jobData } = await supabase
         .from('jobs')
@@ -91,6 +96,8 @@ export default function CreateQuoteScreen() {
         .single();
 
       if (jobData) {
+        setJobId(jobData.id);
+
         const prefillData = prefillFromJob(jobData);
         setCustomerForm(prefillData);
         setPrefilled(true);
@@ -122,34 +129,148 @@ export default function CreateQuoteScreen() {
   };
 
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const discount = subtotal * (parseFloat(discountPercent) || 0) / 100;
+  const total = subtotal - discount;
 
-  // ─── Generate ─────────────────────────────────────────────────
-  const handleGenerate = async () => {
+  // ─── Validate ─────────────────────────────────────────────────
+  const validate = (): boolean => {
+    if (items.length === 0 || !items.some(i => i.description.trim())) {
+      Alert.alert('Error', 'Add at least one item with a description.');
+      return false;
+    }
+    if (!customerForm.customerName.trim()) {
+      Alert.alert('Error', 'Customer name is required.');
+      return false;
+    }
+    return true;
+  };
+
+  // ─── Build document data ──────────────────────────────────────
+  const buildDocData = (): { snapshot: any; jobAddr: any; today: string } => {
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const snapshot = buildCustomerSnapshot(customerForm);
+    const jobAddr = getJobAddress(customerForm);
+    return { snapshot, jobAddr, today };
+  };
+
+  // ─── Save to documents table ──────────────────────────────────
+  const handleSave = async () => {
     if (!userProfile?.company_id) return;
-    if (items.length === 0) { Alert.alert('Error', 'Add at least one item.'); return; }
-    if (!customerForm.customerName.trim()) { Alert.alert('Error', 'Customer name is required.'); return; }
+    if (!validate()) return;
+
+    setSaving(true);
+
+    try {
+      const { snapshot, jobAddr } = buildDocData();
+
+      const { error } = await supabase.from('documents').insert({
+        company_id: userProfile.company_id,
+        type: 'quote',
+        number: parseInt(quoteNumber) || 1001,
+        reference: quoteRef || null,
+        date: new Date().toISOString(),
+        expiry_date: expiryDate || null,
+        status: 'Draft',
+        customer_id: customerForm.customerId || null,
+        customer_snapshot: snapshot,
+        job_id: jobId || null,
+        job_address: {
+          address_line_1: jobAddr.jobAddress1,
+          city: jobAddr.jobCity,
+          postcode: jobAddr.jobPostcode,
+        },
+        items: items,
+        subtotal: subtotal,
+        discount_percent: parseFloat(discountPercent) || 0,
+        total: total,
+        notes: notes || null,
+      });
+
+      if (error) throw error;
+
+      // Increment quote number in company settings
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('settings')
+        .eq('id', userProfile.company_id)
+        .single();
+
+      const currentSettings = companyData?.settings || {};
+      await supabase
+        .from('companies')
+        .update({
+          settings: {
+            ...currentSettings,
+            nextQuoteNumber: (parseInt(quoteNumber) || 1001) + 1,
+          },
+        })
+        .eq('id', userProfile.company_id);
+
+      Alert.alert('Saved', 'Quote saved successfully.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to save quote.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── Save & Generate PDF ──────────────────────────────────────
+  const handleSaveAndGenerate = async () => {
+    if (!userProfile?.company_id) return;
+    if (!validate()) return;
 
     setGenerating(true);
 
     try {
-      const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-      const snapshot = buildCustomerSnapshot(customerForm);
-      const jobAddr = getJobAddress(customerForm);
+      const { snapshot, jobAddr, today } = buildDocData();
 
-      // Save quote record
-      await supabase.from('jobs').insert({
+      // 1. Save to documents table
+      const { data: docRecord, error: insertError } = await supabase.from('documents').insert({
         company_id: userProfile.company_id,
-        reference: quoteRef || `Q-${quoteNumber}`,
-        title: `Quote for ${customerForm.customerName}`,
-        customer_id: customerForm.customerId,
+        type: 'quote',
+        number: parseInt(quoteNumber) || 1001,
+        reference: quoteRef || null,
+        date: new Date().toISOString(),
+        expiry_date: expiryDate || null,
+        status: 'Draft',
+        customer_id: customerForm.customerId || null,
         customer_snapshot: snapshot,
-        status: 'Quote',
-        scheduled_date: new Date().getTime(),
-        price: subtotal,
-        notes: notes,
-      });
+        job_id: jobId || null,
+        job_address: {
+          address_line_1: jobAddr.jobAddress1,
+          city: jobAddr.jobCity,
+          postcode: jobAddr.jobPostcode,
+        },
+        items: items,
+        subtotal: subtotal,
+        discount_percent: parseFloat(discountPercent) || 0,
+        total: total,
+        notes: notes || null,
+      }).select().single();
 
-      // Generate PDF
+      if (insertError) throw insertError;
+
+      // 2. Increment quote number
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('settings')
+        .eq('id', userProfile.company_id)
+        .single();
+
+      const currentSettings = companyData?.settings || {};
+      await supabase
+        .from('companies')
+        .update({
+          settings: {
+            ...currentSettings,
+            nextQuoteNumber: (parseInt(quoteNumber) || 1001) + 1,
+          },
+        })
+        .eq('id', userProfile.company_id);
+
+      // 3. Generate PDF
       const docData: DocumentData = {
         type: 'quote',
         number: parseInt(quoteNumber) || 1001,
@@ -225,13 +346,13 @@ export default function CreateQuoteScreen() {
           </View>
         )}
 
-        {/* ✅ SHARED CUSTOMER SELECTOR */}
+        {/* SHARED CUSTOMER SELECTOR */}
         <CustomerSelector
           value={customerForm}
           onChange={setCustomerForm}
           mode="compact"
           showJobAddress={true}
-          readOnly={prefilled}
+          prefillMode={prefilled ? 'locked' : 'none'}
         />
 
         {prefilled && (
@@ -251,15 +372,18 @@ export default function CreateQuoteScreen() {
           <View key={index} style={styles.lineItemCard}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={styles.itemIndex}>#{index + 1}</Text>
-              <TouchableOpacity onPress={() => removeLineItem(index)}>
-                <Ionicons name="close" size={16} color={Colors.textLight} />
-              </TouchableOpacity>
+              {items.length > 1 && (
+                <TouchableOpacity onPress={() => removeLineItem(index)}>
+                  <Ionicons name="close" size={16} color={Colors.textLight} />
+                </TouchableOpacity>
+              )}
             </View>
             <TextInput
               style={[styles.input, { marginTop: 4 }]}
               value={item.description}
               onChangeText={(v) => updateItem(index, 'description', v)}
               placeholder="Description"
+              placeholderTextColor="#94a3b8"
             />
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: 5 }}>
@@ -280,10 +404,26 @@ export default function CreateQuoteScreen() {
 
         {/* Totals */}
         <View style={styles.card}>
-          <View style={styles.row}>
-            <Text style={styles.totalLabel}>Total Estimate</Text>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Subtotal</Text>
             <Text style={styles.totalValue}>£{subtotal.toFixed(2)}</Text>
           </View>
+          {parseFloat(discountPercent) > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Discount ({discountPercent}%)</Text>
+              <Text style={[styles.totalValue, { color: Colors.danger }]}>-£{discount.toFixed(2)}</Text>
+            </View>
+          )}
+          <View style={[styles.totalRow, { borderTopWidth: 2, borderTopColor: '#0f172a', paddingTop: 10, marginTop: 6 }]}>
+            <Text style={[styles.totalLabel, { fontWeight: '800', fontSize: 18 }]}>Total Estimate</Text>
+            <Text style={[styles.totalValue, { fontWeight: '800', fontSize: 20 }]}>£{total.toFixed(2)}</Text>
+          </View>
+        </View>
+
+        {/* Discount */}
+        <View style={styles.card}>
+          <Text style={styles.label}>Discount %</Text>
+          <TextInput style={styles.input} value={discountPercent} onChangeText={setDiscountPercent} keyboardType="numeric" placeholder="0" placeholderTextColor="#94a3b8" />
         </View>
 
         {/* Notes */}
@@ -294,12 +434,40 @@ export default function CreateQuoteScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Scope of works, exclusions..."
+            placeholderTextColor="#94a3b8"
             multiline
           />
         </View>
 
-        <TouchableOpacity style={styles.generateBtn} onPress={handleGenerate} disabled={generating}>
-          {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateBtnText}>Generate Quote PDF</Text>}
+        {/* Terms */}
+        <Text style={styles.sectionTitle}>Terms</Text>
+        <View style={styles.card}>
+          <TextInput
+            style={styles.input}
+            value={terms}
+            onChangeText={setTerms}
+            placeholder="e.g. Valid for 30 days"
+            placeholderTextColor="#94a3b8"
+          />
+        </View>
+
+        {/* Action Buttons */}
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving || generating}>
+          {saving ? <ActivityIndicator color="#fff" /> : (
+            <>
+              <Ionicons name="save-outline" size={20} color="#fff" />
+              <Text style={styles.saveBtnText}>Save Quote</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.generateBtn} onPress={handleSaveAndGenerate} disabled={generating || saving}>
+          {generating ? <ActivityIndicator color="#fff" /> : (
+            <>
+              <Ionicons name="download-outline" size={20} color="#fff" />
+              <Text style={styles.generateBtnText}>Save & Generate PDF</Text>
+            </>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -314,7 +482,7 @@ const styles = StyleSheet.create({
   screenTitle: { fontSize: 20, fontWeight: '800', color: Colors.text },
   card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, ...Colors.shadow },
   label: { fontSize: 10, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 4 },
-  input: { backgroundColor: '#f8fafc', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', fontSize: 14, marginBottom: 8 },
+  input: { backgroundColor: '#f8fafc', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', fontSize: 14, marginBottom: 8, color: Colors.text },
   row: { flexDirection: 'row' },
   refText: { fontSize: 14, fontWeight: '600', color: Colors.primary, marginBottom: 4 },
 
@@ -345,8 +513,36 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 13, fontWeight: '700', color: '#64748b', marginTop: 16, marginBottom: 8, textTransform: 'uppercase', paddingLeft: 4 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 8 },
   addLink: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+
+  // Totals
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   totalLabel: { fontSize: 16, fontWeight: '600', color: '#64748b' },
   totalValue: { fontSize: 18, fontWeight: '800', color: Colors.primary },
-  generateBtn: { backgroundColor: Colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 10, marginBottom: 40 },
+
+  // Buttons
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.success,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 10,
+    ...Colors.shadow,
+  },
+  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  generateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 10,
+    marginBottom: 40,
+    ...Colors.shadow,
+  },
   generateBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });
