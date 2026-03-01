@@ -7,16 +7,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    Platform,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { UI } from '../constants/theme';
@@ -269,7 +271,6 @@ export function CustomerSelector({
     </View>
   );
 
-  // ─── Avatar bubble ──────────────────────────────────────────────
   const renderAvatar = (name: string, size: number = 44) => (
     <LinearGradient
       colors={UI.gradients.primary}
@@ -705,97 +706,112 @@ export function CustomerSelector({
       )}
 
       {/* ─── CUSTOMER PICKER MODAL ─── */}
-      <Modal visible={showPicker} animationType="slide" transparent>
-        <View style={s.overlay}>
-          <Animated.View
-            entering={FadeInDown.duration(350).springify()}
-            style={s.modal}
-          >
-            {/* Header */}
-            <View style={s.modalHeader}>
-              <View style={s.modalTitleRow}>
-                <LinearGradient
-                  colors={UI.gradients.primary}
-                  style={s.modalTitleIcon}
-                >
-                  <Ionicons name="people" size={18} color={UI.text.white} />
-                </LinearGradient>
-                <Text style={s.modalTitle}>Select Customer</Text>
-              </View>
-              <TouchableOpacity
-                style={s.modalClose}
-                onPress={() => setShowPicker(false)}
-              >
-                <Ionicons name="close" size={20} color={UI.text.muted} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search */}
-            <View style={s.modalSearch}>
-              <Ionicons name="search" size={18} color={UI.text.muted} />
-              <TextInput
-                style={s.modalSearchInput}
-                placeholder="Search by name, address, email…"
-                placeholderTextColor="#94a3b8"
-                value={searchText}
-                onChangeText={setSearchText}
-                autoFocus
-              />
-              {searchText.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchText('')}>
-                  <Ionicons name="close-circle" size={18} color={UI.surface.border} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Count */}
-            <Text style={s.modalCount}>
-              {filteredCustomers.length} customer
-              {filteredCustomers.length !== 1 ? 's' : ''}
-              {searchText ? ' found' : ''}
-            </Text>
-
-            {/* List */}
-            <FlatList
-              data={filteredCustomers}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
-              ListEmptyComponent={
-                <View style={s.emptyList}>
-                  <Ionicons name="search-outline" size={40} color={UI.surface.border} />
-                  <Text style={s.emptyText}>No customers found</Text>
-                  <Text style={s.emptySubText}>
-                    Try a different search term
-                  </Text>
-                </View>
-              }
-              renderItem={({ item, index }) => (
-                <Animated.View entering={FadeInDown.delay(index * 40).duration(250)}>
-                  <TouchableOpacity
-                    style={s.customerRow}
-                    activeOpacity={0.6}
-                    onPress={() => handleSelectCustomer(item)}
+      <Modal 
+        visible={showPicker} 
+        animationType="slide" 
+        transparent 
+        onRequestClose={() => setShowPicker(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={{ flex: 1 }}
+        >
+          <View style={s.overlay}>
+            {/* Invisible background layer to close modal when clicking outside */}
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPicker(false)} />
+            
+            <Animated.View
+              entering={FadeInDown.duration(350).springify()}
+              style={s.modal}
+            >
+              {/* Header */}
+              <View style={s.modalHeader}>
+                <View style={s.modalTitleRow}>
+                  <LinearGradient
+                    colors={UI.gradients.primary}
+                    style={s.modalTitleIcon}
                   >
-                    {renderAvatar(item.name, 40)}
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.customerName}>{item.name}</Text>
-                      {item.company_name ? (
-                        <Text style={s.customerCompany}>
-                          {item.company_name}
-                        </Text>
-                      ) : null}
-                      <Text style={s.customerAddr} numberOfLines={1}>
-                        {item.address}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
+                    <Ionicons name="people" size={18} color={UI.text.white} />
+                  </LinearGradient>
+                  <Text style={s.modalTitle}>Select Customer</Text>
+                </View>
+                <TouchableOpacity
+                  style={s.modalClose}
+                  onPress={() => setShowPicker(false)}
+                >
+                  <Ionicons name="close" size={20} color={UI.text.muted} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Search */}
+              <View style={s.modalSearch}>
+                <Ionicons name="search" size={18} color={UI.text.muted} />
+                <TextInput
+                  style={s.modalSearchInput}
+                  placeholder="Search by name, address, email…"
+                  placeholderTextColor="#94a3b8"
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  autoFocus
+                />
+                {searchText.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchText('')}>
+                    <Ionicons name="close-circle" size={18} color={UI.surface.border} />
                   </TouchableOpacity>
-                </Animated.View>
-              )}
-            />
-          </Animated.View>
-        </View>
+                )}
+              </View>
+
+              {/* Count */}
+              <Text style={s.modalCount}>
+                {filteredCustomers.length} customer
+                {filteredCustomers.length !== 1 ? 's' : ''}
+                {searchText ? ' found' : ''}
+              </Text>
+
+              {/* List */}
+              <FlatList
+                data={filteredCustomers}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled" // <--- FIX 1
+                keyboardDismissMode="on-drag"       // <--- FIX 2
+                contentContainerStyle={{ paddingBottom: 20 }}
+                ListEmptyComponent={
+                  <View style={s.emptyList}>
+                    <Ionicons name="search-outline" size={40} color={UI.surface.border} />
+                    <Text style={s.emptyText}>No customers found</Text>
+                    <Text style={s.emptySubText}>
+                      Try a different search term
+                    </Text>
+                  </View>
+                }
+                renderItem={({ item, index }) => (
+                  <Animated.View entering={FadeInDown.delay(index * 40).duration(250)}>
+                    <TouchableOpacity
+                      style={s.customerRow}
+                      activeOpacity={0.6}
+                      onPress={() => handleSelectCustomer(item)}
+                    >
+                      {renderAvatar(item.name, 40)}
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.customerName}>{item.name}</Text>
+                        {item.company_name ? (
+                          <Text style={s.customerCompany}>
+                            {item.company_name}
+                          </Text>
+                        ) : null}
+                        <Text style={s.customerAddr} numberOfLines={1}>
+                          {item.address}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
+                    </TouchableOpacity>
+                  </Animated.View>
+                )}
+              />
+            </Animated.View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
