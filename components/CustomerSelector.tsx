@@ -7,70 +7,45 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    Platform,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Platform,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { UI } from '../constants/theme';
 import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
-import { Customer } from '../src/types';
+import { useCustomers } from '../hooks/useCustomers';
+import { Avatar } from './Avatar';
+import { CustomerAddressForm } from './CustomerAddressForm';
+import { CustomerPickerModal } from './CustomerPickerModal';
+import { Input } from './Input';
+import {
+  CustomerFormData,
+  EMPTY_CUSTOMER_FORM,
+  buildCustomerInsert,
+  buildCustomerSnapshot,
+  getJobAddress,
+  prefillFromJob,
+  updateExistingCustomer,
+} from './customerUtils';
 
-// ─── Design tokens ──────────────────────────────────────────────────
-
-const GLASS_BG =
-  Platform.OS === 'ios' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.92)';
-const GLASS_BORDER = 'rgba(255,255,255,0.80)';
-
-// ─── Types ──────────────────────────────────────────────────────────
-
-export interface CustomerFormData {
-  customerId: string | null;
-  customerName: string;
-  customerCompany: string;
-  addressLine1: string;
-  addressLine2: string;
-  city: string;
-  region: string;
-  postCode: string;
-  phone: string;
-  email: string;
-  sameAsBilling: boolean;
-  jobAddressLine1: string;
-  jobAddressLine2: string;
-  jobCity: string;
-  jobPostCode: string;
-  siteContactName: string;
-  siteContactEmail: string;
-}
-
-export const EMPTY_CUSTOMER_FORM: CustomerFormData = {
-  customerId: null,
-  customerName: '',
-  customerCompany: '',
-  addressLine1: '',
-  addressLine2: '',
-  city: '',
-  region: '',
-  postCode: '',
-  phone: '',
-  email: '',
-  sameAsBilling: true,
-  jobAddressLine1: '',
-  jobAddressLine2: '',
-  jobCity: '',
-  jobPostCode: '',
-  siteContactName: '',
-  siteContactEmail: '',
+// ─── Re-export types & helpers so existing callers aren't broken ─────
+export type { CustomerFormData };
+export {
+  EMPTY_CUSTOMER_FORM,
+  buildCustomerSnapshot,
+  buildCustomerInsert,
+  getJobAddress,
+  prefillFromJob,
+  updateExistingCustomer,
 };
+
+// ─── Props ──────────────────────────────────────────────────────────
 
 interface CustomerSelectorProps {
   value: CustomerFormData;
@@ -83,17 +58,6 @@ interface CustomerSelectorProps {
   prefillMode?: 'none' | 'locked';
   hideTabs?: boolean;
   showActions?: boolean;
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────
-
-function getInitials(name: string) {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase();
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -111,45 +75,25 @@ export function CustomerSelector({
   showActions = true,
 }: CustomerSelectorProps) {
   const { userProfile } = useAuth();
+  const { filteredCustomers, search, setSearch, fetchCustomers } = useCustomers();
 
   const [customerMode, setCustomerMode] = useState<'new' | 'existing'>(
     value.customerId ? 'existing' : 'new',
   );
-  const [existingCustomers, setExistingCustomers] = useState<Customer[]>([]);
   const [showPicker, setShowPicker] = useState(false);
-  const [searchText, setSearchText] = useState('');
   const [isQuick, setIsQuick] = useState(quickEntry);
-
   const [isEditing, setIsEditing] = useState(false);
-  const [originalData, setOriginalData] = useState<CustomerFormData | null>(
-    null,
-  );
+  const [originalData, setOriginalData] = useState<CustomerFormData | null>(null);
 
   useEffect(() => {
     if (value.customerId) setCustomerMode('existing');
     else setCustomerMode('new');
   }, [value.customerId]);
 
-  useEffect(() => {
-    fetchCustomers();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile?.company_id]);
-
-  const fetchCustomers = async () => {
-    if (!userProfile?.company_id) return;
-    const { data } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('company_id', userProfile.company_id)
-      .order('name', { ascending: true });
-    if (data) setExistingCustomers(data as Customer[]);
-  };
-
-  const update = (field: keyof CustomerFormData, val: any) => {
+  const update = (field: keyof CustomerFormData, val: any) =>
     onChange({ ...value, [field]: val });
-  };
 
-  const handleSelectCustomer = (cust: Customer) => {
+  const handleSelectCustomer = (cust: any) => {
     onChange({
       ...value,
       customerId: cust.id,
@@ -231,57 +175,8 @@ export function CustomerSelector({
     }
   };
 
-  const filteredCustomers = existingCustomers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      c.address.toLowerCase().includes(searchText.toLowerCase()) ||
-      c.email?.toLowerCase().includes(searchText.toLowerCase()) ||
-      c.phone?.includes(searchText),
-  );
-
   const isLocked = prefillMode === 'locked' && !isEditing;
   const showInputs = hideTabs || isEditing || customerMode === 'new';
-
-  // ──────────────────────────────────────────────────────────────────
-  // Renders
-  // ──────────────────────────────────────────────────────────────────
-
-  const renderLabel = (text: string) => (
-    <Text style={s.label}>{text}</Text>
-  );
-
-  const renderInput = (
-    placeholder: string,
-    fieldValue: string,
-    field: keyof CustomerFormData,
-    opts?: { keyboard?: 'phone-pad' | 'email-address'; autoCapitalize?: 'none' | 'characters' },
-  ) => (
-    <View style={s.inputWrap}>
-      <TextInput
-        style={s.input}
-        placeholder={placeholder}
-        placeholderTextColor="#94a3b8"
-        value={fieldValue}
-        onChangeText={(t) => update(field, t)}
-        keyboardType={opts?.keyboard}
-        autoCapitalize={opts?.autoCapitalize}
-      />
-    </View>
-  );
-
-  // ─── Avatar bubble ──────────────────────────────────────────────
-  const renderAvatar = (name: string, size: number = 44) => (
-    <LinearGradient
-      colors={UI.gradients.primary}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }]}
-    >
-      <Text style={[s.avatarText, { fontSize: size * 0.36 }]}>
-        {getInitials(name || '?')}
-      </Text>
-    </LinearGradient>
-  );
 
   return (
     <View>
@@ -312,7 +207,7 @@ export function CustomerSelector({
           />
           <View style={s.prefillBody}>
             <View style={s.prefillRow}>
-              {renderAvatar(value.customerName, 42)}
+              <Avatar name={value.customerName} size="md" />
               <View style={{ flex: 1 }}>
                 <Text style={s.prefillName}>{value.customerName}</Text>
                 {value.customerCompany ? (
@@ -394,7 +289,7 @@ export function CustomerSelector({
               entering={FadeInDown.delay(100).duration(350).springify()}
               style={s.card}
             >
-              {renderLabel('Select Customer *')}
+              <Text style={s.label}>Select Customer *</Text>
               <TouchableOpacity
                 style={s.pickerBtn}
                 activeOpacity={0.7}
@@ -404,11 +299,7 @@ export function CustomerSelector({
                   <View style={s.pickerIconWrap}>
                     <Ionicons name="search" size={18} color={UI.brand.primary} />
                   </View>
-                  <Text
-                    style={
-                      value.customerName ? s.pickerText : s.placeholderText
-                    }
-                  >
+                  <Text style={value.customerName ? s.pickerText : s.placeholderText}>
                     {value.customerName || 'Search customers…'}
                   </Text>
                 </View>
@@ -416,18 +307,13 @@ export function CustomerSelector({
               </TouchableOpacity>
 
               {value.customerName ? (
-                <Animated.View
-                  entering={FadeIn.duration(300)}
-                  style={s.selectedCard}
-                >
+                <Animated.View entering={FadeIn.duration(300)} style={s.selectedCard}>
                   <View style={s.selectedRow}>
-                    {renderAvatar(value.customerName, 40)}
+                    <Avatar name={value.customerName} size="md" />
                     <View style={{ flex: 1 }}>
                       <Text style={s.selectedName}>{value.customerName}</Text>
                       {value.customerCompany ? (
-                        <Text style={s.selectedCompany}>
-                          {value.customerCompany}
-                        </Text>
+                        <Text style={s.selectedCompany}>{value.customerCompany}</Text>
                       ) : null}
                       <Text style={s.selectedAddr}>
                         {[value.addressLine1, value.city, value.postCode]
@@ -439,27 +325,17 @@ export function CustomerSelector({
                   <View style={s.selectedActions}>
                     <TouchableOpacity style={s.actionChip} onPress={startEditing}>
                       <Ionicons name="create-outline" size={14} color={UI.brand.primary} />
-                      <Text style={[s.actionChipText, { color: UI.brand.primary }]}>
-                        Edit
-                      </Text>
+                      <Text style={[s.actionChipText, { color: UI.brand.primary }]}>Edit</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={s.actionChip}
                       onPress={() => {
-                        onChange({
-                          ...EMPTY_CUSTOMER_FORM,
-                          sameAsBilling: value.sameAsBilling,
-                        });
+                        onChange({ ...EMPTY_CUSTOMER_FORM, sameAsBilling: value.sameAsBilling });
                         setCustomerMode('new');
                       }}
                     >
-                      <Ionicons
-                        name="close-circle"
-                        size={14}
-                        color={UI.brand.danger}                       />
-                      <Text style={[s.actionChipText, { color: UI.brand.danger }]}>
-                        Clear
-                      </Text>
+                      <Ionicons name="close-circle" size={14} color={UI.brand.danger} />
+                      <Text style={[s.actionChipText, { color: UI.brand.danger }]}>Clear</Text>
                     </TouchableOpacity>
                   </View>
                 </Animated.View>
@@ -471,175 +347,20 @@ export function CustomerSelector({
               entering={FadeInDown.delay(100).duration(350).springify()}
               style={s.card}
             >
-              {renderLabel('Contact Name *')}
-              {renderInput('e.g. Sarah Jenkins', value.customerName, 'customerName')}
-
-              {isQuick ? (
-                <>
-                  {renderLabel('Address / Location (Optional)')}
-                  {renderInput(
-                    'e.g. 12 High St, WR1',
-                    value.addressLine1,
-                    'addressLine1',
-                  )}
-                </>
-              ) : (
-                <>
-                  {renderLabel('Company Name')}
-                  {renderInput(
-                    'e.g. Jenkins Plumbing Ltd',
-                    value.customerCompany,
-                    'customerCompany',
-                  )}
-
-                  {renderLabel('Address Line 1 *')}
-                  {renderInput(
-                    'Street address',
-                    value.addressLine1,
-                    'addressLine1',
-                  )}
-
-                  {renderLabel('Address Line 2')}
-                  {renderInput(
-                    'Apt / Suite / Unit',
-                    value.addressLine2,
-                    'addressLine2',
-                  )}
-
-                  <View style={s.row}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      {renderLabel('City')}
-                      {renderInput('Worcester', value.city, 'city')}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      {renderLabel('Post Code *')}
-                      {renderInput('WR1 1PA', value.postCode, 'postCode', {
-                        autoCapitalize: 'characters',
-                      })}
-                    </View>
-                  </View>
-
-                  {mode === 'full' && (
-                    <>
-                      {renderLabel('Region / County')}
-                      {renderInput(
-                        'Worcestershire',
-                        value.region,
-                        'region',
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-
-              <View style={s.row}>
-                <View style={{ flex: 1, marginRight: isQuick ? 0 : 8 }}>
-                  {renderLabel('Phone')}
-                  {renderInput('07700…', value.phone, 'phone', {
-                    keyboard: 'phone-pad',
-                  })}
-                </View>
-                {!isQuick && (
-                  <View style={{ flex: 1 }}>
-                    {renderLabel('Email')}
-                    {renderInput('email@…', value.email, 'email', {
-                      keyboard: 'email-address',
-                      autoCapitalize: 'none',
-                    })}
-                  </View>
-                )}
-              </View>
-
-              {/* ACTION BUTTONS */}
-              {showActions && isEditing && (
-                <Animated.View entering={FadeInUp.delay(100).duration(300)} style={{ marginTop: 10 }}>
-                  {!hasChanged ? (
-                    <View style={s.editActions}>
-                      <TouchableOpacity style={s.cancelBtn} onPress={cancelEditing}>
-                        <Text style={s.cancelBtnText}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={s.gradientBtnWrap}
-                        activeOpacity={0.8}
-                        onPress={() => setIsEditing(false)}
-                      >
-                        <LinearGradient
-                          colors={UI.gradients.primary}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={s.gradientBtn}
-                        >
-                          <Ionicons name="checkmark" size={18} color={UI.text.white} />
-                          <Text style={s.gradientBtnText}>Done</Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <View style={{ gap: 10 }}>
-                      <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <TouchableOpacity style={s.cancelBtn} onPress={cancelEditing}>
-                          <Text style={s.cancelBtnText}>Cancel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={s.gradientBtnWrap}
-                          activeOpacity={0.8}
-                          onPress={handleUpdateExisting}
-                        >
-                          <LinearGradient
-                            colors={UI.gradients.primary}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={s.gradientBtn}
-                          >
-                            <Ionicons name="sync" size={18} color={UI.text.white} />
-                            <Text style={s.gradientBtnText}>Update Existing</Text>
-                          </LinearGradient>
-                        </TouchableOpacity>
-                      </View>
-                      <TouchableOpacity
-                        style={s.gradientBtnWrap}
-                        activeOpacity={0.8}
-                        onPress={handleCreateCustomerInDB}
-                      >
-                        <LinearGradient
-                          colors={UI.gradients.successLight}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={[s.gradientBtn, { paddingVertical: 14 }]}
-                        >
-                          <Ionicons name="add-circle-outline" size={20} color={UI.text.white} />
-                          <Text style={s.gradientBtnText}>Save as New Customer</Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </Animated.View>
-              )}
-
-              {showActions &&
-                !isEditing &&
-                customerMode === 'new' &&
-                value.customerName.length > 0 && (
-                  <Animated.View entering={FadeInUp.delay(150).duration(300)}>
-                    <TouchableOpacity
-                      style={s.gradientBtnWrap}
-                      activeOpacity={0.8}
-                      onPress={handleCreateCustomerInDB}
-                    >
-                      <LinearGradient
-                        colors={UI.gradients.successLight}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[s.gradientBtn, { marginTop: 6 }]}
-                      >
-                        <Ionicons name="save-outline" size={20} color={UI.text.white} />
-                        <Text style={s.gradientBtnText}>
-                          Save Customer to Database
-                        </Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </Animated.View>
-                )}
+              <CustomerAddressForm
+                value={value}
+                onChange={onChange}
+                mode={mode}
+                isQuick={isQuick}
+                showActions={showActions}
+                isEditing={isEditing}
+                hasChanged={hasChanged}
+                customerMode={customerMode}
+                onCancel={cancelEditing}
+                onDone={() => setIsEditing(false)}
+                onUpdateExisting={handleUpdateExisting}
+                onCreateNew={handleCreateCustomerInDB}
+              />
             </Animated.View>
           )}
         </>
@@ -658,7 +379,7 @@ export function CustomerSelector({
             style={s.jobAccent}
           />
           <View style={s.jobBody}>
-            <View style={[s.row, { alignItems: 'center', marginBottom: 10 }]}>
+            <View style={s.jobHeaderRow}>
               <View style={s.jobLabelRow}>
                 <Ionicons name="location" size={16} color={UI.status.inProgress} />
                 <Text style={s.jobLabel}>Job / Site Address</Text>
@@ -675,28 +396,15 @@ export function CustomerSelector({
             </View>
             {!value.sameAsBilling && (
               <Animated.View entering={FadeInDown.duration(250)}>
-                {renderInput('Site Address Line 1', value.jobAddressLine1, 'jobAddressLine1')}
-                {renderInput('Site Address Line 2', value.jobAddressLine2, 'jobAddressLine2')}
+                <Input placeholder="Site Address Line 1" value={value.jobAddressLine1} onChangeText={(t) => update('jobAddressLine1', t)} />
+                <Input placeholder="Site Address Line 2" value={value.jobAddressLine2} onChangeText={(t) => update('jobAddressLine2', t)} />
                 <View style={s.row}>
-                  <View style={{ flex: 1, marginRight: 5 }}>
-                    {renderInput('City', value.jobCity, 'jobCity')}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    {renderInput('Postcode', value.jobPostCode, 'jobPostCode', {
-                      autoCapitalize: 'characters',
-                    })}
-                  </View>
+                  <Input placeholder="City" value={value.jobCity} onChangeText={(t) => update('jobCity', t)} containerStyle={s.flex} />
+                  <Input placeholder="Postcode" value={value.jobPostCode} onChangeText={(t) => update('jobPostCode', t)} autoCapitalize="characters" containerStyle={s.flex} />
                 </View>
                 <View style={s.row}>
-                  <View style={{ flex: 1, marginRight: 5 }}>
-                    {renderInput('Site Contact Name (optional)', value.siteContactName, 'siteContactName')}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    {renderInput('Site Contact Email (optional)', value.siteContactEmail, 'siteContactEmail', {
-                      keyboard: 'email-address',
-                      autoCapitalize: 'none',
-                    })}
-                  </View>
+                  <Input placeholder="Site Contact Name (optional)" value={value.siteContactName} onChangeText={(t) => update('siteContactName', t)} containerStyle={s.flex} />
+                  <Input placeholder="Site Contact Email (optional)" value={value.siteContactEmail} onChangeText={(t) => update('siteContactEmail', t)} keyboardType="email-address" autoCapitalize="none" containerStyle={s.flex} />
                 </View>
               </Animated.View>
             )}
@@ -705,227 +413,16 @@ export function CustomerSelector({
       )}
 
       {/* ─── CUSTOMER PICKER MODAL ─── */}
-      <Modal visible={showPicker} animationType="slide" transparent>
-        <View style={s.overlay}>
-          <Animated.View
-            entering={FadeInDown.duration(350).springify()}
-            style={s.modal}
-          >
-            {/* Header */}
-            <View style={s.modalHeader}>
-              <View style={s.modalTitleRow}>
-                <LinearGradient
-                  colors={UI.gradients.primary}
-                  style={s.modalTitleIcon}
-                >
-                  <Ionicons name="people" size={18} color={UI.text.white} />
-                </LinearGradient>
-                <Text style={s.modalTitle}>Select Customer</Text>
-              </View>
-              <TouchableOpacity
-                style={s.modalClose}
-                onPress={() => setShowPicker(false)}
-              >
-                <Ionicons name="close" size={20} color={UI.text.muted} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search */}
-            <View style={s.modalSearch}>
-              <Ionicons name="search" size={18} color={UI.text.muted} />
-              <TextInput
-                style={s.modalSearchInput}
-                placeholder="Search by name, address, email…"
-                placeholderTextColor="#94a3b8"
-                value={searchText}
-                onChangeText={setSearchText}
-                autoFocus
-              />
-              {searchText.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchText('')}>
-                  <Ionicons name="close-circle" size={18} color={UI.surface.border} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Count */}
-            <Text style={s.modalCount}>
-              {filteredCustomers.length} customer
-              {filteredCustomers.length !== 1 ? 's' : ''}
-              {searchText ? ' found' : ''}
-            </Text>
-
-            {/* List */}
-            <FlatList
-              data={filteredCustomers}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
-              ListEmptyComponent={
-                <View style={s.emptyList}>
-                  <Ionicons name="search-outline" size={40} color={UI.surface.border} />
-                  <Text style={s.emptyText}>No customers found</Text>
-                  <Text style={s.emptySubText}>
-                    Try a different search term
-                  </Text>
-                </View>
-              }
-              renderItem={({ item, index }) => (
-                <Animated.View entering={FadeInDown.delay(index * 40).duration(250)}>
-                  <TouchableOpacity
-                    style={s.customerRow}
-                    activeOpacity={0.6}
-                    onPress={() => handleSelectCustomer(item)}
-                  >
-                    {renderAvatar(item.name, 40)}
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.customerName}>{item.name}</Text>
-                      {item.company_name ? (
-                        <Text style={s.customerCompany}>
-                          {item.company_name}
-                        </Text>
-                      ) : null}
-                      <Text style={s.customerAddr} numberOfLines={1}>
-                        {item.address}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
-                  </TouchableOpacity>
-                </Animated.View>
-              )}
-            />
-          </Animated.View>
-        </View>
-      </Modal>
+      <CustomerPickerModal
+        visible={showPicker}
+        onClose={() => setShowPicker(false)}
+        customers={filteredCustomers}
+        search={search}
+        onSearch={setSearch}
+        onSelect={handleSelectCustomer}
+      />
     </View>
   );
-}
-
-// ─── Exported helpers (unchanged logic) ─────────────────────────────
-
-export function buildCustomerSnapshot(form: CustomerFormData) {
-  const activeAddressLine1 = form.sameAsBilling
-    ? form.addressLine1
-    : form.jobAddressLine1 || form.addressLine1;
-  const activeAddressLine2 = form.sameAsBilling
-    ? form.addressLine2
-    : form.jobAddressLine2 || '';
-  const activeCity = form.sameAsBilling ? form.city : form.jobCity || form.city;
-  const activePostCode = form.sameAsBilling
-    ? form.postCode
-    : form.jobPostCode || form.postCode;
-
-  const combinedAddress = [
-    activeAddressLine1,
-    activeAddressLine2,
-    activeCity,
-    form.region,
-    activePostCode,
-  ]
-    .filter(Boolean)
-    .join(', ');
-
-  return {
-    name: form.customerName.trim(),
-    company_name: form.customerCompany.trim(),
-    address_line_1: activeAddressLine1.trim(),
-    address_line_2: activeAddressLine2.trim(),
-    city: activeCity.trim(),
-    region: form.region.trim(),
-    postal_code: activePostCode.trim().toUpperCase(),
-    phone: form.phone.trim(),
-    email: form.email.trim(),
-    site_contact_name: form.sameAsBilling ? '' : form.siteContactName.trim(),
-    site_contact_email: form.sameAsBilling ? '' : form.siteContactEmail.trim(),
-    billing_address_line_1: form.addressLine1.trim(),
-    billing_address_line_2: form.addressLine2.trim(),
-    billing_city: form.city.trim(),
-    billing_postal_code: form.postCode.trim().toUpperCase(),
-    address: combinedAddress || 'No address provided',
-  };
-}
-
-export function buildCustomerInsert(
-  form: CustomerFormData,
-  companyId: string,
-) {
-  const snapshot = buildCustomerSnapshot(form);
-  return {
-    company_id: companyId,
-    name: snapshot.name,
-    company_name: snapshot.company_name || null,
-    address_line_1: snapshot.address_line_1,
-    address_line_2: snapshot.address_line_2 || null,
-    city: snapshot.city || null,
-    region: snapshot.region || null,
-    postal_code: snapshot.postal_code,
-    address: snapshot.address,
-    phone: snapshot.phone || null,
-    email: snapshot.email || null,
-  };
-}
-
-export function getJobAddress(form: CustomerFormData) {
-  if (form.sameAsBilling) {
-    return {
-      jobAddress1: form.addressLine1,
-      jobAddress2: form.addressLine2,
-      jobCity: form.city,
-      jobPostcode: form.postCode,
-    };
-  }
-  return {
-    jobAddress1: form.jobAddressLine1,
-    jobAddress2: form.jobAddressLine2,
-    jobCity: form.jobCity,
-    jobPostcode: form.jobPostCode,
-  };
-}
-
-export function prefillFromJob(job: any): CustomerFormData {
-  const snap = job.customer_snapshot || {};
-  return {
-    customerId: job.customer_id || null,
-    customerName: snap.name || '',
-    customerCompany: snap.company_name || '',
-    addressLine1: snap.address_line_1 || '',
-    addressLine2: snap.address_line_2 || '',
-    city: snap.city || '',
-    region: snap.region || '',
-    postCode: snap.postal_code || '',
-    phone: snap.phone || '',
-    email: snap.email || '',
-    sameAsBilling: true,
-    jobAddressLine1: snap.address_line_1 || '',
-    jobAddressLine2: snap.address_line_2 || '',
-    jobCity: snap.city || '',
-    jobPostCode: snap.postal_code || '',
-    siteContactName: snap.site_contact_name || '',
-    siteContactEmail: snap.site_contact_email || '',
-  };
-}
-
-export async function updateExistingCustomer(
-  customerId: string,
-  form: CustomerFormData,
-) {
-  const snapshot = buildCustomerSnapshot(form);
-  const { error } = await supabase
-    .from('customers')
-    .update({
-      name: snapshot.name,
-      company_name: snapshot.company_name || null,
-      address_line_1: snapshot.address_line_1,
-      address_line_2: snapshot.address_line_2 || null,
-      city: snapshot.city || null,
-      region: snapshot.region || null,
-      postal_code: snapshot.postal_code,
-      address: snapshot.address,
-      phone: snapshot.phone || null,
-      email: snapshot.email || null,
-    })
-    .eq('id', customerId);
-  if (error) throw error;
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────
@@ -973,9 +470,9 @@ const s = StyleSheet.create({
 
   // Glass card
   card: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: UI.glass.bg,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: UI.glass.border,
     padding: 16,
     borderRadius: 18,
     shadowColor: UI.text.muted,
@@ -986,7 +483,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Labels & inputs
+  // Label (used above picker button)
   label: {
     fontSize: 11,
     fontWeight: '700',
@@ -995,19 +492,6 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 6,
   },
-  inputWrap: {
-    marginBottom: 12,
-  },
-  input: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(248,250,252,0.8)' : UI.surface.base,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: UI.surface.divider,
-    fontSize: 16,
-    color: UI.text.title,
-  },
-  row: { flexDirection: 'row' },
 
   // Picker button
   pickerBtn: {
@@ -1066,9 +550,9 @@ const s = StyleSheet.create({
 
   // Prefill locked card
   prefillCard: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: UI.glass.bg,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: UI.glass.border,
     borderRadius: 18,
     marginBottom: 12,
     flexDirection: 'row',
@@ -1118,35 +602,11 @@ const s = StyleSheet.create({
   editBannerTitle: { fontSize: 14, fontWeight: '700', color: '#92400E' },
   editBannerSub: { fontSize: 12, color: '#B45309', marginTop: 1 },
 
-  // Action buttons
-  editActions: { flexDirection: 'row', gap: 10 },
-  cancelBtn: {
-    flex: 1,
-    padding: 13,
-    borderRadius: 12,
-    backgroundColor: GLASS_BG,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelBtnText: { fontWeight: '600', color: UI.text.muted, fontSize: 15 },
-  gradientBtnWrap: { flex: 1, borderRadius: 12, overflow: 'hidden' },
-  gradientBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-  },
-  gradientBtnText: { fontWeight: '700', color: UI.text.white, fontSize: 15 },
-
   // Job address card
   jobCard: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: UI.glass.bg,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: UI.glass.border,
     borderRadius: 18,
     marginBottom: 12,
     flexDirection: 'row',
@@ -1159,100 +619,11 @@ const s = StyleSheet.create({
   },
   jobAccent: { width: 4 },
   jobBody: { flex: 1, padding: 14 },
+  jobHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   jobLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   jobLabel: { fontSize: 13, fontWeight: '700', color: UI.status.inProgress },
 
-  // Avatar
-  avatar: { justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: UI.text.white, fontWeight: '800' },
-
-  // Modal
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modal: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingTop: 8,
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  modalTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  modalTitleIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: UI.text.title },
-  modalClose: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: UI.surface.elevated,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Modal search
-  modalSearch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: UI.surface.base,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: UI.surface.divider,
-    paddingHorizontal: 14,
-    marginBottom: 8,
-    gap: 8,
-  },
-  modalSearchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: UI.text.title,
-  },
-  modalCount: {
-    fontSize: 12,
-    color: UI.text.muted,
-    fontWeight: '600',
-    marginBottom: 8,
-    paddingLeft: 4,
-  },
-
-  // Customer list item
-  customerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: UI.surface.elevated,
-  },
-  customerName: { fontSize: 16, fontWeight: '700', color: UI.text.title },
-  customerCompany: { fontSize: 12, color: UI.brand.primary, fontWeight: '500', marginTop: 1 },
-  customerAddr: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
-
-  // Empty list
-  emptyList: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyText: { fontSize: 16, fontWeight: '700', color: UI.text.muted },
-  emptySubText: { fontSize: 13, color: UI.surface.border },
+  // Layout helpers
+  row: { flexDirection: 'row', gap: 8 },
+  flex: { flex: 1 },
 });
