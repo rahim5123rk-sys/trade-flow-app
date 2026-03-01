@@ -2,6 +2,9 @@ import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../config/supabase';
 
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
 type UserRole = 'admin' | 'worker';
 interface UserProfile {
   id: string;
@@ -43,9 +46,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // We change the return type to distinguish between "No Profile" (null) and "Network Error" (throw)
   const fetchProfile = async (userId: string, tokenToUse?: string): Promise<UserProfile | null> => {
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-
     let token = tokenToUse || session?.access_token;
     
     if (!token) {
@@ -59,11 +59,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`,
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=*`,
       {
         method: 'GET',
         headers: {
-          'apikey': supabaseAnonKey,
+          'apikey': SUPABASE_ANON_KEY,
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
         },
@@ -124,11 +124,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      setSession(currentSession);
-
+      // Guard first — don't touch any state during registration
       if (isRegistering.current) {
         return;
       }
+
+      setSession(currentSession);
 
       if (currentSession?.user) {
         try {
@@ -160,9 +161,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let currentSession = session;
 
       if (!currentSession?.user) {
-        const sessionResult: any = await Promise.race([
+        type GetSessionResult = Awaited<ReturnType<typeof supabase.auth.getSession>> | null;
+        const sessionResult: GetSessionResult = await Promise.race([
           supabase.auth.getSession(),
-          new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
         ]);
 
         if (sessionResult?.data?.session) {

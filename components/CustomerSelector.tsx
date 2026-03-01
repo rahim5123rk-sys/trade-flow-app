@@ -5,7 +5,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -25,12 +25,6 @@ import { UI } from '../constants/theme';
 import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
 import { Customer } from '../src/types';
-
-// ─── Design tokens ──────────────────────────────────────────────────
-
-const GLASS_BG =
-  Platform.OS === 'ios' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.92)';
-const GLASS_BORDER = 'rgba(255,255,255,0.80)';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -233,13 +227,16 @@ export function CustomerSelector({
     }
   };
 
-  const filteredCustomers = existingCustomers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      c.address.toLowerCase().includes(searchText.toLowerCase()) ||
-      c.email?.toLowerCase().includes(searchText.toLowerCase()) ||
-      c.phone?.includes(searchText),
-  );
+  const filteredCustomers = useMemo(() => {
+    const q = searchText.toLowerCase();
+    return existingCustomers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.address.toLowerCase().includes(q) ||
+        c.email?.toLowerCase().includes(q) ||
+        c.phone?.includes(searchText),
+    );
+  }, [existingCustomers, searchText]);
 
   const isLocked = prefillMode === 'locked' && !isEditing;
   const showInputs = hideTabs || isEditing || customerMode === 'new';
@@ -773,8 +770,8 @@ export function CustomerSelector({
                 data={filteredCustomers}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled" // <--- FIX 1
-                keyboardDismissMode="on-drag"       // <--- FIX 2
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 contentContainerStyle={{ paddingBottom: 20 }}
                 ListEmptyComponent={
                   <View style={s.emptyList}>
@@ -989,9 +986,9 @@ const s = StyleSheet.create({
 
   // Glass card
   card: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: UI.glass.bg,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: UI.glass.border,
     padding: 16,
     borderRadius: 18,
     shadowColor: UI.text.muted,
@@ -1082,9 +1079,9 @@ const s = StyleSheet.create({
 
   // Prefill locked card
   prefillCard: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: UI.glass.bg,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: UI.glass.border,
     borderRadius: 18,
     marginBottom: 12,
     flexDirection: 'row',
@@ -1140,9 +1137,9 @@ const s = StyleSheet.create({
     flex: 1,
     padding: 13,
     borderRadius: 12,
-    backgroundColor: GLASS_BG,
+    backgroundColor: UI.glass.bg,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: UI.glass.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1160,9 +1157,9 @@ const s = StyleSheet.create({
 
   // Job address card
   jobCard: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: UI.glass.bg,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: UI.glass.border,
     borderRadius: 18,
     marginBottom: 12,
     flexDirection: 'row',
