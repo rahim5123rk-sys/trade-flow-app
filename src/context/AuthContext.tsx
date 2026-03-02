@@ -45,6 +45,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isRegistering = useRef(false);
+  const handledUrls = useRef<Set<string>>(new Set());
+  const isRecoveryFlow = useRef(false);
 
   // We change the return type to distinguish between "No Profile" (null) and "Network Error" (throw)
   const fetchProfile = async (userId: string, tokenToUse?: string): Promise<UserProfile | null> => {
@@ -191,12 +193,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleAuthUrl = async (url: string | null) => {
       if (!url) return;
 
+      // Deduplicate — don't re-process already-handled deep links
+      // (getInitialURL can return the same stale URL on every cold start)
+      if (handledUrls.current.has(url)) {
+        console.log('[Auth] Skipping already-handled URL');
+        return;
+      }
+      handledUrls.current.add(url);
+
       try {
         const params = parseParams(url);
         const code = params.code;
         const accessToken = params.access_token;
         const refreshToken = params.refresh_token;
         const type = params.type;
+
+        // Only treat as recovery if the URL explicitly says so
+        if (type === 'recovery') {
+          isRecoveryFlow.current = true;
+        }
 
         if (code) {
           await supabase.auth.exchangeCodeForSession(code);
@@ -279,7 +294,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(currentSession);
 
       if (_event === 'PASSWORD_RECOVERY') {
-        router.replace('/(auth)/reset-password');
+        // Only redirect if this recovery was triggered by a fresh deep link,
+        // NOT from a stale session being reloaded on cold start.
+        if (isRecoveryFlow.current) {
+          isRecoveryFlow.current = false; // consume the flag — handle once only
+          router.replace('/(auth)/reset-password');
+        } else {
+          console.log('[Auth] Ignoring stale PASSWORD_RECOVERY event (no active recovery deep link)');
+        }
         return;
       }
 
