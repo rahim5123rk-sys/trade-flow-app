@@ -129,7 +129,25 @@ export default function UnifiedJobList() {
         style: 'destructive',
         onPress: async () => {
           const previous = [...jobs];
+          const jobToDelete = jobs.find((j) => j.id === jobId);
           setJobs((prev) => prev.filter((j) => j.id !== jobId));
+
+          // Best-effort: remove this job's photos from storage before deleting the record
+          if (jobToDelete?.photos?.length) {
+            try {
+              const photoPaths = (jobToDelete.photos as string[])
+                .map((ref) => {
+                  const colonIdx = ref.indexOf(':');
+                  return colonIdx !== -1 && !ref.includes('://') ? ref.slice(colonIdx + 1) : null;
+                })
+                .filter(Boolean) as string[];
+              if (photoPaths.length) {
+                await supabase.storage.from('job-photos').remove(photoPaths);
+              }
+            } catch {
+              // best-effort — proceed with job deletion regardless
+            }
+          }
 
           const { error } = await supabase
             .from('jobs')

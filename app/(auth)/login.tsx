@@ -1,7 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router} from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import React, {useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,16 +13,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI } from '../../constants/theme';
-import { supabase } from '../../src/config/supabase';
-import { useAppTheme } from '../../src/context/ThemeContext';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Colors, UI} from '../../constants/theme';
+import {supabase} from '../../src/config/supabase';
+import {useAppTheme} from '../../src/context/ThemeContext';
 
-const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
+const PENDING_REGISTRATION_KEY = 'tradeflow_pending_registration';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,7 +36,7 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const {error} = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
@@ -51,7 +51,7 @@ export default function LoginScreen() {
       } else {
         // Check if there's pending registration data — if so, give AuthContext
         // a moment to complete it before navigating to the dashboard
-        const pending = await AsyncStorage.getItem(PENDING_REGISTRATION_KEY);
+        const pending = await SecureStore.getItemAsync(PENDING_REGISTRATION_KEY);
         if (pending) {
           // AuthContext's onAuthStateChange will handle completing the registration.
           // Wait briefly so the profile is created before dashboard tries to load.
@@ -69,18 +69,18 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={{flex: 1}}
     >
       <LinearGradient
         colors={theme.gradients.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
         style={StyleSheet.absoluteFill}
       />
       <View
         style={[
           styles.container,
-          isDark && { backgroundColor: 'transparent' },
+          isDark && {backgroundColor: 'transparent'},
           {
             paddingTop: insets.top + 20,
             paddingBottom: insets.bottom + 20,
@@ -88,15 +88,15 @@ export default function LoginScreen() {
         ]}
       >
         <View style={styles.header}>
-          <Text style={[styles.brand, { color: theme.brand.primary }]}>TradeFlow</Text>
-          <Text style={[styles.title, { color: theme.text.title }]}>Welcome Back</Text>
-          <Text style={[styles.subtitle, { color: theme.text.muted }]}>Sign in to access your dashboard.</Text>
+          <Text style={[styles.brand, {color: theme.brand.primary}]}>TradeFlow</Text>
+          <Text style={[styles.title, {color: theme.text.title}]}>Welcome Back</Text>
+          <Text style={[styles.subtitle, {color: theme.text.muted}]}>Sign in to access your dashboard.</Text>
         </View>
 
-        <View style={[styles.form, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}> 
-          <Text style={[styles.label, { color: theme.text.body }]}>Email Address</Text>
+        <View style={[styles.form, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+          <Text style={[styles.label, {color: theme.text.body}]}>Email Address</Text>
           <TextInput
-            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+            style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
             placeholder="john@example.com"
             placeholderTextColor={theme.text.placeholder}
             autoCapitalize="none"
@@ -105,9 +105,9 @@ export default function LoginScreen() {
             onChangeText={setEmail}
           />
 
-          <Text style={[styles.label, { color: theme.text.body }]}>Password</Text>
+          <Text style={[styles.label, {color: theme.text.body}]}>Password</Text>
           <TextInput
-            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+            style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
             placeholder="••••••••"
             placeholderTextColor={theme.text.placeholder}
             secureTextEntry
@@ -131,22 +131,22 @@ export default function LoginScreen() {
             onPress={() => router.push('/(auth)/forgot-password')}
             style={styles.linkBtn}
           >
-            <Text style={[styles.linkText, { color: theme.brand.primary }]}>Forgot password?</Text>
+            <Text style={[styles.linkText, {color: theme.brand.primary}]}>Forgot password?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => router.push('/(auth)/register')}
             style={styles.linkBtn}
           >
-            <Text style={[styles.linkText, { color: theme.brand.primary }]}>Don’t have an account? Create one</Text>
+            <Text style={[styles.linkText, {color: theme.brand.primary}]}>Don’t have an account? Create one</Text>
           </TouchableOpacity>
           <View style={styles.legalLinks}>
             <TouchableOpacity onPress={() => router.push('/(auth)/privacy-policy' as any)}>
-              <Text style={[styles.legalText, { color: theme.text.muted }]}>Privacy Policy</Text>
+              <Text style={[styles.legalText, {color: theme.text.muted}]}>Privacy Policy</Text>
             </TouchableOpacity>
-            <Text style={[styles.legalDot, { color: theme.surface.border }]}>•</Text>
+            <Text style={[styles.legalDot, {color: theme.surface.border}]}>•</Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/terms-of-service' as any)}>
-              <Text style={[styles.legalText, { color: theme.text.muted }]}>Terms of Service</Text>
+              <Text style={[styles.legalText, {color: theme.text.muted}]}>Terms of Service</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     justifyContent: 'center',
   },
-  header: { marginBottom: 40, alignItems: 'center' },
+  header: {marginBottom: 40, alignItems: 'center'},
   brand: {
     fontSize: 14,
     fontWeight: '800',
@@ -171,9 +171,9 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 12,
   },
-  title: { fontSize: 28, fontWeight: '800', color: Colors.text, marginBottom: 8 },
-  subtitle: { fontSize: 16, color: Colors.textLight },
-  form: { gap: 16, borderWidth: 1, borderColor: 'transparent', borderRadius: 20, padding: 16 },
+  title: {fontSize: 28, fontWeight: '800', color: Colors.text, marginBottom: 8},
+  subtitle: {fontSize: 16, color: Colors.textLight},
+  form: {gap: 16, borderWidth: 1, borderColor: 'transparent', borderRadius: 20, padding: 16},
   label: {
     fontSize: 13,
     fontWeight: '700',
@@ -197,11 +197,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     ...Colors.shadow,
   },
-  btnText: { color: UI.text.white, fontSize: 16, fontWeight: 'bold' },
-  linkBtn: { alignItems: 'center', marginTop: 10 },
-  linkText: { color: Colors.primary, fontWeight: '600' },
-  legalLinks: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20, gap: 8 },
-  legalText: { fontSize: 12, color: UI.text.muted, textDecorationLine: 'underline' },
-  legalDot: { fontSize: 12, color: UI.surface.border },
+  btnText: {color: UI.text.white, fontSize: 16, fontWeight: 'bold'},
+  linkBtn: {alignItems: 'center', marginTop: 10},
+  linkText: {color: Colors.primary, fontWeight: '600'},
+  legalLinks: {flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20, gap: 8},
+  legalText: {fontSize: 12, color: UI.text.muted, textDecorationLine: 'underline'},
+  legalDot: {fontSize: 12, color: UI.surface.border},
 
 });

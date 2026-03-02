@@ -58,8 +58,10 @@ export async function sendHtmlEmail({
   }
 
   let accessToken = session?.access_token;
+  const expiresAt = session?.expires_at; // Unix timestamp in seconds
+  const isExpiredOrExpiringSoon = !expiresAt || expiresAt <= Math.floor(Date.now() / 1000) + 60;
 
-  if (!accessToken) {
+  if (!accessToken || isExpiredOrExpiringSoon) {
     const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
     if (refreshError) {
       throw new Error(refreshError.message || 'Session expired. Please sign in again to send emails.');

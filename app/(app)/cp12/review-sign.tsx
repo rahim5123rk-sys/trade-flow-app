@@ -9,6 +9,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router} from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, {useEffect, useState} from 'react';
 import {
   ActivityIndicator,
@@ -36,6 +37,7 @@ import {
   CP12PdfData,
   generateCP12PdfBase64FromPayload,
   generateCP12PdfFromPayload,
+  generateCP12PdfUrl,
 } from '../../../src/services/cp12PdfGenerator';
 import {sanitizeRecipients, sendCp12CertificateEmail} from '../../../src/services/email';
 
@@ -45,35 +47,38 @@ const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
 // ─── Step indicator ─────────────────────────────────────────────
 
-const StepIndicator = ({current}: {current: number}) => (
-  <View style={s.stepRow}>
-    {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
-      const step = i + 1;
-      const isActive = step === current;
-      const isDone = step < current;
-      return (
-        <View key={label} style={s.stepItem}>
-          <View
-            style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}
-          >
-            {isDone ? (
-              <Ionicons name="checkmark" size={12} color={UI.text.white} />
-            ) : (
-              <Text
-                style={[s.stepDotText, (isActive || isDone) && {color: UI.text.white}]}
-              >
-                {step}
-              </Text>
-            )}
+const StepIndicator = ({current}: {current: number}) => {
+  const {isDark, theme} = useAppTheme();
+  return (
+    <View style={[s.stepRow, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+      {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
+        const step = i + 1;
+        const isActive = step === current;
+        const isDone = step < current;
+        return (
+          <View key={label} style={s.stepItem}>
+            <View
+              style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}
+            >
+              {isDone ? (
+                <Ionicons name="checkmark" size={12} color={UI.text.white} />
+              ) : (
+                <Text
+                  style={[s.stepDotText, (isActive || isDone) && {color: UI.text.white}, isDark && !isActive && !isDone && {color: theme.text.muted}]}
+                >
+                  {step}
+                </Text>
+              )}
+            </View>
+            <Text style={[s.stepLabel, isActive ? {color: theme.brand.primary} : isDark && {color: theme.text.muted}]}>
+              {label}
+            </Text>
           </View>
-          <Text style={[s.stepLabel, isActive && s.stepLabelActive]}>
-            {label}
-          </Text>
-        </View>
-      );
-    })}
-  </View>
-);
+        );
+      })}
+    </View>
+  );
+};
 
 // ─── helpers ────────────────────────────────────────────────────
 
@@ -269,11 +274,6 @@ export default function ReviewSign() {
 
   // ── complete ──
   const handleComplete = async (action: 'save' | 'email' | 'view') => {
-    if (!customerSignature) {
-      Alert.alert('Signature Required', 'Please capture the customer\'s signature before completing.');
-      return;
-    }
-
     if (!userProfile?.company_id) {
       Alert.alert('Error', 'Company profile not found. Please check your settings.');
       return;
@@ -307,8 +307,10 @@ export default function ReviewSign() {
       }
 
       if (action === 'view') {
+        const pdfUrl = await generateCP12PdfUrl(lockedPayload, userProfile.company_id);
         resetCP12();
         router.replace(`/(app)/documents/${documentId}` as any);
+        await WebBrowser.openBrowserAsync(pdfUrl);
         return;
       }
 
@@ -394,24 +396,24 @@ export default function ReviewSign() {
           <StepIndicator current={4} />
 
           {/* ── Inspection date ────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(80).duration(400)} style={s.card}>
+          <Animated.View entering={FadeInDown.delay(80).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <View style={s.sectionHeader}>
               <View style={s.sectionIconWrap}>
-                <Ionicons name="calendar-outline" size={16} color={UI.brand.primary} />
+                <Ionicons name="calendar-outline" size={16} color={theme.brand.primary} />
               </View>
-              <Text style={s.sectionTitle}>Dates</Text>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Dates</Text>
             </View>
 
             {/* Inspection date */}
             <View style={s.inputContainer}>
-              <Text style={s.inputLabel}>Inspection Date</Text>
+              <Text style={[s.inputLabel, {color: theme.text.bodyLight}]}>Inspection Date</Text>
               <TouchableOpacity
-                style={s.inputWrapper}
+                style={[s.inputWrapper, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
                 activeOpacity={0.7}
                 onPress={() => setShowInspDate(true)}
               >
-                <Ionicons name="calendar" size={18} color={UI.brand.primary} style={{marginRight: 10}} />
-                <Text style={s.inputValue}>{inspectionDate}</Text>
+                <Ionicons name="calendar" size={18} color={theme.brand.primary} style={{marginRight: 10}} />
+                <Text style={[s.inputValue, {color: theme.text.title}]}>{inspectionDate}</Text>
               </TouchableOpacity>
               {showInspDate && (
                 <DateTimePicker
@@ -427,14 +429,14 @@ export default function ReviewSign() {
 
             {/* Next due date */}
             <View style={s.inputContainer}>
-              <Text style={s.inputLabel}>Next Due Date</Text>
+              <Text style={[s.inputLabel, {color: theme.text.bodyLight}]}>Next Due Date</Text>
               <TouchableOpacity
-                style={s.inputWrapper}
+                style={[s.inputWrapper, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
                 activeOpacity={0.7}
                 onPress={() => setShowDueDate(true)}
               >
                 <Ionicons name="calendar" size={18} color={UI.status.pending} style={{marginRight: 10}} />
-                <Text style={s.inputValue}>{nextDueDate}</Text>
+                <Text style={[s.inputValue, {color: theme.text.title}]}>{nextDueDate}</Text>
               </TouchableOpacity>
               {showDueDate && (
                 <DateTimePicker
@@ -450,34 +452,34 @@ export default function ReviewSign() {
           </Animated.View>
 
           {/* ── Cert ref ───────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.card}>
+          <Animated.View entering={FadeInDown.delay(160).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <View style={s.sectionHeader}>
               <View style={s.sectionIconWrap}>
-                <Ionicons name="document-text-outline" size={16} color={UI.brand.primary} />
+                <Ionicons name="document-text-outline" size={16} color={theme.brand.primary} />
               </View>
-              <Text style={s.sectionTitle}>Certificate Reference</Text>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Certificate Reference</Text>
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={s.inputLabel}>Cert Ref Number</Text>
-              <View style={s.inputWrapper}>
-                <Ionicons name="barcode-outline" size={18} color={UI.brand.primary} style={{marginRight: 10}} />
-                <Text style={s.inputValue}>{certRef || 'REF-0001'}</Text>
+              <Text style={[s.inputLabel, {color: theme.text.bodyLight}]}>Cert Ref Number</Text>
+              <View style={[s.inputWrapper, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
+                <Ionicons name="barcode-outline" size={18} color={theme.brand.primary} style={{marginRight: 10}} />
+                <Text style={[s.inputValue, {color: theme.text.title}]}>{certRef || 'REF-0001'}</Text>
               </View>
             </View>
           </Animated.View>
 
           {/* ── Signature ──────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.card}>
+          <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <View style={s.sectionHeader}>
               <View style={s.sectionIconWrap}>
-                <Ionicons name="pencil-outline" size={16} color={UI.brand.primary} />
+                <Ionicons name="pencil-outline" size={16} color={theme.brand.primary} />
               </View>
-              <Text style={s.sectionTitle}>Customer Signature</Text>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Customer Signature</Text>
             </View>
 
             {customerSignature ? (
-              <View style={[s.signaturePreview, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
+              <View style={[s.signaturePreview, isDark && {borderColor: theme.surface.border}]}>
                 <Image
                   source={{uri: customerSignature}}
                   style={s.signatureImage}
@@ -512,25 +514,25 @@ export default function ReviewSign() {
             )}
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(280).duration(400)} style={s.card}>
+          <Animated.View entering={FadeInDown.delay(280).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <View style={s.sectionHeader}>
               <View style={s.sectionIconWrap}>
-                <Ionicons name="mail-outline" size={16} color={UI.brand.primary} />
+                <Ionicons name="mail-outline" size={16} color={theme.brand.primary} />
               </View>
-              <Text style={s.sectionTitle}>Email Recipients</Text>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Email Recipients</Text>
             </View>
 
             {emailRecipients.length ? (
               <View style={s.emailList}>
                 {emailRecipients.map((email) => (
-                  <View key={email} style={s.emailChip}>
-                    <Ionicons name="at-outline" size={14} color={UI.brand.primary} />
-                    <Text style={s.emailChipText}>{email}</Text>
+                  <View key={email} style={[s.emailChip, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
+                    <Ionicons name="at-outline" size={14} color={theme.brand.primary} />
+                    <Text style={[s.emailChipText, {color: theme.brand.primary}]}>{email}</Text>
                   </View>
                 ))}
               </View>
             ) : (
-              <Text style={s.noEmailText}>
+              <Text style={[s.noEmailText, {color: theme.text.muted}]}>
                 No landlord or tenant email found yet. Add one to use Save & Send Email.
               </Text>
             )}
@@ -541,7 +543,7 @@ export default function ReviewSign() {
       {/* ── Bottom bar ──────────────────────────────────── */}
       <Animated.View
         entering={FadeInDown.delay(300).duration(400)}
-        style={[s.bottomBar, {bottom: TAB_BAR_HEIGHT}]}
+        style={[s.bottomBar, {bottom: TAB_BAR_HEIGHT}, isDark && {backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)'}]}
       >
         <View style={s.bottomBtnRow}>
           {/* Save CP12 */}
@@ -678,7 +680,7 @@ const s = StyleSheet.create({
     borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     backgroundColor: '#fff', padding: 12, alignItems: 'center',
   },
-  signatureImage: {width: '100%', height: 160, borderRadius: 8},
+  signatureImage: {width: '100%', height: 200, borderRadius: 8},
   resignBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginTop: 12, paddingHorizontal: 16, paddingVertical: 8,

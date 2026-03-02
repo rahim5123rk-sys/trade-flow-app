@@ -471,13 +471,49 @@ export default function SettingsScreen() {
                       // (session will be invalidated by the RPC)
                       if (userProfile?.role === 'admin' && companyId) {
                         try {
-                          const {data: jobPhotos} = await supabase.storage.from('job-photos').list();
-                          if (jobPhotos && jobPhotos.length > 0) {
-                            await supabase.storage.from('job-photos').remove(jobPhotos.map(f => f.name));
+                          // Delete only this company's job photos (looked up from job records)
+                          const {data: jobsWithPhotos} = await supabase
+                            .from('jobs')
+                            .select('photos')
+                            .eq('company_id', companyId)
+                            .not('photos', 'is', null);
+                          const photoPaths: string[] = [];
+                          for (const j of (jobsWithPhotos || [])) {
+                            for (const ref of (j.photos || [])) {
+                              const colonIdx = (ref as string).indexOf(':');
+                              if (colonIdx !== -1 && !(ref as string).includes('://')) {
+                                photoPaths.push((ref as string).slice(colonIdx + 1));
+                              }
+                            }
                           }
-                          const {data: logos} = await supabase.storage.from('logos').list();
-                          if (logos && logos.length > 0) {
-                            await supabase.storage.from('logos').remove(logos.map(f => f.name));
+                          if (photoPaths.length > 0) {
+                            await supabase.storage.from('job-photos').remove(photoPaths);
+                          }
+
+                          // Delete this company's logo (referenced in the company record)
+                          const {data: co} = await supabase
+                            .from('companies')
+                            .select('logo_url')
+                            .eq('id', companyId)
+                            .single();
+                          if (co?.logo_url) {
+                            const colonIdx = (co.logo_url as string).indexOf(':');
+                            const logoPath = colonIdx !== -1 && !(co.logo_url as string).includes('://')
+                              ? (co.logo_url as string).slice(colonIdx + 1)
+                              : null;
+                            if (logoPath) {
+                              await supabase.storage.from('logos').remove([logoPath]);
+                            }
+                          }
+
+                          // Delete all CP12 PDFs stored under this company's folder
+                          const {data: cp12Files} = await supabase.storage
+                            .from('cp12-pdfs')
+                            .list(companyId, {limit: 1000});
+                          if (cp12Files && cp12Files.length > 0) {
+                            await supabase.storage.from('cp12-pdfs').remove(
+                              cp12Files.map(f => `${companyId}/${f.name}`),
+                            );
                           }
                         } catch {
                           // Storage cleanup is best-effort

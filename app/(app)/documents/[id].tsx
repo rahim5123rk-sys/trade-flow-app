@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -27,11 +28,12 @@ import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useOfflineMode } from '../../../src/context/OfflineContext';
 import { useAppTheme } from '../../../src/context/ThemeContext';
-import { generateDocument } from '../../../src/services/DocumentGenerator';
+import { generateDocument, generateDocumentUrl } from '../../../src/services/DocumentGenerator';
 import {
     CP12LockedPayload,
     generateCP12PdfBase64FromPayload,
     generateCP12PdfFromPayload,
+    generateCP12PdfUrl,
 } from '../../../src/services/cp12PdfGenerator';
 import { sanitizeRecipients, sendCp12CertificateEmail } from '../../../src/services/email';
 import { Document } from '../../../src/types';
@@ -188,16 +190,27 @@ export default function DocumentDetailScreen() {
   };
 
   const handleViewCertificate = async () => {
-    if (!cp12Payload) return;
+    if (!cp12Payload || !userProfile?.company_id) return;
     setViewing(true);
     try {
-      await generateCP12PdfFromPayload(
-        cp12Payload,
-        'view',
-        userProfile?.company_id,
-      );
+      const pdfUrl = await generateCP12PdfUrl(cp12Payload, userProfile.company_id);
+      await WebBrowser.openBrowserAsync(pdfUrl);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to open certificate view.');
+    }
+    setViewing(false);
+  };
+
+  const handleViewDocument = async () => {
+    if (!doc || !userProfile?.company_id) return;
+    const docData = buildDocData();
+    if (!docData) return;
+    setViewing(true);
+    try {
+      const pdfUrl = await generateDocumentUrl(docData, userProfile.company_id);
+      await WebBrowser.openBrowserAsync(pdfUrl);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to open document view.');
     }
     setViewing(false);
   };
@@ -296,11 +309,46 @@ export default function DocumentDetailScreen() {
     if (!cp12Payload) return;
     setDuplicating(true);
     try {
+      const { pdfData } = cp12Payload;
+
+      // Increment nextDueDate by 1 year (dd/mm/yyyy format)
+      const [dd, mm, yyyy] = (pdfData.nextDueDate || '').split('/');
+      const incrementedDueDate = yyyy ? `${dd}/${mm}/${String(Number(yyyy) + 1)}` : '';
+
+      // Parse landlord address parts back into form fields
+      const addrParts = (pdfData.landlordAddress || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      // Remove the postcode from the end if it matches landlordPostcode
+      const postCode = pdfData.landlordPostcode || '';
+      const partsWithoutPostcode =
+        postCode && addrParts[addrParts.length - 1] === postCode
+          ? addrParts.slice(0, -1)
+          : addrParts;
+      const addrLine1 = partsWithoutPostcode[0] || '';
+      const addrCity = partsWithoutPostcode.length > 1 ? partsWithoutPostcode[partsWithoutPostcode.length - 1] : '';
+      const addrLine2 = partsWithoutPostcode.length > 2 ? partsWithoutPostcode.slice(1, -1).join(', ') : '';
+
       await AsyncStorage.setItem(
         CP12_DUPLICATE_SEED_KEY,
         JSON.stringify({
-          propertyAddress: cp12Payload.pdfData.propertyAddress,
-          appliances: cp12Payload.pdfData.appliances,
+          propertyAddress: pdfData.propertyAddress,
+          appliances: pdfData.appliances,
+          landlordForm: {
+            customerName: pdfData.landlordName || '',
+            customerCompany: pdfData.landlordCompany || '',
+            addressLine1: addrLine1,
+            addressLine2: addrLine2,
+            city: addrCity,
+            postCode,
+            email: pdfData.landlordEmail || '',
+            phone: pdfData.landlordPhone || '',
+          },
+          tenantName: pdfData.tenantName || '',
+          tenantEmail: pdfData.tenantEmail || '',
+          tenantPhone: pdfData.tenantPhone || '',
+          nextDueDate: incrementedDueDate,
         }),
       );
       router.push('/(app)/cp12' as any);
@@ -596,6 +644,24 @@ export default function DocumentDetailScreen() {
             </LinearGradient>
           </TouchableOpacity>
         </View>
+
+        {!isCp12 ? (
+          <TouchableOpacity
+            style={[styles.duplicateAction, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
+            onPress={handleViewDocument}
+            disabled={isBusy}
+            activeOpacity={0.8}
+          >
+            {viewing ? (
+              <ActivityIndicator color={UI.brand.primary} size="small" />
+            ) : (
+              <>
+                <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
+                <Text style={styles.duplicateActionText}>View {isInvoice ? 'Invoice' : 'Quote'}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
 
         {isCp12 ? (
           <TouchableOpacity style={[styles.duplicateAction, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={handleDuplicateCp12} disabled={isBusy}>

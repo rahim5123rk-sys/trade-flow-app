@@ -46,7 +46,15 @@ interface CP12ContextValue extends CP12State {
   setNextDueDate: (v: string) => void;
   setCustomerSignature: (v: string) => void;
   setCertRef: (v: string) => void;
-  hydrateFromDuplicate: (seed: { propertyAddress?: string; appliances?: CP12Appliance[] }) => void;
+  hydrateFromDuplicate: (seed: {
+    propertyAddress?: string;
+    appliances?: CP12Appliance[];
+    landlordForm?: Partial<CustomerFormData>;
+    tenantName?: string;
+    tenantEmail?: string;
+    tenantPhone?: string;
+    nextDueDate?: string;
+  }) => void;
   resetCP12: () => void;
 }
 
@@ -90,7 +98,15 @@ export function CP12Provider({ children }: { children: React.ReactNode }) {
     setAppliances((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const hydrateFromDuplicate = useCallback((seed: { propertyAddress?: string; appliances?: CP12Appliance[] }) => {
+  const hydrateFromDuplicate = useCallback((seed: {
+    propertyAddress?: string;
+    appliances?: CP12Appliance[];
+    landlordForm?: Partial<CustomerFormData>;
+    tenantName?: string;
+    tenantEmail?: string;
+    tenantPhone?: string;
+    nextDueDate?: string;
+  }) => {
     const appliancesSeed = Array.isArray(seed.appliances) ? seed.appliances : [];
     const addressParts = (seed.propertyAddress || '')
       .split(',')
@@ -108,6 +124,14 @@ export function CP12Provider({ children }: { children: React.ReactNode }) {
     setTenantAddressLine2(addressParts.length > 3 ? addressParts.slice(1, -2).join(', ') : addressParts[1] || '');
     setTenantCity(addressParts.length > 2 ? addressParts[addressParts.length - 2] : '');
     setTenantPostCode(addressParts.length > 1 ? addressParts[addressParts.length - 1] : '');
+
+    if (seed.landlordForm) {
+      setLandlordForm({ ...EMPTY_CUSTOMER_FORM, ...seed.landlordForm });
+    }
+    if (seed.tenantName !== undefined) setTenantName(seed.tenantName);
+    if (seed.tenantEmail !== undefined) setTenantEmail(seed.tenantEmail);
+    if (seed.tenantPhone !== undefined) setTenantPhone(seed.tenantPhone);
+    if (seed.nextDueDate) setNextDueDate(seed.nextDueDate);
   }, []);
 
   const resetCP12 = useCallback(() => {

@@ -21,7 +21,7 @@ import {supabase} from '../../src/config/supabase';
 import {useAuth} from '../../src/context/AuthContext';
 import {useAppTheme} from '../../src/context/ThemeContext';
 
-export const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
+export const PENDING_REGISTRATION_KEY = 'tradeflow_pending_registration';
 
 // --- Utils ---
 

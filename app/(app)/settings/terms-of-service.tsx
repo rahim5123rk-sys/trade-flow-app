@@ -62,7 +62,9 @@ As a company administrator, you are responsible for ensuring that you have appro
     title: '7. Invoices & Documents',
     body: `Invoices, quotes, and other documents generated through TradeFlow are tools provided for your convenience. You are responsible for ensuring they comply with applicable tax and business regulations (e.g., HMRC requirements for VAT invoices).
 
-When you send documents via email through the App, emails are delivered using Resend (resend.com), a third-party transactional email service. Emails are sent from the gascertpal.com domain on your behalf. You are responsible for ensuring you have appropriate permission or legal basis to email documents to the recipients you specify. We do not monitor or review the content of emails you send.`,
+When you send documents via email through the App, emails are delivered using Resend (resend.com), a third-party transactional email service. Emails are sent from the gascertpal.com domain on your behalf. You are responsible for ensuring you have appropriate permission or legal basis to email documents to the recipients you specify. We do not monitor or review the content of emails you send.
+
+When you use the "View Certificate" feature, the App generates a PDF of the gas safety certificate and stores it in secure Supabase cloud storage. A time-limited link (valid for 1 hour) is generated to open the PDF in your browser. The PDF contains personal data including landlord, tenant, and engineer details. You are responsible for not sharing these temporary links with unauthorised parties. Links expire automatically and cannot be renewed without generating a new one.`,
   },
   {
     title: '8. Team & Worker Accounts',
@@ -122,7 +124,7 @@ export default function TermsOfServiceScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.lastUpdated, { color: theme.text.muted }]}>Last updated: 1 March 2026</Text>
+        <Text style={[styles.lastUpdated, { color: theme.text.muted }]}>Last updated: 2 March 2026</Text>
 
         {SECTIONS.map((s, i) => (
           <View key={i} style={styles.section}>

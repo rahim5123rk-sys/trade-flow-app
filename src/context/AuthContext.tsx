@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
 import {supabase} from '../config/supabase';
 
-const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
+const PENDING_REGISTRATION_KEY = 'tradeflow_pending_registration';
 const LAST_HANDLED_AUTH_URL_KEY = '@tradeflow_last_handled_auth_url';
 
 /** Simple hash to avoid storing raw auth URLs (which contain tokens) */

@@ -6,6 +6,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
@@ -655,6 +656,26 @@ export default function DashboardScreen() {
             </View>
           </Animated.View>
         )}
+        {/* Boiler Manuals Resource Banner */}
+        <Animated.View entering={FadeInDown.delay(750).springify()}>
+          <TouchableOpacity
+            activeOpacity={0.82}
+            onPress={() => WebBrowser.openBrowserAsync('https://www.freeboilermanuals.com')}
+            style={[s.resourceBanner, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+          >
+            <LinearGradient
+              colors={['#FFF7ED', '#FFEDD5']}
+              style={s.resourceIconWrap}
+            >
+              <Ionicons name="book-outline" size={22} color="#EA580C" />
+            </LinearGradient>
+            <View style={s.resourceText}>
+              <Text style={[s.resourceTitle, { color: theme.text.title }]}>Free Boiler Manuals</Text>
+              <Text style={[s.resourceSubtitle, { color: theme.text.muted }]}>Service manuals &amp; boiler documentation</Text>
+            </View>
+            <Ionicons name="open-outline" size={16} color={theme.text.muted} />
+          </TouchableOpacity>
+        </Animated.View>
       </ScrollView>
 
       {/* First-run onboarding */}
@@ -808,6 +829,30 @@ const s = StyleSheet.create({
     gap: 12,
   },
   navLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: UI.text.body },
+
+  // Resource banner
+  resourceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: GLASS_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    padding: 16,
+    marginBottom: 16,
+    ...UI.shadowLight,
+  },
+  resourceIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resourceText: { flex: 1 },
+  resourceTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  resourceSubtitle: { fontSize: 12, fontWeight: '500' },
 
   // Empty state
   emptyCard: {

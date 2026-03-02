@@ -11,7 +11,7 @@ import { Image, Platform } from 'react-native';
 import { supabase } from '../config/supabase';
 import { CP12Appliance, CP12FinalChecks } from '../types/cp12';
 import { escapeHtml } from '../utils/escapeHtml';
-import { getSignedUrl } from './storage';
+import { getSignedUrl, uploadPdfBase64AndGetUrl } from './storage';
 
 // ─── Data contract ──────────────────────────────────────────────
 
@@ -281,31 +281,30 @@ function buildHtml(
   
   html, body {
     width: 297mm;
-    height: 210mm;
+    max-height: 210mm;
     margin: 0;
     padding: 0;
-    overflow: hidden; /* Hard stop to prevent the empty second page */
+    overflow: hidden;
   }
-  
+
   body {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 7pt;
-    line-height: 1.15; 
+    line-height: 1.15;
     color: #000;
 
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    /* zoom: 0.94; REMOVED to prevent cross-platform rendering bugs */
   }
 
   .page {
     width: 100%;
-    height: 100%;
+    max-height: 210mm;
     padding: 3mm;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* This dynamically stretches the tables to fill the page length */
     overflow: hidden;
+    page-break-after: avoid;
   }
 
   .top-bar-cell {
@@ -394,7 +393,7 @@ function buildHtml(
   }
 
   /* ═══ SIGNATURE FOOTER ═══ */
-  .sig-img { height: 28px; max-width: 100%; display: block; margin: 0 auto; }
+  .sig-img { height: 40px; max-width: 100%; display: block; margin: 0 auto; }
   .highlight {
     background: #FFFFCC !important;
     font-weight: bold;
@@ -452,9 +451,8 @@ function buildHtml(
      ═══════════════════════════════════════════════════════════════════ -->
 <table>
   <tr>
-    <td class="top-bar-cell" style="width:22%; padding:4px 6px; vertical-align:middle;">
-      ${companyLogoSrc ? `<img src="${companyLogoSrc}" style="max-height:28px;max-width:80px;display:block;margin-bottom:2px;"/>` : ''}
-      <div style="font-size:10pt; font-weight:bold; color:#fff;">${esc(company.name)}</div>
+    <td class="top-bar-cell" style="width:14%; padding:4px 6px; vertical-align:middle;">
+      ${companyLogoSrc ? `<img src="${companyLogoSrc}" style="max-height:44px;max-width:130px;display:block;"/>` : ''}
     </td>
     <td class="top-bar-cell" style="text-align:center; padding:4px 6px; vertical-align:middle;">
       <div style="font-size:10pt; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; color:#fff;">
@@ -467,7 +465,7 @@ function buildHtml(
       </div>
     </td>
     <td class="top-bar-cell" style="width:14%; text-align:center; padding:4px 6px; vertical-align:middle;">
-      ${gasSafeLogoBase64 ? `<img src="${gasSafeLogoBase64}" style="height:32px;max-width:80px;display:block;margin:0 auto 2px;"/>` : ''}
+      ${gasSafeLogoBase64 ? `<img src="${gasSafeLogoBase64}" style="height:48px;max-width:120px;display:block;margin:0 auto 2px;"/>` : ''}
       <div style="font-size:5.5pt; color:#E5E7EB; margin-top:2px;">Gas Cert Ref</div>
       <div style="font-size:9pt; font-weight:bold; color:#fff;">${esc(data.certRef)}</div>
       <div style="font-size:5.5pt; color:#E5E7EB; margin-top:4px;">No. Appliances</div>
@@ -676,11 +674,11 @@ ${appRows}
   </tr>
   <tr>
     <th style="width:7%;">Sign</th>
-    <td style="height:28px; text-align:center;">
+    <td style="height:40px; text-align:center;">
       ${company.signatureBase64 ? `<img src="${company.signatureBase64}" class="sig-img"/>` : ''}
     </td>
     <th style="width:7%;">Sign</th>
-    <td style="height:28px; text-align:center;">
+    <td style="height:40px; text-align:center;">
       ${data.customerSignature ? `<img src="${data.customerSignature}" class="sig-img"/>` : ''}
     </td>
     <td rowspan="3" class="highlight">
@@ -855,4 +853,16 @@ export async function generateCP12Pdf(
 ): Promise<void> {
   const payload = await buildCP12LockedPayload(data, companyId, userId);
   await generateCP12PdfFromPayload(payload, mode, companyId);
+}
+
+/**
+ * Generate a CP12 PDF and upload it to Supabase Storage (cp12-pdfs bucket).
+ * Returns a 1-hour signed URL for viewing the PDF directly in a browser.
+ */
+export async function generateCP12PdfUrl(
+  payload: CP12LockedPayload,
+  companyId: string,
+): Promise<string> {
+  const base64 = await generateCP12PdfBase64FromPayload(payload, companyId);
+  return uploadPdfBase64AndGetUrl(base64, companyId, payload.pdfData.certRef);
 }

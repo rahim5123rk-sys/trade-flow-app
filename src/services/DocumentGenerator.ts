@@ -8,7 +8,7 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
 import { escapeHtml } from '../utils/escapeHtml';
-import { getSignedUrl } from './storage';
+import { getSignedUrl, uploadDocPdfAndGetUrl } from './storage';
 
 export type DocumentType = 'invoice' | 'quote';
 
@@ -24,11 +24,11 @@ export interface DocumentData {
   number: number;     // Invoice # or Quote #
   reference?: string;
   date: string;
-  
+
   // For Invoice: "Due Date", For Quote: "Valid Until"
-  expiryDate: string; 
+  expiryDate: string;
   status: string;
-  
+
   // Billing (Granular)
   customerName: string;
   customerCompany?: string;
@@ -39,20 +39,20 @@ export interface DocumentData {
 
   customerEmail?: string;
   customerPhone?: string;
-  
+
   // Job Site (Granular)
   jobAddress1: string;
   jobAddress2?: string;
   jobCity: string;
   jobPostcode: string;
-  
+
   jobDate?: string;
-  
+
   items: LineItem[];
   discountPercent: number;
   partialPayment: number;
-  
-  notes?: string;       
+
+  notes?: string;
   paymentInfo?: string; // For Invoices: Bank Details. For Quotes: Scope/Exclusions.
 }
 
@@ -85,8 +85,9 @@ async function getCompanyInfo(companyId: string): Promise<CompanyInfo> {
   };
 }
 
-export async function generateDocument(data: DocumentData, companyId: string, mode: 'share' | 'save' = 'share'): Promise<void> {
-  const company = await getCompanyInfo(companyId);
+// ─── Shared HTML builder ─────────────────────────────────────────
+
+function buildDocumentHtml(data: DocumentData, company: CompanyInfo): string {
   const isQuote = data.type === 'quote';
 
   // --- Calculations ---
@@ -101,7 +102,7 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
   });
 
   const discountAmount = subtotal * (data.discountPercent / 100);
-  const adjustedVat = totalVat * ((subtotal - discountAmount) / subtotal) || 0; 
+  const adjustedVat = totalVat * ((subtotal - discountAmount) / subtotal) || 0;
   const grandTotal = (subtotal - discountAmount) + adjustedVat;
   const balanceDue = grandTotal - data.partialPayment;
 
@@ -112,14 +113,14 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
   const expiryLabel = isQuote ? 'Valid Until:' : 'Due Date:';
   const totalLabel = isQuote ? 'Total Estimate' : 'Amount Due';
   const footerTitle = isQuote ? 'Acceptance' : 'Payment Instructions';
-  const termsText = isQuote 
-    ? (company.quoteTerms || 'This quote is valid for 30 days. Sign above to accept.') 
+  const termsText = isQuote
+    ? (company.quoteTerms || 'This quote is valid for 30 days. Sign above to accept.')
     : (company.invoiceTerms || 'Payment due on receipt.');
 
   /** Escape user values for safe HTML interpolation */
   const esc = (v: unknown): string => escapeHtml(v);
 
-  const html = `
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -128,9 +129,9 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
 <style>
   @page { margin: 0; size: A4; }
   * { box-sizing: border-box; }
-  body { 
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
-    color: #334155; font-size: 11px; line-height: 1.3; margin: 0; 
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #334155; font-size: 11px; line-height: 1.3; margin: 0;
     padding: 20mm; padding-bottom: 45mm; -webkit-print-color-adjust: exact;
   }
   .row { display: flex; flex-direction: row; justify-content: space-between; gap: 20px; }
@@ -184,7 +185,7 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
   .footer { position: fixed; bottom: 15mm; left: 20mm; right: 20mm; height: 35mm; background: #fff; border-top: 1px solid #0f172a; padding-top: 10px; display: flex; justify-content: space-between; gap: 20px; }
   .left-box { flex: 1; font-size: 9px; line-height: 1.4; color: #475569; }
   .box-title { font-weight: 700; font-size: 9px; color: #0f172a; text-transform: uppercase; margin-bottom: 3px; }
-  
+
   .sig-box { width: 140px; text-align: right; display: flex; flex-direction: column; justify-content: flex-end; }
   .sig-img { height: 35px; width: auto; object-fit: contain; align-self: flex-end; margin-bottom: 2px; }
   .sig-line { border-top: 1px solid #cbd5e1; font-size: 8px; color: #94a3b8; padding-top: 2px; text-transform: uppercase; text-align: center; }
@@ -253,8 +254,8 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
   <div class="footer">
     <div class="left-box">
       <div class="box-title">${footerTitle}</div>
-      ${isQuote 
-        ? `<div style="height:30px; border-bottom:1px dashed #cbd5e1; width:200px; margin-top:15px;"></div><div style="font-size:8px; color:#94a3b8; margin-top:4px;">Customer Signature</div>` 
+      ${isQuote
+        ? `<div style="height:30px; border-bottom:1px dashed #cbd5e1; width:200px; margin-top:15px;"></div><div style="font-size:8px; color:#94a3b8; margin-top:4px;">Customer Signature</div>`
         : `<div style="white-space: pre-wrap;">${esc(data.paymentInfo || 'Please update bank details in Settings.')}</div>`
       }
     </div>
@@ -267,6 +268,14 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
 </body>
 </html>
   `;
+}
+
+// ─── Public API ──────────────────────────────────────────────────
+
+export async function generateDocument(data: DocumentData, companyId: string, mode: 'share' | 'save' = 'share'): Promise<void> {
+  const company = await getCompanyInfo(companyId);
+  const html = buildDocumentHtml(data, company);
+  const title = `${data.type === 'quote' ? 'QUOTE' : 'INVOICE'} #${String(data.number).padStart(4, '0')}`;
 
   if (mode === 'save') {
     const { uri } = await Print.printToFileAsync({ html, base64: false });
@@ -282,7 +291,7 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
   const { uri } = await Print.printToFileAsync({ html, base64: false });
   const shareOptions = {
     mimeType: 'application/pdf',
-    dialogTitle: `${title} #${data.number}`,
+    dialogTitle: title,
     UTI: 'com.adobe.pdf',
   } as const;
 
@@ -294,4 +303,20 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
   }
 
   await Sharing.shareAsync(uri, shareOptions);
+}
+
+/**
+ * Generate an invoice/quote PDF and upload it to Supabase Storage (doc-pdfs bucket).
+ * Returns a 1-hour signed URL for viewing the PDF in-app.
+ */
+export async function generateDocumentUrl(data: DocumentData, companyId: string): Promise<string> {
+  const company = await getCompanyInfo(companyId);
+  const html = buildDocumentHtml(data, company);
+
+  const result = await Print.printToFileAsync({ html, base64: true });
+  const base64 = result.base64;
+  if (!base64) throw new Error('Failed to generate document PDF');
+
+  const docRef = `${data.type}-${String(data.number).padStart(4, '0')}`;
+  return uploadDocPdfAndGetUrl(base64, companyId, docRef);
 }

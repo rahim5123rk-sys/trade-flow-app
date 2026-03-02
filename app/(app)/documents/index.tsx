@@ -100,34 +100,17 @@ export default function DocumentsHubScreen() {
       query = query.eq('type', 'invoice');
     } else if (filter === 'quote') {
       query = query.eq('type', 'quote');
-    } else if (filter === 'cp12') {
-      query = query.eq('type', 'cp12');
     } else if (filter === 'unpaid') {
       query = query.in('status', ['Unpaid', 'Overdue']);
     } else if (filter === 'draft') {
       query = query.eq('status', 'Draft');
     }
+    // cp12: no server-side type filter — isCp12Document() checks type, reference
+    // AND payment_info JSON, so client-side filtering via filteredDocuments is reliable.
 
     const { data, error } = await query;
     if (error) console.error('Error fetching documents:', error);
-
-    if (data) {
-      // For the cp12 filter, also include legacy quote-type CP12s
-      if (filter === 'cp12') {
-        const legacyCp12Query = await supabase
-          .from('documents')
-          .select('*')
-          .eq('company_id', userProfile.company_id)
-          .neq('type', 'cp12')
-          .ilike('reference', 'CP12-%')
-          .order('created_at', { ascending: false });
-        const merged = [...data, ...(legacyCp12Query.data || [])];
-        const unique = merged.filter((d, i, arr) => arr.findIndex((x) => x.id === d.id) === i);
-        setDocuments(unique as Document[]);
-      } else {
-        setDocuments(data as Document[]);
-      }
-    }
+    if (data) setDocuments(data as Document[]);
     setLoading(false);
     setRefreshing(false);
   }, [userProfile?.company_id, filter]);
