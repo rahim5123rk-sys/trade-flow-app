@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
@@ -20,6 +21,8 @@ import { Colors, UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
 import { useAppTheme } from '../../src/context/ThemeContext';
+
+export const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
 
 // --- Utils ---
 
@@ -258,6 +261,39 @@ export default function RegisterScreen() {
           'signInWithPassword (session)'
         );
         if (loginError) {
+          // Check if email confirmation is required
+          const errMsg = loginError.message?.toLowerCase() || '';
+          if (errMsg.includes('not confirmed') || errMsg.includes('confirm') || errMsg.includes('email_not_confirmed')) {
+            console.log('[Register] Email confirmation required — saving pending registration data');
+            const pendingData = {
+              mode,
+              fullName: fullName.trim(),
+              email: email.trim(),
+              ...(mode === 'create'
+                ? {
+                    companyName: companyName.trim(),
+                    trade,
+                    businessAddress: businessAddress.trim(),
+                    businessPhone: businessPhone.trim(),
+                    inviteCode: generateInviteCode(),
+                  }
+                : {
+                    companyId: foundCompany?.id,
+                  }),
+              consentGivenAt: new Date().toISOString(),
+            };
+            await AsyncStorage.setItem(PENDING_REGISTRATION_KEY, JSON.stringify(pendingData));
+
+            setRegistering(false);
+            setLoading(false);
+            Alert.alert(
+              'Confirm Your Email',
+              'We\'ve sent a confirmation link to your email address. Please check your inbox (and spam folder), confirm your account, then come back and log in.',
+              [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
+            );
+            return; // Exit early — registration will complete on first login
+          }
+
           throw new Error(
             'Account created but could not sign in. Please go back and log in with your email and password.'
           );

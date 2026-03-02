@@ -1,8 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../config/supabase';
+
+const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
 
 type UserRole = 'admin' | 'worker';
 interface UserProfile {
@@ -88,6 +91,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null; // This safely indicates the profile TRULY does not exist
   };
 
+  /**
+   * Check for pending registration data saved during email-confirmation flow.
+   * If found, call the appropriate RPC to create the company/profile, then clean up.
+   * Returns true if pending reg was found and completed successfully.
+   */
+  const completePendingRegistration = async (userId: string, accessToken: string): Promise<boolean> => {
+    try {
+      const raw = await AsyncStorage.getItem(PENDING_REGISTRATION_KEY);
+      if (!raw) return false;
+
+      const pendingData = JSON.parse(raw);
+      console.log('[Auth] Found pending registration data for mode:', pendingData.mode);
+
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+      const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+      const rpcHeaders = {
+        'Content-Type': 'application/json',
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${accessToken}`,
+      };
+
+      if (pendingData.mode === 'create') {
+        const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_company_and_profile`, {
+          method: 'POST',
+          headers: rpcHeaders,
+          body: JSON.stringify({
+            p_user_id: userId,
+            p_email: pendingData.email,
+            p_display_name: pendingData.fullName,
+            p_company_name: pendingData.companyName,
+            p_company_address: pendingData.businessAddress || '',
+            p_company_phone: pendingData.businessPhone || '',
+            p_trade: pendingData.trade,
+            p_invite_code: pendingData.inviteCode,
+            p_role: 'admin',
+            p_consent_given_at: pendingData.consentGivenAt,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          console.error('[Auth] Pending create RPC failed:', response.status, err);
+          return false;
+        }
+        console.log('[Auth] Pending create RPC succeeded');
+      } else {
+        // Join mode (worker)
+        const response = await fetch(`${supabaseUrl}/rest/v1/rpc/join_company_and_profile`, {
+          method: 'POST',
+          headers: rpcHeaders,
+          body: JSON.stringify({
+            p_user_id: userId,
+            p_company_id: pendingData.companyId,
+            p_email: pendingData.email,
+            p_display_name: pendingData.fullName,
+            p_role: 'worker',
+            p_consent_given_at: pendingData.consentGivenAt,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          console.error('[Auth] Pending join RPC failed:', response.status, err);
+          return false;
+        }
+        console.log('[Auth] Pending join RPC succeeded');
+      }
+
+      // Only remove pending data after successful completion
+      await AsyncStorage.removeItem(PENDING_REGISTRATION_KEY);
+      console.log('[Auth] Pending registration completed and cleaned up');
+      return true;
+    } catch (e) {
+      console.error('[Auth] Error completing pending registration:', e);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const parseParams = (url: string): Record<string, string> => {
       const parsed = Linking.parse(url);
@@ -161,6 +242,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Strictly check for null (database confirmed missing). 
             // Ignore if it threw an error (handled by the catch block below)
             if (profile === null && !isRegistering.current) {
+              // Check for pending registration data (email confirmation flow)
+              const didComplete = await completePendingRegistration(
+                currentSession.user.id,
+                currentSession.access_token
+              );
+              if (didComplete) {
+                // Profile should now exist — fetch it
+                const newProfile = await fetchProfile(currentSession.user.id, currentSession.access_token);
+                if (newProfile) {
+                  console.log('[Auth] Pending registration completed on init — profile loaded');
+                  return; // All good, don't sign out
+                }
+              }
+
               console.log('Database confirmed no profile exists — signing out orphaned user');
               await supabase.auth.signOut();
               setSession(null);
@@ -194,7 +289,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (currentSession?.user) {
         try {
-          await fetchProfile(currentSession.user.id, currentSession.access_token);
+          const profile = await fetchProfile(currentSession.user.id, currentSession.access_token);
+
+          // If profile is null, check for pending registration (email confirmation flow)
+          if (profile === null) {
+            const didComplete = await completePendingRegistration(
+              currentSession.user.id,
+              currentSession.access_token
+            );
+            if (didComplete) {
+              await fetchProfile(currentSession.user.id, currentSession.access_token);
+              console.log('[Auth] Pending registration completed on auth state change');
+            }
+          }
         } catch (e) {
           console.warn('onAuthStateChange profile fetch error:', e);
         }

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
@@ -16,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAppTheme } from '../../src/context/ThemeContext';
+
+const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -46,6 +49,14 @@ export default function LoginScreen() {
           Alert.alert('Login Failed', msg);
         }
       } else {
+        // Check if there's pending registration data — if so, give AuthContext
+        // a moment to complete it before navigating to the dashboard
+        const pending = await AsyncStorage.getItem(PENDING_REGISTRATION_KEY);
+        if (pending) {
+          // AuthContext's onAuthStateChange will handle completing the registration.
+          // Wait briefly so the profile is created before dashboard tries to load.
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
         router.replace('/(app)/dashboard');
       }
     } catch (error: any) {
