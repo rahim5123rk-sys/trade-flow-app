@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
@@ -178,7 +177,7 @@ export default function RegisterScreen() {
       let userId: string;
       console.log('[Register] Step 1: Creating auth user...');
 
-      const emailRedirectTo = Linking.createURL('login');
+      const emailRedirectTo = 'tradeflowapp://login';
 
       const { data: authData, error: authError } = await withTimeout(
         supabase.auth.signUp({
