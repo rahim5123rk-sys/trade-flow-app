@@ -39,7 +39,12 @@ export default function LoginScreen() {
       });
 
       if (error) {
-        Alert.alert('Login Failed', error.message);
+        const msg = error.message || 'Login failed.';
+        if (msg.toLowerCase().includes('confirm') || msg.toLowerCase().includes('not confirmed')) {
+          Alert.alert('Confirm Your Email', 'Please confirm your email address before signing in. Check your inbox for the confirmation link.');
+        } else {
+          Alert.alert('Login Failed', msg);
+        }
       } else {
         router.replace('/(app)/dashboard');
       }
@@ -109,6 +114,13 @@ export default function LoginScreen() {
             ) : (
               <Text style={styles.btnText}>Sign In</Text>
             )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/forgot-password')}
+            style={styles.linkBtn}
+          >
+            <Text style={[styles.linkText, { color: theme.brand.primary }]}>Forgot password?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

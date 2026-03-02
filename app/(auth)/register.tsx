@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
@@ -174,10 +175,15 @@ export default function RegisterScreen() {
       let userId: string;
       console.log('[Register] Step 1: Creating auth user...');
 
+      const emailRedirectTo = Linking.createURL('login');
+
       const { data: authData, error: authError } = await withTimeout(
         supabase.auth.signUp({
           email: email.trim(),
           password,
+          options: {
+            emailRedirectTo,
+          },
         }),
         15000,
         'signUp'

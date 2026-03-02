@@ -1,5 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import * as Linking from 'expo-linking';
+import { router } from 'expo-router';
 import { supabase } from '../config/supabase';
 
 type UserRole = 'admin' | 'worker';
@@ -87,6 +89,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    const parseParams = (url: string): Record<string, string> => {
+      const parsed = Linking.parse(url);
+      const params = { ...(parsed.queryParams || {}) } as Record<string, string>;
+      const hash = url.split('#')[1];
+
+      if (hash) {
+        hash.split('&').forEach((pair) => {
+          const [rawKey, rawValue] = pair.split('=');
+          if (!rawKey) return;
+          const key = decodeURIComponent(rawKey);
+          const value = decodeURIComponent(rawValue || '');
+          params[key] = value;
+        });
+      }
+
+      return params;
+    };
+
+    const handleAuthUrl = async (url: string | null) => {
+      if (!url) return;
+
+      try {
+        const params = parseParams(url);
+        const code = params.code;
+        const accessToken = params.access_token;
+        const refreshToken = params.refresh_token;
+        const type = params.type;
+
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+          if (type === 'recovery') {
+            router.replace('/(auth)/reset-password');
+          }
+          return;
+        }
+
+        if (accessToken && refreshToken) {
+          await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (type === 'recovery') {
+            router.replace('/(auth)/reset-password');
+          }
+        }
+      } catch (e) {
+        console.warn('Auth deep link parse error:', e);
+      }
+    };
+
+    Linking.getInitialURL().then((url) => {
+      handleAuthUrl(url);
+    });
+
+    const urlSub = Linking.addEventListener('url', ({ url }) => {
+      handleAuthUrl(url);
+    });
+
     const initAuth = async () => {
       try {
         if (isRegistering.current) return;
@@ -126,6 +183,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       setSession(currentSession);
 
+      if (_event === 'PASSWORD_RECOVERY') {
+        router.replace('/(auth)/reset-password');
+        return;
+      }
+
       if (isRegistering.current) {
         return;
       }
@@ -142,7 +204,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      urlSub.remove();
+    };
   }, []);
 
   const signOut = async () => {

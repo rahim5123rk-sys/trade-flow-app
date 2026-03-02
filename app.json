@@ -7,14 +7,14 @@
     "icon": "./assets/images/icon.png",
     "scheme": "tradeflowapp",
     "userInterfaceStyle": "automatic",
-    // ...existing code...
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.tradeflow.app",
+      "bundleIdentifier": "com.reezy95.tradeflowapp",
       "infoPlist": {
         "NSCameraUsageDescription": "TradeFlow needs camera access to take photos of completed work for job records.",
         "NSPhotoLibraryUsageDescription": "TradeFlow needs photo library access to attach existing photos to job records.",
-        "NSContactsUsageDescription": "TradeFlow can import customer details from your contacts to save you typing."
+        "NSContactsUsageDescription": "TradeFlow can import customer details from your contacts to save you typing.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -24,7 +24,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      // ...existing code...
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -51,6 +50,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "74768981-1aad-48b8-9f3b-01da345a72ab"
+      }
     }
   }
 }
