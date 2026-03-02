@@ -16,7 +16,7 @@ interface Worker {
 // ─── Fetch Workers Hook ─────────────────────────────────────────────
 
 export function useWorkers() {
-  const { userProfile } = useAuth();
+  const { userProfile, user } = useAuth();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -29,18 +29,25 @@ export function useWorkers() {
         .from('profiles')
         .select('*')
         .eq('company_id', userProfile.company_id)
-        .eq('role', 'worker')
         .order('display_name', { ascending: true });
 
       if (error) throw error;
-      if (data) setWorkers(data as Worker[]);
+      if (data) {
+        const teammates = (data as any[])
+          .filter((profile) => profile.id !== user?.id)
+          .filter((profile) => {
+            const role = String(profile.role || '').toLowerCase();
+            return role !== 'admin';
+          });
+        setWorkers(teammates as Worker[]);
+      }
     } catch (e) {
       console.error('useWorkers fetch error:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userProfile?.company_id]);
+  }, [userProfile?.company_id, user?.id]);
 
   useEffect(() => {
     fetchWorkers();

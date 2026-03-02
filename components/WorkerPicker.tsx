@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Colors, UI } from '../constants/theme';
 import { supabase } from '../src/config/supabase';
+import { useAuth } from '../src/context/AuthContext';
 import { useAppTheme } from '../src/context/ThemeContext';
 
 interface Worker {
@@ -32,6 +33,7 @@ export const WorkerPicker = ({
   selectedWorkerIds,
   onSelect,
 }: WorkerPickerProps) => {
+  const { user } = useAuth();
   const { theme, isDark } = useAppTheme();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,12 +51,20 @@ export const WorkerPicker = ({
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, display_name, email')
-        .eq('company_id', companyId)
-        .eq('role', 'worker');
+        .select('id, display_name, email, role')
+        .eq('company_id', companyId);
 
       if (error) throw error;
-      if (data) setWorkers(data);
+      if (data) {
+        const teammates = (data as any[])
+          .filter((profile) => profile.id !== user?.id)
+          .filter((profile) => {
+            const role = String(profile.role || '').toLowerCase();
+            return role !== 'admin';
+          })
+          .map(({ id, display_name, email }) => ({ id, display_name, email }));
+        setWorkers(teammates);
+      }
     } catch (e) {
       console.error('Error fetching workers:', e);
     } finally {

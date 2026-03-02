@@ -17,7 +17,7 @@ import { useAuth } from '../../../src/context/AuthContext';
 import { useAppTheme } from '../../../src/context/ThemeContext';
 
 export default function WorkersListScreen() {
-  const { userProfile } = useAuth();
+  const { userProfile, user } = useAuth();
   const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -37,10 +37,17 @@ export default function WorkersListScreen() {
     const { data } = await supabase
       .from('profiles')
       .select('*')
-      .eq('company_id', userProfile.company_id)
-      .eq('role', 'worker');
+      .eq('company_id', userProfile.company_id);
 
-    if (data) setWorkers(data);
+    if (data) {
+      const teammates = data
+        .filter((profile) => profile.id !== user?.id)
+        .filter((profile) => {
+          const role = String(profile.role || '').toLowerCase();
+          return role !== 'admin';
+        });
+      setWorkers(teammates);
+    }
     setLoading(false);
     setRefreshing(false);
   };
