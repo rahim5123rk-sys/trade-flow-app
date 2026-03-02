@@ -226,16 +226,21 @@ pass = "env(RESEND_API_KEY)"
 admin_email = "no-reply@gascertpal.com"
 sender_name = "GasCertPal"
 
-# Uncomment to customize email template
+# Customize signup confirmation email template
+[auth.email.template.signup]
+subject = "Confirm your email"
+content_path = "./supabase/templates/confirm_signup.html"
+
+# Customize invite template
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
-# Uncomment to customize notification email template
+# Customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
 # subject = "Your password has been changed"
-# content_path = "./templates/password_changed_notification.html"
+# content_path = "./supabase/templates/password_changed_notification.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
