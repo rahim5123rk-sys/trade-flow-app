@@ -2,19 +2,19 @@
 // FILE: components/WorkerPicker.tsx
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import React, {useEffect, useState} from 'react';
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Colors, UI } from '../constants/theme';
-import { supabase } from '../src/config/supabase';
-import { useAuth } from '../src/context/AuthContext';
-import { useAppTheme } from '../src/context/ThemeContext';
+import {Colors, UI} from '../constants/theme';
+import {supabase} from '../src/config/supabase';
+import {useAuth} from '../src/context/AuthContext';
+import {useAppTheme} from '../src/context/ThemeContext';
 
 interface Worker {
   id: string;
@@ -33,8 +33,8 @@ export const WorkerPicker = ({
   selectedWorkerIds,
   onSelect,
 }: WorkerPickerProps) => {
-  const { user } = useAuth();
-  const { theme, isDark } = useAppTheme();
+  const {user} = useAuth();
+  const {theme, isDark} = useAppTheme();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,7 +49,7 @@ export const WorkerPicker = ({
   const fetchWorkers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const {data, error} = await supabase
         .from('profiles')
         .select('id, display_name, email, role')
         .eq('company_id', companyId);
@@ -62,7 +62,7 @@ export const WorkerPicker = ({
             const role = String(profile.role || '').toLowerCase();
             return role !== 'admin';
           })
-          .map(({ id, display_name, email }) => ({ id, display_name, email }));
+          .map(({id, display_name, email}) => ({id, display_name, email}));
         setWorkers(teammates);
       }
     } catch (e) {
@@ -84,7 +84,7 @@ export const WorkerPicker = ({
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator color={isDark ? theme.brand.primary : Colors.primary} />
-        <Text style={[styles.loadingText, isDark && { color: theme.text.muted }]}>Loading team...</Text>
+        <Text style={[styles.loadingText, isDark && {color: theme.text.muted}]}>Loading team...</Text>
       </View>
     );
   }
@@ -94,8 +94,8 @@ export const WorkerPicker = ({
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="person-outline" size={24} color={isDark ? theme.text.muted : Colors.textLight} />
-        <Text style={[styles.emptyTitle, isDark && { color: theme.text.body }]}>No team members yet</Text>
-        <Text style={[styles.emptyText, isDark && { color: theme.text.muted }]}>
+        <Text style={[styles.emptyTitle, isDark && {color: theme.text.body}]}>No team members yet</Text>
+        <Text style={[styles.emptyText, isDark && {color: theme.text.muted}]}>
           This is optional. Jobs will be assigned to you by default.
           {'\n'}You can add workers later in the Team tab.
         </Text>
@@ -143,15 +143,15 @@ export const WorkerPicker = ({
 };
 
 const styles = StyleSheet.create({
-  container: { gap: 8 },
+  container: {gap: 8},
   hint: {
     fontSize: 12,
     color: Colors.textLight,
     fontStyle: 'italic',
     marginBottom: 4,
   },
-  loadingContainer: { padding: 20, alignItems: 'center' },
-  loadingText: { marginTop: 8, fontSize: 12, color: Colors.textLight },
+  loadingContainer: {padding: 20, alignItems: 'center'},
+  loadingText: {marginTop: 8, fontSize: 12, color: Colors.textLight},
   item: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -165,10 +165,10 @@ const styles = StyleSheet.create({
     backgroundColor: UI.surface.base,
     borderColor: Colors.primary,
   },
-  info: { flex: 1 },
-  name: { fontSize: 14, fontWeight: '700', color: UI.text.title },
-  email: { fontSize: 12, color: UI.text.muted },
-  textSelected: { color: Colors.primary },
+  info: {flex: 1},
+  name: {fontSize: 14, fontWeight: '700', color: UI.text.title},
+  email: {fontSize: 12, color: UI.text.muted},
+  textSelected: {color: Colors.primary},
   emptyContainer: {
     padding: 16,
     alignItems: 'center',

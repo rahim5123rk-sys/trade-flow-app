@@ -1,38 +1,38 @@
-import { Ionicons } from '@expo/vector-icons';
-import { File, Paths } from 'expo-file-system/next';
+import {Ionicons} from '@expo/vector-icons';
+import {File, Paths} from 'expo-file-system/next';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router} from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Linking,
-    PanResponder,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  PanResponder,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
-import Onboarding, { OnboardingTip } from '../../../components/Onboarding';
-import { Colors, UI } from '../../../constants/theme';
-import { supabase } from '../../../src/config/supabase';
-import { useAuth } from '../../../src/context/AuthContext';
-import { useOfflineMode } from '../../../src/context/OfflineContext';
-import { useAppTheme } from '../../../src/context/ThemeContext';
-import type { CP12LockedPayload } from '../../../src/services/cp12PdfGenerator';
-import { sanitizeRecipients, sendHtmlEmail } from '../../../src/services/email';
-import { getSignedUrl, uploadImage } from '../../../src/services/storage';
+import Animated, {FadeInDown} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {WebView} from 'react-native-webview';
+import Onboarding, {OnboardingTip} from '../../../components/Onboarding';
+import {Colors, UI} from '../../../constants/theme';
+import {supabase} from '../../../src/config/supabase';
+import {useAuth} from '../../../src/context/AuthContext';
+import {useOfflineMode} from '../../../src/context/OfflineContext';
+import {useAppTheme} from '../../../src/context/ThemeContext';
+import type {CP12LockedPayload} from '../../../src/services/cp12PdfGenerator';
+import {sanitizeRecipients, sendHtmlEmail} from '../../../src/services/email';
+import {getSignedUrl, uploadImage} from '../../../src/services/storage';
 
 const SETTINGS_TIPS: OnboardingTip[] = [
   {
@@ -126,10 +126,10 @@ const sigCanvasHTML = `
 
 // --- Reusable Components ---
 
-const SectionHeader = ({ title }: { title: string }) => {
-  const { theme } = useAppTheme();
+const SectionHeader = ({title}: {title: string}) => {
+  const {theme} = useAppTheme();
   return (
-    <Text style={[styles.sectionHeader, { color: theme.text.muted }]}>{title}</Text>
+    <Text style={[styles.sectionHeader, {color: theme.text.muted}]}>{title}</Text>
   );
 };
 
@@ -152,7 +152,7 @@ const SettingRow = ({
   toggleValue?: boolean;
   onToggle?: (val: boolean) => void;
 }) => {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   return (
     <TouchableOpacity
       style={styles.row}
@@ -160,7 +160,7 @@ const SettingRow = ({
       activeOpacity={hasToggle ? 1 : 0.7}
       disabled={hasToggle && !onPress}
     >
-      <View style={[styles.iconBox, isDestructive && styles.destructiveIconBox, isDark && !isDestructive && { backgroundColor: 'rgba(255,255,255,0.08)' }, isDark && isDestructive && { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+      <View style={[styles.iconBox, isDestructive && styles.destructiveIconBox, isDark && !isDestructive && {backgroundColor: 'rgba(255,255,255,0.08)'}, isDark && isDestructive && {backgroundColor: 'rgba(239,68,68,0.12)'}]}>
         <Ionicons
           name={icon}
           size={20}
@@ -168,16 +168,16 @@ const SettingRow = ({
         />
       </View>
       <View style={styles.rowContent}>
-        <Text style={[styles.rowLabel, { color: theme.text.title }, isDestructive && { color: Colors.danger }]}>
+        <Text style={[styles.rowLabel, {color: theme.text.title}, isDestructive && {color: Colors.danger}]}>
           {label}
         </Text>
-        {value && <Text style={[styles.rowValue, { color: theme.text.muted }]}>{value}</Text>}
+        {value && <Text style={[styles.rowValue, {color: theme.text.muted}]}>{value}</Text>}
       </View>
       {hasToggle ? (
         <Switch
           value={toggleValue}
           onValueChange={onToggle}
-          trackColor={{ false: isDark ? theme.surface.divider : UI.surface.divider, true: theme.brand.primary }}
+          trackColor={{false: isDark ? theme.surface.divider : UI.surface.divider, true: theme.brand.primary}}
           thumbColor={'#fff'}
         />
       ) : (
@@ -208,25 +208,25 @@ const InputField = ({
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
 }) => {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   return (
     <View style={styles.inputContainer}>
-      <Text style={[styles.inputLabel, { color: theme.text.body }]}>{label}</Text>
-      <View style={[styles.inputWrapper, multiline && { alignItems: 'flex-start' }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
+      <Text style={[styles.inputLabel, {color: theme.text.body}]}>{label}</Text>
+      <View style={[styles.inputWrapper, multiline && {alignItems: 'flex-start'}, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
         {icon && (
           <Ionicons
             name={icon}
             size={20}
             color={theme.text.muted}
-            style={{ marginRight: 10, marginTop: multiline ? 8 : 0 }}
+            style={{marginRight: 10, marginTop: multiline ? 8 : 0}}
           />
         )}
         <TextInput
           style={[
             styles.input,
-            { color: theme.text.title },
+            {color: theme.text.title},
             multiline && styles.textArea,
-            minHeight ? { minHeight } : {}
+            minHeight ? {minHeight} : {}
           ]}
           value={value}
           onChangeText={onChange}
@@ -244,9 +244,9 @@ const InputField = ({
 // --- Main Screen ---
 
 export default function SettingsScreen() {
-  const { user, userProfile, signOut, refreshProfile } = useAuth();
-  const { offlineModeEnabled, setOfflineModeEnabled } = useOfflineMode();
-  const { isDark, toggleTheme, theme, colors } = useAppTheme();
+  const {user, userProfile, signOut, refreshProfile} = useAuth();
+  const {offlineModeEnabled, setOfflineModeEnabled} = useOfflineMode();
+  const {isDark, toggleTheme, theme, colors} = useAppTheme();
   const isAdmin = userProfile?.role === 'admin';
   const insets = useSafeAreaInsets();
   const sigWebViewRef = useRef<WebView>(null);
@@ -255,11 +255,11 @@ export default function SettingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Data States
   const [workerCount, setWorkerCount] = useState(0);
   const [displayName, setDisplayName] = useState('');
-  
+
   // Company Fields
   const [companyName, setCompanyName] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
@@ -298,7 +298,7 @@ export default function SettingsScreen() {
     }
 
     try {
-      const { data } = await supabase
+      const {data} = await supabase
         .from('companies')
         .select('*')
         .eq('id', userProfile.company_id)
@@ -318,7 +318,7 @@ export default function SettingsScreen() {
         } else {
           setLogoUrl('');
         }
-        
+
         // Load Settings JSON
         const s = data.settings || {};
         if (s.invoiceTerms) setInvoiceTerms(s.invoiceTerms);
@@ -339,9 +339,9 @@ export default function SettingsScreen() {
 
   const loadWorkerCount = async () => {
     if (!userProfile?.company_id) return;
-    const { count } = await supabase
+    const {count} = await supabase
       .from('profiles')
-      .select('id', { count: 'exact', head: true })
+      .select('id', {count: 'exact', head: true})
       .eq('company_id', userProfile.company_id)
       .eq('role', 'worker');
     setWorkerCount(count || 0);
@@ -355,7 +355,7 @@ export default function SettingsScreen() {
         setSavedSignatureBase64(msg.data);
         setShowSignaturePad(false);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const saveSignature = () => {
@@ -369,7 +369,7 @@ export default function SettingsScreen() {
 
   // --- Image Upload ---
   const handleLogoUpload = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow access to your photos.');
       return;
@@ -386,7 +386,7 @@ export default function SettingsScreen() {
         // Store the storage ref in DB, resolve signed URL for display
         await supabase
           .from('companies')
-          .update({ logo_url: storageRef })
+          .update({logo_url: storageRef})
           .eq('id', userProfile!.company_id);
         const signedUrl = await getSignedUrl(storageRef);
         setLogoUrl(signedUrl);
@@ -404,7 +404,7 @@ export default function SettingsScreen() {
     try {
       // Update settings
       if (userProfile?.company_id) {
-        const { data: currentData } = await supabase.from('companies').select('settings').eq('id', userProfile.company_id).single();
+        const {data: currentData} = await supabase.from('companies').select('settings').eq('id', userProfile.company_id).single();
         const currentSettings = currentData?.settings || {};
 
         await supabase
@@ -415,14 +415,14 @@ export default function SettingsScreen() {
             email: companyEmail.trim(),
             phone: companyPhone,
             trade: companyTrade,
-            settings: { 
-                ...currentSettings, 
-                invoiceTerms, 
-                invoiceNotes, 
-                signatureBase64: savedSignatureBase64,
-                cp12ReminderEnabled,
-                cp12ReminderDays: Number(cp12ReminderDays || 30),
-                cp12ReminderRecipients,
+            settings: {
+              ...currentSettings,
+              invoiceTerms,
+              invoiceNotes,
+              signatureBase64: savedSignatureBase64,
+              cp12ReminderEnabled,
+              cp12ReminderDays: Number(cp12ReminderDays || 30),
+              cp12ReminderRecipients,
             },
           })
           .eq('id', userProfile.company_id);
@@ -437,8 +437,8 @@ export default function SettingsScreen() {
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); router.replace('/(auth)/login'); } },
+      {text: 'Cancel', style: 'cancel'},
+      {text: 'Sign Out', style: 'destructive', onPress: async () => {await signOut(); router.replace('/(auth)/login');}},
     ]);
   };
 
@@ -447,7 +447,7 @@ export default function SettingsScreen() {
       'Delete My Account',
       'This will permanently delete your account and all associated data. This action cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        {text: 'Cancel', style: 'cancel'},
         {
           text: 'Delete Account',
           style: 'destructive',
@@ -456,7 +456,7 @@ export default function SettingsScreen() {
               'Are you absolutely sure?',
               'Type DELETE to confirm. All your data including customers, jobs, documents and certificates will be permanently removed.',
               [
-                { text: 'Cancel', style: 'cancel' },
+                {text: 'Cancel', style: 'cancel'},
                 {
                   text: 'Yes, Delete Everything',
                   style: 'destructive',
@@ -467,39 +467,28 @@ export default function SettingsScreen() {
 
                       if (!userId) return;
 
-                      // If admin, delete all company data
+                      // Best-effort storage cleanup BEFORE deleting
+                      // (session will be invalidated by the RPC)
                       if (userProfile?.role === 'admin' && companyId) {
-                        // Delete job activity logs
-                        await supabase.from('job_activity').delete().eq('company_id', companyId);
-
-                        // Clean up storage files
                         try {
-                          const { data: jobPhotos } = await supabase.storage.from('job-photos').list();
+                          const {data: jobPhotos} = await supabase.storage.from('job-photos').list();
                           if (jobPhotos && jobPhotos.length > 0) {
                             await supabase.storage.from('job-photos').remove(jobPhotos.map(f => f.name));
                           }
-                          const { data: logos } = await supabase.storage.from('logos').list();
+                          const {data: logos} = await supabase.storage.from('logos').list();
                           if (logos && logos.length > 0) {
                             await supabase.storage.from('logos').remove(logos.map(f => f.name));
                           }
                         } catch {
                           // Storage cleanup is best-effort
                         }
-
-                        // Delete documents
-                        await supabase.from('documents').delete().eq('company_id', companyId);
-                        // Delete jobs
-                        await supabase.from('jobs').delete().eq('company_id', companyId);
-                        // Delete customers
-                        await supabase.from('customers').delete().eq('company_id', companyId);
-                        // Delete company
-                        await supabase.from('companies').delete().eq('id', companyId);
                       }
 
-                      // Delete user profile
-                      await supabase.from('profiles').delete().eq('id', userId);
+                      // Atomic server-side deletion (handles DB cascade + auth.users removal)
+                      const {error: rpcError} = await supabase.rpc('delete_user_account');
+                      if (rpcError) throw rpcError;
 
-                      // Sign out and delete auth user
+                      // Sign out locally and redirect
                       await supabase.auth.signOut();
                       router.replace('/(auth)/login');
                       Alert.alert('Account Deleted', 'Your account and data have been permanently deleted.');
@@ -526,35 +515,35 @@ export default function SettingsScreen() {
       }
 
       Alert.alert('Export Data', 'This will generate a JSON file with all your personal data.', [
-        { text: 'Cancel', style: 'cancel' },
+        {text: 'Cancel', style: 'cancel'},
         {
           text: 'Export',
           onPress: async () => {
             try {
               // Gather all user data
-              const { data: profile } = await supabase
+              const {data: profile} = await supabase
                 .from('profiles')
                 .select('id, email, display_name, role, created_at')
                 .eq('id', userId)
                 .single();
 
-              const { data: company } = await supabase
+              const {data: company} = await supabase
                 .from('companies')
                 .select('name, address, email, phone, trade, created_at')
                 .eq('id', companyId)
                 .single();
 
-              const { data: customers } = await supabase
+              const {data: customers} = await supabase
                 .from('customers')
                 .select('name, company_name, address_line1, address_line2, city, county, postcode, email, phone, created_at')
                 .eq('company_id', companyId);
 
-              const { data: jobs } = await supabase
+              const {data: jobs} = await supabase
                 .from('jobs')
                 .select('title, description, status, scheduled_date, created_at, customer_snapshot')
                 .eq('company_id', companyId);
 
-              const { data: documents } = await supabase
+              const {data: documents} = await supabase
                 .from('documents')
                 .select('type, status, total, created_at')
                 .eq('company_id', companyId);
@@ -565,8 +554,8 @@ export default function SettingsScreen() {
                 profile,
                 company,
                 customers: customers || [],
-                jobs: (jobs || []).map((j: any) => ({ ...j, customer_snapshot: undefined })),
-                documents: (documents || []).map((d: any) => ({ type: d.type, status: d.status, total: d.total, created_at: d.created_at })),
+                jobs: (jobs || []).map((j: any) => ({...j, customer_snapshot: undefined})),
+                documents: (documents || []).map((d: any) => ({type: d.type, status: d.status, total: d.total, created_at: d.created_at})),
               };
 
               const json = JSON.stringify(exportData, null, 2);
@@ -611,7 +600,7 @@ export default function SettingsScreen() {
 
     setSendingReminders(true);
     try {
-      const { data: docs, error } = await supabase
+      const {data: docs, error} = await supabase
         .from('documents')
         .select('id,reference,expiry_date,customer_snapshot,payment_info')
         .eq('company_id', userProfile.company_id)
@@ -673,7 +662,7 @@ export default function SettingsScreen() {
           </div>
         `;
 
-        await sendHtmlEmail({ to: recipients, subject, html });
+        await sendHtmlEmail({to: recipients, subject, html});
         sentCount += 1;
       }
 
@@ -708,25 +697,25 @@ export default function SettingsScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={{flex: 1}}
       {...swipeResponder.panHandlers}
     >
       <LinearGradient
         colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
         style={StyleSheet.absoluteFill}
       />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: 80 }}
+        contentContainerStyle={{paddingTop: insets.top + 20, paddingBottom: 80}}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View entering={FadeInDown.delay(40).springify()} style={styles.headerRow}>
           <View>
-            <Text style={[styles.screenTitle, { color: theme.text.title }]}>Settings</Text>
-            <Text style={[styles.screenSubtitle, { color: theme.text.muted }]}>{isAdmin ? 'Business profile & preferences' : 'Your profile & preferences'}</Text>
+            <Text style={[styles.screenTitle, {color: theme.text.title}]}>Settings</Text>
+            <Text style={[styles.screenSubtitle, {color: theme.text.muted}]}>{isAdmin ? 'Business profile & preferences' : 'Your profile & preferences'}</Text>
           </View>
           {isLoading ? (
             <ActivityIndicator color={UI.brand.primary} />
@@ -738,19 +727,19 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* --- Profile Card --- */}
-        <Animated.View entering={FadeInDown.delay(70).springify()} style={[styles.profileCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
-          <LinearGradient colors={isDark ? theme.gradients.primary : UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarContainer}>
-            <Text style={[styles.avatarText, { color: isDark ? '#000' : UI.text.white }]}>{displayName.charAt(0).toUpperCase() || 'U'}</Text>
+        <Animated.View entering={FadeInDown.delay(70).springify()} style={[styles.profileCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+          <LinearGradient colors={isDark ? theme.gradients.primary : UI.gradients.primary} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={styles.avatarContainer}>
+            <Text style={[styles.avatarText, {color: isDark ? '#000' : UI.text.white}]}>{displayName.charAt(0).toUpperCase() || 'U'}</Text>
           </LinearGradient>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.profileName, { color: theme.text.title }]}>{displayName || 'User'}</Text>
-            <Text style={[styles.profileRole, { color: theme.text.muted }]}>{userProfile?.role === 'admin' ? 'Administrator' : 'Worker'}</Text>
+          <View style={{flex: 1}}>
+            <Text style={[styles.profileName, {color: theme.text.title}]}>{displayName || 'User'}</Text>
+            <Text style={[styles.profileRole, {color: theme.text.muted}]}>{userProfile?.role === 'admin' ? 'Administrator' : 'Worker'}</Text>
           </View>
         </Animated.View>
 
         {/* --- User & Company --- */}
         <SectionHeader title="Details" />
-        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+        <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
           <SettingRow
             icon="person-circle-outline"
             label="User Details"
@@ -759,7 +748,7 @@ export default function SettingsScreen() {
           />
           {isAdmin && (
             <>
-              <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+              <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
               <SettingRow
                 icon="business-outline"
                 label="Company Details"
@@ -774,14 +763,14 @@ export default function SettingsScreen() {
         {isAdmin && (
           <>
             <SectionHeader title="Branding" />
-            <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <View style={styles.logoSection}>
-                <View style={[styles.logoPreview, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
-                  {isUploading ? <ActivityIndicator size="small" /> : logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImg} /> : <Ionicons name="image-outline" size={32} color={theme.surface.border} />}
+                <View style={[styles.logoPreview, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
+                  {isUploading ? <ActivityIndicator size="small" /> : logoUrl ? <Image source={{uri: logoUrl}} style={styles.logoImg} /> : <Ionicons name="image-outline" size={32} color={theme.surface.border} />}
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.logoLabel, { color: theme.text.title }]}>Company Logo</Text>
-                  <Text style={[styles.logoSub, { color: theme.text.muted }]}>Used on invoices and job sheets.</Text>
+                <View style={{flex: 1}}>
+                  <Text style={[styles.logoLabel, {color: theme.text.title}]}>Company Logo</Text>
+                  <Text style={[styles.logoSub, {color: theme.text.muted}]}>Used on invoices and job sheets.</Text>
                   <TouchableOpacity onPress={handleLogoUpload}>
                     <Text style={styles.uploadLink}>Upload New Image</Text>
                   </TouchableOpacity>
@@ -795,7 +784,7 @@ export default function SettingsScreen() {
         {isAdmin && (
           <>
             <SectionHeader title="Team Management" />
-            <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <SettingRow
                 icon="people-outline"
                 label="Manage Team"
@@ -810,19 +799,19 @@ export default function SettingsScreen() {
         {isAdmin && (
           <>
             <SectionHeader title="Invoice Defaults" />
-            <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
-              <InputField 
-                label="Payment Terms" 
-                value={invoiceTerms} 
-                onChange={setInvoiceTerms} 
+            <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+              <InputField
+                label="Payment Terms"
+                value={invoiceTerms}
+                onChange={setInvoiceTerms}
                 placeholder="e.g. 14 days"
                 icon="time-outline"
               />
-              <View style={{ height: 16 }} />
-              <InputField 
-                label="Notes & Payment Instructions" 
-                value={invoiceNotes} 
-                onChange={setInvoiceNotes} 
+              <View style={{height: 16}} />
+              <InputField
+                label="Notes & Payment Instructions"
+                value={invoiceNotes}
+                onChange={setInvoiceNotes}
                 placeholder={"Bank details, sort code, etc."}
                 icon="document-text-outline"
                 multiline
@@ -835,59 +824,59 @@ export default function SettingsScreen() {
         {/* --- Signature (Admin only) --- */}
         {isAdmin && <SectionHeader title="Digital Signature" />}
         {isAdmin && (
-        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
-          <Text style={[styles.hint, { color: theme.text.muted }]}>Used for signing off invoices and job sheets.</Text>
-          
-          {savedSignatureBase64 && !showSignaturePad ? (
-            <View>
-              <View style={styles.signaturePreview}>
-                <Image source={{ uri: savedSignatureBase64 }} style={{ width: '100%', height: 100 }} resizeMode="contain" />
-              </View>
-              <View style={styles.sigActions}>
-                <TouchableOpacity style={[styles.sigBtn, isDark && { backgroundColor: theme.surface.elevated }]} onPress={() => setShowSignaturePad(true)}>
-                  <Ionicons name="create-outline" size={16} color={theme.brand.primary} />
-                  <Text style={[styles.sigBtnText, { color: theme.brand.primary }]}>Re-draw</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.sigBtn, styles.sigBtnDanger, isDark && { backgroundColor: 'rgba(239,68,68,0.12)' }]} onPress={clearSignature}>
-                  <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-                  <Text style={[styles.sigBtnText, { color: Colors.danger }]}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View>
-              <View style={[styles.signaturePadWrapper, isDark && { borderColor: theme.surface.border }]}>
-                <WebView
-                  ref={sigWebViewRef}
-                  source={{ html: sigCanvasHTML }}
-                  style={{ height: SIG_HEIGHT, backgroundColor: 'transparent' }}
-                  scrollEnabled={false}
-                  bounces={false}
-                  onMessage={handleWebViewMessage}
-                />
-                <View style={styles.sigPadLabel}>
-                  <Ionicons name="pencil" size={12} color={theme.surface.border} />
-                  <Text style={[styles.sigPadLabelText, { color: theme.surface.border }]}>Sign here</Text>
+          <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+            <Text style={[styles.hint, {color: theme.text.muted}]}>Used for signing off invoices and job sheets.</Text>
+
+            {savedSignatureBase64 && !showSignaturePad ? (
+              <View>
+                <View style={styles.signaturePreview}>
+                  <Image source={{uri: savedSignatureBase64}} style={{width: '100%', height: 100}} resizeMode="contain" />
+                </View>
+                <View style={styles.sigActions}>
+                  <TouchableOpacity style={[styles.sigBtn, isDark && {backgroundColor: theme.surface.elevated}]} onPress={() => setShowSignaturePad(true)}>
+                    <Ionicons name="create-outline" size={16} color={theme.brand.primary} />
+                    <Text style={[styles.sigBtnText, {color: theme.brand.primary}]}>Re-draw</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.sigBtn, styles.sigBtnDanger, isDark && {backgroundColor: 'rgba(239,68,68,0.12)'}]} onPress={clearSignature}>
+                    <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                    <Text style={[styles.sigBtnText, {color: Colors.danger}]}>Remove</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-              <View style={styles.sigActions}>
-                <TouchableOpacity style={[styles.sigBtn, isDark && { backgroundColor: theme.surface.elevated }]} onPress={() => sigWebViewRef.current?.injectJavaScript('window.clearCanvas(); true;')}>
-                  <Ionicons name="refresh" size={16} color={theme.text.muted} />
-                  <Text style={[styles.sigBtnText, { color: theme.text.muted }]}>Reset</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.sigBtn, styles.sigBtnPrimary]} onPress={saveSignature}>
-                  <Ionicons name="checkmark" size={16} color={UI.text.white} />
-                  <Text style={[styles.sigBtnText, { color: UI.text.white }]}>Save Signature</Text>
-                </TouchableOpacity>
+            ) : (
+              <View>
+                <View style={[styles.signaturePadWrapper, isDark && {borderColor: theme.surface.border}]}>
+                  <WebView
+                    ref={sigWebViewRef}
+                    source={{html: sigCanvasHTML}}
+                    style={{height: SIG_HEIGHT, backgroundColor: 'transparent'}}
+                    scrollEnabled={false}
+                    bounces={false}
+                    onMessage={handleWebViewMessage}
+                  />
+                  <View style={styles.sigPadLabel}>
+                    <Ionicons name="pencil" size={12} color={theme.surface.border} />
+                    <Text style={[styles.sigPadLabelText, {color: theme.surface.border}]}>Sign here</Text>
+                  </View>
+                </View>
+                <View style={styles.sigActions}>
+                  <TouchableOpacity style={[styles.sigBtn, isDark && {backgroundColor: theme.surface.elevated}]} onPress={() => sigWebViewRef.current?.injectJavaScript('window.clearCanvas(); true;')}>
+                    <Ionicons name="refresh" size={16} color={theme.text.muted} />
+                    <Text style={[styles.sigBtnText, {color: theme.text.muted}]}>Reset</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.sigBtn, styles.sigBtnPrimary]} onPress={saveSignature}>
+                    <Ionicons name="checkmark" size={16} color={UI.text.white} />
+                    <Text style={[styles.sigBtnText, {color: UI.text.white}]}>Save Signature</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
         )}
 
         {isAdmin && (
-          <TouchableOpacity style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} onPress={handleSaveChanges} disabled={isSaving}>
-            <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveBtnGradient}>
+          <TouchableOpacity style={[styles.saveBtn, isSaving && {opacity: 0.7}]} onPress={handleSaveChanges} disabled={isSaving}>
+            <LinearGradient colors={UI.gradients.primary} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={styles.saveBtnGradient}>
               {isSaving ? <ActivityIndicator color={UI.text.white} /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
             </LinearGradient>
           </TouchableOpacity>
@@ -895,7 +884,7 @@ export default function SettingsScreen() {
 
         {/* --- Preferences --- */}
         <SectionHeader title="Preferences" />
-        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+        <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
           <SettingRow
             icon={isDark ? 'moon' : 'moon-outline'}
             label="Dark Mode"
@@ -904,16 +893,16 @@ export default function SettingsScreen() {
             toggleValue={isDark}
             onToggle={toggleTheme}
           />
-          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+          <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
           <SettingRow icon="notifications-outline" label="Push Notifications" hasToggle toggleValue={notificationsEnabled} onToggle={setNotificationsEnabled} />
-          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+          <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
           <SettingRow
             icon="cloud-offline-outline"
             label="Offline Mode"
             value="Pause cloud updates while enabled"
             hasToggle
             toggleValue={offlineModeEnabled}
-            onToggle={(value) => { void setOfflineModeEnabled(value); }}
+            onToggle={(value) => {void setOfflineModeEnabled(value);}}
           />
         </View>
 
@@ -921,7 +910,7 @@ export default function SettingsScreen() {
         {isAdmin && (
           <>
             <SectionHeader title="Gas Cert Reminders" />
-            <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <SettingRow
                 icon="alarm-outline"
                 label="Enable Email Reminders"
@@ -930,7 +919,7 @@ export default function SettingsScreen() {
                 toggleValue={cp12ReminderEnabled}
                 onToggle={setCp12ReminderEnabled}
               />
-              <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+              <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
               <InputField
                 label="Send reminders this many days before expiry"
                 value={cp12ReminderDays}
@@ -940,30 +929,30 @@ export default function SettingsScreen() {
                 keyboardType="numeric"
               />
 
-              <Text style={[styles.inputLabel, { color: theme.text.body }]}>Recipients</Text>
+              <Text style={[styles.inputLabel, {color: theme.text.body}]}>Recipients</Text>
               <View style={styles.reminderRecipientRow}>
                 <TouchableOpacity
-                  style={[styles.recipientChip, isDark && { borderColor: theme.surface.border, backgroundColor: theme.surface.elevated }, cp12ReminderRecipients === 'both' && styles.recipientChipActive]}
+                  style={[styles.recipientChip, isDark && {borderColor: theme.surface.border, backgroundColor: theme.surface.elevated}, cp12ReminderRecipients === 'both' && styles.recipientChipActive]}
                   onPress={() => setCp12ReminderRecipients('both')}
                 >
-                  <Text style={[styles.recipientChipText, { color: theme.text.body }, cp12ReminderRecipients === 'both' && styles.recipientChipTextActive]}>Landlord + Tenant</Text>
+                  <Text style={[styles.recipientChipText, {color: theme.text.body}, cp12ReminderRecipients === 'both' && styles.recipientChipTextActive]}>Landlord + Tenant</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.recipientChip, isDark && { borderColor: theme.surface.border, backgroundColor: theme.surface.elevated }, cp12ReminderRecipients === 'landlord' && styles.recipientChipActive]}
+                  style={[styles.recipientChip, isDark && {borderColor: theme.surface.border, backgroundColor: theme.surface.elevated}, cp12ReminderRecipients === 'landlord' && styles.recipientChipActive]}
                   onPress={() => setCp12ReminderRecipients('landlord')}
                 >
-                  <Text style={[styles.recipientChipText, { color: theme.text.body }, cp12ReminderRecipients === 'landlord' && styles.recipientChipTextActive]}>Landlord only</Text>
+                  <Text style={[styles.recipientChipText, {color: theme.text.body}, cp12ReminderRecipients === 'landlord' && styles.recipientChipTextActive]}>Landlord only</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.recipientChip, isDark && { borderColor: theme.surface.border, backgroundColor: theme.surface.elevated }, cp12ReminderRecipients === 'tenant' && styles.recipientChipActive]}
+                  style={[styles.recipientChip, isDark && {borderColor: theme.surface.border, backgroundColor: theme.surface.elevated}, cp12ReminderRecipients === 'tenant' && styles.recipientChipActive]}
                   onPress={() => setCp12ReminderRecipients('tenant')}
                 >
-                  <Text style={[styles.recipientChipText, { color: theme.text.body }, cp12ReminderRecipients === 'tenant' && styles.recipientChipTextActive]}>Tenant only</Text>
+                  <Text style={[styles.recipientChipText, {color: theme.text.body}, cp12ReminderRecipients === 'tenant' && styles.recipientChipTextActive]}>Tenant only</Text>
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity
-                style={[styles.reminderSendBtn, sendingReminders && { opacity: 0.7 }]}
+                style={[styles.reminderSendBtn, sendingReminders && {opacity: 0.7}]}
                 onPress={handleSendDueReminders}
                 disabled={sendingReminders}
               >
@@ -982,20 +971,20 @@ export default function SettingsScreen() {
 
         {/* --- Legal & Privacy --- */}
         <SectionHeader title="Legal & Privacy" />
-        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+        <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
           <SettingRow
             icon="shield-checkmark-outline"
             label="Privacy Policy"
             value="How we handle your data"
             onPress={() => router.push('/(app)/settings/privacy-policy')}
           />
-          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+          <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
           <SettingRow
             icon="document-text-outline"
             label="Terms of Service"
             onPress={() => router.push('/(app)/settings/terms-of-service')}
           />
-          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+          <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
           <SettingRow
             icon="download-outline"
             label="Export My Data"
@@ -1006,15 +995,15 @@ export default function SettingsScreen() {
 
         {/* --- Support --- */}
         <SectionHeader title="Support" />
-        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+        <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
           <SettingRow icon="help-circle-outline" label="Help Center" onPress={() => Linking.openURL('https://google.com')} />
-          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+          <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
           <SettingRow icon="log-out-outline" label="Sign Out" isDestructive onPress={handleSignOut} />
-          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+          <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
           <SettingRow icon="trash-outline" label="Delete My Account" isDestructive onPress={handleDeleteAccount} />
         </View>
 
-        <Text style={[styles.versionText, { color: theme.text.muted }]}>TradeFlow v1.0.5</Text>
+        <Text style={[styles.versionText, {color: theme.text.muted}]}>TradeFlow v1.0.5</Text>
       </ScrollView>
 
       {/* First-run onboarding */}
@@ -1024,18 +1013,18 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'transparent', paddingHorizontal: 16 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
-  screenTitle: { fontSize: 30, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
-  screenSubtitle: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
+  container: {flex: 1, backgroundColor: 'transparent', paddingHorizontal: 16},
+  headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18},
+  screenTitle: {fontSize: 30, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5},
+  screenSubtitle: {fontSize: 13, color: UI.text.muted, marginTop: 2},
   roleBadge: {
     backgroundColor: 'rgba(99,102,241,0.12)',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  roleBadgeText: { fontSize: 11, fontWeight: '800', color: UI.brand.primary, letterSpacing: 0.6 },
-  
+  roleBadgeText: {fontSize: 11, fontWeight: '800', color: UI.brand.primary, letterSpacing: 0.6},
+
   // Profile Card
   profileCard: {
     flexDirection: 'row',
@@ -1048,12 +1037,12 @@ const styles = StyleSheet.create({
     marginBottom: 26,
     ...Colors.shadow,
   },
-  avatarContainer: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  avatarText: { fontSize: 24, fontWeight: '700', color: UI.text.white },
-  profileName: { fontSize: 18, fontWeight: '700', color: UI.text.title },
-  profileRole: { fontSize: 13, color: UI.text.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  avatarContainer: {width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginRight: 16},
+  avatarText: {fontSize: 24, fontWeight: '700', color: UI.text.white},
+  profileName: {fontSize: 18, fontWeight: '700', color: UI.text.title},
+  profileRole: {fontSize: 13, color: UI.text.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5},
 
-  sectionHeader: { fontSize: 12, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, marginLeft: 4 },
+  sectionHeader: {fontSize: 12, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, marginLeft: 4},
   card: {
     backgroundColor: GLASS_BG,
     borderWidth: 1,
@@ -1063,10 +1052,10 @@ const styles = StyleSheet.create({
     marginBottom: 22,
     ...Colors.shadow,
   },
-  divider: { height: 1, backgroundColor: 'rgba(148,163,184,0.18)', marginVertical: 12 },
+  divider: {height: 1, backgroundColor: 'rgba(148,163,184,0.18)', marginVertical: 12},
 
   // Logo
-  logoSection: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
+  logoSection: {flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16},
   logoPreview: {
     width: 70,
     height: 70,
@@ -1078,15 +1067,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
   },
-  logoImg: { width: '100%', height: '100%' },
-  logoLabel: { fontSize: 15, fontWeight: '700', color: UI.text.title },
-  logoSub: { fontSize: 12, color: UI.text.muted, marginBottom: 8 },
-  uploadLink: { fontSize: 13, fontWeight: '700', color: UI.brand.primary },
+  logoImg: {width: '100%', height: '100%'},
+  logoLabel: {fontSize: 15, fontWeight: '700', color: UI.text.title},
+  logoSub: {fontSize: 12, color: UI.text.muted, marginBottom: 8},
+  uploadLink: {fontSize: 13, fontWeight: '700', color: UI.brand.primary},
 
   // Inputs
-  inputContainer: { gap: 6 },
-  inputLabel: { fontSize: 12, fontWeight: '700', color: UI.text.body, marginLeft: 4 },
-  fieldHint: { fontSize: 12, color: UI.text.muted, marginTop: 8, marginLeft: 4 },
+  inputContainer: {gap: 6},
+  inputLabel: {fontSize: 12, fontWeight: '700', color: UI.text.body, marginLeft: 4},
+  fieldHint: {fontSize: 12, color: UI.text.muted, marginTop: 8, marginLeft: 4},
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1096,17 +1085,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
   },
-  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: UI.text.title, fontWeight: '500' },
-  textArea: { height: '100%', textAlignVertical: 'top', paddingTop: 12 },
+  input: {flex: 1, paddingVertical: 12, fontSize: 15, color: UI.text.title, fontWeight: '500'},
+  textArea: {height: '100%', textAlignVertical: 'top', paddingTop: 12},
 
   // Settings Row
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  iconBox: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(99,102,241,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  destructiveIconBox: { backgroundColor: '#FEF2F2' },
-  rowContent: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: '600', color: UI.text.title },
-  destructiveText: { color: Colors.danger, fontWeight: '600' },
-  rowValue: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
+  row: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4},
+  iconBox: {width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(99,102,241,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12},
+  destructiveIconBox: {backgroundColor: '#FEF2F2'},
+  rowContent: {flex: 1},
+  rowLabel: {fontSize: 15, fontWeight: '600', color: UI.text.title},
+  destructiveText: {color: Colors.danger, fontWeight: '600'},
+  rowValue: {fontSize: 13, color: UI.text.muted, marginTop: 2},
   reminderRecipientRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1151,20 +1140,20 @@ const styles = StyleSheet.create({
   },
 
   // Signature Styles
-  hint: { fontSize: 12, color: UI.text.muted, fontStyle: 'italic', marginBottom: 12 },
-  signaturePreview: { borderWidth: 1, borderColor: UI.surface.divider, borderRadius: 12, padding: 8, backgroundColor: '#fefefe', marginBottom: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  signaturePadWrapper: { borderWidth: 2, borderColor: UI.surface.divider, borderRadius: 12, borderStyle: 'dashed', backgroundColor: '#fefefe', overflow: 'hidden', marginBottom: 8, position: 'relative' },
-  sigPadLabel: { position: 'absolute', bottom: 6, right: 10, flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.5 },
-  sigPadLabelText: { fontSize: 11, color: UI.surface.border },
-  sigActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
-  sigBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: UI.surface.elevated },
-  sigBtnPrimary: { backgroundColor: UI.brand.primary },
-  sigBtnDanger: { backgroundColor: '#FEF2F2' },
-  sigBtnText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
+  hint: {fontSize: 12, color: UI.text.muted, fontStyle: 'italic', marginBottom: 12},
+  signaturePreview: {borderWidth: 1, borderColor: UI.surface.divider, borderRadius: 12, padding: 8, backgroundColor: '#fefefe', marginBottom: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center'},
+  signaturePadWrapper: {borderWidth: 2, borderColor: UI.surface.divider, borderRadius: 12, borderStyle: 'dashed', backgroundColor: '#fefefe', overflow: 'hidden', marginBottom: 8, position: 'relative'},
+  sigPadLabel: {position: 'absolute', bottom: 6, right: 10, flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.5},
+  sigPadLabelText: {fontSize: 11, color: UI.surface.border},
+  sigActions: {flexDirection: 'row', gap: 10, justifyContent: 'flex-end'},
+  sigBtn: {flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: UI.surface.elevated},
+  sigBtnPrimary: {backgroundColor: UI.brand.primary},
+  sigBtnDanger: {backgroundColor: '#FEF2F2'},
+  sigBtnText: {fontSize: 13, fontWeight: '600', color: UI.brand.primary},
 
   // Buttons
-  saveBtn: { borderRadius: 14, overflow: 'hidden', marginBottom: 24, ...Colors.shadow },
-  saveBtnGradient: { paddingVertical: 16, alignItems: 'center' },
-  saveBtnText: { color: UI.text.white, fontSize: 16, fontWeight: '700' },
-  versionText: { textAlign: 'center', color: UI.text.muted, fontSize: 11, marginBottom: 20 },
+  saveBtn: {borderRadius: 14, overflow: 'hidden', marginBottom: 24, ...Colors.shadow},
+  saveBtnGradient: {paddingVertical: 16, alignItems: 'center'},
+  saveBtnText: {color: UI.text.white, fontSize: 16, fontWeight: '700'},
+  versionText: {textAlign: 'center', color: UI.text.muted, fontSize: 11, marginBottom: 20},
 });

@@ -10,6 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { Image, Platform } from 'react-native';
 import { supabase } from '../config/supabase';
 import { CP12Appliance, CP12FinalChecks } from '../types/cp12';
+import { escapeHtml } from '../utils/escapeHtml';
 import { getSignedUrl } from './storage';
 
 // ─── Data contract ──────────────────────────────────────────────
@@ -186,8 +187,8 @@ const checkIn = (val: string, col: 'Yes' | 'No' | 'N/A'): string => {
   return '';
 };
 
-/** Escape empty values — returns blank for rigid form fields */
-const esc = (v: string) => v || '';
+/** Escape user values for safe HTML interpolation */
+const esc = (v: unknown): string => escapeHtml(v);
 
 // ─── Build HTML ─────────────────────────────────────────────────
 
@@ -695,7 +696,7 @@ ${appRows}
     <th>Print Name</th>
     <td>${esc(engineer.name)}</td>
     <th>Print Name</th>
-    <td>${data.tenantName || data.landlordName || ''}</td>
+    <td>${esc(data.tenantName || data.landlordName || '')}</td>
   </tr>
   <tr>
     <th>Date</th>

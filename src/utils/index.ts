@@ -27,3 +27,5 @@ export {
     getStatusColor,
     getStatusStyle
 } from './formatting';
+
+export { escapeHtml } from './escapeHtml';

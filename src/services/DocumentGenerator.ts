@@ -7,6 +7,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
+import { escapeHtml } from '../utils/escapeHtml';
 import { getSignedUrl } from './storage';
 
 export type DocumentType = 'invoice' | 'quote';
@@ -115,6 +116,9 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
     ? (company.quoteTerms || 'This quote is valid for 30 days. Sign above to accept.') 
     : (company.invoiceTerms || 'Payment due on receipt.');
 
+  /** Escape user values for safe HTML interpolation */
+  const esc = (v: unknown): string => escapeHtml(v);
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -192,46 +196,46 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
   <div class="header">
     <div class="col">
       ${company.logoUrl ? `<img src="${company.logoUrl}" class="company-logo" />` : ''}
-      <div class="company-title">${company.name}</div>
-      <div class="company-text">${company.address.replace(/\n/g, ', ')}</div>
-      <div class="company-text">${company.phone}</div>
-      <div class="company-text">${company.email}</div>
+      <div class="company-title">${esc(company.name)}</div>
+      <div class="company-text">${esc(company.address.replace(/\n/g, ', '))}</div>
+      <div class="company-text">${esc(company.phone)}</div>
+      <div class="company-text">${esc(company.email)}</div>
     </div>
     <div class="col">
       <div class="doc-title">${title}</div>
       <div class="meta-row"><span class="meta-label">${numberLabel}</span><span class="meta-val">#${String(data.number).padStart(4, '0')}</span></div>
-      <div class="meta-row"><span class="meta-label">${dateLabel}</span><span class="meta-val">${data.date}</span></div>
-      <div class="meta-row"><span class="meta-label">${expiryLabel}</span><span class="meta-val">${data.expiryDate}</span></div>
-      ${data.reference ? `<div class="meta-row"><span class="meta-label">Reference:</span><span class="meta-val">${data.reference}</span></div>` : ''}
+      <div class="meta-row"><span class="meta-label">${dateLabel}</span><span class="meta-val">${esc(data.date)}</span></div>
+      <div class="meta-row"><span class="meta-label">${expiryLabel}</span><span class="meta-val">${esc(data.expiryDate)}</span></div>
+      ${data.reference ? `<div class="meta-row"><span class="meta-label">Reference:</span><span class="meta-val">${esc(data.reference)}</span></div>` : ''}
     </div>
   </div>
 
   <div class="address-grid">
     <div class="addr-box">
       <div class="addr-header">Bill To</div>
-      <div class="addr-name">${data.customerName}</div>
-      ${data.customerCompany ? `<div class="addr-text">${data.customerCompany}</div>` : ''}
-      <div class="addr-text">${data.customerAddress1}</div>
-      ${data.customerAddress2 ? `<div class="addr-text">${data.customerAddress2}</div>` : ''}
-      <div class="addr-text">${data.customerCity}</div>
-      <div class="addr-text">${data.customerPostcode}</div>
-      ${data.customerPhone ? `<div class="addr-text" style="margin-top:4px;">${data.customerPhone}</div>` : ''}
-      ${data.customerEmail ? `<div class="addr-text">${data.customerEmail}</div>` : ''}
+      <div class="addr-name">${esc(data.customerName)}</div>
+      ${data.customerCompany ? `<div class="addr-text">${esc(data.customerCompany)}</div>` : ''}
+      <div class="addr-text">${esc(data.customerAddress1)}</div>
+      ${data.customerAddress2 ? `<div class="addr-text">${esc(data.customerAddress2)}</div>` : ''}
+      <div class="addr-text">${esc(data.customerCity)}</div>
+      <div class="addr-text">${esc(data.customerPostcode)}</div>
+      ${data.customerPhone ? `<div class="addr-text" style="margin-top:4px;">${esc(data.customerPhone)}</div>` : ''}
+      ${data.customerEmail ? `<div class="addr-text">${esc(data.customerEmail)}</div>` : ''}
     </div>
     <div class="addr-box text-right">
       <div class="addr-header" style="border-color:transparent;">Job / Site Address</div>
-      <div class="addr-text">${data.jobAddress1}</div>
-      ${data.jobAddress2 ? `<div class="addr-text">${data.jobAddress2}</div>` : ''}
-      <div class="addr-text">${data.jobCity}</div>
-      <div class="addr-text">${data.jobPostcode}</div>
-      ${data.jobDate ? `<div class="addr-text" style="margin-top:4px; font-weight:600;">Job Date: ${data.jobDate}</div>` : ''}
+      <div class="addr-text">${esc(data.jobAddress1)}</div>
+      ${data.jobAddress2 ? `<div class="addr-text">${esc(data.jobAddress2)}</div>` : ''}
+      <div class="addr-text">${esc(data.jobCity)}</div>
+      <div class="addr-text">${esc(data.jobPostcode)}</div>
+      ${data.jobDate ? `<div class="addr-text" style="margin-top:4px; font-weight:600;">Job Date: ${esc(data.jobDate)}</div>` : ''}
     </div>
   </div>
 
   <table>
     <thead><tr><th class="col-desc">Description</th><th class="col-num">Qty</th><th class="col-num">Price</th><th class="col-num">VAT</th><th class="col-num">Total</th></tr></thead>
     <tbody>
-      ${lineRows.map(row => `<tr><td class="col-desc"><div class="bold">${row.description}</div></td><td class="col-num">${row.quantity}</td><td class="col-num">£${row.unitPrice.toFixed(2)}</td><td class="col-num">${row.vatPercent}%</td><td class="col-num">£${row.totalExVat.toFixed(2)}</td></tr>`).join('')}
+      ${lineRows.map(row => `<tr><td class="col-desc"><div class="bold">${esc(row.description)}</div></td><td class="col-num">${row.quantity}</td><td class="col-num">£${row.unitPrice.toFixed(2)}</td><td class="col-num">${row.vatPercent}%</td><td class="col-num">£${row.totalExVat.toFixed(2)}</td></tr>`).join('')}
     </tbody>
   </table>
 
@@ -244,14 +248,14 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
     </div>
   </div>
 
-  ${data.notes ? `<div class="notes-box"><div class="notes-title">Job Notes</div><div class="notes-content">${data.notes.replace(/\n/g, '<br/>')}</div></div>` : ''}
+  ${data.notes ? `<div class="notes-box"><div class="notes-title">Job Notes</div><div class="notes-content">${esc(data.notes).replace(/\n/g, '<br/>')}</div></div>` : ''}
 
   <div class="footer">
     <div class="left-box">
       <div class="box-title">${footerTitle}</div>
       ${isQuote 
         ? `<div style="height:30px; border-bottom:1px dashed #cbd5e1; width:200px; margin-top:15px;"></div><div style="font-size:8px; color:#94a3b8; margin-top:4px;">Customer Signature</div>` 
-        : `<div style="white-space: pre-wrap;">${data.paymentInfo || 'Please update bank details in Settings.'}</div>`
+        : `<div style="white-space: pre-wrap;">${esc(data.paymentInfo || 'Please update bank details in Settings.')}</div>`
       }
     </div>
     <div class="sig-box">
@@ -259,7 +263,7 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
       <div class="sig-line">Authorised Signature</div>
     </div>
   </div>
-  <div class="terms">${termsText}</div>
+  <div class="terms">${esc(termsText)}</div>
 </body>
 </html>
   `;

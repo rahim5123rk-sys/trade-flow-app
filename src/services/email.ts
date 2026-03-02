@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { escapeHtml } from '../utils/escapeHtml';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -136,27 +137,27 @@ export async function sendCp12CertificateEmail({
       <table style="width:100%;border-collapse:collapse;margin:12px 0 20px;">
         <tr>
           <td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Reference</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">${certRef}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(certRef)}</td>
         </tr>
         <tr>
           <td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Property</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">${propertyAddress || 'Not provided'}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(propertyAddress || 'Not provided')}</td>
         </tr>
         <tr>
           <td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Inspection Date</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">${inspectionDate}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(inspectionDate)}</td>
         </tr>
         <tr>
           <td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Next Due Date</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">${nextDueDate}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(nextDueDate)}</td>
         </tr>
         <tr>
           <td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Landlord</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">${landlordName || 'Not provided'}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(landlordName || 'Not provided')}</td>
         </tr>
         <tr>
           <td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Tenant</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">${tenantName || 'Not provided'}</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(tenantName || 'Not provided')}</td>
         </tr>
       </table>
       <p style="margin:0;color:#475569;font-size:14px;">Thank you for using GasCertPal.</p>

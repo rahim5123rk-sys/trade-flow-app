@@ -1,25 +1,25 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import {router} from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import React, {useRef, useState} from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI } from '../../constants/theme';
-import { supabase } from '../../src/config/supabase';
-import { useAuth } from '../../src/context/AuthContext';
-import { useAppTheme } from '../../src/context/ThemeContext';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Colors, UI} from '../../constants/theme';
+import {supabase} from '../../src/config/supabase';
+import {useAuth} from '../../src/context/AuthContext';
+import {useAppTheme} from '../../src/context/ThemeContext';
 
 export const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
 
@@ -45,8 +45,8 @@ const generateInviteCode = () => {
 // --- Component ---
 
 export default function RegisterScreen() {
-  const { refreshProfile, setRegistering } = useAuth();
-  const { theme, isDark } = useAppTheme();
+  const {refreshProfile, setRegistering} = useAuth();
+  const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -67,7 +67,7 @@ export default function RegisterScreen() {
 
   // Step 2 (Join): Invite Code
   const [inviteCode, setInviteCode] = useState('');
-  const [foundCompany, setFoundCompany] = useState<{ id: string; name: string } | null>(null);
+  const [foundCompany, setFoundCompany] = useState<{id: string; name: string} | null>(null);
 
   // Step 3 (Create): Contact Details
   const [businessAddress, setBusinessAddress] = useState('');
@@ -75,7 +75,7 @@ export default function RegisterScreen() {
 
   // GDPR Consent
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  
+
   const TOTAL_STEPS = 3;
 
   const animateProgress = (toStep: number) => {
@@ -98,7 +98,7 @@ export default function RegisterScreen() {
   const checkInviteCode = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const {data, error} = await supabase
         .from('companies')
         .select('id, name')
         .eq('invite_code', inviteCode.trim().toUpperCase())
@@ -132,10 +132,10 @@ export default function RegisterScreen() {
     // Validate Step 2
     if (step === 2) {
       if (mode === 'create') {
-        if (!companyName.trim()) { Alert.alert('Missing Info', 'Enter business name.'); return; }
-        if (!trade) { Alert.alert('Missing Info', 'Select a trade.'); return; }
+        if (!companyName.trim()) {Alert.alert('Missing Info', 'Enter business name.'); return;}
+        if (!trade) {Alert.alert('Missing Info', 'Select a trade.'); return;}
       } else {
-        if (!inviteCode) { Alert.alert('Missing Info', 'Enter invite code.'); return; }
+        if (!inviteCode) {Alert.alert('Missing Info', 'Enter invite code.'); return;}
         const isValid = await checkInviteCode();
         if (!isValid) return; // Stop if code invalid
       }
@@ -144,7 +144,7 @@ export default function RegisterScreen() {
     const next = step + 1;
     setStep(next);
     animateProgress(next);
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    scrollRef.current?.scrollTo({y: 0, animated: true});
   };
 
   const goBack = () => {
@@ -155,7 +155,7 @@ export default function RegisterScreen() {
     const prev = step - 1;
     setStep(prev);
     animateProgress(prev);
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    scrollRef.current?.scrollTo({y: 0, animated: true});
   };
 
   const handleRegister = async () => {
@@ -179,7 +179,7 @@ export default function RegisterScreen() {
 
       const emailRedirectTo = 'tradeflowapp://login';
 
-      const { data: authData, error: authError } = await withTimeout(
+      const {data: authData, error: authError} = await withTimeout(
         supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -199,7 +199,7 @@ export default function RegisterScreen() {
         // If user already exists in auth.users, try signing in instead
         if (authError.message?.toLowerCase().includes('already registered')) {
           console.log('[Register] User exists in auth — trying sign-in to recover...');
-          const { data: signInData, error: signInError } = await withTimeout(
+          const {data: signInData, error: signInError} = await withTimeout(
             supabase.auth.signInWithPassword({
               email: email.trim(),
               password,
@@ -215,7 +215,7 @@ export default function RegisterScreen() {
           }
 
           // Check if profile already exists with a company
-          const { data: existingAuthProfile } = await supabase
+          const {data: existingAuthProfile} = await supabase
             .from('profiles')
             .select('id, company_id')
             .eq('id', signInData.user!.id)
@@ -251,7 +251,7 @@ export default function RegisterScreen() {
 
       if (!currentSession) {
         console.log('[Register] No session from signUp — signing in...');
-        const { data: signInData, error: loginError } = await withTimeout(
+        const {data: signInData, error: loginError} = await withTimeout(
           supabase.auth.signInWithPassword({
             email: email.trim(),
             password,
@@ -270,25 +270,25 @@ export default function RegisterScreen() {
               email: email.trim(),
               ...(mode === 'create'
                 ? {
-                    companyName: companyName.trim(),
-                    trade,
-                    businessAddress: businessAddress.trim(),
-                    businessPhone: businessPhone.trim(),
-                    inviteCode: generateInviteCode(),
-                  }
+                  companyName: companyName.trim(),
+                  trade,
+                  businessAddress: businessAddress.trim(),
+                  businessPhone: businessPhone.trim(),
+                  inviteCode: generateInviteCode(),
+                }
                 : {
-                    companyId: foundCompany?.id,
-                  }),
+                  companyId: foundCompany?.id,
+                }),
               consentGivenAt: new Date().toISOString(),
             };
-            await AsyncStorage.setItem(PENDING_REGISTRATION_KEY, JSON.stringify(pendingData));
+            await SecureStore.setItemAsync(PENDING_REGISTRATION_KEY, JSON.stringify(pendingData));
 
             setRegistering(false);
             setLoading(false);
             Alert.alert(
               'Confirm Your Email',
               'We\'ve sent a confirmation link to your email address. Please check your inbox (and spam folder), confirm your account, then come back and log in.',
-              [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
+              [{text: 'OK', onPress: () => router.replace('/(auth)/login')}]
             );
             return; // Exit early — registration will complete on first login
           }
@@ -302,7 +302,7 @@ export default function RegisterScreen() {
 
       if (!currentSession) {
         console.log('[Register] Still no session — attempting refreshSession...');
-        const { data: refreshData, error: refreshError } = await withTimeout(
+        const {data: refreshData, error: refreshError} = await withTimeout(
           supabase.auth.refreshSession(),
           10000,
           'refreshSession'
@@ -317,7 +317,7 @@ export default function RegisterScreen() {
         throw new Error('Could not establish a session. Please try logging in manually.');
       }
 
-      console.log('[Register] Session active, token starts with:', currentSession.access_token.substring(0, 20) + '...');
+      console.log('[Register] Session active');
 
       // 3. Create Company/Profile via RPC
       let companyId = '';
@@ -423,7 +423,7 @@ export default function RegisterScreen() {
       console.error('[Register] FAILED:', msg);
       setRegistering(false);
       // Sign out to clean up any partial session so user can retry
-      try { await supabase.auth.signOut(); } catch (_) {}
+      try {await supabase.auth.signOut();} catch (_) { }
       Alert.alert('Registration Failed', msg);
     } finally {
       setLoading(false);
@@ -436,64 +436,64 @@ export default function RegisterScreen() {
   });
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: theme.surface.base }}>
-      
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1, backgroundColor: theme.surface.base}}>
+
       {/* Header */}
-      <View style={[styles.header, isDark && { backgroundColor: theme.surface.base }, { paddingTop: insets.top + 10 }]}> 
-        <TouchableOpacity onPress={goBack} style={[styles.backBtn, isDark && { backgroundColor: theme.surface.elevated }]}> 
+      <View style={[styles.header, isDark && {backgroundColor: theme.surface.base}, {paddingTop: insets.top + 10}]}>
+        <TouchableOpacity onPress={goBack} style={[styles.backBtn, isDark && {backgroundColor: theme.surface.elevated}]}>
           <Ionicons name="arrow-back" size={24} color={theme.text.title} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.stepLabel, { color: theme.text.muted }]}>Step {step} of {TOTAL_STEPS}</Text>
+          <Text style={[styles.stepLabel, {color: theme.text.muted}]}>Step {step} of {TOTAL_STEPS}</Text>
         </View>
-        <View style={{ width: 40 }} />
+        <View style={{width: 40}} />
       </View>
 
       {/* Progress Bar */}
-      <View style={[styles.progressTrack, isDark && { backgroundColor: theme.surface.elevated }]}> 
-        <Animated.View style={[styles.progressBar, { width: progressWidth, backgroundColor: theme.brand.primary }]} />
+      <View style={[styles.progressTrack, isDark && {backgroundColor: theme.surface.elevated}]}>
+        <Animated.View style={[styles.progressBar, {width: progressWidth, backgroundColor: theme.brand.primary}]} />
       </View>
 
       <ScrollView
         ref={scrollRef}
-        style={[styles.scrollContainer, isDark && { backgroundColor: 'transparent' }]}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+        style={[styles.scrollContainer, isDark && {backgroundColor: 'transparent'}]}
+        contentContainerStyle={{paddingBottom: insets.bottom + 40}}
         keyboardShouldPersistTaps="handled"
       >
-        
+
         {/* STEP 1: Account & Mode */}
         {step === 1 && (
           <View>
-            <Text style={[styles.title, { color: theme.text.title }]}>Welcome to TradeFlow</Text>
-            <Text style={[styles.subtitle, { color: theme.text.muted }]}>Create your account to get started.</Text>
+            <Text style={[styles.title, {color: theme.text.title}]}>Welcome to TradeFlow</Text>
+            <Text style={[styles.subtitle, {color: theme.text.muted}]}>Create your account to get started.</Text>
 
             {/* Mode Selector */}
-            <View style={[styles.modeContainer, isDark && { backgroundColor: theme.surface.elevated }]}> 
-              <TouchableOpacity 
-                style={[styles.modeBtn, mode === 'create' && styles.modeBtnActive]} 
+            <View style={[styles.modeContainer, isDark && {backgroundColor: theme.surface.elevated}]}>
+              <TouchableOpacity
+                style={[styles.modeBtn, mode === 'create' && styles.modeBtnActive]}
                 onPress={() => setMode('create')}>
                 <Ionicons name="briefcase-outline" size={20} color={mode === 'create' ? '#fff' : theme.text.title} />
-                <Text style={[styles.modeText, mode === 'create' && { color: UI.text.white }]}>New Company</Text>
+                <Text style={[styles.modeText, mode === 'create' && {color: UI.text.white}]}>New Company</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modeBtn, mode === 'join' && styles.modeBtnActive]} 
+              <TouchableOpacity
+                style={[styles.modeBtn, mode === 'join' && styles.modeBtnActive]}
                 onPress={() => setMode('join')}>
                 <Ionicons name="people-outline" size={20} color={mode === 'join' ? '#fff' : theme.text.title} />
-                <Text style={[styles.modeText, mode === 'join' && { color: UI.text.white }]}>Join Team</Text>
+                <Text style={[styles.modeText, mode === 'join' && {color: UI.text.white}]}>Join Team</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text.body }]}>Full Name</Text>
-              <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={fullName} onChangeText={setFullName} placeholder="e.g. John Smith" placeholderTextColor={theme.text.placeholder} />
+              <Text style={[styles.label, {color: theme.text.body}]}>Full Name</Text>
+              <TextInput style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]} value={fullName} onChangeText={setFullName} placeholder="e.g. John Smith" placeholderTextColor={theme.text.placeholder} />
             </View>
             <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text.body }]}>Email Address</Text>
-              <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={email} onChangeText={setEmail} placeholder="john@example.com" placeholderTextColor={theme.text.placeholder} autoCapitalize="none" keyboardType="email-address" />
+              <Text style={[styles.label, {color: theme.text.body}]}>Email Address</Text>
+              <TextInput style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]} value={email} onChangeText={setEmail} placeholder="john@example.com" placeholderTextColor={theme.text.placeholder} autoCapitalize="none" keyboardType="email-address" />
             </View>
             <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text.body }]}>Password</Text>
-              <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={password} onChangeText={setPassword} placeholder="Min 8 chars, 1 uppercase, 1 number" placeholderTextColor={theme.text.placeholder} secureTextEntry />
+              <Text style={[styles.label, {color: theme.text.body}]}>Password</Text>
+              <TextInput style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]} value={password} onChangeText={setPassword} placeholder="Min 8 chars, 1 uppercase, 1 number" placeholderTextColor={theme.text.placeholder} secureTextEntry />
             </View>
 
             <TouchableOpacity style={styles.nextBtn} onPress={goNext}>
@@ -508,24 +508,24 @@ export default function RegisterScreen() {
           <View>
             {mode === 'create' ? (
               <>
-                <Text style={[styles.title, { color: theme.text.title }]}>About your business</Text>
-                <Text style={[styles.subtitle, { color: theme.text.muted }]}>Tell us about what you do</Text>
+                <Text style={[styles.title, {color: theme.text.title}]}>About your business</Text>
+                <Text style={[styles.subtitle, {color: theme.text.muted}]}>Tell us about what you do</Text>
 
                 <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text.body }]}>Business Name</Text>
-                  <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={companyName} onChangeText={setCompanyName} placeholder="e.g. Smith's Plumbing Ltd" placeholderTextColor={theme.text.placeholder} />
+                  <Text style={[styles.label, {color: theme.text.body}]}>Business Name</Text>
+                  <TextInput style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]} value={companyName} onChangeText={setCompanyName} placeholder="e.g. Smith's Plumbing Ltd" placeholderTextColor={theme.text.placeholder} />
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text.body }]}>What's your trade?</Text>
+                  <Text style={[styles.label, {color: theme.text.body}]}>What's your trade?</Text>
                   <View style={styles.tradeGrid}>
                     {TRADES.map((t) => (
                       <TouchableOpacity
                         key={t}
-                        style={[styles.tradeChip, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, trade === t && styles.tradeChipActive]}
+                        style={[styles.tradeChip, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, trade === t && styles.tradeChipActive]}
                         onPress={() => setTrade(t)}
                       >
-                        <Text style={[styles.tradeChipText, { color: theme.text.muted }, trade === t && styles.tradeChipTextActive]}>{t}</Text>
+                        <Text style={[styles.tradeChipText, {color: theme.text.muted}, trade === t && styles.tradeChipTextActive]}>{t}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -533,20 +533,20 @@ export default function RegisterScreen() {
               </>
             ) : (
               <>
-                <Text style={[styles.title, { color: theme.text.title }]}>Join your Team</Text>
-                <Text style={[styles.subtitle, { color: theme.text.muted }]}>Enter the invite code provided by your manager.</Text>
+                <Text style={[styles.title, {color: theme.text.title}]}>Join your Team</Text>
+                <Text style={[styles.subtitle, {color: theme.text.muted}]}>Enter the invite code provided by your manager.</Text>
 
                 <View style={styles.field}>
-                    <Text style={[styles.label, { color: theme.text.body }]}>Invite Code</Text>
-                    <TextInput 
-                      style={[styles.input, styles.codeInput, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} 
-                        value={inviteCode} 
-                        onChangeText={setInviteCode} 
-                        placeholder="XXX-XXX" 
-                        placeholderTextColor="#CBD5E1"
-                        autoCapitalize="characters"
-                        maxLength={8}
-                    />
+                  <Text style={[styles.label, {color: theme.text.body}]}>Invite Code</Text>
+                  <TextInput
+                    style={[styles.input, styles.codeInput, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
+                    value={inviteCode}
+                    onChangeText={setInviteCode}
+                    placeholder="XXX-XXX"
+                    placeholderTextColor="#CBD5E1"
+                    autoCapitalize="characters"
+                    maxLength={8}
+                  />
                 </View>
               </>
             )}
@@ -563,25 +563,25 @@ export default function RegisterScreen() {
           <View>
             {mode === 'create' ? (
               <>
-                <Text style={[styles.title, { color: theme.text.title }]}>Business details</Text>
-                <Text style={[styles.subtitle, { color: theme.text.muted }]}>These appear on your job sheets.</Text>
+                <Text style={[styles.title, {color: theme.text.title}]}>Business details</Text>
+                <Text style={[styles.subtitle, {color: theme.text.muted}]}>These appear on your job sheets.</Text>
 
                 <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text.body }]}>Business Address</Text>
-                  <TextInput style={[styles.input, styles.textArea, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={businessAddress} onChangeText={setBusinessAddress} placeholder="123 High St..." placeholderTextColor={theme.text.placeholder} multiline />
+                  <Text style={[styles.label, {color: theme.text.body}]}>Business Address</Text>
+                  <TextInput style={[styles.input, styles.textArea, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]} value={businessAddress} onChangeText={setBusinessAddress} placeholder="123 High St..." placeholderTextColor={theme.text.placeholder} multiline />
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text.body }]}>Business Phone</Text>
-                  <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={businessPhone} onChangeText={setBusinessPhone} placeholder="07700 900000" placeholderTextColor={theme.text.placeholder} keyboardType="phone-pad" />
+                  <Text style={[styles.label, {color: theme.text.body}]}>Business Phone</Text>
+                  <TextInput style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]} value={businessPhone} onChangeText={setBusinessPhone} placeholder="07700 900000" placeholderTextColor={theme.text.placeholder} keyboardType="phone-pad" />
                 </View>
               </>
             ) : (
-              <View style={[styles.confirmContainer, isDark && { backgroundColor: theme.surface.elevated }]}>
+              <View style={[styles.confirmContainer, isDark && {backgroundColor: theme.surface.elevated}]}>
                 <Ionicons name="business" size={64} color={Colors.primary} />
-                <Text style={[styles.confirmTitle, { color: theme.text.title }]}>Team Found!</Text>
+                <Text style={[styles.confirmTitle, {color: theme.text.title}]}>Team Found!</Text>
                 <Text style={styles.confirmCompany}>{foundCompany?.name}</Text>
-                <Text style={[styles.confirmText, { color: theme.text.muted }]}>
+                <Text style={[styles.confirmText, {color: theme.text.muted}]}>
                   You are joining this company as a Worker. You will see jobs assigned to you by the admin.
                 </Text>
               </View>
@@ -596,7 +596,7 @@ export default function RegisterScreen() {
               <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
                 {acceptedTerms && <Ionicons name="checkmark" size={14} color={UI.text.white} />}
               </View>
-              <Text style={[styles.consentText, { color: theme.text.muted }]}> 
+              <Text style={[styles.consentText, {color: theme.text.muted}]}>
                 I agree to the{' '}
                 <Text style={styles.consentLink} onPress={() => router.push('/(auth)/privacy-policy' as any)}>Privacy Policy</Text>
                 {' '}and{' '}
@@ -605,7 +605,7 @@ export default function RegisterScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.submitBtn, (loading || !acceptedTerms) && { opacity: 0.7 }]}
+              style={[styles.submitBtn, (loading || !acceptedTerms) && {opacity: 0.7}]}
               onPress={handleRegister}
               disabled={loading || !acceptedTerms}
             >
@@ -630,48 +630,48 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#fff' },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: UI.surface.elevated, justifyContent: 'center', alignItems: 'center' },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  stepLabel: { fontSize: 14, fontWeight: '600', color: Colors.textLight },
-  progressTrack: { height: 4, backgroundColor: UI.surface.elevated, marginHorizontal: 24, borderRadius: 2, overflow: 'hidden' },
-  progressBar: { height: '100%', backgroundColor: Colors.primary, borderRadius: 2 },
-  scrollContainer: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 },
-  
-  title: { fontSize: 26, fontWeight: '800', color: Colors.text, marginTop: 32, marginBottom: 6 },
-  subtitle: { fontSize: 15, color: Colors.textLight, lineHeight: 22, marginBottom: 28 },
-  
-  modeContainer: { flexDirection: 'row', backgroundColor: UI.surface.elevated, padding: 4, borderRadius: 12, marginBottom: 24 },
-  modeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, gap: 8 },
-  modeBtnActive: { backgroundColor: Colors.primary, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
-  modeText: { fontWeight: '600', color: Colors.text },
+  header: {flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#fff'},
+  backBtn: {width: 40, height: 40, borderRadius: 20, backgroundColor: UI.surface.elevated, justifyContent: 'center', alignItems: 'center'},
+  headerCenter: {flex: 1, alignItems: 'center'},
+  stepLabel: {fontSize: 14, fontWeight: '600', color: Colors.textLight},
+  progressTrack: {height: 4, backgroundColor: UI.surface.elevated, marginHorizontal: 24, borderRadius: 2, overflow: 'hidden'},
+  progressBar: {height: '100%', backgroundColor: Colors.primary, borderRadius: 2},
+  scrollContainer: {flex: 1, backgroundColor: '#fff', paddingHorizontal: 24},
 
-  field: { marginBottom: 20 },
-  label: { fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 8 },
-  input: { backgroundColor: UI.surface.base, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, fontSize: 16, color: Colors.text },
-  codeInput: { textAlign: 'center', fontSize: 24, letterSpacing: 3, fontWeight: '700', textTransform: 'uppercase' },
-  textArea: { minHeight: 80, textAlignVertical: 'top' },
-  
-  tradeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tradeChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: UI.surface.elevated, borderWidth: 1.5, borderColor: UI.surface.elevated },
-  tradeChipActive: { backgroundColor: UI.surface.base, borderColor: Colors.primary },
-  tradeChipText: { fontSize: 14, fontWeight: '500', color: Colors.textLight },
-  tradeChipTextActive: { color: Colors.primary, fontWeight: '700' },
-  
-  nextBtn: { flexDirection: 'row', backgroundColor: Colors.primary, padding: 18, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, ...Colors.shadow },
-  nextBtnText: { color: UI.text.white, fontWeight: 'bold', fontSize: 16 },
-  
-  submitBtn: { flexDirection: 'row', backgroundColor: Colors.success, padding: 18, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12, elevation: 4 },
-  submitBtnText: { color: UI.text.white, fontWeight: 'bold', fontSize: 16 },
-  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  title: {fontSize: 26, fontWeight: '800', color: Colors.text, marginTop: 32, marginBottom: 6},
+  subtitle: {fontSize: 15, color: Colors.textLight, lineHeight: 22, marginBottom: 28},
 
-  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16, paddingHorizontal: 4 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: UI.surface.border, justifyContent: 'center', alignItems: 'center', marginTop: 1 },
-  checkboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  consentText: { flex: 1, fontSize: 13, color: Colors.textLight, lineHeight: 20 },
-  consentLink: { color: Colors.primary, fontWeight: '600', textDecorationLine: 'underline' },
-  confirmContainer: { alignItems: 'center', backgroundColor: UI.surface.base, padding: 30, borderRadius: 20, marginBottom: 20 },
-  confirmTitle: { fontSize: 22, fontWeight: '800', color: Colors.text, marginTop: 16 },
-  confirmCompany: { fontSize: 18, color: Colors.primary, fontWeight: '600', marginTop: 4, marginBottom: 12 },
-  confirmText: { textAlign: 'center', color: Colors.textLight, lineHeight: 22 },
+  modeContainer: {flexDirection: 'row', backgroundColor: UI.surface.elevated, padding: 4, borderRadius: 12, marginBottom: 24},
+  modeBtn: {flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, gap: 8},
+  modeBtnActive: {backgroundColor: Colors.primary, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4},
+  modeText: {fontWeight: '600', color: Colors.text},
+
+  field: {marginBottom: 20},
+  label: {fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 8},
+  input: {backgroundColor: UI.surface.base, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, fontSize: 16, color: Colors.text},
+  codeInput: {textAlign: 'center', fontSize: 24, letterSpacing: 3, fontWeight: '700', textTransform: 'uppercase'},
+  textArea: {minHeight: 80, textAlignVertical: 'top'},
+
+  tradeGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
+  tradeChip: {paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: UI.surface.elevated, borderWidth: 1.5, borderColor: UI.surface.elevated},
+  tradeChipActive: {backgroundColor: UI.surface.base, borderColor: Colors.primary},
+  tradeChipText: {fontSize: 14, fontWeight: '500', color: Colors.textLight},
+  tradeChipTextActive: {color: Colors.primary, fontWeight: '700'},
+
+  nextBtn: {flexDirection: 'row', backgroundColor: Colors.primary, padding: 18, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, ...Colors.shadow},
+  nextBtnText: {color: UI.text.white, fontWeight: 'bold', fontSize: 16},
+
+  submitBtn: {flexDirection: 'row', backgroundColor: Colors.success, padding: 18, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12, elevation: 4},
+  submitBtnText: {color: UI.text.white, fontWeight: 'bold', fontSize: 16},
+  loadingRow: {flexDirection: 'row', alignItems: 'center', gap: 10},
+
+  consentRow: {flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16, paddingHorizontal: 4},
+  checkbox: {width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: UI.surface.border, justifyContent: 'center', alignItems: 'center', marginTop: 1},
+  checkboxChecked: {backgroundColor: Colors.primary, borderColor: Colors.primary},
+  consentText: {flex: 1, fontSize: 13, color: Colors.textLight, lineHeight: 20},
+  consentLink: {color: Colors.primary, fontWeight: '600', textDecorationLine: 'underline'},
+  confirmContainer: {alignItems: 'center', backgroundColor: UI.surface.base, padding: 30, borderRadius: 20, marginBottom: 20},
+  confirmTitle: {fontSize: 22, fontWeight: '800', color: Colors.text, marginTop: 16},
+  confirmCompany: {fontSize: 18, color: Colors.primary, fontWeight: '600', marginTop: 4, marginBottom: 12},
+  confirmText: {textAlign: 'center', color: Colors.textLight, lineHeight: 22},
 });

@@ -2,6 +2,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
+import { escapeHtml } from '../utils/escapeHtml';
 import { getSignedUrl, getSignedUrls } from './storage';
 
 // Matches your Supabase snake_case structure
@@ -61,6 +62,9 @@ export const generateJobSheet = async (job: JobData) => {
   const isPaid = job.status === 'paid' || job.payment_status === 'paid';
   const statusColor = isPaid ? '#10B981' : '#64748B'; // Green if paid, Grey otherwise
   const statusText = isPaid ? 'PAID' : job.status.replace('_', ' ').toUpperCase();
+
+  /** Escape user values for safe HTML interpolation */
+  const esc = (v: unknown): string => escapeHtml(v);
 
   // 4. Construct HTML
   const html = `
@@ -144,7 +148,7 @@ export const generateJobSheet = async (job: JobData) => {
           </div>
           <div class="invoice-title">
             <h1 class="invoice-label">JOB SHEET</h1>
-            <div class="invoice-sub">Ref: #${job.reference}</div>
+            <div class="invoice-sub">Ref: #${esc(job.reference)}</div>
             <div class="status-badge">${statusText}</div>
           </div>
         </div>
@@ -152,20 +156,20 @@ export const generateJobSheet = async (job: JobData) => {
         <div class="info-grid">
           <div class="col">
             <div class="col-label">Service Provider</div>
-            <div class="info-name">${companyData.name}</div>
+            <div class="info-name">${esc(companyData.name)}</div>
             <div class="info-text">
-              ${companyData.address}<br>
-              ${companyData.email}<br>
-              ${companyData.phone || ''}
+              ${esc(companyData.address)}<br>
+              ${esc(companyData.email)}<br>
+              ${esc(companyData.phone || '')}
             </div>
           </div>
           <div class="col">
             <div class="col-label">Client</div>
-            <div class="info-name">${job.customer_snapshot?.name || 'Unknown Client'}</div>
+            <div class="info-name">${esc(job.customer_snapshot?.name || 'Unknown Client')}</div>
             <div class="info-text">
-              ${job.customer_snapshot?.address || 'No Address'}<br>
-              ${job.customer_snapshot?.email || ''}<br>
-              ${job.customer_snapshot?.phone || ''}
+              ${esc(job.customer_snapshot?.address || 'No Address')}<br>
+              ${esc(job.customer_snapshot?.email || '')}<br>
+              ${esc(job.customer_snapshot?.phone || '')}
             </div>
           </div>
           <div class="col">
@@ -189,8 +193,8 @@ export const generateJobSheet = async (job: JobData) => {
           <tbody>
             <tr>
               <td>
-                <div style="font-weight: 600; font-size: 14px; color: #0f172a;">${job.title}</div>
-                ${job.notes ? `<div class="notes-box">Note: ${job.notes}</div>` : ''}
+                <div style="font-weight: 600; font-size: 14px; color: #0f172a;">${esc(job.title)}</div>
+                ${job.notes ? `<div class="notes-box">Note: ${esc(job.notes)}</div>` : ''}
               </td>
               <td style="font-size: 13px; color: #64748B; padding-top: 18px;">${statusText}</td>
               <td class="price-cell" style="padding-top: 18px;">£${(job.price || 0).toFixed(2)}</td>
@@ -236,14 +240,14 @@ export const generateJobSheet = async (job: JobData) => {
               : '<div style="height: 40px;"></div>'
             }
             <div class="sig-line"></div>
-            <div style="font-size: 10px; color: #94a3b8; margin-top: 5px;">Signed by ${job.customer_snapshot?.name || 'Client'}</div>
+            <div style="font-size: 10px; color: #94a3b8; margin-top: 5px;">Signed by ${esc(job.customer_snapshot?.name || 'Client')}</div>
           </div>
 
           <div class="sig-box">
              <div class="col-label">Authorised By</div>
              <div style="height: 40px;"></div>
              <div class="sig-line"></div>
-             <div style="font-size: 10px; color: #94a3b8; margin-top: 5px;">${companyData.name}</div>
+             <div style="font-size: 10px; color: #94a3b8; margin-top: 5px;">${esc(companyData.name)}</div>
           </div>
         </div>
 

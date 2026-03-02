@@ -3,28 +3,28 @@
 // Step 1 – Landlord & Tenant details
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
+import {Ionicons} from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useEffect } from 'react';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router} from 'expo-router';
+import React, {useEffect} from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CustomerSelector } from '../../../components/CustomerSelector';
-import { Colors, UI } from '../../../constants/theme';
-import { useCP12 } from '../../../src/context/CP12Context';
-import { useAppTheme } from '../../../src/context/ThemeContext';
+import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {CustomerSelector} from '../../../components/CustomerSelector';
+import {Colors, UI} from '../../../constants/theme';
+import {useCP12} from '../../../src/context/CP12Context';
+import {useAppTheme} from '../../../src/context/ThemeContext';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -33,7 +33,7 @@ const CP12_DUPLICATE_SEED_KEY = 'cp12_duplicate_seed_v1';
 
 // ─── Step indicator ─────────────────────────────────────────────
 
-const StepIndicator = ({ current }: { current: number }) => (
+const StepIndicator = ({current}: {current: number}) => (
   <View style={s.stepRow}>
     {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
       const step = i + 1;
@@ -54,7 +54,7 @@ const StepIndicator = ({ current }: { current: number }) => (
               <Text
                 style={[
                   s.stepDotText,
-                  (isActive || isDone) && { color: UI.text.white },
+                  (isActive || isDone) && {color: UI.text.white},
                 ]}
               >
                 {step}
@@ -97,7 +97,7 @@ const FormInput = ({
           name={icon}
           size={18}
           color={UI.text.muted}
-          style={{ marginRight: 10 }}
+          style={{marginRight: 10}}
         />
       )}
       <TextInput
@@ -116,7 +116,7 @@ const FormInput = ({
 // ─── Main screen ────────────────────────────────────────────────
 
 export default function CP12DetailsScreen() {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const {
     landlordForm,
@@ -183,19 +183,19 @@ export default function CP12DetailsScreen() {
     <View style={s.root}>
       <LinearGradient
         colors={theme.gradients.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
         style={StyleSheet.absoluteFill}
       />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{flex: 1}}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={[
             s.scroll,
-            { paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + 100 },
+            {paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + 100},
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -204,14 +204,14 @@ export default function CP12DetailsScreen() {
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={[s.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+              style={[s.backBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
               activeOpacity={0.7}
             >
               <Ionicons name="arrow-back" size={22} color={theme.text.title} />
             </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.title, { color: theme.text.title }]}>Gas Certificate</Text>
-              <Text style={[s.subtitle, { color: theme.text.muted }]}>Landlord / Homeowner Gas Safety Record</Text>
+            <View style={{flex: 1}}>
+              <Text style={[s.title, {color: theme.text.title}]}>Gas Certificate</Text>
+              <Text style={[s.subtitle, {color: theme.text.muted}]}>Landlord / Homeowner Gas Safety Record</Text>
             </View>
           </Animated.View>
 
@@ -241,7 +241,7 @@ export default function CP12DetailsScreen() {
 
           {/* Tenant Details */}
           <Animated.View entering={FadeInDown.delay(250).springify()}>
-            <View style={[s.sectionHeader, { marginTop: 24 }]}>
+            <View style={[s.sectionHeader, {marginTop: 24}]}>
               <LinearGradient
                 colors={UI.gradients.successLight}
                 style={s.sectionIcon}
@@ -285,7 +285,7 @@ export default function CP12DetailsScreen() {
 
           {/* Property / Inspection Address */}
           <Animated.View entering={FadeInDown.delay(350).springify()}>
-            <View style={[s.sectionHeader, { marginTop: 24 }]}>
+            <View style={[s.sectionHeader, {marginTop: 24}]}>
               <LinearGradient
                 colors={UI.gradients.amberLight}
                 style={s.sectionIcon}
@@ -316,7 +316,7 @@ export default function CP12DetailsScreen() {
               />
 
               <View style={s.row}>
-                <View style={{ flex: 1 }}>
+                <View style={{flex: 1}}>
                   <FormInput
                     label="City / Town"
                     value={tenantCity}
@@ -325,7 +325,7 @@ export default function CP12DetailsScreen() {
                     autoCapitalize="words"
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{flex: 1}}>
                   <FormInput
                     label="Postcode"
                     value={tenantPostCode}
@@ -360,7 +360,7 @@ export default function CP12DetailsScreen() {
         {/* Bottom CTA */}
         <Animated.View
           entering={FadeIn.delay(500)}
-          style={[s.bottomBar, { bottom: TAB_BAR_HEIGHT, paddingBottom: 12 }]}
+          style={[s.bottomBar, {bottom: TAB_BAR_HEIGHT, paddingBottom: 12}]}
         >
           <TouchableOpacity
             style={s.nextBtn}
@@ -369,8 +369,8 @@ export default function CP12DetailsScreen() {
           >
             <LinearGradient
               colors={UI.gradients.primaryDark}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 0}}
               style={s.nextGradient}
             >
               <Text style={s.nextText}>Next: Add Appliances</Text>
@@ -386,11 +386,11 @@ export default function CP12DetailsScreen() {
 // ─── Styles ─────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { paddingHorizontal: 20 },
+  root: {flex: 1},
+  scroll: {paddingHorizontal: 20},
 
   // Header
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
+  header: {flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12},
   backBtn: {
     width: 40,
     height: 40,
@@ -401,8 +401,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2 },
+  title: {fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5},
+  subtitle: {fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2},
 
   // Step indicator
   stepRow: {
@@ -416,7 +416,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: GLASS_BORDER,
   },
-  stepItem: { alignItems: 'center', gap: 6 },
+  stepItem: {alignItems: 'center', gap: 6},
   stepDot: {
     width: 28,
     height: 28,
@@ -425,14 +425,14 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  stepDotActive: { backgroundColor: UI.brand.primary },
-  stepDotDone: { backgroundColor: UI.status.complete },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: UI.text.muted },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted },
-  stepLabelActive: { color: UI.brand.primary },
+  stepDotActive: {backgroundColor: UI.brand.primary},
+  stepDotDone: {backgroundColor: UI.status.complete},
+  stepDotText: {fontSize: 12, fontWeight: '700', color: UI.text.muted},
+  stepLabel: {fontSize: 11, fontWeight: '600', color: UI.text.muted},
+  stepLabelActive: {color: UI.brand.primary},
 
   // Sections
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  sectionHeader: {flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12},
   sectionIcon: {
     width: 32,
     height: 32,
@@ -440,7 +440,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: UI.text.title },
+  sectionTitle: {fontSize: 17, fontWeight: '700', color: UI.text.title},
 
   // Optional badge
   optionalBadge: {
@@ -450,7 +450,7 @@ const s = StyleSheet.create({
     borderRadius: 6,
     marginLeft: 'auto',
   },
-  optionalText: { fontSize: 10, fontWeight: '700', color: UI.status.complete, textTransform: 'uppercase', letterSpacing: 0.5 },
+  optionalText: {fontSize: 10, fontWeight: '700', color: UI.status.complete, textTransform: 'uppercase', letterSpacing: 0.5},
 
   // Card
   card: {
@@ -460,15 +460,15 @@ const s = StyleSheet.create({
     borderColor: GLASS_BORDER,
     padding: 16,
     shadowColor: UI.text.muted,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
   },
 
   // Inputs
-  inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6 },
+  inputContainer: {marginBottom: 14},
+  inputLabel: {fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6},
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -479,10 +479,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
-  input: { flex: 1, fontSize: 15, color: UI.text.title, padding: 0 },
+  input: {flex: 1, fontSize: 15, color: UI.text.title, padding: 0},
 
   // Row (side-by-side fields)
-  row: { flexDirection: 'row', gap: 10 },
+  row: {flexDirection: 'row', gap: 10},
 
   // Hint text
   hintText: {
@@ -505,7 +505,7 @@ const s = StyleSheet.create({
     backgroundColor: UI.surface.primaryLight,
     marginTop: 2,
   },
-  autofillText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
+  autofillText: {fontSize: 12, fontWeight: '600', color: Colors.primary},
 
   // Address preview
   previewRow: {
@@ -517,7 +517,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: UI.surface.elevated,
   },
-  previewText: { fontSize: 13, color: UI.text.bodyLight, fontWeight: '500', flex: 1 },
+  previewText: {fontSize: 13, color: UI.text.bodyLight, fontWeight: '500', flex: 1},
 
   // Bottom bar
   bottomBar: {
@@ -530,7 +530,7 @@ const s = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0,0,0,0.06)',
   },
-  nextBtn: { borderRadius: 16, overflow: 'hidden' },
+  nextBtn: {borderRadius: 16, overflow: 'hidden'},
   nextGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -538,5 +538,5 @@ const s = StyleSheet.create({
     paddingVertical: 16,
     gap: 8,
   },
-  nextText: { fontSize: 16, fontWeight: '700', color: UI.text.white },
+  nextText: {fontSize: 16, fontWeight: '700', color: UI.text.white},
 });

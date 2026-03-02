@@ -25,5 +25,13 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
+  },
+  "workbench.colorCustomizations": {
+    "input.background": "#191a1c",
+    "panel.background": "#191a1c",
+    "editorWidget.background": "#191a1c",
+    "statusBar.border": "#121216",
+    "minimap.background": "#00000000",
+    "scrollbar.shadow": "#00000000"
   }
 }

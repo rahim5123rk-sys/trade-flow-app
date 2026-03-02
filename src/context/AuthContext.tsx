@@ -1,12 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Session, User } from '@supabase/supabase-js';
+import {Session, User} from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
-import { router } from 'expo-router';
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { supabase } from '../config/supabase';
+import {router} from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
+import {supabase} from '../config/supabase';
 
 const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
 const LAST_HANDLED_AUTH_URL_KEY = '@tradeflow_last_handled_auth_url';
+
+/** Simple hash to avoid storing raw auth URLs (which contain tokens) */
+function hashString(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return hash.toString(36);
+}
 
 type UserRole = 'admin' | 'worker';
 interface UserProfile {
@@ -34,14 +44,14 @@ const AuthContext = createContext<AuthState>({
   userProfile: null,
   isLoading: true,
   role: null,
-  signOut: async () => {},
+  signOut: async () => { },
   refreshProfile: async () => null,
-  setRegistering: () => {},
+  setRegistering: () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,15 +65,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
     let token = tokenToUse || session?.access_token;
-    
+
     if (!token) {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const {data: {session: currentSession}} = await supabase.auth.getSession();
       token = currentSession?.access_token;
     }
 
     if (!token) {
       console.log('No token available for profile fetch');
-      throw new Error('No authentication token'); 
+      throw new Error('No authentication token');
     }
 
     const response = await fetch(
@@ -101,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    */
   const completePendingRegistration = async (userId: string, accessToken: string): Promise<boolean> => {
     try {
-      const raw = await AsyncStorage.getItem(PENDING_REGISTRATION_KEY);
+      const raw = await SecureStore.getItemAsync(PENDING_REGISTRATION_KEY);
       if (!raw) return false;
 
       const pendingData = JSON.parse(raw);
@@ -163,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Only remove pending data after successful completion
-      await AsyncStorage.removeItem(PENDING_REGISTRATION_KEY);
+      await SecureStore.deleteItemAsync(PENDING_REGISTRATION_KEY);
       console.log('[Auth] Pending registration completed and cleaned up');
       return true;
     } catch (e) {
@@ -175,7 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const parseParams = (url: string): Record<string, string> => {
       const parsed = Linking.parse(url);
-      const params = { ...(parsed.queryParams || {}) } as Record<string, string>;
+      const params = {...(parsed.queryParams || {})} as Record<string, string>;
       const hash = url.split('#')[1];
 
       if (hash) {
@@ -214,7 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Deduplicate across app restarts.
         const lastHandledUrl = await AsyncStorage.getItem(LAST_HANDLED_AUTH_URL_KEY);
-        if (lastHandledUrl === url) {
+        if (lastHandledUrl === hashString(url)) {
           console.log('[Auth] Skipping already-handled URL (persisted)');
           return;
         }
@@ -228,7 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (code) {
           await supabase.auth.exchangeCodeForSession(code);
-          await AsyncStorage.setItem(LAST_HANDLED_AUTH_URL_KEY, url);
+          await AsyncStorage.setItem(LAST_HANDLED_AUTH_URL_KEY, hashString(url));
           if (type === 'recovery') {
             router.replace('/(auth)/reset-password');
           }
@@ -236,8 +246,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (accessToken && refreshToken) {
-          await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-          await AsyncStorage.setItem(LAST_HANDLED_AUTH_URL_KEY, url);
+          await supabase.auth.setSession({access_token: accessToken, refresh_token: refreshToken});
+          await AsyncStorage.setItem(LAST_HANDLED_AUTH_URL_KEY, hashString(url));
           if (type === 'recovery') {
             router.replace('/(auth)/reset-password');
           }
@@ -251,7 +261,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       handleAuthUrl(url);
     });
 
-    const urlSub = Linking.addEventListener('url', ({ url }) => {
+    const urlSub = Linking.addEventListener('url', ({url}) => {
       handleAuthUrl(url);
     });
 
@@ -259,16 +269,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         if (isRegistering.current) return;
 
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        const {data: {session: currentSession}} = await supabase.auth.getSession();
 
         if (isRegistering.current) return;
 
         setSession(currentSession);
-        
+
         if (currentSession?.user) {
           try {
             const profile = await fetchProfile(currentSession.user.id, currentSession.access_token);
-            
+
             // Strictly check for null (database confirmed missing). 
             // Ignore if it threw an error (handled by the catch block below)
             if (profile === null && !isRegistering.current) {
@@ -304,7 +314,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
 
     const {
-      data: { subscription },
+      data: {subscription},
     } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       setSession(currentSession);
 

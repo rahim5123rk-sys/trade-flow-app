@@ -1,16 +1,16 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import {Ionicons} from '@expo/vector-icons';
+import {router} from 'expo-router';
 import React from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI } from '../../../constants/theme';
-import { useAppTheme } from '../../../src/context/ThemeContext';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Colors, UI} from '../../../constants/theme';
+import {useAppTheme} from '../../../src/context/ThemeContext';
 
 const SECTIONS = [
   {
@@ -99,34 +99,34 @@ To exercise any of these rights, use the relevant feature in Settings or contact
 
 export default function PrivacyPolicyScreen() {
   const insets = useSafeAreaInsets();
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.surface.base }]}> 
+    <View style={[styles.container, {paddingTop: insets.top, backgroundColor: theme.surface.base}]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, isDark && { backgroundColor: theme.surface.elevated }]}> 
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, isDark && {backgroundColor: theme.surface.elevated}]}>
           <Ionicons name="arrow-back" size={24} color={theme.text.title} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text.title }]}>Privacy Policy</Text>
-        <View style={{ width: 40 }} />
+        <Text style={[styles.headerTitle, {color: theme.text.title}]}>Privacy Policy</Text>
+        <View style={{width: 40}} />
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        contentContainerStyle={[styles.content, {paddingBottom: insets.bottom + 40}]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.badge, isDark && { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
+        <View style={[styles.badge, isDark && {backgroundColor: 'rgba(255,255,255,0.08)'}]}>
           <Ionicons name="shield-checkmark" size={18} color={UI.brand.primary} />
           <Text style={styles.badgeText}>GDPR Compliant</Text>
         </View>
 
-        <Text style={[styles.lastUpdated, { color: theme.text.muted }]}>Last updated: 1 March 2026</Text>
+        <Text style={[styles.lastUpdated, {color: theme.text.muted}]}>Last updated: 1 March 2026</Text>
 
         {SECTIONS.map((s, i) => (
           <View key={i} style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text.title }]}>{s.title}</Text>
-            <Text style={[styles.sectionBody, { color: theme.text.body }]}>{s.body}</Text>
+            <Text style={[styles.sectionTitle, {color: theme.text.title}]}>{s.title}</Text>
+            <Text style={[styles.sectionBody, {color: theme.text.body}]}>{s.body}</Text>
           </View>
         ))}
       </ScrollView>
@@ -135,7 +135,7 @@ export default function PrivacyPolicyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: {flex: 1, backgroundColor: '#fff'},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
   },
-  content: { paddingHorizontal: 20, paddingTop: 20 },
+  content: {paddingHorizontal: 20, paddingTop: 20},
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -171,13 +171,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 12,
   },
-  badgeText: { fontSize: 12, fontWeight: '700', color: UI.brand.primary },
+  badgeText: {fontSize: 12, fontWeight: '700', color: UI.brand.primary},
   lastUpdated: {
     fontSize: 13,
     color: UI.text.muted,
     marginBottom: 24,
   },
-  section: { marginBottom: 24 },
+  section: {marginBottom: 24},
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
