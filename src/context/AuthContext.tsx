@@ -6,6 +6,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { supabase } from '../config/supabase';
 
 const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
+const LAST_HANDLED_AUTH_URL_KEY = '@tradeflow_last_handled_auth_url';
 
 type UserRole = 'admin' | 'worker';
 interface UserProfile {
@@ -193,20 +194,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleAuthUrl = async (url: string | null) => {
       if (!url) return;
 
-      // Deduplicate — don't re-process already-handled deep links
-      // (getInitialURL can return the same stale URL on every cold start)
-      if (handledUrls.current.has(url)) {
-        console.log('[Auth] Skipping already-handled URL');
-        return;
-      }
-      handledUrls.current.add(url);
-
       try {
         const params = parseParams(url);
         const code = params.code;
         const accessToken = params.access_token;
         const refreshToken = params.refresh_token;
         const type = params.type;
+
+        const hasAuthPayload = Boolean(code || (accessToken && refreshToken));
+        if (!hasAuthPayload) {
+          return;
+        }
+
+        // Deduplicate in-memory for this runtime.
+        if (handledUrls.current.has(url)) {
+          console.log('[Auth] Skipping already-handled URL (runtime)');
+          return;
+        }
+
+        // Deduplicate across app restarts.
+        const lastHandledUrl = await AsyncStorage.getItem(LAST_HANDLED_AUTH_URL_KEY);
+        if (lastHandledUrl === url) {
+          console.log('[Auth] Skipping already-handled URL (persisted)');
+          return;
+        }
+
+        handledUrls.current.add(url);
 
         // Only treat as recovery if the URL explicitly says so
         if (type === 'recovery') {
@@ -215,6 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (code) {
           await supabase.auth.exchangeCodeForSession(code);
+          await AsyncStorage.setItem(LAST_HANDLED_AUTH_URL_KEY, url);
           if (type === 'recovery') {
             router.replace('/(auth)/reset-password');
           }
@@ -223,6 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (accessToken && refreshToken) {
           await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          await AsyncStorage.setItem(LAST_HANDLED_AUTH_URL_KEY, url);
           if (type === 'recovery') {
             router.replace('/(auth)/reset-password');
           }
