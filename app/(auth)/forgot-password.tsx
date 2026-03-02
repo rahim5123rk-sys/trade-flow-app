@@ -1,6 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import * as Linking from 'expo-linking';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -32,7 +31,9 @@ export default function ForgotPasswordScreen() {
 
     setSending(true);
     try {
-      const redirectTo = Linking.createURL('reset-password');
+      // Always use the production scheme so the link works on real devices
+      // and isn't broken by the Expo dev client URL format
+      const redirectTo = 'tradeflowapp://reset-password';
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
       if (error) {
         Alert.alert('Reset Failed', error.message);
