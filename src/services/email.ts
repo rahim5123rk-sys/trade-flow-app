@@ -127,11 +127,11 @@ export async function sendCp12CertificateEmail({
     throw new Error('No valid recipient emails found.');
   }
 
-  const subject = (subjectOverride || '').trim() || `CP12 Gas Safety Certificate ${certRef}`;
+  const subject = (subjectOverride || '').trim() || `Gas Safety Certificate ${certRef}`;
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#0f172a;line-height:1.5;">
-      <h2 style="margin:0 0 12px;">Your CP12 Gas Safety Certificate</h2>
+      <h2 style="margin:0 0 12px;">Your Gas Safety Certificate</h2>
       <p style="margin:0 0 12px;">Please find your Gas Safety Record attached as a PDF.</p>
       <table style="width:100%;border-collapse:collapse;margin:12px 0 20px;">
         <tr>
@@ -167,7 +167,7 @@ export async function sendCp12CertificateEmail({
     to: recipients,
     subject,
     html,
-    attachmentName: `${certRef || 'cp12-certificate'}.pdf`,
+    attachmentName: `${certRef || 'gas-safety-certificate'}.pdf`,
     pdfBase64,
   });
 }

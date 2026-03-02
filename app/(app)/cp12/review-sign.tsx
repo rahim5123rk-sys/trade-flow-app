@@ -212,7 +212,7 @@ export default function ReviewSign() {
       status: 'Sent' as const,
       customer_id: landlordForm.customerId || null,
       customer_snapshot: {
-        name: landlordForm.customerName || tenantName || 'CP12 Customer',
+        name: landlordForm.customerName || tenantName || 'Gas Safety Customer',
         company_name: landlordForm.customerCompany || null,
         address_line_1: landlordForm.addressLine1 || null,
         address_line_2: landlordForm.addressLine2 || null,
@@ -228,7 +228,7 @@ export default function ReviewSign() {
       subtotal: 0,
       discount_percent: 0,
       total: 0,
-      notes: 'CP12 Gas Safety Certificate (locked snapshot)',
+      notes: 'Gas Safety Certificate (locked snapshot)',
       payment_info: JSON.stringify(lockedPayload),
     };
 
@@ -280,7 +280,7 @@ export default function ReviewSign() {
     }
 
     if (offlineModeEnabled) {
-      Alert.alert('Offline Mode', 'Disable Offline Mode to save, view, or send CP12 certificates.');
+      Alert.alert('Offline Mode', 'Disable Offline Mode to save, view, or send gas certificates.');
       return;
     }
 
@@ -290,7 +290,7 @@ export default function ReviewSign() {
       const { lockedPayload, documentId } = await createCp12Document(cp12Reference);
 
       if (!documentId) {
-        throw new Error('Failed to create CP12 document record.');
+        throw new Error('Failed to create gas certificate document record.');
       }
 
       if (action === 'save') {
@@ -354,7 +354,7 @@ export default function ReviewSign() {
         ],
       );
     } catch (err: any) {
-      Alert.alert('PDF Error', err?.message || 'Failed to generate CP12 PDF.');
+      Alert.alert('PDF Error', err?.message || 'Failed to generate gas certificate PDF.');
     } finally {
       setProcessingAction(null);
     }
@@ -419,6 +419,8 @@ export default function ReviewSign() {
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={onInspDateChange}
+                  textColor="#000000"
+                  themeVariant="light"
                 />
               )}
             </View>
@@ -440,6 +442,8 @@ export default function ReviewSign() {
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={onDueDateChange}
+                  textColor="#000000"
+                  themeVariant="light"
                 />
               )}
             </View>

@@ -47,7 +47,7 @@ const ADMIN_TIPS: OnboardingTip[] = [
   },
   {
     title: 'Quick Actions',
-    description: 'Tap these shortcuts to create jobs, quotes, invoices, add clients or generate CP12 certificates.',
+    description: 'Tap these shortcuts to create jobs, quotes, invoices, add clients or generate gas certificates.',
     icon: 'flash-outline',
     arrowDirection: 'down',
     accent: '#7C3AED',
@@ -556,7 +556,7 @@ export default function DashboardScreen() {
               />
               <QuickAction
                 icon="flame"
-                label="CP12"
+                label="Gas Cert"
                 gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.danger}
                 onPress={() => router.push('/(app)/cp12' as any)}
                 delay={500}

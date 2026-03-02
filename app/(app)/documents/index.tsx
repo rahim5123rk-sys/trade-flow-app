@@ -50,7 +50,7 @@ const FILTERS: { key: FilterType; label: string; icon: keyof typeof Ionicons.gly
   { key: 'all', label: 'All', icon: 'albums-outline' },
   { key: 'invoice', label: 'Invoices', icon: 'receipt-outline' },
   { key: 'quote', label: 'Quotes', icon: 'document-text-outline' },
-  { key: 'cp12', label: 'CP12', icon: 'shield-checkmark-outline' },
+  { key: 'cp12', label: 'Gas Certs', icon: 'shield-checkmark-outline' },
   { key: 'unpaid', label: 'Unpaid', icon: 'alert-circle-outline' },
   { key: 'draft', label: 'Drafts', icon: 'create-outline' },
 ];
@@ -134,10 +134,10 @@ export default function DocumentsHubScreen() {
 
   const handleDelete = (doc: Document) => {
     const isCp12 = isCp12Document(doc);
-    const label = isCp12 ? 'CP12 Certificate' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
+    const label = isCp12 ? 'Gas Certificate' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
     Alert.alert(
       `Delete ${label}`,
-      `Are you sure you want to delete ${isCp12 ? `${doc.reference || `CP12 #${doc.number}`}` : `${doc.type === 'invoice' ? 'Invoice' : 'Quote'} #${doc.number}`}? This cannot be undone.`,
+      `Are you sure you want to delete ${isCp12 ? `${doc.reference || `Gas Cert #${doc.number}`}` : `${doc.type === 'invoice' ? 'Invoice' : 'Quote'} #${doc.number}`}? This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -252,7 +252,7 @@ export default function DocumentsHubScreen() {
                   {isCp12 ? (
                     <View style={st.cp12Badge}>
                       <Ionicons name="shield-checkmark" size={12} color={UI.text.white} />
-                      <Text style={st.cp12BadgeText}>CP12</Text>
+                      <Text style={st.cp12BadgeText}>LGSR</Text>
                     </View>
                   ) : (
                     <Text style={[st.cardTotal, { color: theme.text.title }]}>£{item.total?.toFixed(2) || '0.00'}</Text>
@@ -310,7 +310,7 @@ export default function DocumentsHubScreen() {
           <Animated.View entering={FadeInDown.delay(50).springify()} style={st.header}>
             <View>
               <Text style={[st.screenTitle, { color: theme.text.title }]}>Documents</Text>
-              <Text style={[st.screenSubtitle, { color: theme.text.muted }]}>Invoices, Quotes & CP12s</Text>
+              <Text style={[st.screenSubtitle, { color: theme.text.muted }]}>Invoices, Quotes & Gas Certificates</Text>
             </View>
             <View style={st.headerBadges}>
               <View style={[st.countBadge, { backgroundColor: isDark ? theme.surface.elevated : '#FFF7ED', borderWidth: isDark ? 1 : 0, borderColor: isDark ? theme.surface.border : 'transparent' }]}>
@@ -360,7 +360,7 @@ export default function DocumentsHubScreen() {
               <LinearGradient colors={UI.gradients.cp12} style={st.createGradient}>
                 <Ionicons name="shield-checkmark" size={18} color={UI.text.white} />
               </LinearGradient>
-              <Text style={[st.createBtnText, { color: theme.text.body }]}>CP12</Text>
+              <Text style={[st.createBtnText, { color: theme.text.body }]}>Gas Cert</Text>
             </TouchableOpacity>
           </Animated.View>
 
@@ -454,7 +454,7 @@ export default function DocumentsHubScreen() {
                   </View>
                   <Text style={[st.emptyTitle, { color: theme.text.body }]}>
                     {filter === 'cp12'
-                      ? 'No CP12 certificates yet'
+                      ? 'No gas certificates yet'
                       : filter === 'invoice'
                         ? 'No invoices found'
                         : filter === 'quote'
@@ -463,7 +463,7 @@ export default function DocumentsHubScreen() {
                   </Text>
                   <Text style={[st.emptySubtitle, { color: theme.text.muted }]}>
                     {filter === 'cp12'
-                      ? 'Create your first gas safety certificate above.'
+                      ? 'Create your first gas certificate above.'
                       : 'Try adjusting your filters or create one above.'}
                   </Text>
                 </View>

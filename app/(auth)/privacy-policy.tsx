@@ -24,9 +24,9 @@ const SECTIONS = [
 • Account Data: Name, email address, password (hashed), company name, business address, phone number, trade type.
 • Professional Data: Gas Safe Register number, gas licence number, OFTEC number (where applicable).
 • Customer Data: Customer name, company name, address, postcode, email, phone number.
-• Tenant & Landlord Data: Name, address, email, phone number (for CP12 gas safety certificates).
+• Tenant & Landlord Data: Name, address, email, phone number (for gas safety certificates / LGSRs).
 • Job Data: Job descriptions, notes, photos, site addresses.
-• Document Data: Invoices, quotes, CP12 certificates including customer/landlord/tenant details.
+• Document Data: Invoices, quotes, gas safety certificates including customer/landlord/tenant details.
 • Digital Signatures: Handwritten signatures captured digitally for certificates and documents.
 • Device Data: Push notification tokens, device type (for notifications only).
 • Email Communication Data: Recipient email addresses, email subject lines, and document attachments when you send documents (invoices, quotes, certificates) via email from the App.`,
@@ -47,7 +47,7 @@ const SECTIONS = [
 • Supabase (Database & Authentication): Your data is stored securely in Supabase's cloud infrastructure. Supabase acts as our data processor under a Data Processing Agreement.
 • Expo Push Notification Service: Device push tokens are sent to Expo's servers to deliver notifications. No personal data beyond the token and notification content is shared.
 • Resend (Email Delivery): When you send documents via email through the App, we use Resend (resend.com) as our transactional email provider. Resend processes recipient email addresses, email content, and any PDF attachments solely to deliver the email on your behalf. Resend acts as our data processor under their Data Processing Agreement.
-• PDF Recipients: When you share a PDF (invoice, quote, CP12 certificate) via the share sheet or email, the document may contain personal data. You control who receives these documents.
+• PDF Recipients: When you share a PDF (invoice, quote, gas safety certificate) via the share sheet or email, the document may contain personal data. You control who receives these documents.
 
 We do not sell your data to third parties. We do not use your data for advertising or profiling.`,
   },
@@ -55,7 +55,7 @@ We do not sell your data to third parties. We do not use your data for advertisi
     title: '5. Data Retention',
     body: `• Account data is retained for as long as your account is active.
 • Customer and job data is retained until you delete it or delete your account.
-• CP12 gas safety certificates are retained for a minimum of 2 years as required by law (Regulation 36).
+• Gas safety certificates (LGSRs) are retained for a minimum of 2 years as required by law (Regulation 36).
 • When you delete your account, all personal data is permanently removed within 30 days, except where retention is required by law.
 • Document snapshots (locked certificates) are anonymised when the associated customer is deleted.`,
   },

@@ -357,7 +357,7 @@ export default function CreateJobScreen() {
         {/* Date/Time Picker Modal */}
         <Modal transparent visible={showDatePicker} animationType="fade">
           <View style={[styles.modalOverlay]}>
-            <View style={[styles.pickerModalContent, isDark && { backgroundColor: theme.surface.card }]}>
+            <View style={[styles.pickerModalContent]}>
               <DateTimePicker
                 value={scheduledDate}
                 mode={pickerMode}

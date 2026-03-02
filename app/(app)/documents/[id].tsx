@@ -246,7 +246,7 @@ export default function DocumentDetailScreen() {
       );
       await sendCp12CertificateEmail({
         to: recipients,
-        certRef: doc?.reference || cp12Payload.pdfData.certRef || 'CP12',
+        certRef: doc?.reference || cp12Payload.pdfData.certRef || 'LGSR',
         propertyAddress: cp12Payload.pdfData.propertyAddress,
         inspectionDate: cp12Payload.pdfData.inspectionDate,
         nextDueDate: cp12Payload.pdfData.nextDueDate,
@@ -273,7 +273,7 @@ export default function DocumentDetailScreen() {
     }
     const cp12Payload = parseCp12Payload(doc);
     const isCp12 = !!cp12Payload || doc.type === 'cp12' || doc.reference?.startsWith('CP12-');
-    const label = isCp12 ? 'CP12 Certificate' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
+    const label = isCp12 ? 'Gas Certificate' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
     Alert.alert(
       `Delete ${label}`,
       'This cannot be undone.',
@@ -305,7 +305,7 @@ export default function DocumentDetailScreen() {
       );
       router.push('/(app)/cp12' as any);
     } catch {
-      Alert.alert('Error', 'Could not duplicate this CP12 certificate.');
+      Alert.alert('Error', 'Could not duplicate this gas certificate.');
     } finally {
       setDuplicating(false);
     }
@@ -324,7 +324,7 @@ export default function DocumentDetailScreen() {
 
   // Document type config
   const typeConfig = isCp12
-    ? { label: 'CP12 CERTIFICATE', icon: 'shield-checkmark-outline' as const, color: UI.brand.primary, bg: UI.surface.base, gradient: UI.gradients.cp12 }
+    ? { label: 'GAS CERTIFICATE', icon: 'shield-checkmark-outline' as const, color: UI.brand.primary, bg: UI.surface.base, gradient: UI.gradients.cp12 }
     : isInvoice
       ? { label: 'INVOICE', icon: 'receipt-outline' as const, color: '#C2410C', bg: '#FFF7ED', gradient: UI.gradients.amberLight }
       : { label: 'QUOTE', icon: 'document-text-outline' as const, color: UI.brand.primary, bg: UI.surface.primaryLight, gradient: UI.gradients.primary };
@@ -523,7 +523,7 @@ export default function DocumentDetailScreen() {
           </View>
 
           {/* Notes */}
-          {doc.notes && !doc.notes.includes('CP12') ? (
+          {doc.notes && !doc.notes.includes('CP12') && !doc.notes.includes('Gas Safety Certificate') ? (
             <View style={styles.section}>
             <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>Notes</Text>
             <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
@@ -638,7 +638,7 @@ export default function DocumentDetailScreen() {
 
         <TouchableOpacity style={[styles.deleteAction, isDark && { backgroundColor: theme.surface.elevated, borderColor: '#FCA5A5' }]} onPress={handleDelete} disabled={isBusy}>
           <Ionicons name="trash-outline" size={18} color={Colors.danger} />
-          <Text style={styles.deleteActionText}>Delete {isCp12 ? 'CP12' : isInvoice ? 'Invoice' : 'Quote'}</Text>
+          <Text style={styles.deleteActionText}>Delete {isCp12 ? 'Certificate' : isInvoice ? 'Invoice' : 'Quote'}</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -650,7 +650,7 @@ export default function DocumentDetailScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, isDark && { backgroundColor: theme.surface.card }]}>
-            <Text style={[styles.modalTitle, isDark && { color: theme.text.title }]}>Send CP12 Email</Text>
+            <Text style={[styles.modalTitle, isDark && { color: theme.text.title }]}>Send Gas Certificate Email</Text>
             <Text style={[styles.modalSubtitle, isDark && { color: theme.text.muted }]}>Edit the subject line before sending.</Text>
 
             <Text style={[styles.modalLabel, isDark && { color: theme.text.body }]}>Subject</Text>
@@ -658,7 +658,7 @@ export default function DocumentDetailScreen() {
               style={[styles.modalInput, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
               value={emailSubject}
               onChangeText={setEmailSubject}
-              placeholder="CP12 Gas Safety Certificate"
+              placeholder="Gas Safety Certificate"
               placeholderTextColor={isDark ? theme.text.placeholder : UI.text.muted}
               autoCapitalize="sentences"
             />

@@ -599,7 +599,7 @@ export default function SettingsScreen() {
     }
 
     if (!cp12ReminderEnabled) {
-      Alert.alert('Reminders Disabled', 'Enable CP12 reminders first.');
+      Alert.alert('Reminders Disabled', 'Enable gas certificate reminders first.');
       return;
     }
 
@@ -658,11 +658,11 @@ export default function SettingsScreen() {
 
         if (!recipients.length) continue;
 
-        const subject = `CP12 Reminder: Certificate ${doc.reference || ''} expires on ${doc.expiry_date}`;
+        const subject = `Gas Safety Reminder: Certificate ${doc.reference || ''} expires on ${doc.expiry_date}`;
         const html = `
           <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#0f172a;line-height:1.5;">
-            <h2 style="margin:0 0 12px;">CP12 Renewal Reminder</h2>
-            <p style="margin:0 0 12px;">Your CP12 certificate is due to expire soon.</p>
+            <h2 style="margin:0 0 12px;">Gas Safety Renewal Reminder</h2>
+            <p style="margin:0 0 12px;">Your gas safety certificate is due to expire soon.</p>
             <table style="width:100%;border-collapse:collapse;margin:12px 0 20px;">
               <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Reference</td><td style="padding:8px;border:1px solid #e2e8f0;">${doc.reference || 'N/A'}</td></tr>
               <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Property</td><td style="padding:8px;border:1px solid #e2e8f0;">${propertyAddress || 'N/A'}</td></tr>
@@ -677,9 +677,9 @@ export default function SettingsScreen() {
         sentCount += 1;
       }
 
-      Alert.alert('Reminders Sent', sentCount > 0 ? `Sent ${sentCount} reminder email(s).` : 'No CP12 certificates are due in your reminder window.');
+      Alert.alert('Reminders Sent', sentCount > 0 ? `Sent ${sentCount} reminder email(s).` : 'No gas certificates are due in your reminder window.');
     } catch (error: any) {
-      Alert.alert('Reminder Error', error?.message || 'Failed to send CP12 reminders.');
+      Alert.alert('Reminder Error', error?.message || 'Failed to send gas certificate reminders.');
     } finally {
       setSendingReminders(false);
     }
@@ -917,10 +917,10 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* --- CP12 Reminder Settings --- */}
+        {/* --- Gas Certificate Reminder Settings --- */}
         {isAdmin && (
           <>
-            <SectionHeader title="CP12 Reminders" />
+            <SectionHeader title="Gas Cert Reminders" />
             <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <SettingRow
                 icon="alarm-outline"

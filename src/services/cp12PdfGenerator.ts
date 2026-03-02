@@ -308,7 +308,7 @@ function buildHtml(
   }
 
   .top-bar-cell {
-    background: #212529;
+    background: #1a2e3b;
     color: #fff;
   }
 
@@ -321,7 +321,7 @@ function buildHtml(
     font-size: 6pt;
   }
   th {
-    background: #194763;
+    background: #1a4763;
     color: #fff;
     font-weight: bold;
     font-size: 6pt;
@@ -342,7 +342,7 @@ function buildHtml(
 
   /* ═══ SECTION HEADER BARS ═══ */
   .shdr {
-    background: #194763;
+    background: #1a4763;
     color: #fff;
     font-weight: bold;
     font-size: 7pt;
@@ -363,7 +363,7 @@ function buildHtml(
   }
   .at th { font-size: 4.5pt; line-height: 1.15; }
   .at .grp {
-    background: #194763;
+    background: #1a4763;
     color: #fff;
     font-size: 5.5pt;
     font-weight: bold;
@@ -709,8 +709,8 @@ ${appRows}
      WARNING FOOTER
      ═══════════════════════════════════════════════════════════════════ -->
 <div class="warn">
-  WARNING: In accordance with the Gas Safety (Installation and Use) Regulations 1998, the landlord must retain this record for a period of 2 years.
-  A copy must be issued to each existing tenant within 28 days of the check being completed, and to new tenants before they move in.
+  IMPORTANT NOTICE: In accordance with the Gas Safety (Installation and Use) Regulations 1998 (Regulation 36), the landlord must retain this record for a minimum of 2 years.
+  A copy must be issued to each existing tenant within 28 days of the check being completed, and to any new tenant before they move in.
 </div>
 
 </div>

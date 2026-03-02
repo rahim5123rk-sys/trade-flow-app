@@ -150,7 +150,7 @@ export default function CP12DetailsScreen() {
           appliances: parsed?.appliances,
         });
         await AsyncStorage.removeItem(CP12_DUPLICATE_SEED_KEY);
-        Alert.alert('CP12 Duplicated', 'Appliances and property address have been prefilled from the previous certificate.');
+        Alert.alert('Certificate Duplicated', 'Appliances and property address have been prefilled from the previous certificate.');
       } catch {
         await AsyncStorage.removeItem(CP12_DUPLICATE_SEED_KEY);
       }
@@ -210,8 +210,8 @@ export default function CP12DetailsScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text.title} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[s.title, { color: theme.text.title }]}>CP12 Gas Safety</Text>
-              <Text style={[s.subtitle, { color: theme.text.muted }]}>Landlord Gas Safety Record</Text>
+              <Text style={[s.title, { color: theme.text.title }]}>Gas Certificate</Text>
+              <Text style={[s.subtitle, { color: theme.text.muted }]}>Landlord / Homeowner Gas Safety Record</Text>
             </View>
           </Animated.View>
 

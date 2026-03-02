@@ -361,9 +361,9 @@ export default function EditJobScreen() {
       {/* ─── Date/Time Picker Modal ─── */}
       <Modal transparent visible={showDatePicker} animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.pickerModal, isDark && { backgroundColor: theme.surface.card }]}>
+          <View style={[styles.pickerModal]}>
             <View style={styles.pickerHeader}>
-              <Text style={[styles.pickerTitle, isDark && { color: theme.text.title }]}>
+              <Text style={[styles.pickerTitle]}>
                 {pickerMode === 'date' ? 'Select Date' : 'Select Time'}
               </Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)} activeOpacity={0.7}>

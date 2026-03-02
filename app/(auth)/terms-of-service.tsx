@@ -19,7 +19,7 @@ const SECTIONS = [
   },
   {
     title: '2. Description of Service',
-    body: `TradeFlow is a trade management application that allows tradespeople to manage customers, jobs, invoices, quotes, workers, and gas safety certificates (CP12), and send documents via email. The service is provided "as is" for business use by qualified tradespeople and their teams.`,
+    body: `TradeFlow is a trade management application that allows tradespeople to manage customers, jobs, invoices, quotes, workers, and gas safety certificates (Landlord Gas Safety Records), and send documents via email. The service is provided "as is" for business use by qualified tradespeople and their teams.`,
   },
   {
     title: '3. Account Responsibilities',
@@ -46,8 +46,8 @@ const SECTIONS = [
 As a company administrator, you are responsible for ensuring that you have appropriate consent or legal basis to store customer, tenant, and landlord personal data in the App.`,
   },
   {
-    title: '6. Gas Safety Certificates (CP12)',
-    body: `CP12 gas safety certificates generated through TradeFlow are provided as a digital tool to assist qualified Gas Safe registered engineers.
+    title: '6. Gas Safety Certificates (LGSR)',
+    body: `Gas safety certificates (Landlord Gas Safety Records) generated through TradeFlow are provided as a digital tool to assist qualified Gas Safe registered engineers.
 
 • You are solely responsible for the accuracy of all data entered into certificates.
 • TradeFlow does not verify your Gas Safe registration, qualifications, or ID card number.
