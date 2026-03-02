@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI } from '../../../constants/theme';
+import { UI } from '../../../constants/theme';
 import { useCP12 } from '../../../src/context/CP12Context';
 import { useAppTheme } from '../../../src/context/ThemeContext';
 import { CP12FinalChecks, YesNoNA } from '../../../src/types/cp12';

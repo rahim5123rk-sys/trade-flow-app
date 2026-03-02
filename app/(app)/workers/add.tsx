@@ -11,7 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Colors, UI} from '../../../constants/theme';
+import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useAppTheme } from '../../../src/context/ThemeContext';

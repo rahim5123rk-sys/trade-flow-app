@@ -1,7 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../config/supabase';
 
 type UserRole = 'admin' | 'worker';

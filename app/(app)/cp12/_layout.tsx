@@ -5,7 +5,6 @@
 
 import { Stack } from 'expo-router';
 import React from 'react';
-import { Colors } from '../../../constants/theme';
 import { CP12Provider } from '../../../src/context/CP12Context';
 import { useAppTheme } from '../../../src/context/ThemeContext';
 

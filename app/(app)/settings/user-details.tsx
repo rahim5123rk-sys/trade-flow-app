@@ -145,42 +145,61 @@ export default function UserDetailsScreen() {
       const load = async () => {
         if (!userProfile) return;
         setIsLoading(true);
-        setAcceptedGasSafeTerms(false);
 
         setFullName(userProfile.display_name || '');
         setEmail(user?.email || userProfile.email || '');
 
+        const uid = userIdForSettings || userProfile.id;
+
         if (userProfile.company_id) {
-          const { data, error: settingsError } = await supabase
-            .from('companies')
-            .select('settings')
-            .eq('id', userProfile.company_id)
-            .single();
+          // Step 1: load gas safe numbers from companies.settings
+          try {
+            const { data, error: settingsError } = await supabase
+              .from('companies')
+              .select('settings')
+              .eq('id', userProfile.company_id)
+              .single();
 
-          if (cancelled) return;
-          if (settingsError) throw settingsError;
+            if (cancelled) return;
 
-          const s = data?.settings || {};
-          const ud = getUserDetailsFromSettings(s, userIdForSettings || userProfile.id);
-          const gasSafe = ud.gasSafeRegisterNumber ?? ud.gasSafeNumber ?? ud.gas_safe_register_number;
-          const licence = ud.gasLicenceNumber ?? ud.gasLicenseNumber ?? ud.gas_licence_number ?? ud.gas_licence_no;
-          const oftec = ud.oftecNumber ?? ud.oftec_number;
+            if (settingsError) {
+              console.warn('[UserDetails] Could not load company settings:', settingsError.message);
+            } else {
+              const s = data?.settings || {};
+              const ud = getUserDetailsFromSettings(s, uid);
+              console.log('[UserDetails] Loaded ud for uid', uid, ':', JSON.stringify(ud));
 
-          setGasSafeRegisterNumber(readString(gasSafe));
-          setGasLicenceNumber(readString(licence));
-          setOftecNumber(readString(oftec));
+              const gasSafe = ud.gasSafeRegisterNumber ?? ud.gasSafeNumber ?? ud.gas_safe_register_number;
+              const licence = ud.gasLicenceNumber ?? ud.gasLicenseNumber ?? ud.gas_licence_number ?? ud.gas_licence_no;
+              const oftec = ud.oftecNumber ?? ud.oftec_number;
 
-          const { data: profileData, error: profileTermsError } = await supabase
-            .from('profiles')
-            .select('accepted_gas_safe_terms')
-            .eq('id', userIdForSettings || userProfile.id)
-            .single();
-          if (cancelled) return;
-          if (profileTermsError) throw profileTermsError;
+              setGasSafeRegisterNumber(readString(gasSafe));
+              setGasLicenceNumber(readString(licence));
+              setOftecNumber(readString(oftec));
 
-          const acceptedFromProfile = !!profileData?.accepted_gas_safe_terms;
-          const acceptedFromSettings = !!(ud.acceptedGasSafeTerms ?? ud.accepted_gas_safe_terms);
-          setAcceptedGasSafeTerms(acceptedFromProfile || acceptedFromSettings);
+              // acceptedGasSafeTerms from settings (always available)
+              const acceptedFromSettings = !!(ud.acceptedGasSafeTerms ?? ud.accepted_gas_safe_terms);
+              if (acceptedFromSettings) setAcceptedGasSafeTerms(true);
+            }
+          } catch (e: any) {
+            console.warn('[UserDetails] Company settings load error:', e?.message);
+          }
+
+          // Step 2: cross-check accepted_gas_safe_terms from profiles table
+          // This column may not exist in all deployments — never throw here
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('accepted_gas_safe_terms')
+              .eq('id', uid)
+              .single();
+
+            if (!cancelled && profileData?.accepted_gas_safe_terms) {
+              setAcceptedGasSafeTerms(true);
+            }
+          } catch (e: any) {
+            console.warn('[UserDetails] Profile terms check skipped:', e?.message);
+          }
         }
 
         if (!cancelled) setIsLoading(false);
@@ -188,7 +207,7 @@ export default function UserDetailsScreen() {
 
       load().catch((error: any) => {
         if (!cancelled) {
-          Alert.alert('Error', error?.message || 'Failed to load user details.');
+          console.warn('[UserDetails] Unexpected load error:', error?.message);
           setIsLoading(false);
         }
       });
@@ -267,6 +286,7 @@ export default function UserDetailsScreen() {
           })
           .eq('id', userProfile.company_id);
         if (companyUpdateError) throw companyUpdateError;
+        console.log('[UserDetails] Saved gas safe for uid:', uid, 'gasSafe:', gasSafeRegisterNumber.trim());
       }
 
       await refreshProfile();

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     FlatList,
-  Platform,
+    Platform,
     RefreshControl,
     StyleSheet,
     Text,
