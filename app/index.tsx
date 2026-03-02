@@ -3,14 +3,16 @@ import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Colors } from '../constants/theme';
 import { useAuth } from '../src/context/AuthContext';
+import { useAppTheme } from '../src/context/ThemeContext';
 
 export default function Index() {
   const { session, isLoading } = useAuth();
+  const { theme } = useAppTheme();
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.surface.base }}>
+        <ActivityIndicator size="large" color={theme.brand.primary} />
       </View>
     );
   }

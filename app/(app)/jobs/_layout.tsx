@@ -1,13 +1,18 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 import { Colors } from '../../../constants/theme';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 export default function JobsLayout() {
+  const { theme, isDark } = useAppTheme();
+
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: Colors.background },
+        contentStyle: { backgroundColor: theme.surface.base },
+        headerStyle: { backgroundColor: theme.surface.base },
+        headerTitleStyle: { color: theme.text.title },
       }}
     >
       {/* 1. Job List */}
@@ -20,7 +25,8 @@ export default function JobsLayout() {
             presentation: 'modal',
             headerShown: true, 
             title: 'New Job',
-            headerTintColor: Colors.primary 
+            headerTintColor: theme.brand.primary,
+            headerShadowVisible: !isDark,
         }} 
       />
 
@@ -39,7 +45,8 @@ export default function JobsLayout() {
             presentation: 'modal', 
             headerShown: true,
             title: 'Edit Job',
-            headerTintColor: Colors.primary
+            headerTintColor: theme.brand.primary,
+            headerShadowVisible: !isDark,
         }} 
       />
 

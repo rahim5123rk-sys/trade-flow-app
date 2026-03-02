@@ -19,6 +19,7 @@ import Onboarding, { OnboardingTip } from '../../../components/Onboarding';
 import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 const JOBS_TIPS: OnboardingTip[] = [
   {
@@ -56,6 +57,7 @@ const JOBS_TIPS: OnboardingTip[] = [
 
 export default function UnifiedJobList() {
   const { userProfile, user } = useAuth();
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,9 +205,9 @@ export default function UnifiedJobList() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 8, backgroundColor: theme.surface.base }]}>
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={theme.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -213,41 +215,41 @@ export default function UnifiedJobList() {
 
       <Animated.View entering={FadeInDown.delay(40).springify()} style={styles.header}>
         <View>
-          <Text style={styles.title}>Jobs</Text>
-          <Text style={styles.subtitle}>{isAdmin ? 'All scheduled work' : 'Your assigned jobs'}</Text>
+          <Text style={[styles.title, { color: theme.text.title }]}>Jobs</Text>
+          <Text style={[styles.subtitle, { color: theme.text.muted }]}>{isAdmin ? 'All scheduled work' : 'Your assigned jobs'}</Text>
         </View>
-        <View style={styles.countBadge}>
-          <Text style={styles.countText}>{jobs.length}</Text>
+        <View style={[styles.countBadge, isDark && { backgroundColor: theme.surface.elevated }]}>
+          <Text style={[styles.countText, { color: theme.brand.primary }]}>{jobs.length}</Text>
         </View>
       </Animated.View>
 
       {isAdmin && (
         <Animated.View entering={FadeInDown.delay(80).springify()} style={styles.toggleWrap}>
-          <View style={styles.toggleContainer}>
+          <View style={[styles.toggleContainer, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
             <TouchableOpacity
-              style={[styles.toggleBtn, filter === 'all' && styles.toggleActive]}
+              style={[styles.toggleBtn, filter === 'all' && [styles.toggleActive, isDark && { backgroundColor: 'rgba(255,255,255,0.12)' }]]}
               onPress={() => setFilter('all')}
             >
-              <Text style={[styles.toggleText, filter === 'all' && styles.activeText]}>All Jobs</Text>
+              <Text style={[styles.toggleText, { color: theme.text.muted }, filter === 'all' && { color: theme.brand.primary }]}>All Jobs</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.toggleBtn, filter === 'mine' && styles.toggleActive]}
+              style={[styles.toggleBtn, filter === 'mine' && [styles.toggleActive, isDark && { backgroundColor: 'rgba(255,255,255,0.12)' }]]}
               onPress={() => setFilter('mine')}
             >
-              <Text style={[styles.toggleText, filter === 'mine' && styles.activeText]}>My Jobs</Text>
+              <Text style={[styles.toggleText, { color: theme.text.muted }, filter === 'mine' && { color: theme.brand.primary }]}>My Jobs</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
       )}
 
       {loading ? (
-        <ActivityIndicator size="large" color={UI.brand.primary} style={{ marginTop: 24 }} />
+        <ActivityIndicator size="large" color={theme.brand.primary} style={{ marginTop: 24 }} />
       ) : (
         <FlatList
           data={jobs}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { setLoading(true); fetchJobs(); }} tintColor={UI.brand.primary} />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { setLoading(true); fetchJobs(); }} tintColor={theme.brand.primary} />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 200)).duration(300)}>
               <Swipeable
@@ -263,18 +265,18 @@ export default function UnifiedJobList() {
                 }}
               >
                 <TouchableOpacity
-                  style={styles.card}
+                  style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
                   onPress={() => router.push(`/(app)/jobs/${item.id}` as any)}
                   activeOpacity={0.72}
                 >
                   <LinearGradient
-                    colors={item.status === 'complete' ? UI.gradients.successLight : UI.gradients.primary}
+                    colors={isDark ? (item.status === 'complete' ? theme.gradients.success : theme.gradients.primary) : (item.status === 'complete' ? UI.gradients.successLight : UI.gradients.primary)}
                     style={styles.cardStrip}
                   />
 
                   <View style={styles.cardBody}>
                     <View style={styles.cardHeader}>
-                      <Text style={styles.ref}>{item.reference}</Text>
+                      <Text style={[styles.ref, { color: theme.text.muted }]}>{item.reference}</Text>
                       <View style={[styles.statusPill, { backgroundColor: item.status === 'complete' ? 'rgba(16,185,129,0.14)' : 'rgba(99,102,241,0.14)' }]}>
                         <View style={[styles.statusDot, { backgroundColor: item.status === 'complete' ? Colors.success : UI.brand.primary }]} />
                         <Text style={[styles.status, { color: item.status === 'complete' ? Colors.success : UI.brand.primary }]}>
@@ -283,18 +285,18 @@ export default function UnifiedJobList() {
                       </View>
                     </View>
 
-                    <Text style={styles.jobTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={[styles.jobTitle, { color: theme.text.title }]} numberOfLines={1}>{item.title}</Text>
                     <View style={styles.metaRow}>
-                      <Ionicons name="person-outline" size={13} color={UI.text.muted} />
-                      <Text style={styles.customer} numberOfLines={1}>{item.customer_snapshot?.name || 'Unknown customer'}</Text>
+                      <Ionicons name="person-outline" size={13} color={theme.text.muted} />
+                      <Text style={[styles.customer, { color: theme.text.body }]} numberOfLines={1}>{item.customer_snapshot?.name || 'Unknown customer'}</Text>
                     </View>
 
-                    <View style={styles.cardFooter}>
-                      <View style={styles.datePill}>
-                        <Ionicons name="calendar-outline" size={13} color={UI.text.muted} />
-                        <Text style={styles.date}>{new Date(item.scheduled_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                    <View style={[styles.cardFooter, isDark && { borderTopColor: theme.surface.divider }]}>
+                      <View style={[styles.datePill, isDark && { backgroundColor: theme.surface.elevated }]}>
+                        <Ionicons name="calendar-outline" size={13} color={theme.text.muted} />
+                        <Text style={[styles.date, { color: theme.text.body }]}>{new Date(item.scheduled_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={16} color={UI.surface.border} />
+                      <Ionicons name="chevron-forward" size={16} color={theme.surface.border} />
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -302,9 +304,9 @@ export default function UnifiedJobList() {
             </Animated.View>
           )}
           ListEmptyComponent={
-            <View style={styles.emptyCard}>
-              <Ionicons name="briefcase-outline" size={32} color={UI.surface.border} />
-              <Text style={styles.empty}>No jobs found.</Text>
+            <View style={[styles.emptyCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <Ionicons name="briefcase-outline" size={32} color={theme.surface.border} />
+              <Text style={[styles.empty, { color: theme.text.muted }]}>No jobs found.</Text>
             </View>
           }
         />

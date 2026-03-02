@@ -4,9 +4,10 @@
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -23,10 +24,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CustomerSelector } from '../../../components/CustomerSelector';
 import { Colors, UI } from '../../../constants/theme';
 import { useCP12 } from '../../../src/context/CP12Context';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
+const CP12_DUPLICATE_SEED_KEY = 'cp12_duplicate_seed_v1';
 
 // ─── Step indicator ─────────────────────────────────────────────
 
@@ -113,6 +116,7 @@ const FormInput = ({
 // ─── Main screen ────────────────────────────────────────────────
 
 export default function CP12DetailsScreen() {
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const {
     landlordForm,
@@ -132,7 +136,28 @@ export default function CP12DetailsScreen() {
     tenantPostCode,
     setTenantPostCode,
     propertyAddress,
+    hydrateFromDuplicate,
   } = useCP12();
+
+  useEffect(() => {
+    const loadDuplicateSeed = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(CP12_DUPLICATE_SEED_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        hydrateFromDuplicate({
+          propertyAddress: parsed?.propertyAddress,
+          appliances: parsed?.appliances,
+        });
+        await AsyncStorage.removeItem(CP12_DUPLICATE_SEED_KEY);
+        Alert.alert('CP12 Duplicated', 'Appliances and property address have been prefilled from the previous certificate.');
+      } catch {
+        await AsyncStorage.removeItem(CP12_DUPLICATE_SEED_KEY);
+      }
+    };
+
+    void loadDuplicateSeed();
+  }, [hydrateFromDuplicate]);
 
   const handleNext = () => {
     if (!landlordForm.customerName.trim()) {
@@ -157,7 +182,7 @@ export default function CP12DetailsScreen() {
   return (
     <View style={s.root}>
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={theme.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -179,14 +204,14 @@ export default function CP12DetailsScreen() {
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={s.backBtn}
+              style={[s.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
               activeOpacity={0.7}
             >
-              <Ionicons name="arrow-back" size={22} color={Colors.text} />
+              <Ionicons name="arrow-back" size={22} color={theme.text.title} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>CP12 Gas Safety</Text>
-              <Text style={s.subtitle}>Landlord Gas Safety Record</Text>
+              <Text style={[s.title, { color: theme.text.title }]}>CP12 Gas Safety</Text>
+              <Text style={[s.subtitle, { color: theme.text.muted }]}>Landlord Gas Safety Record</Text>
             </View>
           </Animated.View>
 

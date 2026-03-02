@@ -2,15 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
-    ActivityIndicator,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 import { Colors, UI } from '../../constants/theme';
+import { useAppTheme } from '../../src/context/ThemeContext';
 
 interface ButtonProps {
   title: string;
@@ -33,16 +34,17 @@ export function Button({
   icon,
   style,
 }: ButtonProps) {
+  const { theme, isDark } = useAppTheme();
   const isGradient = ['primary', 'danger', 'success'].includes(variant);
   const isGhost = variant === 'ghost';
   const isSecondary = variant === 'secondary';
 
   const textColor = {
-    primary: UI.surface.card,
-    secondary: UI.text.bodyLight,
-    danger: UI.surface.card,
-    success: UI.surface.card,
-    ghost: Colors.primary,
+    primary: isDark ? theme.text.inverse : UI.surface.card,
+    secondary: isDark ? theme.text.body : UI.text.bodyLight,
+    danger: isDark ? theme.text.inverse : UI.surface.card,
+    success: isDark ? theme.text.inverse : UI.surface.card,
+    ghost: isDark ? theme.brand.primary : Colors.primary,
   }[variant];
 
   const gradientColors: Record<'primary' | 'danger' | 'success', readonly [string, string]> = {

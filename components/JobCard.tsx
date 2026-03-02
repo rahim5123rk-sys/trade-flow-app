@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors, UI} from '../constants/theme';
+import { Colors, UI } from '../constants/theme';
+import { useAppTheme } from '../src/context/ThemeContext';
 import { Job } from '../src/types';
 import { formatCalendarDate, formatTime, isToday } from '../src/utils/dates';
 import { formatCurrency, getStatusStyle } from '../src/utils/formatting';
@@ -28,6 +29,7 @@ export function JobCard({
   compact = false,
 }: JobCardProps) {
   const { color: statusColor } = getStatusStyle(job.status);
+  const { theme, isDark } = useAppTheme();
   const jobIsToday = isToday(job.scheduled_date);
 
   const handlePress = () => {
@@ -37,74 +39,74 @@ export function JobCard({
   if (compact) {
     return (
       <TouchableOpacity
-        style={styles.compactCard}
+        style={[styles.compactCard, { backgroundColor: theme.surface.card }, isDark && { borderWidth: 1, borderColor: theme.glass.border }]}
         activeOpacity={0.7}
         onPress={handlePress}
       >
-        <View style={[styles.indicator, { backgroundColor: statusColor }]} />
+        <View style={[styles.indicator, { backgroundColor: isDark ? theme.text.title : statusColor }]} />
         <View style={styles.compactContent}>
-          <Text style={styles.compactTitle} numberOfLines={1}>
+          <Text style={[styles.compactTitle, { color: theme.text.title }]} numberOfLines={1}>
             {job.title}
           </Text>
-          <Text style={styles.compactSub} numberOfLines={1}>
+          <Text style={[styles.compactSub, { color: theme.text.muted }]} numberOfLines={1}>
             {job.customer_snapshot?.name || 'Unknown'}
           </Text>
         </View>
-        <Text style={styles.compactTime}>{formatTime(job.scheduled_date)}</Text>
+        <Text style={[styles.compactTime, { color: theme.text.muted }]}>{formatTime(job.scheduled_date)}</Text>
       </TouchableOpacity>
     );
   }
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { backgroundColor: theme.surface.card, borderColor: isDark ? theme.glass.border : UI.surface.elevated }, isDark && theme.shadow]}
       activeOpacity={0.7}
       onPress={handlePress}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.ref}>{job.reference}</Text>
+        <Text style={[styles.ref, { color: theme.text.muted }]}>{job.reference}</Text>
         <StatusBadge status={job.status} compact />
       </View>
 
-      <Text style={styles.title} numberOfLines={1}>
+      <Text style={[styles.title, { color: theme.text.title }]} numberOfLines={1}>
         {job.title}
       </Text>
 
       <View style={styles.customerRow}>
-        <Ionicons name="person-outline" size={14} color={Colors.textLight} />
-        <Text style={styles.customer} numberOfLines={1}>
+        <Ionicons name="person-outline" size={14} color={theme.text.muted} />
+        <Text style={[styles.customer, { color: theme.text.body }]} numberOfLines={1}>
           {job.customer_snapshot?.name || 'Unknown Client'}
         </Text>
       </View>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { borderTopColor: isDark ? theme.surface.divider : UI.surface.elevated }]}>
         <View style={styles.footerLeft}>
           {showDate && (
             <View style={styles.footerItem}>
               <Ionicons
                 name="calendar-outline"
                 size={14}
-                color={Colors.primary}
+                color={theme.brand.primary}
               />
-              <Text style={styles.footerText}>
+              <Text style={[styles.footerText, { color: theme.text.muted }]}>
                 {formatCalendarDate(job.scheduled_date)}
               </Text>
             </View>
           )}
           <View style={styles.footerItem}>
-            <Ionicons name="time-outline" size={14} color={Colors.primary} />
-            <Text style={styles.footerText}>
+            <Ionicons name="time-outline" size={14} color={theme.brand.primary} />
+            <Text style={[styles.footerText, { color: theme.text.muted }]}>
               {formatTime(job.scheduled_date)}
             </Text>
           </View>
           {showTodayBadge && jobIsToday && (
-            <View style={styles.todayBadge}>
-              <Text style={styles.todayText}>TODAY</Text>
+            <View style={[styles.todayBadge, { backgroundColor: theme.brand.primary }]}>
+              <Text style={[styles.todayText, { color: isDark ? '#000' : UI.surface.card }]}>TODAY</Text>
             </View>
           )}
         </View>
         {job.price != null && (
-          <Text style={styles.price}>{formatCurrency(job.price)}</Text>
+          <Text style={[styles.price, { color: theme.brand.primary }]}>{formatCurrency(job.price)}</Text>
         )}
       </View>
     </TouchableOpacity>

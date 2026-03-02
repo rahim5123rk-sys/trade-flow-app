@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { useAppTheme } from '../src/context/ThemeContext';
 
 interface BadgeProps {
   label: string;
@@ -14,13 +15,17 @@ interface BadgeProps {
 
 export function Badge({
   label,
-  color = '#374151',
-  bg = '#F3F4F6',
+  color,
+  bg,
   style,
 }: BadgeProps) {
+  const { theme, isDark } = useAppTheme();
+  const resolvedColor = color ?? theme.text.body;
+  const resolvedBg = bg ?? (isDark ? theme.surface.elevated : '#F3F4F6');
+
   return (
-    <View style={[styles.badge, { backgroundColor: bg }, style]}>
-      <Text style={[styles.text, { color }]}>{label}</Text>
+    <View style={[styles.badge, { backgroundColor: resolvedBg }, style]}>
+      <Text style={[styles.text, { color: resolvedColor }]}>{label}</Text>
     </View>
   );
 }

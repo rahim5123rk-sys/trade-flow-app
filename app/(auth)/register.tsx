@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
+import { useAppTheme } from '../../src/context/ThemeContext';
 
 // --- Utils ---
 
@@ -42,6 +43,7 @@ const generateInviteCode = () => {
 
 export default function RegisterScreen() {
   const { refreshProfile, setRegistering } = useAuth();
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -393,27 +395,27 @@ export default function RegisterScreen() {
   });
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: '#fff' }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: theme.surface.base }}>
       
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+      <View style={[styles.header, isDark && { backgroundColor: theme.surface.base }, { paddingTop: insets.top + 10 }]}> 
+        <TouchableOpacity onPress={goBack} style={[styles.backBtn, isDark && { backgroundColor: theme.surface.elevated }]}> 
+          <Ionicons name="arrow-back" size={24} color={theme.text.title} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.stepLabel}>Step {step} of {TOTAL_STEPS}</Text>
+          <Text style={[styles.stepLabel, { color: theme.text.muted }]}>Step {step} of {TOTAL_STEPS}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
 
       {/* Progress Bar */}
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
+      <View style={[styles.progressTrack, isDark && { backgroundColor: theme.surface.elevated }]}> 
+        <Animated.View style={[styles.progressBar, { width: progressWidth, backgroundColor: theme.brand.primary }]} />
       </View>
 
       <ScrollView
         ref={scrollRef}
-        style={styles.scrollContainer}
+        style={[styles.scrollContainer, isDark && { backgroundColor: 'transparent' }]}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         keyboardShouldPersistTaps="handled"
       >
@@ -421,36 +423,36 @@ export default function RegisterScreen() {
         {/* STEP 1: Account & Mode */}
         {step === 1 && (
           <View>
-            <Text style={styles.title}>Welcome to TradeFlow</Text>
-            <Text style={styles.subtitle}>Create your account to get started.</Text>
+            <Text style={[styles.title, { color: theme.text.title }]}>Welcome to TradeFlow</Text>
+            <Text style={[styles.subtitle, { color: theme.text.muted }]}>Create your account to get started.</Text>
 
             {/* Mode Selector */}
-            <View style={styles.modeContainer}>
+            <View style={[styles.modeContainer, isDark && { backgroundColor: theme.surface.elevated }]}> 
               <TouchableOpacity 
                 style={[styles.modeBtn, mode === 'create' && styles.modeBtnActive]} 
                 onPress={() => setMode('create')}>
-                <Ionicons name="briefcase-outline" size={20} color={mode === 'create' ? '#fff' : Colors.text} />
+                <Ionicons name="briefcase-outline" size={20} color={mode === 'create' ? '#fff' : theme.text.title} />
                 <Text style={[styles.modeText, mode === 'create' && { color: UI.text.white }]}>New Company</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.modeBtn, mode === 'join' && styles.modeBtnActive]} 
                 onPress={() => setMode('join')}>
-                <Ionicons name="people-outline" size={20} color={mode === 'join' ? '#fff' : Colors.text} />
+                <Ionicons name="people-outline" size={20} color={mode === 'join' ? '#fff' : theme.text.title} />
                 <Text style={[styles.modeText, mode === 'join' && { color: UI.text.white }]}>Join Team</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholder="e.g. John Smith" placeholderTextColor="#94a3b8" />
+              <Text style={[styles.label, { color: theme.text.body }]}>Full Name</Text>
+              <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={fullName} onChangeText={setFullName} placeholder="e.g. John Smith" placeholderTextColor={theme.text.placeholder} />
             </View>
             <View style={styles.field}>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="john@example.com" placeholderTextColor="#94a3b8" autoCapitalize="none" keyboardType="email-address" />
+              <Text style={[styles.label, { color: theme.text.body }]}>Email Address</Text>
+              <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={email} onChangeText={setEmail} placeholder="john@example.com" placeholderTextColor={theme.text.placeholder} autoCapitalize="none" keyboardType="email-address" />
             </View>
             <View style={styles.field}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Min 8 chars, 1 uppercase, 1 number" placeholderTextColor="#94a3b8" secureTextEntry />
+              <Text style={[styles.label, { color: theme.text.body }]}>Password</Text>
+              <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={password} onChangeText={setPassword} placeholder="Min 8 chars, 1 uppercase, 1 number" placeholderTextColor={theme.text.placeholder} secureTextEntry />
             </View>
 
             <TouchableOpacity style={styles.nextBtn} onPress={goNext}>
@@ -465,24 +467,24 @@ export default function RegisterScreen() {
           <View>
             {mode === 'create' ? (
               <>
-                <Text style={styles.title}>About your business</Text>
-                <Text style={styles.subtitle}>Tell us about what you do</Text>
+                <Text style={[styles.title, { color: theme.text.title }]}>About your business</Text>
+                <Text style={[styles.subtitle, { color: theme.text.muted }]}>Tell us about what you do</Text>
 
                 <View style={styles.field}>
-                  <Text style={styles.label}>Business Name</Text>
-                  <TextInput style={styles.input} value={companyName} onChangeText={setCompanyName} placeholder="e.g. Smith's Plumbing Ltd" placeholderTextColor="#94a3b8" />
+                  <Text style={[styles.label, { color: theme.text.body }]}>Business Name</Text>
+                  <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={companyName} onChangeText={setCompanyName} placeholder="e.g. Smith's Plumbing Ltd" placeholderTextColor={theme.text.placeholder} />
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={styles.label}>What's your trade?</Text>
+                  <Text style={[styles.label, { color: theme.text.body }]}>What's your trade?</Text>
                   <View style={styles.tradeGrid}>
                     {TRADES.map((t) => (
                       <TouchableOpacity
                         key={t}
-                        style={[styles.tradeChip, trade === t && styles.tradeChipActive]}
+                        style={[styles.tradeChip, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, trade === t && styles.tradeChipActive]}
                         onPress={() => setTrade(t)}
                       >
-                        <Text style={[styles.tradeChipText, trade === t && styles.tradeChipTextActive]}>{t}</Text>
+                        <Text style={[styles.tradeChipText, { color: theme.text.muted }, trade === t && styles.tradeChipTextActive]}>{t}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -490,13 +492,13 @@ export default function RegisterScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.title}>Join your Team</Text>
-                <Text style={styles.subtitle}>Enter the invite code provided by your manager.</Text>
+                <Text style={[styles.title, { color: theme.text.title }]}>Join your Team</Text>
+                <Text style={[styles.subtitle, { color: theme.text.muted }]}>Enter the invite code provided by your manager.</Text>
 
                 <View style={styles.field}>
-                    <Text style={styles.label}>Invite Code</Text>
+                    <Text style={[styles.label, { color: theme.text.body }]}>Invite Code</Text>
                     <TextInput 
-                        style={[styles.input, styles.codeInput]} 
+                      style={[styles.input, styles.codeInput, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} 
                         value={inviteCode} 
                         onChangeText={setInviteCode} 
                         placeholder="XXX-XXX" 
@@ -520,25 +522,25 @@ export default function RegisterScreen() {
           <View>
             {mode === 'create' ? (
               <>
-                <Text style={styles.title}>Business details</Text>
-                <Text style={styles.subtitle}>These appear on your job sheets.</Text>
+                <Text style={[styles.title, { color: theme.text.title }]}>Business details</Text>
+                <Text style={[styles.subtitle, { color: theme.text.muted }]}>These appear on your job sheets.</Text>
 
                 <View style={styles.field}>
-                  <Text style={styles.label}>Business Address</Text>
-                  <TextInput style={[styles.input, styles.textArea]} value={businessAddress} onChangeText={setBusinessAddress} placeholder="123 High St..." placeholderTextColor="#94a3b8" multiline />
+                  <Text style={[styles.label, { color: theme.text.body }]}>Business Address</Text>
+                  <TextInput style={[styles.input, styles.textArea, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={businessAddress} onChangeText={setBusinessAddress} placeholder="123 High St..." placeholderTextColor={theme.text.placeholder} multiline />
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={styles.label}>Business Phone</Text>
-                  <TextInput style={styles.input} value={businessPhone} onChangeText={setBusinessPhone} placeholder="07700 900000" placeholderTextColor="#94a3b8" keyboardType="phone-pad" />
+                  <Text style={[styles.label, { color: theme.text.body }]}>Business Phone</Text>
+                  <TextInput style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]} value={businessPhone} onChangeText={setBusinessPhone} placeholder="07700 900000" placeholderTextColor={theme.text.placeholder} keyboardType="phone-pad" />
                 </View>
               </>
             ) : (
-              <View style={styles.confirmContainer}>
+              <View style={[styles.confirmContainer, isDark && { backgroundColor: theme.surface.elevated }]}>
                 <Ionicons name="business" size={64} color={Colors.primary} />
-                <Text style={styles.confirmTitle}>Team Found!</Text>
+                <Text style={[styles.confirmTitle, { color: theme.text.title }]}>Team Found!</Text>
                 <Text style={styles.confirmCompany}>{foundCompany?.name}</Text>
-                <Text style={styles.confirmText}>
+                <Text style={[styles.confirmText, { color: theme.text.muted }]}>
                   You are joining this company as a Worker. You will see jobs assigned to you by the admin.
                 </Text>
               </View>
@@ -553,7 +555,7 @@ export default function RegisterScreen() {
               <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
                 {acceptedTerms && <Ionicons name="checkmark" size={14} color={UI.text.white} />}
               </View>
-              <Text style={styles.consentText}>
+              <Text style={[styles.consentText, { color: theme.text.muted }]}> 
                 I agree to the{' '}
                 <Text style={styles.consentLink} onPress={() => router.push('/(auth)/privacy-policy' as any)}>Privacy Policy</Text>
                 {' '}and{' '}

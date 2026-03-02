@@ -18,9 +18,10 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Colors, UI} from '../../../constants/theme';
+import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 export default function AddCustomerScreen() {
   const { userProfile } = useAuth();
@@ -35,6 +36,7 @@ export default function AddCustomerScreen() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const { theme, isDark } = useAppTheme();
 
   const handleImportContact = async () => {
     // GDPR: Show disclosure before requesting contacts permission
@@ -128,115 +130,115 @@ export default function AddCustomerScreen() {
       style={{ flex: 1 }}
     >
       <ScrollView
-        style={styles.container}
+        style={[styles.container, isDark && { backgroundColor: theme.surface.base }]}
         contentContainerStyle={{ paddingBottom: 60 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Import Button */}
-        <TouchableOpacity style={styles.importBtn} onPress={handleImportContact}>
-          <Ionicons name="cloud-download-outline" size={24} color={Colors.primary} />
-          <Text style={styles.importBtnText}>Import from Contacts</Text>
+        <TouchableOpacity style={[styles.importBtn, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={handleImportContact}>
+          <Ionicons name="cloud-download-outline" size={24} color={isDark ? theme.brand.primary : Colors.primary} />
+          <Text style={[styles.importBtnText, isDark && { color: theme.brand.primary }]}>Import from Contacts</Text>
         </TouchableOpacity>
 
         {/* Customer Details Card */}
-        <View style={styles.card}>
-          <Text style={styles.label}>Contact Name *</Text>
+        <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
+          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Contact Name *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
             value={customerName}
             onChangeText={setCustomerName}
             placeholder="e.g. Sarah Jenkins"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
           />
 
-          <Text style={styles.label}>Company Name</Text>
+          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Company Name</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
             value={companyName}
             onChangeText={setCompanyName}
             placeholder="e.g. Jenkins Plumbing Ltd"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
           />
         </View>
 
         {/* Address Card */}
-        <Text style={styles.sectionTitle}>Address</Text>
-        <View style={styles.card}>
-          <Text style={styles.label}>Address Line 1 *</Text>
+        <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Address</Text>
+        <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
+          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Address Line 1 *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
             value={address1}
             onChangeText={setAddress1}
             placeholder="Street address"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
           />
 
-          <Text style={styles.label}>Address Line 2</Text>
+          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Address Line 2</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
             value={address2}
             onChangeText={setAddress2}
             placeholder="Apt / Suite / Unit"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
           />
 
           <View style={styles.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={styles.label}>City</Text>
+              <Text style={[styles.label, isDark && { color: theme.text.muted }]}>City</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                 value={city}
                 onChangeText={setCity}
                 placeholder="Worcester"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Post Code *</Text>
+              <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Post Code *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                 value={postCode}
                 onChangeText={setPostCode}
                 placeholder="WR1 1PA"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
                 autoCapitalize="characters"
               />
             </View>
           </View>
 
-          <Text style={styles.label}>Region / County</Text>
+          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Region / County</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
             value={region}
             onChangeText={setRegion}
             placeholder="Worcestershire"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
           />
         </View>
 
         {/* Contact Info Card */}
-        <Text style={styles.sectionTitle}>Contact Information</Text>
-        <View style={styles.card}>
+        <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Contact Information</Text>
+        <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
           <View style={styles.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={styles.label}>Phone</Text>
+              <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Phone</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="07700..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
                 keyboardType="phone-pad"
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Email</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="email@..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />

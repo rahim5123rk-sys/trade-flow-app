@@ -2,14 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI} from '../../../constants/theme';
+import { Colors, UI } from '../../../constants/theme';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 const SECTIONS = [
   {
@@ -27,7 +28,8 @@ const SECTIONS = [
 • Job Data: Job descriptions, notes, photos, site addresses.
 • Document Data: Invoices, quotes, CP12 certificates including customer/landlord/tenant details.
 • Digital Signatures: Handwritten signatures captured digitally for certificates and documents.
-• Device Data: Push notification tokens, device type (for notifications only).`,
+• Device Data: Push notification tokens, device type (for notifications only).
+• Email Communication Data: Recipient email addresses, email subject lines, and document attachments when you send documents (invoices, quotes, certificates) via email from the App.`,
   },
   {
     title: '3. Why We Process Your Data',
@@ -44,7 +46,8 @@ const SECTIONS = [
 
 • Supabase (Database & Authentication): Your data is stored securely in Supabase's cloud infrastructure. Supabase acts as our data processor under a Data Processing Agreement.
 • Expo Push Notification Service: Device push tokens are sent to Expo's servers to deliver notifications. No personal data beyond the token and notification content is shared.
-• PDF Recipients: When you share a PDF (invoice, quote, CP12 certificate) via the share sheet, the document may contain personal data. You control who receives these documents.
+• Resend (Email Delivery): When you send documents via email through the App, we use Resend (resend.com) as our transactional email provider. Resend processes recipient email addresses, email content, and any PDF attachments solely to deliver the email on your behalf. Resend acts as our data processor under their Data Processing Agreement.
+• PDF Recipients: When you share a PDF (invoice, quote, CP12 certificate) via the share sheet or email, the document may contain personal data. You control who receives these documents.
 
 We do not sell your data to third parties. We do not use your data for advertising or profiling.`,
   },
@@ -96,15 +99,16 @@ To exercise any of these rights, use the relevant feature in Settings or contact
 
 export default function PrivacyPolicyScreen() {
   const insets = useSafeAreaInsets();
+  const { theme, isDark } = useAppTheme();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.surface.base }]}> 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, isDark && { backgroundColor: theme.surface.elevated }]}> 
+          <Ionicons name="arrow-back" size={24} color={theme.text.title} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Policy</Text>
+        <Text style={[styles.headerTitle, { color: theme.text.title }]}>Privacy Policy</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -112,17 +116,17 @@ export default function PrivacyPolicyScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.badge}>
+        <View style={[styles.badge, isDark && { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
           <Ionicons name="shield-checkmark" size={18} color={UI.brand.primary} />
           <Text style={styles.badgeText}>GDPR Compliant</Text>
         </View>
 
-        <Text style={styles.lastUpdated}>Last updated: 27 February 2026</Text>
+        <Text style={[styles.lastUpdated, { color: theme.text.muted }]}>Last updated: 1 March 2026</Text>
 
         {SECTIONS.map((s, i) => (
           <View key={i} style={styles.section}>
-            <Text style={styles.sectionTitle}>{s.title}</Text>
-            <Text style={styles.sectionBody}>{s.body}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text.title }]}>{s.title}</Text>
+            <Text style={[styles.sectionBody, { color: theme.text.body }]}>{s.body}</Text>
           </View>
         ))}
       </ScrollView>

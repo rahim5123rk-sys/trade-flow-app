@@ -1,15 +1,21 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 import { Colors } from '../../../constants/theme';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 export default function CustomersLayout() {
+  const { theme, isDark } = useAppTheme();
+
   return (
     <Stack
       screenOptions={{
         headerShown: true,
-        headerTintColor: Colors.primary,
+        headerTintColor: theme.brand.primary,
         headerBackTitle: 'Back',
-        contentStyle: { backgroundColor: Colors.background },
+        headerStyle: { backgroundColor: theme.surface.base },
+        headerTitleStyle: { color: theme.text.title },
+        headerShadowVisible: !isDark,
+        contentStyle: { backgroundColor: theme.surface.base },
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Customers', headerShown: false }} />

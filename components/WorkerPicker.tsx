@@ -11,8 +11,9 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Colors, UI} from '../constants/theme';
+import { Colors, UI } from '../constants/theme';
 import { supabase } from '../src/config/supabase';
+import { useAppTheme } from '../src/context/ThemeContext';
 
 interface Worker {
   id: string;
@@ -31,6 +32,7 @@ export const WorkerPicker = ({
   selectedWorkerIds,
   onSelect,
 }: WorkerPickerProps) => {
+  const { theme, isDark } = useAppTheme();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,8 +73,8 @@ export const WorkerPicker = ({
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading team...</Text>
+        <ActivityIndicator color={isDark ? theme.brand.primary : Colors.primary} />
+        <Text style={[styles.loadingText, isDark && { color: theme.text.muted }]}>Loading team...</Text>
       </View>
     );
   }
@@ -81,9 +83,9 @@ export const WorkerPicker = ({
   if (workers.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="person-outline" size={24} color={Colors.textLight} />
-        <Text style={styles.emptyTitle}>No team members yet</Text>
-        <Text style={styles.emptyText}>
+        <Ionicons name="person-outline" size={24} color={isDark ? theme.text.muted : Colors.textLight} />
+        <Text style={[styles.emptyTitle, isDark && { color: theme.text.body }]}>No team members yet</Text>
+        <Text style={[styles.emptyText, isDark && { color: theme.text.muted }]}>
           This is optional. Jobs will be assigned to you by default.
           {'\n'}You can add workers later in the Team tab.
         </Text>

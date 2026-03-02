@@ -182,6 +182,112 @@ export const Colors = {
   shadow: UI.shadow,
 };
 
+// ─── Dark-mode tokens (monochrome / Apple-inspired) ─
+const D = {
+  black:    '#000000',
+  grey950:  '#0A0A0A',
+  grey900:  '#1C1C1E',   // Apple system background (dark)
+  grey850:  '#2C2C2E',   // Apple secondary bg (dark)
+  grey800:  '#3A3A3C',   // Apple tertiary bg (dark)
+  grey700:  '#48484A',
+  grey600:  '#636366',   // Apple separator
+  grey500:  '#8E8E93',   // Apple tertiary label
+  grey400:  '#AEAEB2',   // Apple secondary label
+  grey300:  '#C7C7CC',   // Apple separator (light)
+  grey200:  '#D1D1D6',
+  grey100:  '#E5E5EA',   // Apple system gray 5
+  grey50:   '#F2F2F7',   // Apple system grouped bg
+  white:    '#FFFFFF',
+} as const;
+
+export const DarkUI = {
+  brand: {
+    primary:     D.white,
+    primaryDark: D.grey300,
+    secondary:   D.grey400,
+    accent:      D.white,
+    success:     D.grey300,
+    warning:     D.grey400,
+    danger:      '#FF453A',  // Apple system red (dark)
+  },
+  status: {
+    inProgress: D.grey400,
+    pending:    D.grey500,
+    complete:   D.grey300,
+    paid:       D.grey400,
+  },
+  gradients: {
+    appBackground: [D.black, D.grey950, D.grey900]  as const,
+    primary:       [D.grey800, D.grey700]            as const,
+    primaryDark:   [D.grey900, D.black]              as const,
+    blue:          [D.grey700, D.grey600]             as const,
+    blueLight:     [D.grey600, D.grey500]             as const,
+    success:       [D.grey700, D.grey600]             as const,
+    successLight:  [D.grey600, D.grey500]             as const,
+    danger:        ['#FF453A', '#D70015']              as const,
+    amber:         [D.grey700, D.grey600]              as const,
+    amberLight:    [D.grey600, D.grey500]              as const,
+    amberOrange:   [D.grey600, D.grey500]              as const,
+    violet:        [D.grey700, D.grey600]              as const,
+    cp12:          [D.grey700, D.grey600]              as const,
+    soft:          [D.grey900, D.grey850]              as const,
+  },
+  glass: {
+    bg:     Platform.OS === 'ios' ? 'rgba(28,28,30,0.82)' : 'rgba(28,28,30,0.95)',
+    border: 'rgba(255,255,255,0.08)',
+  },
+  text: {
+    title:       D.white,
+    body:        D.grey100,
+    bodyLight:   D.grey200,
+    secondary:   D.grey400,
+    muted:       D.grey500,
+    placeholder: D.grey600,
+    white:       D.white,
+    inverse:     D.black,
+  },
+  surface: {
+    base:         D.black,
+    card:         D.grey900,
+    elevated:     D.grey850,
+    primaryLight: D.grey850,
+    divider:      'rgba(255,255,255,0.08)',
+    border:       D.grey800,
+    muted:        D.grey850,
+  },
+  shadow: {
+    shadowColor: D.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.30,
+    shadowRadius: 12,
+    elevation: 4,
+  } as ViewStyle,
+  shadowLight: {
+    shadowColor: D.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.20,
+    shadowRadius: 8,
+    elevation: 2,
+  } as ViewStyle,
+};
+
+export const DarkColors = {
+  primary:     DarkUI.brand.primary,
+  primaryDark: DarkUI.brand.primaryDark,
+  secondary:   D.grey500,
+  background:  D.black,
+  card:        D.grey900,
+  text:        D.white,
+  textLight:   D.grey400,
+  border:      D.grey800,
+  success:     DarkUI.brand.success,
+  warning:     DarkUI.brand.warning,
+  danger:      DarkUI.brand.danger,
+  light: Colors.dark,
+  dark:  Colors.dark,
+  shadow: DarkUI.shadow,
+};
+
 // ─── Fonts ───────────────────────────────────────
 export const Fonts = Platform.select({
   ios:     { sans: 'system-ui',  serif: 'ui-serif',  mono: 'ui-monospace' },

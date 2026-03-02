@@ -4,32 +4,41 @@
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI} from '../../../constants/theme';
+import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useOfflineMode } from '../../../src/context/OfflineContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 import { generateDocument } from '../../../src/services/DocumentGenerator';
 import {
     CP12LockedPayload,
+    generateCP12PdfBase64FromPayload,
     generateCP12PdfFromPayload,
 } from '../../../src/services/cp12PdfGenerator';
+import { sanitizeRecipients, sendCp12CertificateEmail } from '../../../src/services/email';
 import { Document } from '../../../src/types';
 
 const INVOICE_STATUSES = ['Draft', 'Sent', 'Unpaid', 'Paid', 'Overdue'];
 const QUOTE_STATUSES = ['Draft', 'Sent', 'Accepted', 'Declined'];
+const CP12_DUPLICATE_SEED_KEY = 'cp12_duplicate_seed_v1';
 
 const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
   Draft: { color: UI.text.muted, bg: UI.surface.elevated },
@@ -55,11 +64,18 @@ export default function DocumentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userProfile } = useAuth();
   const insets = useSafeAreaInsets();
+  const { offlineModeEnabled } = useOfflineMode();
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const [viewing, setViewing] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const { theme, isDark } = useAppTheme();
 
   useEffect(() => {
     if (id) fetchDocument();
@@ -78,6 +94,10 @@ export default function DocumentDetailScreen() {
 
   const updateStatus = async (newStatus: string) => {
     if (!doc) return;
+    if (offlineModeEnabled) {
+      Alert.alert('Offline Mode', 'Disable Offline Mode to update status.');
+      return;
+    }
     setUpdating(true);
     const { error } = await supabase
       .from('documents')
@@ -129,7 +149,11 @@ export default function DocumentDetailScreen() {
     try {
       const cp12Payload = parseCp12Payload(doc);
       if (cp12Payload) {
-        await generateCP12PdfFromPayload(cp12Payload, 'save');
+        await generateCP12PdfFromPayload(
+          cp12Payload,
+          'save',
+          userProfile.company_id,
+        );
       } else {
         const docData = buildDocData();
         if (docData) await generateDocument(docData, userProfile.company_id, 'save');
@@ -148,7 +172,11 @@ export default function DocumentDetailScreen() {
     try {
       const cp12Payload = parseCp12Payload(doc);
       if (cp12Payload) {
-        await generateCP12PdfFromPayload(cp12Payload, 'share');
+        await generateCP12PdfFromPayload(
+          cp12Payload,
+          'share',
+          userProfile.company_id,
+        );
       } else {
         const docData = buildDocData();
         if (docData) await generateDocument(docData, userProfile.company_id, 'share');
@@ -159,10 +187,90 @@ export default function DocumentDetailScreen() {
     setSharing(false);
   };
 
+  const handleViewCertificate = async () => {
+    if (!cp12Payload) return;
+    setViewing(true);
+    try {
+      await generateCP12PdfFromPayload(
+        cp12Payload,
+        'view',
+        userProfile?.company_id,
+      );
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to open certificate view.');
+    }
+    setViewing(false);
+  };
+
+  const openSendEmailModal = () => {
+    if (!cp12Payload || !doc) return;
+    const recipients = sanitizeRecipients([
+      cp12Payload.pdfData.landlordEmail || '',
+      cp12Payload.pdfData.tenantEmail || '',
+      doc.customer_snapshot?.email || '',
+    ]);
+
+    if (!recipients.length) {
+      Alert.alert('No Email Found', 'No valid landlord or tenant email found for this certificate.');
+      return;
+    }
+
+    const defaultSubject = `Gas Certificate for ${cp12Payload.pdfData.propertyAddress || doc.customer_snapshot?.address || 'Property'}`.trim();
+    setEmailSubject(defaultSubject);
+    setShowEmailModal(true);
+  };
+
+  const handleSendEmail = async () => {
+    if (!cp12Payload) return;
+    if (offlineModeEnabled) {
+      Alert.alert('Offline Mode', 'Disable Offline Mode to send emails.');
+      return;
+    }
+
+    const recipients = sanitizeRecipients([
+      cp12Payload.pdfData.landlordEmail || '',
+      cp12Payload.pdfData.tenantEmail || '',
+      doc?.customer_snapshot?.email || '',
+    ]);
+
+    if (!recipients.length) {
+      Alert.alert('No Email Found', 'No valid landlord or tenant email found for this certificate.');
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const pdfBase64 = await generateCP12PdfBase64FromPayload(
+        cp12Payload,
+        userProfile?.company_id,
+      );
+      await sendCp12CertificateEmail({
+        to: recipients,
+        certRef: doc?.reference || cp12Payload.pdfData.certRef || 'CP12',
+        propertyAddress: cp12Payload.pdfData.propertyAddress,
+        inspectionDate: cp12Payload.pdfData.inspectionDate,
+        nextDueDate: cp12Payload.pdfData.nextDueDate,
+        landlordName: cp12Payload.pdfData.landlordName,
+        tenantName: cp12Payload.pdfData.tenantName,
+        pdfBase64,
+        subjectOverride: emailSubject,
+      });
+      setShowEmailModal(false);
+      Alert.alert('Email Sent', `Certificate emailed to ${recipients.join(', ')}.`);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to send certificate email.');
+    }
+    setSendingEmail(false);
+  };
+
   // ─── Delete ─────────────────────────────────────────────────
 
   const handleDelete = () => {
     if (!doc) return;
+    if (offlineModeEnabled) {
+      Alert.alert('Offline Mode', 'Disable Offline Mode to delete documents.');
+      return;
+    }
     const cp12Payload = parseCp12Payload(doc);
     const isCp12 = !!cp12Payload || doc.type === 'cp12' || doc.reference?.startsWith('CP12-');
     const label = isCp12 ? 'CP12 Certificate' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
@@ -184,6 +292,25 @@ export default function DocumentDetailScreen() {
     );
   };
 
+  const handleDuplicateCp12 = async () => {
+    if (!cp12Payload) return;
+    setDuplicating(true);
+    try {
+      await AsyncStorage.setItem(
+        CP12_DUPLICATE_SEED_KEY,
+        JSON.stringify({
+          propertyAddress: cp12Payload.pdfData.propertyAddress,
+          appliances: cp12Payload.pdfData.appliances,
+        }),
+      );
+      router.push('/(app)/cp12' as any);
+    } catch {
+      Alert.alert('Error', 'Could not duplicate this CP12 certificate.');
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
   // ─── Render ─────────────────────────────────────────────────
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>;
@@ -202,20 +329,20 @@ export default function DocumentDetailScreen() {
       ? { label: 'INVOICE', icon: 'receipt-outline' as const, color: '#C2410C', bg: '#FFF7ED', gradient: UI.gradients.amberLight }
       : { label: 'QUOTE', icon: 'document-text-outline' as const, color: UI.brand.primary, bg: UI.surface.primaryLight, gradient: UI.gradients.primary };
 
-  const isBusy = saving || sharing || updating;
+  const isBusy = saving || sharing || updating || duplicating || viewing || sendingEmail;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+    <ScrollView style={[styles.container, isDark && { backgroundColor: theme.surface.base }]} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
       {/* Header Card */}
       <Animated.View entering={FadeInDown.delay(50).springify()}>
-        <View style={styles.headerCard}>
+        <View style={[styles.headerCard, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
           <View style={styles.headerTop}>
             <View style={[styles.typeIcon, { backgroundColor: typeConfig.bg }]}>
               <Ionicons name={typeConfig.icon} size={28} color={typeConfig.color} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.docType}>{typeConfig.label}</Text>
-              <Text style={styles.docNumber}>
+              <Text style={[styles.docType, isDark && { color: theme.text.muted }]}>{typeConfig.label}</Text>
+              <Text style={[styles.docNumber, isDark && { color: theme.text.title }]}>
                 {isCp12
                   ? doc.reference || `CP12-${String(doc.number).padStart(4, '0')}`
                   : `#${String(doc.number).padStart(4, '0')}`}
@@ -230,8 +357,8 @@ export default function DocumentDetailScreen() {
 
           <View style={styles.headerMeta}>
             <View style={styles.metaItem}>
-              <Ionicons name="calendar-outline" size={14} color={Colors.textLight} />
-              <Text style={styles.metaText}>
+              <Ionicons name="calendar-outline" size={14} color={isDark ? theme.text.muted : Colors.textLight} />
+              <Text style={[styles.metaText, isDark && { color: theme.text.muted }]}>
                 {new Date(doc.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
               </Text>
             </View>
@@ -245,8 +372,8 @@ export default function DocumentDetailScreen() {
             ) : null}
             {doc.reference && !isCp12 ? (
               <View style={styles.metaItem}>
-                <Ionicons name="bookmark-outline" size={14} color={Colors.textLight} />
-                <Text style={styles.metaText}>Ref: {doc.reference}</Text>
+                <Ionicons name="bookmark-outline" size={14} color={isDark ? theme.text.muted : Colors.textLight} />
+                <Text style={[styles.metaText, isDark && { color: theme.text.muted }]}>Ref: {doc.reference}</Text>
               </View>
             ) : null}
           </View>
@@ -258,16 +385,16 @@ export default function DocumentDetailScreen() {
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           {/* Engineer info */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Engineer</Text>
-            <View style={styles.card}>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>Engineer</Text>
+            <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
               <View style={styles.detailRow}>
                 <Ionicons name="person-outline" size={16} color={UI.brand.primary} />
-                <Text style={styles.detailText}>{cp12Payload.engineer.name || 'Not specified'}</Text>
+                <Text style={[styles.detailText, isDark && { color: theme.text.title }]}>{cp12Payload.engineer.name || 'Not specified'}</Text>
               </View>
               {cp12Payload.engineer.gasSafeNumber ? (
                 <View style={styles.detailRow}>
                   <Ionicons name="shield-outline" size={16} color={UI.status.complete} />
-                  <Text style={styles.detailText}>Gas Safe: {cp12Payload.engineer.gasSafeNumber}</Text>
+                  <Text style={[styles.detailText, isDark && { color: theme.text.title }]}>Gas Safe: {cp12Payload.engineer.gasSafeNumber}</Text>
                 </View>
               ) : null}
             </View>
@@ -275,25 +402,25 @@ export default function DocumentDetailScreen() {
 
           {/* Property & People */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Property & People</Text>
-            <View style={styles.card}>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>Property & People</Text>
+            <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
               <View style={styles.detailRow}>
                 <Ionicons name="home-outline" size={16} color={UI.status.inProgress} />
-                <Text style={styles.detailText}>{cp12Payload.pdfData.propertyAddress || 'No address'}</Text>
+                <Text style={[styles.detailText, isDark && { color: theme.text.title }]}>{cp12Payload.pdfData.propertyAddress || 'No address'}</Text>
               </View>
               <View style={styles.divider} />
               <View style={styles.detailRow}>
                 <Ionicons name="business-outline" size={16} color={UI.status.pending} />
                 <View>
-                  <Text style={styles.detailLabel}>Landlord</Text>
-                  <Text style={styles.detailText}>{cp12Payload.pdfData.landlordName || '—'}</Text>
+                  <Text style={[styles.detailLabel, isDark && { color: theme.text.muted }]}>Landlord</Text>
+                  <Text style={[styles.detailText, isDark && { color: theme.text.title }]}>{cp12Payload.pdfData.landlordName || '—'}</Text>
                 </View>
               </View>
               <View style={styles.detailRow}>
                 <Ionicons name="people-outline" size={16} color={UI.status.paid} />
                 <View>
-                  <Text style={styles.detailLabel}>Tenant</Text>
-                  <Text style={styles.detailText}>{cp12Payload.pdfData.tenantName || '—'}</Text>
+                  <Text style={[styles.detailLabel, isDark && { color: theme.text.muted }]}>Tenant</Text>
+                  <Text style={[styles.detailText, isDark && { color: theme.text.title }]}>{cp12Payload.pdfData.tenantName || '—'}</Text>
                 </View>
               </View>
             </View>
@@ -301,16 +428,16 @@ export default function DocumentDetailScreen() {
 
           {/* Appliances summary */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Appliances ({cp12Payload.pdfData.appliances.length})</Text>
-            <View style={styles.card}>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>Appliances ({cp12Payload.pdfData.appliances.length})</Text>
+            <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
               {cp12Payload.pdfData.appliances.map((app, i) => (
-                <View key={i} style={[styles.applianceRow, i > 0 && { borderTopWidth: 1, borderTopColor: UI.surface.elevated, paddingTop: 10 }]}>
+                <View key={i} style={[styles.applianceRow, i > 0 && { borderTopWidth: 1, borderTopColor: isDark ? theme.surface.divider : UI.surface.elevated, paddingTop: 10 }]}>
                   <View style={styles.applianceNum}>
                     <Text style={styles.applianceNumText}>{i + 1}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.applianceName}>{app.make} {app.model}</Text>
-                    <Text style={styles.applianceLocation}>{app.location} • {app.type}</Text>
+                    <Text style={[styles.applianceName, isDark && { color: theme.text.title }]}>{app.make} {app.model}</Text>
+                    <Text style={[styles.applianceLocation, isDark && { color: theme.text.muted }]}>{app.location} • {app.type}</Text>
                   </View>
                   <View style={[
                     styles.safetyBadge,
@@ -335,20 +462,20 @@ export default function DocumentDetailScreen() {
 
           {/* Inspection dates */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Inspection</Text>
-            <View style={styles.card}>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>Inspection</Text>
+            <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
               <View style={styles.dateRow}>
                 <View style={styles.dateItem}>
                   <Ionicons name="calendar" size={18} color={UI.brand.primary} />
                   <View>
-                    <Text style={styles.dateLabel}>Inspected</Text>
-                    <Text style={styles.dateValue}>{cp12Payload.pdfData.inspectionDate}</Text>
+                    <Text style={[styles.dateLabel, isDark && { color: theme.text.muted }]}>Inspected</Text>
+                    <Text style={[styles.dateValue, isDark && { color: theme.text.title }]}>{cp12Payload.pdfData.inspectionDate}</Text>
                   </View>
                 </View>
                 <View style={styles.dateItem}>
                   <Ionicons name="alarm" size={18} color={UI.status.pending} />
                   <View>
-                    <Text style={styles.dateLabel}>Next Due</Text>
+                    <Text style={[styles.dateLabel, isDark && { color: theme.text.muted }]}>Next Due</Text>
                     <Text style={[styles.dateValue, { color: UI.status.pending }]}>{cp12Payload.pdfData.nextDueDate}</Text>
                   </View>
                 </View>
@@ -361,13 +488,13 @@ export default function DocumentDetailScreen() {
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           {/* Customer */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Customer</Text>
-            <View style={styles.card}>
-              <Text style={styles.customerName}>{doc.customer_snapshot?.name || 'Unknown'}</Text>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>Customer</Text>
+            <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
+              <Text style={[styles.customerName, isDark && { color: theme.text.title }]}>{doc.customer_snapshot?.name || 'Unknown'}</Text>
               {doc.customer_snapshot?.company_name ? (
-                <Text style={styles.customerDetail}>{doc.customer_snapshot.company_name}</Text>
+                <Text style={[styles.customerDetail, isDark && { color: theme.text.muted }]}>{doc.customer_snapshot.company_name}</Text>
               ) : null}
-              <Text style={styles.customerDetail}>
+              <Text style={[styles.customerDetail, isDark && { color: theme.text.muted }]}>
                 {doc.customer_snapshot?.address || 'No address'}
               </Text>
             </View>
@@ -375,21 +502,21 @@ export default function DocumentDetailScreen() {
 
           {/* Line Items */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Items</Text>
-            <View style={styles.card}>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>Items</Text>
+            <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
               {doc.items?.map((item: any, idx: number) => (
                 <View key={idx} style={[styles.itemRow, idx > 0 && { borderTopWidth: 1, borderTopColor: UI.surface.elevated, paddingTop: 10 }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.itemDesc}>{item.description || 'Item'}</Text>
-                    <Text style={styles.itemMeta}>{item.quantity} x £{item.unitPrice?.toFixed(2)}</Text>
+                    <Text style={[styles.itemDesc, isDark && { color: theme.text.title }]}>{item.description || 'Item'}</Text>
+                    <Text style={[styles.itemMeta, isDark && { color: theme.text.muted }]}>{item.quantity} x £{item.unitPrice?.toFixed(2)}</Text>
                   </View>
-                  <Text style={styles.itemTotal}>£{(item.quantity * item.unitPrice).toFixed(2)}</Text>
+                  <Text style={[styles.itemTotal, isDark && { color: theme.text.title }]}>£{(item.quantity * item.unitPrice).toFixed(2)}</Text>
                 </View>
               ))}
 
-              <View style={styles.totalsDivider} />
+              <View style={[styles.totalsDivider, isDark && { backgroundColor: theme.surface.divider }]} />
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={[styles.totalLabel, isDark && { color: theme.text.title }]}>Total</Text>
                 <Text style={styles.totalValue}>£{doc.total?.toFixed(2) || '0.00'}</Text>
               </View>
             </View>
@@ -398,16 +525,16 @@ export default function DocumentDetailScreen() {
           {/* Notes */}
           {doc.notes && !doc.notes.includes('CP12') ? (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Notes</Text>
-              <View style={styles.card}>
-                <Text style={styles.notesText}>{doc.notes}</Text>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>Notes</Text>
+            <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
+              <Text style={[styles.notesText, isDark && { color: theme.text.body }]}>{doc.notes}</Text>
               </View>
             </View>
           ) : null}
 
           {/* Status Actions */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Update Status</Text>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>Update Status</Text>
             <View style={styles.statusGrid}>
               {statuses.map((s) => {
                 const sc = STATUS_COLORS[s] || STATUS_COLORS.Draft;
@@ -415,12 +542,12 @@ export default function DocumentDetailScreen() {
                 return (
                   <TouchableOpacity
                     key={s}
-                    style={[styles.statusChip, isActive && { backgroundColor: sc.bg, borderColor: sc.color, borderWidth: 2 }]}
+                    style={[styles.statusChip, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, isActive && { backgroundColor: sc.bg, borderColor: sc.color, borderWidth: 2 }]}
                     onPress={() => updateStatus(s)}
                     disabled={isBusy}
                   >
                     {isActive && <Ionicons name="checkmark-circle" size={14} color={sc.color} />}
-                    <Text style={[styles.statusChipText, isActive && { color: sc.color, fontWeight: '700' }]}>{s}</Text>
+                    <Text style={[styles.statusChipText, isDark && { color: theme.text.body }, isActive && { color: sc.color, fontWeight: '700' }]}>{s}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -432,9 +559,7 @@ export default function DocumentDetailScreen() {
       {/* ─── Action Buttons: Save & Share ──────────────────── */}
       <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.actionsSection}>
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={styles.saveAction}
-            onPress={handleSave}
+          <TouchableOpacity style={[styles.saveAction, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={handleSave}
             disabled={isBusy}
             activeOpacity={0.8}
           >
@@ -443,7 +568,7 @@ export default function DocumentDetailScreen() {
             ) : (
               <>
                 <Ionicons name="download-outline" size={20} color={UI.brand.primary} />
-                <Text style={styles.saveActionText}>Save PDF</Text>
+                    <Text style={[styles.saveActionText, isDark && { color: theme.brand.primary }]}>Save PDF</Text>
               </>
             )}
           </TouchableOpacity>
@@ -472,11 +597,96 @@ export default function DocumentDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.deleteAction} onPress={handleDelete} disabled={isBusy}>
+        {isCp12 ? (
+          <TouchableOpacity style={[styles.duplicateAction, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={handleDuplicateCp12} disabled={isBusy}>
+            {duplicating ? (
+              <ActivityIndicator color={UI.brand.primary} size="small" />
+            ) : (
+              <>
+                <Ionicons name="copy-outline" size={18} color={UI.brand.primary} />
+                <Text style={styles.duplicateActionText}>Duplicate for This Year</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
+
+        {isCp12 ? (
+          <View style={styles.cp12ExtraActions}>
+            <TouchableOpacity style={[styles.secondaryAction, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={handleViewCertificate} disabled={isBusy}>
+              {viewing ? (
+                <ActivityIndicator color={UI.brand.primary} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
+                  <Text style={styles.secondaryActionText}>View Certificate</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.secondaryAction, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={openSendEmailModal} disabled={isBusy}>
+              {sendingEmail ? (
+                <ActivityIndicator color={UI.brand.primary} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="mail-outline" size={18} color={UI.brand.primary} />
+                  <Text style={styles.secondaryActionText}>Send Email</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <TouchableOpacity style={[styles.deleteAction, isDark && { backgroundColor: theme.surface.elevated, borderColor: '#FCA5A5' }]} onPress={handleDelete} disabled={isBusy}>
           <Ionicons name="trash-outline" size={18} color={Colors.danger} />
           <Text style={styles.deleteActionText}>Delete {isCp12 ? 'CP12' : isInvoice ? 'Invoice' : 'Quote'}</Text>
         </TouchableOpacity>
       </Animated.View>
+
+      <Modal
+        visible={showEmailModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEmailModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, isDark && { backgroundColor: theme.surface.card }]}>
+            <Text style={[styles.modalTitle, isDark && { color: theme.text.title }]}>Send CP12 Email</Text>
+            <Text style={[styles.modalSubtitle, isDark && { color: theme.text.muted }]}>Edit the subject line before sending.</Text>
+
+            <Text style={[styles.modalLabel, isDark && { color: theme.text.body }]}>Subject</Text>
+            <TextInput
+              style={[styles.modalInput, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+              value={emailSubject}
+              onChangeText={setEmailSubject}
+              placeholder="CP12 Gas Safety Certificate"
+              placeholderTextColor={isDark ? theme.text.placeholder : UI.text.muted}
+              autoCapitalize="sentences"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalCancelBtn, isDark && { backgroundColor: theme.surface.elevated }]}
+                onPress={() => setShowEmailModal(false)}
+                disabled={sendingEmail}
+              >
+                <Text style={[styles.modalCancelText, isDark && { color: theme.text.body }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalSendBtn}
+                onPress={handleSendEmail}
+                disabled={sendingEmail}
+              >
+                {sendingEmail ? (
+                  <ActivityIndicator color={UI.text.white} size="small" />
+                ) : (
+                  <Text style={styles.modalSendText}>Send</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -585,6 +795,43 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   shareActionText: { color: UI.text.white, fontWeight: '700', fontSize: 15 },
+  duplicateAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: UI.surface.primaryLight,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  duplicateActionText: {
+    color: UI.brand.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  cp12ExtraActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  secondaryAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  secondaryActionText: {
+    color: UI.brand.primary,
+    fontWeight: '700',
+    fontSize: 13,
+  },
   deleteAction: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -597,4 +844,74 @@ const styles = StyleSheet.create({
     borderColor: '#FCA5A5',
   },
   deleteActionText: { color: Colors.danger, fontWeight: '600', fontSize: 14 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    ...Colors.shadow,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  modalSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    color: UI.text.muted,
+  },
+  modalLabel: {
+    marginTop: 14,
+    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: '700',
+    color: UI.text.body,
+    textTransform: 'uppercase',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: UI.surface.divider,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: UI.surface.base,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 14,
+  },
+  modalCancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: UI.surface.elevated,
+  },
+  modalCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: UI.text.body,
+  },
+  modalSendBtn: {
+    minWidth: 88,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: UI.brand.primary,
+  },
+  modalSendText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: UI.text.white,
+  },
 });

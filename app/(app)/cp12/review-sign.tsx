@@ -9,7 +9,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -19,7 +19,6 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -30,11 +29,15 @@ import { UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useCP12 } from '../../../src/context/CP12Context';
+import { useAppTheme } from '../../../src/context/ThemeContext';
+import { useOfflineMode } from '../../../src/context/OfflineContext';
 import {
     buildCP12LockedPayload,
     CP12PdfData,
+    generateCP12PdfBase64FromPayload,
     generateCP12PdfFromPayload,
 } from '../../../src/services/cp12PdfGenerator';
+import { sanitizeRecipients, sendCp12CertificateEmail } from '../../../src/services/email';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -85,8 +88,10 @@ const formatDate = (d: Date): string =>
 // ─── Screen ─────────────────────────────────────────────────────
 
 export default function ReviewSign() {
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { userProfile } = useAuth();
+  const { offlineModeEnabled } = useOfflineMode();
   const {
     inspectionDate,
     setInspectionDate,
@@ -107,8 +112,7 @@ export default function ReviewSign() {
   } = useCP12();
 
   // Loading state for PDF generation
-  const [generating, setGenerating] = useState(false);
-  const [generatingMode, setGeneratingMode] = useState<'save' | 'share' | null>(null);
+  const [processingAction, setProcessingAction] = useState<null | 'save' | 'email' | 'view'>(null);
 
   // Date picker state
   const [showInspDate, setShowInspDate] = useState(false);
@@ -116,6 +120,25 @@ export default function ReviewSign() {
 
   // Signature modal
   const [showSigPad, setShowSigPad] = useState(false);
+  const emailRecipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '']);
+
+  useEffect(() => {
+    const preloadNextReference = async () => {
+      if (certRef) return;
+
+      const { data, error } = await supabase.rpc('get_next_gas_cert_reference', {
+        reserve: false,
+      });
+
+      if (error || typeof data !== 'string') {
+        return;
+      }
+
+      setCertRef(data);
+    };
+
+    void preloadNextReference();
+  }, [certRef, setCertRef]);
 
   // ── date change handlers ──
   const onInspDateChange = (_e: DateTimePickerEvent, date?: Date) => {
@@ -134,8 +157,118 @@ export default function ReviewSign() {
     setShowSigPad(false);
   };
 
+  const getNextCp12Reference = async () => {
+    const { data, error } = await supabase.rpc('get_next_gas_cert_reference', {
+      reserve: true,
+    });
+
+    if (error || typeof data !== 'string') {
+      throw new Error(error?.message || 'Failed to generate certificate reference. Run latest database migration and try again.');
+    }
+
+    setCertRef(data);
+    return data;
+  };
+
+  const createCp12Document = async (cp12Reference: string) => {
+    if (!userProfile?.company_id) {
+      throw new Error('Company profile not found. Please check your settings.');
+    }
+
+    const pdfData: CP12PdfData = {
+      landlordName: landlordForm.customerName || '',
+      landlordCompany: landlordForm.customerCompany || '',
+      landlordAddress: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode].filter(Boolean).join(', '),
+      landlordPostcode: landlordForm.postCode || '',
+      landlordEmail: landlordForm.email || '',
+      landlordPhone: landlordForm.phone || '',
+      tenantName,
+      tenantEmail,
+      tenantPhone,
+      propertyAddress,
+      appliances,
+      finalChecks,
+      inspectionDate,
+      nextDueDate,
+      customerSignature,
+      certRef: cp12Reference,
+    };
+
+    const lockedPayload = await buildCP12LockedPayload(
+      pdfData,
+      userProfile.company_id,
+      userProfile.id,
+    );
+
+    const cp12Number = Number(String(Date.now()).slice(-8));
+
+    const documentBase = {
+      company_id: userProfile.company_id,
+      type: 'cp12' as const,
+      number: cp12Number,
+      reference: cp12Reference,
+      date: new Date().toISOString(),
+      expiry_date: nextDueDate || null,
+      status: 'Sent' as const,
+      customer_id: landlordForm.customerId || null,
+      customer_snapshot: {
+        name: landlordForm.customerName || tenantName || 'CP12 Customer',
+        company_name: landlordForm.customerCompany || null,
+        address_line_1: landlordForm.addressLine1 || null,
+        address_line_2: landlordForm.addressLine2 || null,
+        city: landlordForm.city || null,
+        postal_code: landlordForm.postCode || null,
+        phone: landlordForm.phone || null,
+        email: landlordForm.email || null,
+        address: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode]
+          .filter(Boolean)
+          .join(', '),
+      },
+      items: [],
+      subtotal: 0,
+      discount_percent: 0,
+      total: 0,
+      notes: 'CP12 Gas Safety Certificate (locked snapshot)',
+      payment_info: JSON.stringify(lockedPayload),
+    };
+
+    const { data: insertedRows, error: saveError } = await supabase
+      .from('documents')
+      .insert(documentBase)
+      .select('id')
+      .limit(1);
+
+    if (saveError) {
+      const msg = (saveError.message || '').toLowerCase();
+      const canFallback =
+        msg.includes('type') ||
+        msg.includes('enum') ||
+        msg.includes('check constraint');
+
+      if (!canFallback) throw saveError;
+
+      const { data: fallbackRows, error: fallbackError } = await supabase
+        .from('documents')
+        .insert({ ...documentBase, type: 'quote' as const })
+        .select('id')
+        .limit(1);
+
+      if (fallbackError) throw fallbackError;
+
+      return {
+        lockedPayload,
+        documentId: fallbackRows?.[0]?.id as string,
+      };
+    }
+
+    return {
+      lockedPayload,
+      documentId: insertedRows?.[0]?.id as string,
+    };
+  };
+
   // ── complete ──
-  const handleComplete = async (mode: 'save' | 'share') => {
+  const handleComplete = async (action: 'save' | 'email' | 'view') => {
     if (!customerSignature) {
       Alert.alert('Signature Required', 'Please capture the customer\'s signature before completing.');
       return;
@@ -146,93 +279,70 @@ export default function ReviewSign() {
       return;
     }
 
-    setGenerating(true);
-    setGeneratingMode(mode);
+    if (offlineModeEnabled) {
+      Alert.alert('Offline Mode', 'Disable Offline Mode to save, view, or send CP12 certificates.');
+      return;
+    }
+
+    setProcessingAction(action);
     try {
-      const pdfData: CP12PdfData = {
-        landlordName: landlordForm.customerName || '',
-        landlordCompany: landlordForm.customerCompany || '',
-        landlordAddress: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode].filter(Boolean).join(', '),
-        landlordPostcode: landlordForm.postCode || '',
-        landlordEmail: landlordForm.email || '',
-        landlordPhone: landlordForm.phone || '',
-        tenantName,
-        tenantEmail,
-        tenantPhone,
-        propertyAddress,
-        appliances,
-        finalChecks,
-        inspectionDate,
-        nextDueDate,
-        customerSignature,
-        certRef,
-      };
+      const cp12Reference = await getNextCp12Reference();
+      const { lockedPayload, documentId } = await createCp12Document(cp12Reference);
 
-      const lockedPayload = await buildCP12LockedPayload(
-        pdfData,
-        userProfile.company_id,
-        userProfile.id,
-      );
-
-      const cp12Number = Number(String(Date.now()).slice(-8));
-      const cp12Reference = certRef?.trim() || `CP12-${cp12Number}`;
-
-      const documentBase = {
-        company_id: userProfile.company_id,
-        type: 'cp12' as const,
-        number: cp12Number,
-        reference: cp12Reference,
-        date: new Date().toISOString(),
-        expiry_date: nextDueDate || null,
-        status: 'Sent' as const,
-        customer_id: landlordForm.customerId || null,
-        customer_snapshot: {
-          name: landlordForm.customerName || tenantName || 'CP12 Customer',
-          company_name: landlordForm.customerCompany || null,
-          address_line_1: landlordForm.addressLine1 || null,
-          address_line_2: landlordForm.addressLine2 || null,
-          city: landlordForm.city || null,
-          postal_code: landlordForm.postCode || null,
-          phone: landlordForm.phone || null,
-          email: landlordForm.email || null,
-          address: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode]
-            .filter(Boolean)
-            .join(', '),
-        },
-        items: [],
-        subtotal: 0,
-        discount_percent: 0,
-        total: 0,
-        notes: 'CP12 Gas Safety Certificate (locked snapshot)',
-        payment_info: JSON.stringify(lockedPayload),
-      };
-
-      let { error: saveError } = await supabase
-        .from('documents')
-        .insert(documentBase);
-
-      if (saveError) {
-        const msg = (saveError.message || '').toLowerCase();
-        const canFallback =
-          msg.includes('type') ||
-          msg.includes('enum') ||
-          msg.includes('check constraint');
-
-        if (!canFallback) throw saveError;
-
-        const { error: fallbackError } = await supabase
-          .from('documents')
-          .insert({ ...documentBase, type: 'quote' as const });
-
-        if (fallbackError) throw fallbackError;
+      if (!documentId) {
+        throw new Error('Failed to create CP12 document record.');
       }
 
-      await generateCP12PdfFromPayload(lockedPayload, mode);
+      if (action === 'save') {
+        Alert.alert('Saved', `Certificate ${cp12Reference} was saved to Documents.`, [
+          {
+            text: 'Done',
+            onPress: () => {
+              resetCP12();
+              router.replace('/(app)/documents' as any);
+            },
+          },
+        ]);
+        return;
+      }
 
-      const actionText = mode === 'share' ? 'saved & shared' : 'saved';
+      if (action === 'view') {
+        resetCP12();
+        router.replace(`/(app)/documents/${documentId}` as any);
+        return;
+      }
+
+      const recipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '']);
+      if (!recipients.length) {
+        Alert.alert('No Email Found', 'Add a landlord or tenant email before using Save & Send Email.');
+        return;
+      }
+
+      const pdfBase64 = await generateCP12PdfBase64FromPayload(
+        lockedPayload,
+        userProfile.company_id,
+      );
+
+      await sendCp12CertificateEmail({
+        to: recipients,
+        certRef: cp12Reference,
+        propertyAddress,
+        inspectionDate,
+        nextDueDate,
+        landlordName: landlordForm.customerName,
+        tenantName,
+        pdfBase64,
+      });
+
+      await generateCP12PdfFromPayload(
+        lockedPayload,
+        'share',
+        userProfile.company_id,
+      );
+
       Alert.alert(
-        'CP12 Complete ✓',
-        `Gas Safety Record ${actionText} to Documents.\n\n${appliances.length} appliance(s) inspected.\nRef: ${cp12Reference}`,
+        'Saved & Sent ✓',
+        `Certificate ${cp12Reference} was saved and emailed to ${recipients.join(', ')}.`,
         [
           {
             text: 'Done',
@@ -246,15 +356,14 @@ export default function ReviewSign() {
     } catch (err: any) {
       Alert.alert('PDF Error', err?.message || 'Failed to generate CP12 PDF.');
     } finally {
-      setGenerating(false);
-      setGeneratingMode(null);
+      setProcessingAction(null);
     }
   };
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={theme.gradients.appBackground}
         style={StyleSheet.absoluteFill}
       />
 
@@ -270,15 +379,15 @@ export default function ReviewSign() {
           {/* Header */}
           <Animated.View entering={FadeIn.duration(300)} style={s.header}>
             <TouchableOpacity
-              style={s.backBtn}
+              style={[s.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
               onPress={() => router.back()}
               activeOpacity={0.7}
             >
-              <Ionicons name="chevron-back" size={20} color={UI.brand.primary} />
+              <Ionicons name="chevron-back" size={20} color={theme.brand.primary} />
             </TouchableOpacity>
             <View>
-              <Text style={s.title}>Review & Sign</Text>
-              <Text style={s.subtitleText}>Step 4 of 4</Text>
+              <Text style={[s.title, { color: theme.text.title }]}>Review & Sign</Text>
+              <Text style={[s.subtitleText, { color: theme.text.muted }]}>Step 4 of 4</Text>
             </View>
           </Animated.View>
 
@@ -349,13 +458,7 @@ export default function ReviewSign() {
               <Text style={s.inputLabel}>Cert Ref Number</Text>
               <View style={s.inputWrapper}>
                 <Ionicons name="barcode-outline" size={18} color={UI.brand.primary} style={{ marginRight: 10 }} />
-                <TextInput
-                  style={s.input}
-                  value={certRef}
-                  onChangeText={setCertRef}
-                  placeholder="e.g. CP12-2025-001"
-                  placeholderTextColor="#94A3B8"
-                />
+                <Text style={s.inputValue}>{certRef || 'REF-0001'}</Text>
               </View>
             </View>
           </Animated.View>
@@ -370,7 +473,7 @@ export default function ReviewSign() {
             </View>
 
             {customerSignature ? (
-              <View style={s.signaturePreview}>
+              <View style={[s.signaturePreview, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
                 <Image
                   source={{ uri: customerSignature }}
                   style={s.signatureImage}
@@ -404,6 +507,30 @@ export default function ReviewSign() {
               </TouchableOpacity>
             )}
           </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(280).duration(400)} style={s.card}>
+            <View style={s.sectionHeader}>
+              <View style={s.sectionIconWrap}>
+                <Ionicons name="mail-outline" size={16} color={UI.brand.primary} />
+              </View>
+              <Text style={s.sectionTitle}>Email Recipients</Text>
+            </View>
+
+            {emailRecipients.length ? (
+              <View style={s.emailList}>
+                {emailRecipients.map((email) => (
+                  <View key={email} style={s.emailChip}>
+                    <Ionicons name="at-outline" size={14} color={UI.brand.primary} />
+                    <Text style={s.emailChipText}>{email}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={s.noEmailText}>
+                No landlord or tenant email found yet. Add one to use Save & Send Email.
+              </Text>
+            )}
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -418,42 +545,58 @@ export default function ReviewSign() {
             style={s.saveCp12Btn}
             activeOpacity={0.85}
             onPress={() => handleComplete('save')}
-            disabled={generating}
+            disabled={!!processingAction}
           >
-            {generating && generatingMode === 'save' ? (
+            {processingAction === 'save' ? (
               <ActivityIndicator color={UI.brand.primary} size="small" />
             ) : (
               <>
-                <Ionicons name="download-outline" size={20} color={UI.brand.primary} />
-                <Text style={s.saveCp12Text}>Save PDF</Text>
+                <Ionicons name="save-outline" size={20} color={UI.brand.primary} />
+                <Text style={s.saveCp12Text}>Save</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Save & Share */}
+          {/* Save & Send Email */}
           <TouchableOpacity
             style={s.shareBtn}
             activeOpacity={0.85}
-            onPress={() => handleComplete('share')}
-            disabled={generating}
+            onPress={() => handleComplete('email')}
+            disabled={!!processingAction}
           >
             <LinearGradient
-              colors={generating && generatingMode === 'share' ? [UI.text.muted, UI.text.muted] as readonly [string, string] : UI.gradients.success}
+              colors={processingAction === 'email' ? [UI.text.muted, UI.text.muted] as readonly [string, string] : UI.gradients.success}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={s.shareGradient}
             >
-              {generating && generatingMode === 'share' ? (
+              {processingAction === 'email' ? (
                 <ActivityIndicator color={UI.text.white} size="small" />
               ) : (
                 <>
-                  <Ionicons name="share-outline" size={20} color={UI.text.white} />
-                  <Text style={s.shareText}>Save & Share</Text>
+                  <Ionicons name="mail-outline" size={20} color={UI.text.white} />
+                  <Text style={s.shareText}>Save & Send Email</Text>
                 </>
               )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={[s.viewCertificateBtn, !!processingAction && { opacity: 0.6 }]}
+          activeOpacity={0.85}
+          onPress={() => handleComplete('view')}
+          disabled={!!processingAction}
+        >
+          {processingAction === 'view' ? (
+            <ActivityIndicator color={UI.brand.primary} size="small" />
+          ) : (
+            <>
+              <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
+              <Text style={s.viewCertificateText}>View Certificate</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </Animated.View>
 
       {/* Signature modal */}
@@ -573,4 +716,43 @@ const s = StyleSheet.create({
     paddingVertical: 16, gap: 8,
   },
   shareText: { fontSize: 15, fontWeight: '700', color: UI.text.white },
+  emailList: { gap: 8 },
+  emailChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: UI.surface.primaryLight,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  emailChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: UI.brand.primary,
+  },
+  noEmailText: {
+    fontSize: 13,
+    color: UI.text.muted,
+    lineHeight: 18,
+  },
+  viewCertificateBtn: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: UI.surface.primaryLight,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  viewCertificateText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: UI.brand.primary,
+  },
 });

@@ -3,9 +3,11 @@
 // CP12 Gas Safety Certificate PDF generator
 // ============================================
 
+import { Asset } from 'expo-asset';
+import * as LegacyFileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
+import { Image, Platform } from 'react-native';
 import { supabase } from '../config/supabase';
 import { CP12Appliance, CP12FinalChecks } from '../types/cp12';
 import { getSignedUrl } from './storage';
@@ -68,6 +70,66 @@ export interface CP12LockedPayload {
   engineer: EngineerInfo;
 }
 
+// ─── Load Gas Safe logo as base64 ────────────────────────────────
+
+function getMimeTypeFromUri(uri: string): string {
+  const lower = uri.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  return 'image/png';
+}
+
+async function getImageDataUriFromUri(uri: string): Promise<string> {
+  const base64 = await LegacyFileSystem.readAsStringAsync(uri, {
+    encoding: 'base64' as any,
+  });
+  return `data:${getMimeTypeFromUri(uri)};base64,${base64}`;
+}
+
+async function getGasSafeLogoBase64(): Promise<string> {
+  try {
+    const moduleRef = require('../../assets/images/gaslogo.png');
+    const asset = Asset.fromModule(moduleRef);
+    if (!asset.localUri) {
+      await asset.downloadAsync();
+    }
+    const uri = asset.localUri || Image.resolveAssetSource(moduleRef).uri;
+    if (!uri) return '';
+    return await getImageDataUriFromUri(uri);
+  } catch (err) {
+    console.warn('Failed to load Gas Safe logo:', err);
+    return ''; // Fall back to no logo if reading fails
+  }
+}
+
+async function getCompanyLogoSrc(companyLogoUrl: string): Promise<string> {
+  if (!companyLogoUrl) return '';
+  return companyLogoUrl;
+}
+
+async function getLatestCompanyLogoUrl(
+  companyId?: string,
+  fallbackLogoUrl: string = '',
+): Promise<string> {
+  if (!companyId) return fallbackLogoUrl;
+
+  try {
+    const { data } = await supabase
+      .from('companies')
+      .select('logo_url')
+      .eq('id', companyId)
+      .single();
+
+    if (!data?.logo_url) return '';
+    return await getSignedUrl(data.logo_url);
+  } catch {
+    return fallbackLogoUrl;
+  }
+}
+
+// ─── Fetch company + engineer info from Supabase ────────────────
+
 async function getCompanyAndEngineer(
   companyId: string,
   userId: string,
@@ -127,23 +189,14 @@ const checkIn = (val: string, col: 'Yes' | 'No' | 'N/A'): string => {
 /** Escape empty values — returns blank for rigid form fields */
 const esc = (v: string) => v || '';
 
-// ─── Gas Safe Register logo (inline SVG) ────────────────────────
-
-const GAS_SAFE_LOGO = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="100" height="30">
-  <rect width="200" height="60" rx="4" fill="#000"/>
-  <polygon points="18,48 38,8 58,48" fill="#FDB813" stroke="#000" stroke-width="1"/>
-  <text x="36" y="42" text-anchor="middle" font-size="18" font-weight="900" fill="#000" font-family="Arial">id</text>
-  <text x="72" y="26" font-size="13" font-weight="800" fill="#fff" font-family="Arial">Gas Safe</text>
-  <text x="72" y="44" font-size="11" font-weight="600" fill="#ccc" font-family="Arial">Register</text>
-</svg>`;
-
 // ─── Build HTML ─────────────────────────────────────────────────
 
 function buildHtml(
   data: CP12PdfData,
   company: CompanyInfo,
   engineer: EngineerInfo,
+  gasSafeLogoBase64: string = '',
+  companyLogoSrc: string = '',
 ): string {
   const apps = data.appliances;
   const fc = data.finalChecks;
@@ -153,6 +206,29 @@ function buildHtml(
     .filter(Boolean);
   const landlordAddressLine1 = landlordAddressParts[0] || data.landlordAddress || '';
   const landlordAddressLine2 = landlordAddressParts.slice(1).join(', ');
+
+  const propertyAddressParts = (data.propertyAddress || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const propertyAddressLine1 = propertyAddressParts[0] || data.propertyAddress || '';
+
+  let propertyAddressLine2 = '';
+  let propertyCity = '';
+  let propertyPostcode = '';
+
+  if (propertyAddressParts.length >= 4) {
+    propertyAddressLine2 = propertyAddressParts.slice(1, -2).join(', ');
+    propertyCity = propertyAddressParts[propertyAddressParts.length - 2] || '';
+    propertyPostcode = propertyAddressParts[propertyAddressParts.length - 1] || '';
+  } else if (propertyAddressParts.length === 3) {
+    propertyAddressLine2 = propertyAddressParts[1] || '';
+    propertyPostcode = propertyAddressParts[2] || '';
+  } else if (propertyAddressParts.length === 2) {
+    propertyAddressLine2 = propertyAddressParts[1] || '';
+  }
+
 
   // Build 5 appliance rows (always 5, pad empties)
   const appRows = [0, 1, 2, 3, 4]
@@ -199,25 +275,35 @@ function buildHtml(
 <head>
 <meta charset="utf-8"/>
 <style>
-  @page { margin: 0; size: 297mm 210mm; }
+  @page { margin: 0; size: A4 landscape; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  
   html, body {
     width: 297mm;
     height: 210mm;
     margin: 0;
-    overflow: hidden;
+    padding: 0;
+    overflow: hidden; /* Hard stop to prevent the empty second page */
   }
+  
   body {
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 6.5pt; line-height: 1.2; color: #000;
-    padding: 2.5mm 4mm;
-    zoom: 0.94;
+    font-size: 7pt;
+    line-height: 1.15; 
+    color: #000;
+
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    /* zoom: 0.94; REMOVED to prevent cross-platform rendering bugs */
   }
 
   .page {
     width: 100%;
+    height: 100%;
+    padding: 3mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* This dynamically stretches the tables to fill the page length */
     overflow: hidden;
   }
 
@@ -232,7 +318,7 @@ function buildHtml(
     border: 0.8px solid #9CA3AF;
     padding: 2px 4px;
     vertical-align: middle;
-    font-size: 6.5pt;
+    font-size: 6pt;
   }
   th {
     background: #194763;
@@ -366,7 +452,7 @@ function buildHtml(
 <table>
   <tr>
     <td class="top-bar-cell" style="width:22%; padding:4px 6px; vertical-align:middle;">
-      ${company.logoUrl ? `<img src="${company.logoUrl}" style="max-height:28px;max-width:80px;display:block;margin-bottom:2px;"/>` : ''}
+      ${companyLogoSrc ? `<img src="${companyLogoSrc}" style="max-height:28px;max-width:80px;display:block;margin-bottom:2px;"/>` : ''}
       <div style="font-size:10pt; font-weight:bold; color:#fff;">${esc(company.name)}</div>
     </td>
     <td class="top-bar-cell" style="text-align:center; padding:4px 6px; vertical-align:middle;">
@@ -380,9 +466,11 @@ function buildHtml(
       </div>
     </td>
     <td class="top-bar-cell" style="width:14%; text-align:center; padding:4px 6px; vertical-align:middle;">
-      ${GAS_SAFE_LOGO}
+      ${gasSafeLogoBase64 ? `<img src="${gasSafeLogoBase64}" style="height:32px;max-width:80px;display:block;margin:0 auto 2px;"/>` : ''}
       <div style="font-size:5.5pt; color:#E5E7EB; margin-top:2px;">Gas Cert Ref</div>
       <div style="font-size:9pt; font-weight:bold; color:#fff;">${esc(data.certRef)}</div>
+      <div style="font-size:5.5pt; color:#E5E7EB; margin-top:4px;">No. Appliances</div>
+      <div style="font-size:8pt; font-weight:bold; color:#fff;">${apps.length}</div>
     </td>
   </tr>
 </table>
@@ -404,16 +492,19 @@ function buildHtml(
         <tr><td class="label-cell">Email</td><td class="value-cell">${esc(company.email)}</td></tr>
       </table>
     </td>
-    <td style="width:33.34%; padding:0; vertical-align:top;">
+    <td style="width:33.34%; padding:0 2px; vertical-align:top;">
       <table>
-        <tr><td class="shdr" colspan="2">Inspection &amp; Tenant Details</td></tr>
-        <tr><td class="label-cell">Inspection Date</td><td class="value-cell">${esc(data.inspectionDate)}</td></tr>
-        <tr><td class="label-cell">Next Inspection</td><td class="value-cell">${esc(data.nextDueDate)}</td></tr>
+        <tr><td class="shdr" colspan="2">Inspection &amp; Property Details</td></tr>
         <tr><td class="label-cell">Tenant Name</td><td class="value-cell">${esc(data.tenantName)}</td></tr>
         <tr><td class="label-cell">Tenant Phone</td><td class="value-cell">${esc(data.tenantPhone)}</td></tr>
         <tr><td class="label-cell">Tenant Email</td><td class="value-cell">${esc(data.tenantEmail)}</td></tr>
-        <tr><td class="label-cell">Property Address</td><td class="value-cell">${esc(data.propertyAddress)}</td></tr>
-        <tr><td class="label-cell">No. Appliances</td><td class="value-cell">${apps.length}</td></tr>
+        <tr>
+          <td class="label-cell" rowspan="2" style="vertical-align:top; border-bottom:none;">Address</td>
+          <td class="value-cell" style="border-bottom:none;">${esc(propertyAddressLine1)}</td>
+        </tr>
+        <tr><td class="value-cell" style="border-top:none; min-height:14px;">${esc(propertyAddressLine2)}&nbsp;</td></tr>
+        <tr><td class="label-cell">Postcode</td><td class="value-cell">${esc(propertyPostcode)}</td></tr>
+        <tr><td class="label-cell">City</td><td class="value-cell">${esc(propertyCity)}</td></tr>
       </table>
     </td>
     <td style="width:33.33%; padding:0; vertical-align:top;">
@@ -422,10 +513,10 @@ function buildHtml(
         <tr><td class="label-cell">Name</td><td class="value-cell">${esc(data.landlordName)}</td></tr>
         <tr><td class="label-cell">Company Name</td><td class="value-cell">${esc(data.landlordCompany || '')}</td></tr>
         <tr>
-          <td class="label-cell" rowspan="2" style="vertical-align:top;">Address</td>
-          <td class="value-cell">${esc(landlordAddressLine1)}</td>
+          <td class="label-cell" rowspan="2" style="vertical-align:top; border-bottom:none;">Address</td>
+          <td class="value-cell" style="border-bottom:none;">${esc(landlordAddressLine1)}</td>
         </tr>
-        <tr><td class="value-cell">${esc(landlordAddressLine2)}</td></tr>
+        <tr><td class="value-cell" style="border-top:none;">${esc(landlordAddressLine2)}</td></tr>
         <tr><td class="label-cell">Postcode</td><td class="value-cell">${esc(data.landlordPostcode || '')}</td></tr>
         <tr><td class="label-cell">Email</td><td class="value-cell">${esc(data.landlordEmail)}</td></tr>
         <tr><td class="label-cell">Phone / Mobile</td><td class="value-cell">${esc(data.landlordPhone)}</td></tr>
@@ -556,8 +647,8 @@ ${appRows}
 <!-- ═══════════════════════════════════════════════════════════════════
      6. FAULTS & WORKS BOX
      ═══════════════════════════════════════════════════════════════════ -->
-<table class="flt mt">
-  <tr><td class="shdr" colspan="2">Faults Identified &amp; Remedial Work</td></tr>
+<table class="flt" style="margin-top:0; border-top:none;">
+  <tr><td class="shdr" colspan="2" style="border-top:0.8px solid #9CA3AF;">Faults Identified &amp; Remedial Work</td></tr>
   <tr class="tall-row">
     <th>Give Details of Any Faults Identified</th>
     <td>${esc(fc.faults)}</td>
@@ -638,6 +729,21 @@ async function printHtmlToPdf(html: string): Promise<string> {
   return uri;
 }
 
+async function printHtmlToPdfBase64(html: string): Promise<string> {
+  const { base64 } = await Print.printToFileAsync({
+    html,
+    base64: true,
+    width: 842,
+    height: 595,
+  });
+
+  if (!base64) {
+    throw new Error('Failed to create CP12 PDF base64 output');
+  }
+
+  return base64;
+}
+
 async function shareHtmlAsPdf(html: string, title: string): Promise<void> {
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Sharing is not available on this device');
@@ -661,6 +767,69 @@ async function shareHtmlAsPdf(html: string, title: string): Promise<void> {
   await Sharing.shareAsync(uri, shareOptions);
 }
 
+export async function generateCP12PdfFromPayload(
+  payload: CP12LockedPayload,
+  mode: 'share' | 'save' | 'view' = 'share',
+  companyId?: string,
+): Promise<void> {
+  const gasSafeLogoBase64 = await getGasSafeLogoBase64();
+  const liveCompanyLogoUrl = await getLatestCompanyLogoUrl(
+    companyId,
+    payload.company.logoUrl,
+  );
+  const companyLogoSrc = await getCompanyLogoSrc(liveCompanyLogoUrl);
+  const companyForRender: CompanyInfo = {
+    ...payload.company,
+    logoUrl: liveCompanyLogoUrl,
+  };
+  const html = buildHtml(
+    payload.pdfData,
+    companyForRender,
+    payload.engineer,
+    gasSafeLogoBase64,
+    companyLogoSrc,
+  );
+  const title = `CP12 - ${payload.pdfData.landlordName || 'Gas Safety Record'}`;
+
+  if (mode === 'view') {
+    await Print.printAsync({ html });
+    return;
+  }
+
+  if (mode === 'save') {
+    await shareHtmlAsPdf(html, `${title} (Save)`);
+    return;
+  }
+
+  await shareHtmlAsPdf(html, title);
+}
+
+export async function generateCP12PdfBase64FromPayload(
+  payload: CP12LockedPayload,
+  companyId?: string,
+): Promise<string> {
+  const gasSafeLogoBase64 = await getGasSafeLogoBase64();
+  const liveCompanyLogoUrl = await getLatestCompanyLogoUrl(
+    companyId,
+    payload.company.logoUrl,
+  );
+  const companyLogoSrc = await getCompanyLogoSrc(liveCompanyLogoUrl);
+  const companyForRender: CompanyInfo = {
+    ...payload.company,
+    logoUrl: liveCompanyLogoUrl,
+  };
+  const html = buildHtml(
+    payload.pdfData,
+    companyForRender,
+    payload.engineer,
+    gasSafeLogoBase64,
+    companyLogoSrc,
+  );
+  return printHtmlToPdfBase64(html);
+}
+
+// ─── Public API ─────────────────────────────────────────────────
+
 export async function buildCP12LockedPayload(
   data: CP12PdfData,
   companyId: string,
@@ -677,32 +846,12 @@ export async function buildCP12LockedPayload(
   };
 }
 
-export async function generateCP12PdfFromPayload(
-  payload: CP12LockedPayload,
-  mode: 'share' | 'save' = 'share',
-): Promise<void> {
-  const html = buildHtml(payload.pdfData, payload.company, payload.engineer);
-  const title = `CP12 - ${payload.pdfData.landlordName || 'Gas Safety Record'}`;
-
-  if (mode === 'save') {
-    const uri = await printHtmlToPdf(html);
-    // On iOS, printToFileAsync already saves to a temp location the user can preview
-    // Use the native print dialog which offers "Save to Files"
-    await Print.printAsync({ uri });
-    return;
-  }
-
-  await shareHtmlAsPdf(html, title);
-}
-
-// ─── Public API ─────────────────────────────────────────────────
-
 export async function generateCP12Pdf(
   data: CP12PdfData,
   companyId: string,
   userId: string,
-  mode: 'share' | 'save' = 'share',
+  mode: 'share' | 'save' | 'view' = 'share',
 ): Promise<void> {
   const payload = await buildCP12LockedPayload(data, companyId, userId);
-  await generateCP12PdfFromPayload(payload, mode);
+  await generateCP12PdfFromPayload(payload, mode, companyId);
 }

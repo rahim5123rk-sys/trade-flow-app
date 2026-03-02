@@ -28,6 +28,10 @@ import Onboarding, { OnboardingTip } from '../../../components/Onboarding';
 import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useOfflineMode } from '../../../src/context/OfflineContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
+import type { CP12LockedPayload } from '../../../src/services/cp12PdfGenerator';
+import { sanitizeRecipients, sendHtmlEmail } from '../../../src/services/email';
 import { getSignedUrl, uploadImage } from '../../../src/services/storage';
 
 const SETTINGS_TIPS: OnboardingTip[] = [
@@ -63,6 +67,15 @@ const SETTINGS_TIPS: OnboardingTip[] = [
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
+
+const parseDdMmYyyy = (value?: string | null): Date | null => {
+  if (!value) return null;
+  const parts = value.split('/');
+  if (parts.length !== 3) return null;
+  const [dd, mm, yyyy] = parts.map((part) => Number(part));
+  if (!dd || !mm || !yyyy) return null;
+  return new Date(yyyy, mm - 1, dd);
+};
 
 // --- Signature Constants & HTML ---
 const SIG_HEIGHT = 160;
@@ -113,9 +126,12 @@ const sigCanvasHTML = `
 
 // --- Reusable Components ---
 
-const SectionHeader = ({ title }: { title: string }) => (
-  <Text style={styles.sectionHeader}>{title}</Text>
-);
+const SectionHeader = ({ title }: { title: string }) => {
+  const { theme } = useAppTheme();
+  return (
+    <Text style={[styles.sectionHeader, { color: theme.text.muted }]}>{title}</Text>
+  );
+};
 
 const SettingRow = ({
   icon,
@@ -135,38 +151,41 @@ const SettingRow = ({
   hasToggle?: boolean;
   toggleValue?: boolean;
   onToggle?: (val: boolean) => void;
-}) => (
-  <TouchableOpacity
-    style={styles.row}
-    onPress={onPress}
-    activeOpacity={hasToggle ? 1 : 0.7}
-    disabled={hasToggle && !onPress}
-  >
-    <View style={[styles.iconBox, isDestructive && styles.destructiveIconBox]}>
-      <Ionicons
-        name={icon}
-        size={20}
-        color={isDestructive ? UI.brand.danger : UI.brand.primary}
-      />
-    </View>
-    <View style={styles.rowContent}>
-      <Text style={[styles.rowLabel, isDestructive && styles.destructiveText]}>
-        {label}
-      </Text>
-      {value && <Text style={styles.rowValue}>{value}</Text>}
-    </View>
-    {hasToggle ? (
-      <Switch
-        value={toggleValue}
-        onValueChange={onToggle}
-        trackColor={{ false: UI.surface.divider, true: UI.brand.primary }}
-        thumbColor={'#fff'}
-      />
-    ) : (
-      <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
-    )}
-  </TouchableOpacity>
-);
+}) => {
+  const { theme, isDark } = useAppTheme();
+  return (
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onPress}
+      activeOpacity={hasToggle ? 1 : 0.7}
+      disabled={hasToggle && !onPress}
+    >
+      <View style={[styles.iconBox, isDestructive && styles.destructiveIconBox, isDark && !isDestructive && { backgroundColor: 'rgba(255,255,255,0.08)' }, isDark && isDestructive && { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+        <Ionicons
+          name={icon}
+          size={20}
+          color={isDestructive ? UI.brand.danger : theme.brand.primary}
+        />
+      </View>
+      <View style={styles.rowContent}>
+        <Text style={[styles.rowLabel, { color: theme.text.title }, isDestructive && { color: Colors.danger }]}>
+          {label}
+        </Text>
+        {value && <Text style={[styles.rowValue, { color: theme.text.muted }]}>{value}</Text>}
+      </View>
+      {hasToggle ? (
+        <Switch
+          value={toggleValue}
+          onValueChange={onToggle}
+          trackColor={{ false: isDark ? theme.surface.divider : UI.surface.divider, true: theme.brand.primary }}
+          thumbColor={'#fff'}
+        />
+      ) : (
+        <Ionicons name="chevron-forward" size={18} color={theme.surface.border} />
+      )}
+    </TouchableOpacity>
+  );
+};
 
 const InputField = ({
   label,
@@ -188,40 +207,46 @@ const InputField = ({
   minHeight?: number;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
-}) => (
-  <View style={styles.inputContainer}>
-    <Text style={styles.inputLabel}>{label}</Text>
-    <View style={[styles.inputWrapper, multiline && { alignItems: 'flex-start' }]}>
-      {icon && (
-        <Ionicons
-          name={icon}
-          size={20}
-          color={UI.text.muted}
-          style={{ marginRight: 10, marginTop: multiline ? 8 : 0 }}
+}) => {
+  const { theme, isDark } = useAppTheme();
+  return (
+    <View style={styles.inputContainer}>
+      <Text style={[styles.inputLabel, { color: theme.text.body }]}>{label}</Text>
+      <View style={[styles.inputWrapper, multiline && { alignItems: 'flex-start' }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
+        {icon && (
+          <Ionicons
+            name={icon}
+            size={20}
+            color={theme.text.muted}
+            style={{ marginRight: 10, marginTop: multiline ? 8 : 0 }}
+          />
+        )}
+        <TextInput
+          style={[
+            styles.input,
+            { color: theme.text.title },
+            multiline && styles.textArea,
+            minHeight ? { minHeight } : {}
+          ]}
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor={theme.text.placeholder}
+          multiline={multiline}
+          autoCapitalize={autoCapitalize}
+          keyboardType={keyboardType}
         />
-      )}
-      <TextInput
-        style={[
-          styles.input, 
-          multiline && styles.textArea,
-          minHeight ? { minHeight } : {}
-        ]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
-        multiline={multiline}
-        autoCapitalize={autoCapitalize}
-        keyboardType={keyboardType}
-      />
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 // --- Main Screen ---
 
 export default function SettingsScreen() {
   const { user, userProfile, signOut, refreshProfile } = useAuth();
+  const { offlineModeEnabled, setOfflineModeEnabled } = useOfflineMode();
+  const { isDark, toggleTheme, theme, colors } = useAppTheme();
   const isAdmin = userProfile?.role === 'admin';
   const insets = useSafeAreaInsets();
   const sigWebViewRef = useRef<WebView>(null);
@@ -251,7 +276,10 @@ export default function SettingsScreen() {
 
   // Preferences
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+  const [cp12ReminderEnabled, setCp12ReminderEnabled] = useState(true);
+  const [cp12ReminderDays, setCp12ReminderDays] = useState('30');
+  const [cp12ReminderRecipients, setCp12ReminderRecipients] = useState<'both' | 'landlord' | 'tenant'>('both');
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
@@ -296,6 +324,11 @@ export default function SettingsScreen() {
         if (s.invoiceTerms) setInvoiceTerms(s.invoiceTerms);
         if (s.invoiceNotes) setInvoiceNotes(s.invoiceNotes);
         if (s.signatureBase64) setSavedSignatureBase64(s.signatureBase64);
+        if (typeof s.cp12ReminderEnabled === 'boolean') setCp12ReminderEnabled(s.cp12ReminderEnabled);
+        if (s.cp12ReminderDays) setCp12ReminderDays(String(s.cp12ReminderDays));
+        if (s.cp12ReminderRecipients === 'landlord' || s.cp12ReminderRecipients === 'tenant' || s.cp12ReminderRecipients === 'both') {
+          setCp12ReminderRecipients(s.cp12ReminderRecipients);
+        }
       }
     } catch (error) {
       console.error('Failed to load company data:', error);
@@ -342,7 +375,6 @@ export default function SettingsScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -388,6 +420,9 @@ export default function SettingsScreen() {
                 invoiceTerms, 
                 invoiceNotes, 
                 signatureBase64: savedSignatureBase64,
+                cp12ReminderEnabled,
+                cp12ReminderDays: Number(cp12ReminderDays || 30),
+                cp12ReminderRecipients,
             },
           })
           .eq('id', userProfile.company_id);
@@ -557,6 +592,99 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleSendDueReminders = async () => {
+    if (!userProfile?.company_id) {
+      Alert.alert('Error', 'Company profile not found.');
+      return;
+    }
+
+    if (!cp12ReminderEnabled) {
+      Alert.alert('Reminders Disabled', 'Enable CP12 reminders first.');
+      return;
+    }
+
+    const days = Number(cp12ReminderDays || 30);
+    if (!Number.isFinite(days) || days < 1 || days > 365) {
+      Alert.alert('Invalid Days', 'Reminder days must be between 1 and 365.');
+      return;
+    }
+
+    setSendingReminders(true);
+    try {
+      const { data: docs, error } = await supabase
+        .from('documents')
+        .select('id,reference,expiry_date,customer_snapshot,payment_info')
+        .eq('company_id', userProfile.company_id)
+        .eq('type', 'cp12');
+
+      if (error) throw error;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const cutoff = new Date(today);
+      cutoff.setDate(cutoff.getDate() + days);
+
+      let sentCount = 0;
+
+      for (const doc of docs || []) {
+        const due = parseDdMmYyyy(doc.expiry_date);
+        if (!due) continue;
+        due.setHours(0, 0, 0, 0);
+        if (due < today || due > cutoff) continue;
+
+        let tenantEmail = '';
+        let tenantName = '';
+        let propertyAddress = '';
+
+        try {
+          const payload = JSON.parse(doc.payment_info || '{}') as CP12LockedPayload;
+          if (payload?.kind === 'cp12') {
+            tenantEmail = payload.pdfData?.tenantEmail || '';
+            tenantName = payload.pdfData?.tenantName || '';
+            propertyAddress = payload.pdfData?.propertyAddress || '';
+          }
+        } catch {
+          // ignore malformed payload
+        }
+
+        const landlordEmail = doc.customer_snapshot?.email || '';
+        const recipients = sanitizeRecipients(
+          cp12ReminderRecipients === 'both'
+            ? [landlordEmail, tenantEmail]
+            : cp12ReminderRecipients === 'landlord'
+              ? [landlordEmail]
+              : [tenantEmail],
+        );
+
+        if (!recipients.length) continue;
+
+        const subject = `CP12 Reminder: Certificate ${doc.reference || ''} expires on ${doc.expiry_date}`;
+        const html = `
+          <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#0f172a;line-height:1.5;">
+            <h2 style="margin:0 0 12px;">CP12 Renewal Reminder</h2>
+            <p style="margin:0 0 12px;">Your CP12 certificate is due to expire soon.</p>
+            <table style="width:100%;border-collapse:collapse;margin:12px 0 20px;">
+              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Reference</td><td style="padding:8px;border:1px solid #e2e8f0;">${doc.reference || 'N/A'}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Property</td><td style="padding:8px;border:1px solid #e2e8f0;">${propertyAddress || 'N/A'}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Tenant</td><td style="padding:8px;border:1px solid #e2e8f0;">${tenantName || 'N/A'}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Expiry Date</td><td style="padding:8px;border:1px solid #e2e8f0;">${doc.expiry_date || 'N/A'}</td></tr>
+            </table>
+            <p style="margin:0;color:#475569;font-size:14px;">Please arrange an inspection to stay compliant.</p>
+          </div>
+        `;
+
+        await sendHtmlEmail({ to: recipients, subject, html });
+        sentCount += 1;
+      }
+
+      Alert.alert('Reminders Sent', sentCount > 0 ? `Sent ${sentCount} reminder email(s).` : 'No CP12 certificates are due in your reminder window.');
+    } catch (error: any) {
+      Alert.alert('Reminder Error', error?.message || 'Failed to send CP12 reminders.');
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
   const handleSwipeClose = () => {
     if (router.canGoBack()) {
       router.back();
@@ -584,7 +712,7 @@ export default function SettingsScreen() {
       {...swipeResponder.panHandlers}
     >
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -597,8 +725,8 @@ export default function SettingsScreen() {
       >
         <Animated.View entering={FadeInDown.delay(40).springify()} style={styles.headerRow}>
           <View>
-            <Text style={styles.screenTitle}>Settings</Text>
-            <Text style={styles.screenSubtitle}>{isAdmin ? 'Business profile & preferences' : 'Your profile & preferences'}</Text>
+            <Text style={[styles.screenTitle, { color: theme.text.title }]}>Settings</Text>
+            <Text style={[styles.screenSubtitle, { color: theme.text.muted }]}>{isAdmin ? 'Business profile & preferences' : 'Your profile & preferences'}</Text>
           </View>
           {isLoading ? (
             <ActivityIndicator color={UI.brand.primary} />
@@ -610,19 +738,19 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* --- Profile Card --- */}
-        <Animated.View entering={FadeInDown.delay(70).springify()} style={styles.profileCard}>
-          <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase() || 'U'}</Text>
+        <Animated.View entering={FadeInDown.delay(70).springify()} style={[styles.profileCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <LinearGradient colors={isDark ? theme.gradients.primary : UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarContainer}>
+            <Text style={[styles.avatarText, { color: isDark ? '#000' : UI.text.white }]}>{displayName.charAt(0).toUpperCase() || 'U'}</Text>
           </LinearGradient>
           <View style={{ flex: 1 }}>
-            <Text style={styles.profileName}>{displayName || 'User'}</Text>
-            <Text style={styles.profileRole}>{userProfile?.role === 'admin' ? 'Administrator' : 'Worker'}</Text>
+            <Text style={[styles.profileName, { color: theme.text.title }]}>{displayName || 'User'}</Text>
+            <Text style={[styles.profileRole, { color: theme.text.muted }]}>{userProfile?.role === 'admin' ? 'Administrator' : 'Worker'}</Text>
           </View>
         </Animated.View>
 
         {/* --- User & Company --- */}
         <SectionHeader title="Details" />
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
           <SettingRow
             icon="person-circle-outline"
             label="User Details"
@@ -631,7 +759,7 @@ export default function SettingsScreen() {
           />
           {isAdmin && (
             <>
-              <View style={styles.divider} />
+              <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
               <SettingRow
                 icon="business-outline"
                 label="Company Details"
@@ -646,14 +774,14 @@ export default function SettingsScreen() {
         {isAdmin && (
           <>
             <SectionHeader title="Branding" />
-            <View style={styles.card}>
+            <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <View style={styles.logoSection}>
-                <View style={styles.logoPreview}>
-                  {isUploading ? <ActivityIndicator size="small" /> : logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImg} /> : <Ionicons name="image-outline" size={32} color={UI.surface.border} />}
+                <View style={[styles.logoPreview, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
+                  {isUploading ? <ActivityIndicator size="small" /> : logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImg} /> : <Ionicons name="image-outline" size={32} color={theme.surface.border} />}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.logoLabel}>Company Logo</Text>
-                  <Text style={styles.logoSub}>Used on invoices and job sheets.</Text>
+                  <Text style={[styles.logoLabel, { color: theme.text.title }]}>Company Logo</Text>
+                  <Text style={[styles.logoSub, { color: theme.text.muted }]}>Used on invoices and job sheets.</Text>
                   <TouchableOpacity onPress={handleLogoUpload}>
                     <Text style={styles.uploadLink}>Upload New Image</Text>
                   </TouchableOpacity>
@@ -667,7 +795,7 @@ export default function SettingsScreen() {
         {isAdmin && (
           <>
             <SectionHeader title="Team Management" />
-            <View style={styles.card}>
+            <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <SettingRow
                 icon="people-outline"
                 label="Manage Team"
@@ -682,7 +810,7 @@ export default function SettingsScreen() {
         {isAdmin && (
           <>
             <SectionHeader title="Invoice Defaults" />
-            <View style={styles.card}>
+            <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <InputField 
                 label="Payment Terms" 
                 value={invoiceTerms} 
@@ -707,8 +835,8 @@ export default function SettingsScreen() {
         {/* --- Signature (Admin only) --- */}
         {isAdmin && <SectionHeader title="Digital Signature" />}
         {isAdmin && (
-        <View style={styles.card}>
-          <Text style={styles.hint}>Used for signing off invoices and job sheets.</Text>
+        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <Text style={[styles.hint, { color: theme.text.muted }]}>Used for signing off invoices and job sheets.</Text>
           
           {savedSignatureBase64 && !showSignaturePad ? (
             <View>
@@ -716,11 +844,11 @@ export default function SettingsScreen() {
                 <Image source={{ uri: savedSignatureBase64 }} style={{ width: '100%', height: 100 }} resizeMode="contain" />
               </View>
               <View style={styles.sigActions}>
-                <TouchableOpacity style={styles.sigBtn} onPress={() => setShowSignaturePad(true)}>
-                  <Ionicons name="create-outline" size={16} color={Colors.primary} />
-                  <Text style={styles.sigBtnText}>Re-draw</Text>
+                <TouchableOpacity style={[styles.sigBtn, isDark && { backgroundColor: theme.surface.elevated }]} onPress={() => setShowSignaturePad(true)}>
+                  <Ionicons name="create-outline" size={16} color={theme.brand.primary} />
+                  <Text style={[styles.sigBtnText, { color: theme.brand.primary }]}>Re-draw</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.sigBtn, styles.sigBtnDanger]} onPress={clearSignature}>
+                <TouchableOpacity style={[styles.sigBtn, styles.sigBtnDanger, isDark && { backgroundColor: 'rgba(239,68,68,0.12)' }]} onPress={clearSignature}>
                   <Ionicons name="trash-outline" size={16} color={Colors.danger} />
                   <Text style={[styles.sigBtnText, { color: Colors.danger }]}>Remove</Text>
                 </TouchableOpacity>
@@ -728,7 +856,7 @@ export default function SettingsScreen() {
             </View>
           ) : (
             <View>
-              <View style={styles.signaturePadWrapper}>
+              <View style={[styles.signaturePadWrapper, isDark && { borderColor: theme.surface.border }]}>
                 <WebView
                   ref={sigWebViewRef}
                   source={{ html: sigCanvasHTML }}
@@ -738,14 +866,14 @@ export default function SettingsScreen() {
                   onMessage={handleWebViewMessage}
                 />
                 <View style={styles.sigPadLabel}>
-                  <Ionicons name="pencil" size={12} color={UI.surface.border} />
-                  <Text style={styles.sigPadLabelText}>Sign here</Text>
+                  <Ionicons name="pencil" size={12} color={theme.surface.border} />
+                  <Text style={[styles.sigPadLabelText, { color: theme.surface.border }]}>Sign here</Text>
                 </View>
               </View>
               <View style={styles.sigActions}>
-                <TouchableOpacity style={styles.sigBtn} onPress={() => sigWebViewRef.current?.injectJavaScript('window.clearCanvas(); true;')}>
-                  <Ionicons name="refresh" size={16} color={Colors.textLight} />
-                  <Text style={[styles.sigBtnText, { color: Colors.textLight }]}>Reset</Text>
+                <TouchableOpacity style={[styles.sigBtn, isDark && { backgroundColor: theme.surface.elevated }]} onPress={() => sigWebViewRef.current?.injectJavaScript('window.clearCanvas(); true;')}>
+                  <Ionicons name="refresh" size={16} color={theme.text.muted} />
+                  <Text style={[styles.sigBtnText, { color: theme.text.muted }]}>Reset</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.sigBtn, styles.sigBtnPrimary]} onPress={saveSignature}>
                   <Ionicons name="checkmark" size={16} color={UI.text.white} />
@@ -767,28 +895,107 @@ export default function SettingsScreen() {
 
         {/* --- Preferences --- */}
         <SectionHeader title="Preferences" />
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <SettingRow
+            icon={isDark ? 'moon' : 'moon-outline'}
+            label="Dark Mode"
+            value="Monochrome black & white"
+            hasToggle
+            toggleValue={isDark}
+            onToggle={toggleTheme}
+          />
+          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
           <SettingRow icon="notifications-outline" label="Push Notifications" hasToggle toggleValue={notificationsEnabled} onToggle={setNotificationsEnabled} />
-          <View style={styles.divider} />
-          <SettingRow icon="moon-outline" label="Dark Mode" hasToggle toggleValue={darkMode} onToggle={setDarkMode} />
+          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+          <SettingRow
+            icon="cloud-offline-outline"
+            label="Offline Mode"
+            value="Pause cloud updates while enabled"
+            hasToggle
+            toggleValue={offlineModeEnabled}
+            onToggle={(value) => { void setOfflineModeEnabled(value); }}
+          />
         </View>
+
+        {/* --- CP12 Reminder Settings --- */}
+        {isAdmin && (
+          <>
+            <SectionHeader title="CP12 Reminders" />
+            <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <SettingRow
+                icon="alarm-outline"
+                label="Enable Email Reminders"
+                value="Notify landlord/tenant before expiry"
+                hasToggle
+                toggleValue={cp12ReminderEnabled}
+                onToggle={setCp12ReminderEnabled}
+              />
+              <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
+              <InputField
+                label="Send reminders this many days before expiry"
+                value={cp12ReminderDays}
+                onChange={setCp12ReminderDays}
+                placeholder="30"
+                icon="calendar-outline"
+                keyboardType="numeric"
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.text.body }]}>Recipients</Text>
+              <View style={styles.reminderRecipientRow}>
+                <TouchableOpacity
+                  style={[styles.recipientChip, isDark && { borderColor: theme.surface.border, backgroundColor: theme.surface.elevated }, cp12ReminderRecipients === 'both' && styles.recipientChipActive]}
+                  onPress={() => setCp12ReminderRecipients('both')}
+                >
+                  <Text style={[styles.recipientChipText, { color: theme.text.body }, cp12ReminderRecipients === 'both' && styles.recipientChipTextActive]}>Landlord + Tenant</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.recipientChip, isDark && { borderColor: theme.surface.border, backgroundColor: theme.surface.elevated }, cp12ReminderRecipients === 'landlord' && styles.recipientChipActive]}
+                  onPress={() => setCp12ReminderRecipients('landlord')}
+                >
+                  <Text style={[styles.recipientChipText, { color: theme.text.body }, cp12ReminderRecipients === 'landlord' && styles.recipientChipTextActive]}>Landlord only</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.recipientChip, isDark && { borderColor: theme.surface.border, backgroundColor: theme.surface.elevated }, cp12ReminderRecipients === 'tenant' && styles.recipientChipActive]}
+                  onPress={() => setCp12ReminderRecipients('tenant')}
+                >
+                  <Text style={[styles.recipientChipText, { color: theme.text.body }, cp12ReminderRecipients === 'tenant' && styles.recipientChipTextActive]}>Tenant only</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.reminderSendBtn, sendingReminders && { opacity: 0.7 }]}
+                onPress={handleSendDueReminders}
+                disabled={sendingReminders}
+              >
+                {sendingReminders ? (
+                  <ActivityIndicator color={UI.text.white} size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="mail-outline" size={16} color={UI.text.white} />
+                    <Text style={styles.reminderSendBtnText}>Send Due Reminders Now</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         {/* --- Legal & Privacy --- */}
         <SectionHeader title="Legal & Privacy" />
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
           <SettingRow
             icon="shield-checkmark-outline"
             label="Privacy Policy"
             value="How we handle your data"
             onPress={() => router.push('/(app)/settings/privacy-policy')}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
           <SettingRow
             icon="document-text-outline"
             label="Terms of Service"
             onPress={() => router.push('/(app)/settings/terms-of-service')}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
           <SettingRow
             icon="download-outline"
             label="Export My Data"
@@ -799,15 +1006,15 @@ export default function SettingsScreen() {
 
         {/* --- Support --- */}
         <SectionHeader title="Support" />
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
           <SettingRow icon="help-circle-outline" label="Help Center" onPress={() => Linking.openURL('https://google.com')} />
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
           <SettingRow icon="log-out-outline" label="Sign Out" isDestructive onPress={handleSignOut} />
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: theme.surface.divider }]} />
           <SettingRow icon="trash-outline" label="Delete My Account" isDestructive onPress={handleDeleteAccount} />
         </View>
 
-        <Text style={styles.versionText}>TradeFlow v1.0.5</Text>
+        <Text style={[styles.versionText, { color: theme.text.muted }]}>TradeFlow v1.0.5</Text>
       </ScrollView>
 
       {/* First-run onboarding */}
@@ -900,6 +1107,48 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 15, fontWeight: '600', color: UI.text.title },
   destructiveText: { color: Colors.danger, fontWeight: '600' },
   rowValue: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
+  reminderRecipientRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  recipientChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: UI.surface.divider,
+    backgroundColor: UI.surface.base,
+  },
+  recipientChipActive: {
+    borderColor: UI.brand.primary,
+    backgroundColor: 'rgba(99,102,241,0.12)',
+  },
+  recipientChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: UI.text.body,
+  },
+  recipientChipTextActive: {
+    color: UI.brand.primary,
+  },
+  reminderSendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+    borderRadius: 12,
+    paddingVertical: 12,
+    backgroundColor: UI.brand.primary,
+  },
+  reminderSendBtnText: {
+    color: UI.text.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
 
   // Signature Styles
   hint: { fontSize: 12, color: UI.text.muted, fontStyle: 'italic', marginBottom: 12 },

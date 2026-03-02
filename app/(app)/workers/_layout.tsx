@@ -1,18 +1,30 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 import { Colors } from '../../../constants/theme';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 export default function WorkersLayout() {
+  const { theme, isDark } = useAppTheme();
+
   return (
     <Stack
       screenOptions={{
-        headerTintColor: Colors.primary,
+        headerTintColor: theme.brand.primary,
         headerBackTitle: 'Back',
-        contentStyle: { backgroundColor: Colors.background },
+        headerStyle: { backgroundColor: theme.surface.base },
+        headerTitleStyle: { color: theme.text.title },
+        contentStyle: { backgroundColor: theme.surface.base },
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Team', headerShown: false }} />
-      <Stack.Screen name="add" options={{ title: 'Add Worker', presentation: 'modal' }} />
+      <Stack.Screen
+        name="add"
+        options={{
+          title: 'Add Worker',
+          presentation: 'modal',
+          headerShadowVisible: !isDark,
+        }}
+      />
     </Stack>
   );
 }

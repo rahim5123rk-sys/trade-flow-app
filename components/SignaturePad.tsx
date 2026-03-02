@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useRef } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SignatureScreen, { SignatureViewRef } from 'react-native-signature-canvas';
-import { Colors, UI} from '../constants/theme';
+import { Colors, UI } from '../constants/theme';
+import { useAppTheme } from '../src/context/ThemeContext';
 
 interface SignaturePadProps {
   visible: boolean;
@@ -12,6 +13,7 @@ interface SignaturePadProps {
 
 export const SignaturePad = ({ visible, onClose, onOK }: SignaturePadProps) => {
   const ref = useRef<SignatureViewRef>(null);
+  const { theme, isDark } = useAppTheme();
 
   const handleClear = () => {
     ref.current?.clearSignature();
@@ -24,27 +26,27 @@ export const SignaturePad = ({ visible, onClose, onOK }: SignaturePadProps) => {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, isDark && { backgroundColor: theme.surface.card }]}>
           <View style={styles.header}>
-            <Text style={styles.title}>Customer Signature</Text>
+            <Text style={[styles.title, isDark && { color: theme.text.title }]}>Customer Signature</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color={Colors.text} />
+              <Ionicons name="close" size={24} color={isDark ? theme.text.body : Colors.text} />
             </TouchableOpacity>
           </View>
           
-          <View style={styles.padContainer}>
+          <View style={[styles.padContainer, isDark && { borderColor: theme.surface.border }]}>
             <SignatureScreen
               ref={ref}
               onOK={onOK}
               webStyle={`.m-signature-pad--footer {display: none; margin: 0px;}`}
-              backgroundColor="#fff"
-              penColor={Colors.text}
+              backgroundColor={isDark ? theme.surface.elevated : '#fff'}
+              penColor={isDark ? theme.text.title : Colors.text}
             />
           </View>
 
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={handleClear}>
-              <Text style={styles.secondaryBtnText}>Clear</Text>
+            <TouchableOpacity style={[styles.secondaryBtn, isDark && { borderColor: theme.surface.border }]} onPress={handleClear}>
+              <Text style={[styles.secondaryBtnText, isDark && { color: theme.text.body }]}>Clear</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.primaryBtn} onPress={handleConfirm}>
               <Text style={styles.primaryBtnText}>Confirm & Save</Text>

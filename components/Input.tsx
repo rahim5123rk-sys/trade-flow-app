@@ -8,6 +8,7 @@ import {
     View,
     ViewStyle,
 } from 'react-native';
+import { useAppTheme } from '../src/context/ThemeContext';
 import { Colors, UI } from './../constants/theme';
 
 interface InputProps extends TextInputProps {
@@ -28,42 +29,45 @@ export function Input({
   style,
   ...rest
 }: InputProps) {
+  const { theme, isDark } = useAppTheme();
   return (
     <View style={[styles.container, containerStyle]}>
       {label && (
-        <Text style={styles.label}>
+        <Text style={[styles.label, { color: theme.text.secondary }]}>
           {label}
-          {required && <Text style={styles.required}> *</Text>}
+          {required && <Text style={{ color: theme.brand?.danger || Colors.danger }}> *</Text>}
         </Text>
       )}
       <View
         style={[
           styles.inputWrapper,
+          { backgroundColor: isDark ? theme.surface.elevated : UI.surface.base, borderColor: isDark ? theme.surface.border : UI.surface.divider },
           multiline && styles.multilineWrapper,
-          error && styles.errorBorder,
+          error && { borderColor: theme.brand?.danger || Colors.danger },
         ]}
       >
         {icon && (
           <Ionicons
             name={icon}
             size={20}
-            color={Colors.textLight}
+            color={theme.text.muted}
             style={[styles.icon, multiline && { marginTop: 12 }]}
           />
         )}
         <TextInput
           style={[
             styles.input,
+            { color: theme.text.title },
             multiline && styles.textArea,
             style,
           ]}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={theme.text.placeholder}
           multiline={multiline}
           textAlignVertical={multiline ? 'top' : 'center'}
           {...rest}
         />
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: theme.brand?.danger || Colors.danger }]}>{error}</Text>}
     </View>
   );
 }

@@ -34,6 +34,7 @@ import {
 import { UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
+import { useAppTheme } from '../../src/context/ThemeContext';
 import {
     DocumentData,
     generateDocument,
@@ -49,6 +50,8 @@ const fmtCurrency = (n: number) =>
   `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 export default function CreateQuoteScreen() {
+  const { theme, isDark } = useAppTheme();
+  const st = makeStyles(theme, isDark);
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { userProfile } = useAuth();
   const insets = useSafeAreaInsets();
@@ -380,7 +383,7 @@ export default function CreateQuoteScreen() {
   if (loading)
     return (
       <View style={st.center}>
-        <ActivityIndicator size="large" color={UI.brand.primary} />
+        <ActivityIndicator size="large" color={theme.brand.primary} />
       </View>
     );
 
@@ -390,7 +393,7 @@ export default function CreateQuoteScreen() {
       style={{ flex: 1 }}
     >
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={theme.gradients.appBackground}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -410,7 +413,7 @@ export default function CreateQuoteScreen() {
               onPress={() => router.back()}
               style={st.backBtn}
             >
-              <Ionicons name="arrow-back" size={22} color={UI.text.bodyLight} />
+              <Ionicons name="arrow-back" size={22} color={theme.text.body} />
             </TouchableOpacity>
             <View style={st.headerCenter}>
               <Text style={st.screenTitle}>New Quote</Text>
@@ -754,9 +757,9 @@ export default function CreateQuoteScreen() {
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const st = StyleSheet.create({
+const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: UI.surface.base },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.surface.base },
 
   // Header
   headerRow: {
@@ -768,25 +771,25 @@ const st = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: GLASS_BG,
+    backgroundColor: isDark ? theme.glass.bg : GLASS_BG,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: isDark ? theme.glass.border : GLASS_BORDER,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerCenter: { flex: 1, marginLeft: 12 },
-  screenTitle: { fontSize: 22, fontWeight: '800', color: UI.text.title },
-  screenSubtitle: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
+  screenTitle: { fontSize: 22, fontWeight: '800', color: theme.text.title },
+  screenSubtitle: { fontSize: 13, color: theme.text.muted, marginTop: 2 },
 
   // Glass card
   card: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: isDark ? theme.glass.bg : GLASS_BG,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: isDark ? theme.glass.border : GLASS_BORDER,
     padding: 16,
     borderRadius: 18,
     marginBottom: 12,
-    shadowColor: UI.text.muted,
+    shadowColor: theme.text.muted,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -806,26 +809,26 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: UI.text.bodyLight },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text.body },
 
   // Labels & inputs
   label: {
     fontSize: 11,
     fontWeight: '700',
-    color: UI.text.muted,
+    color: theme.text.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 5,
   },
   input: {
     backgroundColor:
-      Platform.OS === 'ios' ? 'rgba(248,250,252,0.8)' : UI.surface.base,
+      isDark ? theme.surface.elevated : (Platform.OS === 'ios' ? 'rgba(248,250,252,0.8)' : UI.surface.base),
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: UI.surface.divider,
+    borderColor: isDark ? theme.surface.border : UI.surface.divider,
     fontSize: 15,
-    color: UI.text.title,
+    color: theme.text.title,
     marginBottom: 8,
   },
   row: { flexDirection: 'row' },
@@ -841,7 +844,7 @@ const st = StyleSheet.create({
     borderRadius: 10,
     marginTop: 4,
   },
-  refLabel: { fontSize: 12, fontWeight: '600', color: UI.text.muted },
+  refLabel: { fontSize: 12, fontWeight: '600', color: theme.text.muted },
   refValue: { fontSize: 14, fontWeight: '700', color: UI.brand.primary },
 
   // Prefill
@@ -884,7 +887,7 @@ const st = StyleSheet.create({
     marginTop: 8,
   },
   sectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: UI.text.bodyLight },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.text.body },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -898,13 +901,13 @@ const st = StyleSheet.create({
 
   // Line item card
   lineCard: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: isDark ? theme.glass.bg : GLASS_BG,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: isDark ? theme.glass.border : GLASS_BORDER,
     padding: 14,
     borderRadius: 16,
     marginBottom: 8,
-    shadowColor: UI.text.muted,
+    shadowColor: theme.text.muted,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -927,7 +930,7 @@ const st = StyleSheet.create({
     textAlign: 'right',
     fontSize: 15,
     fontWeight: '700',
-    color: UI.text.bodyLight,
+    color: theme.text.body,
     marginRight: 8,
   },
   lineRemove: {
@@ -941,14 +944,14 @@ const st = StyleSheet.create({
 
   // Totals card
   totalsCard: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: isDark ? theme.glass.bg : GLASS_BG,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: isDark ? theme.glass.border : GLASS_BORDER,
     borderRadius: 18,
     marginBottom: 12,
     flexDirection: 'row',
     overflow: 'hidden',
-    shadowColor: UI.text.muted,
+    shadowColor: theme.text.muted,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -962,15 +965,15 @@ const st = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  totalLabel: { fontSize: 15, fontWeight: '600', color: UI.text.muted },
-  totalValue: { fontSize: 16, fontWeight: '700', color: UI.text.bodyLight },
+  totalLabel: { fontSize: 15, fontWeight: '600', color: theme.text.muted },
+  totalValue: { fontSize: 16, fontWeight: '700', color: theme.text.body },
   totalDivider: {
     height: 2,
-    backgroundColor: UI.surface.divider,
+    backgroundColor: theme.surface.divider,
     borderRadius: 1,
     marginVertical: 8,
   },
-  grandTotalLabel: { fontSize: 18, fontWeight: '800', color: UI.text.title },
+  grandTotalLabel: { fontSize: 18, fontWeight: '800', color: theme.text.title },
   grandTotalValue: { fontSize: 22, fontWeight: '800', color: UI.brand.primary },
 
   // Actions
@@ -980,13 +983,13 @@ const st = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: GLASS_BG,
+    backgroundColor: isDark ? theme.glass.bg : GLASS_BG,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: isDark ? theme.glass.border : GLASS_BORDER,
     padding: 16,
     borderRadius: 14,
   },
-  draftBtnText: { color: UI.text.muted, fontWeight: '700', fontSize: 16 },
+  draftBtnText: { color: theme.text.muted, fontWeight: '700', fontSize: 16 },
   generateWrap: { borderRadius: 14, overflow: 'hidden' },
   generateBtn: {
     flexDirection: 'row',

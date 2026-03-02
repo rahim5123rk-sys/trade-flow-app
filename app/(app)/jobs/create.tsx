@@ -28,9 +28,11 @@ import {
     EMPTY_CUSTOMER_FORM,
 } from '../../../components/CustomerSelector';
 import { WorkerPicker } from '../../../components/WorkerPicker';
-import { Colors, UI} from '../../../constants/theme';
+import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
+import { scheduleJobReminders } from '../../../src/services/notifications';
 
 const DURATIONS = ['30 mins', '1 hour', '2 hours', '3 hours', '4 hours', 'Full day', 'Multi-day'];
 
@@ -68,6 +70,7 @@ export default function CreateJobScreen() {
   const [hasWorkers, setHasWorkers] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const { theme, isDark } = useAppTheme();
 
   useEffect(() => {
     if (!userProfile?.company_id) return;
@@ -186,6 +189,12 @@ export default function CreateJobScreen() {
 
       if (jobError) throw jobError;
 
+      await scheduleJobReminders(
+        newJob.id,
+        title.trim(),
+        scheduledDate.getTime(),
+      );
+
       await supabase
         .from('companies')
         .update({
@@ -208,15 +217,15 @@ export default function CreateJobScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.container, isDark && { backgroundColor: theme.surface.base }]} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
 
         {/* Header */}
         <View style={styles.quickToggleRow}>
           <View>
-            <Text style={styles.modeTitle}>
+            <Text style={[styles.modeTitle, isDark && { color: theme.text.title }]}>
               {isQuoteMode ? 'Start New Quote' : isQuickEntry ? 'Quick Add' : 'Detailed Job'}
             </Text>
-            <Text style={styles.modeSubtitle}>
+            <Text style={[styles.modeSubtitle, isDark && { color: theme.text.muted }]}>
               {isQuoteMode
                 ? 'Enter initial details to generate quote'
                 : isQuickEntry
@@ -247,21 +256,21 @@ export default function CreateJobScreen() {
         />
 
         {/* Job Details */}
-        <Text style={styles.sectionTitle}>Details</Text>
-        <View style={styles.card}>
-          <Text style={styles.label}>{isQuoteMode ? 'Quote Title *' : 'Job Title *'}</Text>
+        <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Details</Text>
+        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderWidth: 1, borderColor: theme.glass.border }]}>
+          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>{isQuoteMode ? 'Quote Title *' : 'Job Title *'}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
             placeholder="e.g. Boiler Repair"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
             value={title}
             onChangeText={setTitle}
           />
-          <Text style={styles.label}>Notes</Text>
+          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Notes</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
             placeholder="Details..."
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
             multiline
             numberOfLines={3}
             value={notes}
@@ -270,26 +279,26 @@ export default function CreateJobScreen() {
           {!isQuickEntry && (
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.label}>Price (£)</Text>
+                <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Price (£)</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                   placeholder="0.00"
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
                   keyboardType="decimal-pad"
                   value={price}
                   onChangeText={setPrice}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Duration</Text>
+                <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Duration</Text>
                 <TouchableOpacity
-                  style={styles.input}
+                  style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
                   onPress={() => {
                     const idx = DURATIONS.indexOf(estimatedDuration);
                     setEstimatedDuration(DURATIONS[(idx + 1) % DURATIONS.length]);
                   }}
                 >
-                  <Text style={{ color: Colors.text }}>{estimatedDuration}</Text>
+                  <Text style={{ color: isDark ? theme.text.title : Colors.text }}>{estimatedDuration}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -297,8 +306,8 @@ export default function CreateJobScreen() {
         </View>
 
         {/* Schedule */}
-        <Text style={styles.sectionTitle}>Schedule</Text>
-        <View style={styles.card}>
+        <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Schedule</Text>
+        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderWidth: 1, borderColor: theme.glass.border }]}>
           {isQuickEntry ? (
             <TouchableOpacity
               style={styles.dateDisplay}
@@ -347,8 +356,8 @@ export default function CreateJobScreen() {
 
         {/* Date/Time Picker Modal */}
         <Modal transparent visible={showDatePicker} animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.pickerModalContent}>
+          <View style={[styles.modalOverlay]}>
+            <View style={[styles.pickerModalContent, isDark && { backgroundColor: theme.surface.card }]}>
               <DateTimePicker
                 value={scheduledDate}
                 mode={pickerMode}
@@ -369,8 +378,8 @@ export default function CreateJobScreen() {
         {/* Assign To */}
         {hasWorkers && !isQuoteMode && (
           <>
-            <Text style={styles.sectionTitle}>Assign To (Optional)</Text>
-            <View style={styles.card}>
+            <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Assign To (Optional)</Text>
+            <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderWidth: 1, borderColor: theme.glass.border }]}>
               <WorkerPicker companyId={userProfile?.company_id || ''} selectedWorkerIds={assignedTo} onSelect={setAssignedTo} />
             </View>
           </>

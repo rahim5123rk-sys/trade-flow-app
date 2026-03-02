@@ -8,25 +8,26 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import Animated, {
-  FadeIn,
-  FadeInDown,
-  FadeInRight,
-  SlideInRight,
+    FadeIn,
+    FadeInDown,
+    FadeInRight,
+    SlideInRight,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Onboarding, { OnboardingTip } from '../../components/Onboarding';
 import { Colors, UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
+import { ThemeTokens, useAppTheme } from '../../src/context/ThemeContext';
 
 // ─── Dashboard Onboarding Tips ─────────────
 const ADMIN_TIPS: OnboardingTip[] = [
@@ -135,27 +136,34 @@ const QuickAction = ({
   gradient,
   onPress,
   delay = 0,
+  isDark = false,
+  theme: t,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  gradient: readonly [string, string];
+  gradient: readonly string[];
   onPress: () => void;
   delay?: number;
-}) => (
+  isDark?: boolean;
+  theme?: ThemeTokens;
+}) => {
+  const resolvedTheme = t || UI;
+  return (
   <Animated.View entering={FadeInDown.delay(delay).springify()}>
     <TouchableOpacity style={s.quickAction} activeOpacity={0.75} onPress={onPress}>
       <LinearGradient
-        colors={gradient}
+        colors={gradient as [string, string, ...string[]]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={s.quickGradient}
+        style={[s.quickGradient, isDark && { shadowColor: 'rgba(255,255,255,0.3)' }]}
       >
-        <Ionicons name={icon} size={26} color={UI.text.white} />
+        <Ionicons name={icon} size={26} color={isDark ? '#000' : UI.text.white} />
       </LinearGradient>
-      <Text style={s.quickLabel}>{label}</Text>
+      <Text style={[s.quickLabel, { color: resolvedTheme.text.body }]}>{label}</Text>
     </TouchableOpacity>
   </Animated.View>
 );
+};
 
 // --- Glassmorphic Stat Card ---
 const GlassCard = ({
@@ -164,29 +172,36 @@ const GlassCard = ({
   icon,
   accent,
   delay = 0,
+  isDark = false,
+  theme: t,
 }: {
   label: string;
   value: string | number;
   icon: keyof typeof Ionicons.glyphMap;
   accent: string;
   delay?: number;
-}) => (
+  isDark?: boolean;
+  theme?: ThemeTokens;
+}) => {
+  const resolvedTheme = t || UI;
+  return (
   <Animated.View
     entering={FadeInDown.delay(delay).springify()}
     style={s.glassOuter}
   >
-    <View style={s.glassCard}>
+    <View style={[s.glassCard, isDark && { backgroundColor: resolvedTheme.glass.bg, borderColor: resolvedTheme.glass.border }]}>
       <View style={[s.glassAccent, { backgroundColor: accent }]} />
       <View style={s.glassBody}>
         <View style={[s.glassIconCircle, { backgroundColor: `${accent}18` }]}>
           <Ionicons name={icon} size={18} color={accent} />
         </View>
-        <Text style={s.glassValue}>{value}</Text>
-        <Text style={s.glassLabel}>{label}</Text>
+        <Text style={[s.glassValue, { color: resolvedTheme.text.title }]}>{value}</Text>
+        <Text style={[s.glassLabel, { color: resolvedTheme.text.muted }]}>{label}</Text>
       </View>
     </View>
   </Animated.View>
 );
+};
 
 // --- Modern Job Card ---
 const JobTile = ({
@@ -198,6 +213,7 @@ const JobTile = ({
   isToday?: boolean;
   delay?: number;
 }) => {
+  const { theme, isDark } = useAppTheme();
   const statusMap: Record<string, { color: string; label: string }> = {
     in_progress: { color: UI.status.inProgress, label: 'In Progress' },
     pending: { color: UI.status.pending, label: 'Pending' },
@@ -213,7 +229,7 @@ const JobTile = ({
   return (
     <Animated.View entering={FadeInRight.delay(delay).springify()}>
       <TouchableOpacity
-        style={s.jobTile}
+        style={[s.jobTile, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
         activeOpacity={0.7}
         onPress={() => router.push({ pathname: '/(app)/jobs/[id]', params: { id: job.id } })}
       >
@@ -226,8 +242,8 @@ const JobTile = ({
         <View style={s.jobBody}>
           <View style={s.jobTopRow}>
             <View style={s.jobTimeBox}>
-              <Ionicons name="time-outline" size={12} color={Colors.textLight} />
-              <Text style={s.jobTime}>{time}</Text>
+              <Ionicons name="time-outline" size={12} color={theme.text.muted} />
+              <Text style={[s.jobTime, { color: theme.text.muted }]}>{time}</Text>
             </View>
             {isToday && (
               <LinearGradient
@@ -243,19 +259,19 @@ const JobTile = ({
             <Text style={[s.statusLabel, { color: st.color }]}>{st.label}</Text>
           </View>
 
-          <Text style={s.jobTileTitle} numberOfLines={1}>
+          <Text style={[s.jobTileTitle, { color: theme.text.title }]} numberOfLines={1}>
             {job.title}
           </Text>
           <View style={s.jobMeta}>
-            <Ionicons name="person-outline" size={13} color={UI.text.muted} />
-            <Text style={s.jobMetaText} numberOfLines={1}>
+            <Ionicons name="person-outline" size={13} color={theme.text.muted} />
+            <Text style={[s.jobMetaText, { color: theme.text.muted }]} numberOfLines={1}>
               {job.customer_snapshot?.name || 'Unknown'}
             </Text>
           </View>
         </View>
 
         <View style={s.jobChevron}>
-          <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
+          <Ionicons name="chevron-forward" size={18} color={theme.surface.border} />
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -292,24 +308,32 @@ const NavButton = ({
   label,
   onPress,
   delay = 0,
+  isDark = false,
+  theme: t,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
   delay?: number;
-}) => (
+  isDark?: boolean;
+  theme?: ThemeTokens;
+}) => {
+  const resolvedTheme = t || UI;
+  return (
   <Animated.View entering={FadeIn.delay(delay)} style={s.navBtnWrap}>
-    <TouchableOpacity style={s.navBtn} onPress={onPress} activeOpacity={0.7}>
-      <Ionicons name={icon} size={20} color={Colors.textLight} />
-      <Text style={s.navLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={14} color={UI.surface.border} />
+    <TouchableOpacity style={[s.navBtn, isDark && { borderBottomColor: resolvedTheme.surface.divider }]} onPress={onPress} activeOpacity={0.7}>
+      <Ionicons name={icon} size={20} color={resolvedTheme.text.secondary} />
+      <Text style={[s.navLabel, { color: resolvedTheme.text.body }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={14} color={resolvedTheme.surface.border} />
     </TouchableOpacity>
   </Animated.View>
 );
+};
 
 // --- Main Dashboard ---
 export default function DashboardScreen() {
   const { userProfile, user } = useAuth();
+  const { theme, colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [allJobs, setAllJobs] = useState<DashboardJob[]>([]);
   const [loading, setLoading] = useState(true);
@@ -385,8 +409,8 @@ export default function DashboardScreen() {
 
   if (loading && allJobs.length === 0) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={[s.center, { backgroundColor: theme.surface.base }]}>
+        <ActivityIndicator size="large" color={theme.brand.primary} />
       </View>
     );
   }
@@ -394,10 +418,10 @@ export default function DashboardScreen() {
   const firstName = userProfile?.display_name?.split(' ')[0] || 'There';
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, { backgroundColor: theme.surface.base }]}>
       {/* Background gradient */}
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={theme.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -411,7 +435,7 @@ export default function DashboardScreen() {
               setRefreshing(true);
               fetchDashboardData();
             }}
-            tintColor={Colors.primary}
+            tintColor={theme.brand.primary}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -419,9 +443,9 @@ export default function DashboardScreen() {
         {/* Header */}
         <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerGreeting}>{getGreeting()},</Text>
-            <Text style={s.headerName}>{firstName}</Text>
-            <Text style={s.headerDate}>
+            <Text style={[s.headerGreeting, { color: theme.text.secondary }]}>{getGreeting()},</Text>
+            <Text style={[s.headerName, { color: theme.text.title }]}>{firstName}</Text>
+            <Text style={[s.headerDate, { color: theme.text.muted }]}>
               {new Date().toLocaleDateString('en-GB', {
                 weekday: 'long',
                 day: 'numeric',
@@ -434,10 +458,10 @@ export default function DashboardScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={UI.gradients.primary}
-              style={s.avatar}
+              colors={isDark ? theme.gradients.primary : UI.gradients.primary}
+              style={[s.avatar, isDark && { shadowColor: '#000' }]}
             >
-              <Text style={s.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
+              <Text style={[s.avatarText, { color: isDark ? '#000' : UI.text.white }]}>{firstName.charAt(0).toUpperCase()}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -448,31 +472,39 @@ export default function DashboardScreen() {
             label="Active"
             value={stats.active}
             icon="flash"
-            accent={UI.status.inProgress}
+            accent={isDark ? theme.text.title : UI.status.inProgress}
             delay={100}
+            isDark={isDark}
+            theme={theme}
           />
           <GlassCard
             label="Pending"
             value={stats.pending}
             icon="hourglass-outline"
-            accent={UI.status.pending}
+            accent={isDark ? theme.text.secondary : UI.status.pending}
             delay={150}
+            isDark={isDark}
+            theme={theme}
           />
           {isAdmin ? (
             <GlassCard
               label="Revenue"
               value={fmtCurrency(stats.revenue)}
               icon="trending-up"
-              accent={UI.status.complete}
+              accent={isDark ? theme.text.title : UI.status.complete}
               delay={200}
+              isDark={isDark}
+              theme={theme}
             />
           ) : (
             <GlassCard
               label="Done"
               value={allJobs.filter((j) => j.status === 'complete').length}
               icon="checkmark-done"
-              accent={UI.status.complete}
+              accent={isDark ? theme.text.title : UI.status.complete}
               delay={200}
+              isDark={isDark}
+              theme={theme}
             />
           )}
         </View>
@@ -480,7 +512,7 @@ export default function DashboardScreen() {
         {/* Quick Actions */}
         {isAdmin ? (
           <Animated.View entering={FadeInDown.delay(250).springify()}>
-            <Text style={s.sectionLabel}>Quick Actions</Text>
+            <Text style={[s.sectionLabel, { color: theme.text.title }]}>Quick Actions</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -489,57 +521,71 @@ export default function DashboardScreen() {
               <QuickAction
                 icon="add-circle"
                 label="New Job"
-                gradient={UI.gradients.primary}
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.primary}
                 onPress={() => router.push('/(app)/jobs/create' as any)}
                 delay={300}
+                isDark={isDark}
+                theme={theme}
               />
               <QuickAction
                 icon="document-text"
                 label="Quote"
-                gradient={UI.gradients.violet}
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.violet}
                 onPress={() => router.push('/(app)/quote' as any)}
                 delay={350}
+                isDark={isDark}
+                theme={theme}
               />
               <QuickAction
                 icon="receipt"
                 label="Invoice"
-                gradient={UI.gradients.amber}
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.amber}
                 onPress={() => router.push('/(app)/invoice' as any)}
                 delay={400}
+                isDark={isDark}
+                theme={theme}
               />
               <QuickAction
                 icon="person-add"
                 label="Client"
-                gradient={UI.gradients.success}
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.success}
                 onPress={() => router.push('/(app)/customers/add' as any)}
                 delay={450}
+                isDark={isDark}
+                theme={theme}
               />
               <QuickAction
                 icon="flame"
                 label="CP12"
-                gradient={UI.gradients.danger}
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.danger}
                 onPress={() => router.push('/(app)/cp12' as any)}
                 delay={500}
+                isDark={isDark}
+                theme={theme}
               />
             </ScrollView>
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInDown.delay(250).springify()}>
-            <Text style={s.sectionLabel}>Quick Actions</Text>
+            <Text style={[s.sectionLabel, { color: theme.text.title }]}>Quick Actions</Text>
             <View style={s.quickRow}>
               <QuickAction
                 icon="list"
                 label="Schedule"
-                gradient={UI.gradients.primary}
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.primary}
                 onPress={() => router.push('/(app)/jobs')}
                 delay={300}
+                isDark={isDark}
+                theme={theme}
               />
               <QuickAction
                 icon="calendar"
                 label="Calendar"
-                gradient={UI.gradients.success}
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.success}
                 onPress={() => router.push('/(app)/calendar')}
                 delay={350}
+                isDark={isDark}
+                theme={theme}
               />
             </View>
           </Animated.View>
@@ -548,19 +594,19 @@ export default function DashboardScreen() {
         {/* Today's Schedule */}
         <Animated.View entering={FadeInDown.delay(350).springify()}>
           <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionLabel}>{"Today's Schedule"}</Text>
-            <View style={s.countBadge}>
-              <Text style={s.countText}>{stats.todaysJobs.length}</Text>
+            <Text style={[s.sectionLabel, { color: theme.text.title }]}>{"Today's Schedule"}</Text>
+            <View style={[s.countBadge, isDark && { backgroundColor: theme.surface.elevated }]}>
+              <Text style={[s.countText, { color: theme.brand.primary }]}>{stats.todaysJobs.length}</Text>
             </View>
           </View>
 
           {stats.todaysJobs.length === 0 ? (
-            <View style={s.emptyCard}>
-              <View style={s.emptyIconWrap}>
-                <Ionicons name="sunny-outline" size={28} color={UI.text.muted} />
+            <View style={[s.emptyCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <View style={[s.emptyIconWrap, isDark && { backgroundColor: theme.surface.divider }]}>
+                <Ionicons name="sunny-outline" size={28} color={theme.text.muted} />
               </View>
-              <Text style={s.emptyTitle}>All clear!</Text>
-              <Text style={s.emptySubtitle}>No jobs scheduled for today.</Text>
+              <Text style={[s.emptyTitle, { color: theme.text.body }]}>All clear!</Text>
+              <Text style={[s.emptySubtitle, { color: theme.text.muted }]}>No jobs scheduled for today.</Text>
             </View>
           ) : (
             stats.todaysJobs.map((job, i) => (
@@ -572,23 +618,23 @@ export default function DashboardScreen() {
         {/* Up Next */}
         <Animated.View entering={FadeInDown.delay(500).springify()}>
           <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionLabel}>Up Next</Text>
+            <Text style={[s.sectionLabel, { color: theme.text.title }]}>Up Next</Text>
             <TouchableOpacity
               onPress={() => router.push('/(app)/calendar')}
               style={s.seeAllBtn}
             >
-              <Text style={s.seeAllText}>Calendar</Text>
-              <Ionicons name="arrow-forward" size={14} color={Colors.primary} />
+              <Text style={[s.seeAllText, { color: theme.brand.primary }]}>Calendar</Text>
+              <Ionicons name="arrow-forward" size={14} color={theme.brand.primary} />
             </TouchableOpacity>
           </View>
 
           {stats.upcomingJobs.length === 0 ? (
-            <View style={s.emptyCard}>
-              <View style={s.emptyIconWrap}>
-                <Ionicons name="checkmark-circle-outline" size={28} color={UI.text.muted} />
+            <View style={[s.emptyCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <View style={[s.emptyIconWrap, isDark && { backgroundColor: theme.surface.divider }]}>
+                <Ionicons name="checkmark-circle-outline" size={28} color={theme.text.muted} />
               </View>
-              <Text style={s.emptyTitle}>{"You're all caught up"}</Text>
-              <Text style={s.emptySubtitle}>Nothing upcoming.</Text>
+              <Text style={[s.emptyTitle, { color: theme.text.body }]}>{"You're all caught up"}</Text>
+              <Text style={[s.emptySubtitle, { color: theme.text.muted }]}>Nothing upcoming.</Text>
             </View>
           ) : (
             stats.upcomingJobs.map((job, i) => (
@@ -600,12 +646,12 @@ export default function DashboardScreen() {
         {/* Navigation Grid (admin) */}
         {isAdmin && (
           <Animated.View entering={FadeInDown.delay(650).springify()}>
-            <Text style={[s.sectionLabel, { marginTop: 8 }]}>Navigate</Text>
-            <View style={s.navGrid}>
-              <NavButton icon="briefcase-outline" label="All Jobs" onPress={() => router.push('/(app)/jobs')} delay={700} />
-              <NavButton icon="people-outline" label="Customers" onPress={() => router.push('/(app)/customers' as any)} delay={740} />
-              <NavButton icon="person-outline" label="Team" onPress={() => router.push('/(app)/workers' as any)} delay={780} />
-              <NavButton icon="documents-outline" label="Documents" onPress={() => router.push('/(app)/documents' as any)} delay={820} />
+            <Text style={[s.sectionLabel, { marginTop: 8, color: theme.text.title }]}>Navigate</Text>
+            <View style={[s.navGrid, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <NavButton icon="briefcase-outline" label="All Jobs" onPress={() => router.push('/(app)/jobs')} delay={700} isDark={isDark} theme={theme} />
+              <NavButton icon="people-outline" label="Customers" onPress={() => router.push('/(app)/customers' as any)} delay={740} isDark={isDark} theme={theme} />
+              <NavButton icon="person-outline" label="Team" onPress={() => router.push('/(app)/workers' as any)} delay={780} isDark={isDark} theme={theme} />
+              <NavButton icon="documents-outline" label="Documents" onPress={() => router.push('/(app)/documents' as any)} delay={820} isDark={isDark} theme={theme} />
             </View>
           </Animated.View>
         )}

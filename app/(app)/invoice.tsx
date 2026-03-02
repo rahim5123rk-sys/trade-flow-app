@@ -34,6 +34,7 @@ import {
 import { UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
+import { useAppTheme } from '../../src/context/ThemeContext';
 import {
     DocumentData,
     generateDocument,
@@ -75,6 +76,7 @@ export default function CreateInvoiceScreen() {
 
   // ─── Job link (if coming from a job) ──────────────────────────
   const [jobId, setJobId] = useState<string | null>(null);
+  const { theme, isDark } = useAppTheme();
 
   useEffect(() => {
     loadInitialData();
@@ -393,7 +395,7 @@ export default function CreateInvoiceScreen() {
       style={{ flex: 1 }}
     >
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -411,13 +413,13 @@ export default function CreateInvoiceScreen() {
           >
             <TouchableOpacity
               onPress={() => router.back()}
-              style={st.backBtn}
+              style={[st.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
             >
-              <Ionicons name="arrow-back" size={22} color={UI.text.bodyLight} />
+              <Ionicons name="arrow-back" size={22} color={isDark ? theme.text.body : UI.text.bodyLight} />
             </TouchableOpacity>
             <View style={st.headerCenter}>
-              <Text style={st.screenTitle}>New Invoice</Text>
-              <Text style={st.screenSubtitle}>
+              <Text style={[st.screenTitle, isDark && { color: theme.text.title }]}>New Invoice</Text>
+              <Text style={[st.screenSubtitle, isDark && { color: theme.text.muted }]}>
                 Create and send a professional invoice
               </Text>
             </View>
@@ -427,29 +429,29 @@ export default function CreateInvoiceScreen() {
           {/* ─── Invoice Meta ─── */}
           <Animated.View
             entering={FadeInDown.delay(50).duration(350).springify()}
-            style={st.card}
+            style={[st.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
           >
             <View style={st.cardHeader}>
               <View style={st.cardIconWrap}>
                 <Ionicons name="document-text" size={18} color={UI.status.pending} />
               </View>
-              <Text style={st.cardTitle}>Invoice Details</Text>
+              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Invoice Details</Text>
             </View>
 
             <View style={st.row}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={st.label}>Invoice #</Text>
+                <Text style={[st.label, isDark && { color: theme.text.muted }]}>Invoice #</Text>
                 <TextInput
-                  style={st.input}
+                  style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                   value={invoiceNumber}
                   onChangeText={setInvoiceNumber}
                   keyboardType="number-pad"
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={st.label}>Due Date</Text>
+                <Text style={[st.label, isDark && { color: theme.text.muted }]}>Due Date</Text>
                 <TextInput
-                  style={st.input}
+                  style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                   value={dueDate}
                   onChangeText={setDueDate}
                 />
@@ -525,7 +527,7 @@ export default function CreateInvoiceScreen() {
               entering={FadeInDown.delay(180 + index * 50)
                 .duration(300)
                 .springify()}
-              style={st.lineCard}
+              style={[st.lineCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
             >
               <View style={st.lineHeader}>
                 <View style={st.lineBadge}>
@@ -545,27 +547,27 @@ export default function CreateInvoiceScreen() {
               </View>
 
               <TextInput
-                style={[st.input, { marginTop: 8 }]}
+                style={[st.input, { marginTop: 8 }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                 value={item.description}
                 onChangeText={(v) => updateItem(index, 'description', v)}
                 placeholder="Description"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
               />
 
               <View style={st.row}>
                 <View style={{ flex: 1, marginRight: 6 }}>
-                  <Text style={st.label}>Qty</Text>
+                  <Text style={[st.label, isDark && { color: theme.text.muted }]}>Qty</Text>
                   <TextInput
-                    style={st.input}
+                    style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                     value={String(item.quantity)}
                     onChangeText={(v) => updateItem(index, 'quantity', v)}
                     keyboardType="numeric"
                   />
                 </View>
                 <View style={{ flex: 1, marginRight: 6 }}>
-                  <Text style={st.label}>Unit Price</Text>
+                  <Text style={[st.label, isDark && { color: theme.text.muted }]}>Unit Price</Text>
                   <TextInput
-                    style={st.input}
+                    style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                     value={String(item.unitPrice)}
                     onChangeText={(v) =>
                       updateItem(index, 'unitPrice', v)
@@ -574,9 +576,9 @@ export default function CreateInvoiceScreen() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={st.label}>VAT %</Text>
+                  <Text style={[st.label, isDark && { color: theme.text.muted }]}>VAT %</Text>
                   <TextInput
-                    style={st.input}
+                    style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                     value={String(item.vatPercent)}
                     onChangeText={(v) =>
                       updateItem(index, 'vatPercent', v)
@@ -591,7 +593,7 @@ export default function CreateInvoiceScreen() {
           {/* ─── Discount ─── */}
           <Animated.View
             entering={FadeInDown.delay(200).duration(350).springify()}
-            style={st.card}
+            style={[st.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
           >
             <View style={st.cardHeader}>
               <View
@@ -602,22 +604,22 @@ export default function CreateInvoiceScreen() {
               >
                 <Ionicons name="pricetag" size={16} color={UI.brand.danger} />
               </View>
-              <Text style={st.cardTitle}>Discount</Text>
+              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Discount</Text>
             </View>
             <TextInput
-              style={st.input}
+              style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
               value={discountPercent}
               onChangeText={setDiscountPercent}
               keyboardType="numeric"
               placeholder="0"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
             />
           </Animated.View>
 
           {/* ─── Totals ─── */}
           <Animated.View
             entering={FadeInDown.delay(250).duration(350).springify()}
-            style={st.totalsCard}
+            style={[st.totalsCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
           >
             <LinearGradient
               colors={UI.gradients.amberLight}
@@ -651,7 +653,7 @@ export default function CreateInvoiceScreen() {
           {/* ─── Notes & Payment ─── */}
           <Animated.View
             entering={FadeInDown.delay(300).duration(350).springify()}
-            style={st.card}
+            style={[st.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
           >
             <View style={st.cardHeader}>
               <View
@@ -662,24 +664,24 @@ export default function CreateInvoiceScreen() {
               >
                 <Ionicons name="chatbox-ellipses" size={16} color={UI.status.inProgress} />
               </View>
-              <Text style={st.cardTitle}>Notes & Payment</Text>
+              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Notes & Payment</Text>
             </View>
-            <Text style={st.label}>Notes</Text>
+            <Text style={[st.label, isDark && { color: theme.text.muted }]}>Notes</Text>
             <TextInput
-              style={[st.input, { minHeight: 60 }]}
+              style={[st.input, { minHeight: 60 }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Any additional notes..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
               multiline
             />
-            <Text style={st.label}>Payment Instructions</Text>
+            <Text style={[st.label, isDark && { color: theme.text.muted }]}>Payment Instructions</Text>
             <TextInput
-              style={[st.input, { minHeight: 80 }]}
+              style={[st.input, { minHeight: 80 }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
               value={paymentInfo}
               onChangeText={setPaymentInfo}
               placeholder="Bank details, payment terms..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
               multiline
             />
           </Animated.View>
@@ -690,7 +692,7 @@ export default function CreateInvoiceScreen() {
             style={st.actions}
           >
             <TouchableOpacity
-              style={st.draftBtn}
+              style={[st.draftBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
               onPress={handleSaveDraft}
               disabled={saving || generating}
               activeOpacity={0.7}

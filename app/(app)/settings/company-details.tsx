@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -73,6 +74,7 @@ const InputField = ({
 
 export default function CompanyDetailsScreen() {
   const { userProfile } = useAuth();
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -134,7 +136,7 @@ export default function CompanyDetailsScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <LinearGradient colors={UI.gradients.appBackground} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={theme.gradients.appBackground} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         style={styles.container}
@@ -143,19 +145,19 @@ export default function CompanyDetailsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={UI.text.title} />
+          <TouchableOpacity style={[styles.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={20} color={theme.text.title} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.screenTitle}>Company Details</Text>
-            <Text style={styles.screenSubtitle}>Business details used across documents</Text>
+            <Text style={[styles.screenTitle, { color: theme.text.title }]}>Company Details</Text>
+            <Text style={[styles.screenSubtitle, { color: theme.text.muted }]}>Business details used across documents</Text>
           </View>
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={UI.brand.primary} style={{ marginTop: 24 }} />
+          <ActivityIndicator color={theme.brand.primary} style={{ marginTop: 24 }} />
         ) : (
-          <View style={styles.card}>
+          <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
             <InputField
               label="Company Name"
               value={companyName}
@@ -183,16 +185,16 @@ export default function CompanyDetailsScreen() {
             />
             <View style={{ height: 16 }} />
 
-            <Text style={styles.inputLabel}>Trade</Text>
+            <Text style={[styles.inputLabel, { color: theme.text.body }]}>Trade</Text>
             <View style={styles.tradeGrid}>
               {TRADES.map((t) => (
                 <TouchableOpacity
                   key={t}
-                  style={[styles.tradeChip, companyTrade === t && styles.tradeChipActive]}
+                  style={[styles.tradeChip, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, companyTrade === t && styles.tradeChipActive]}
                   onPress={() => setCompanyTrade(t)}
                   activeOpacity={0.85}
                 >
-                  <Text style={[styles.tradeChipText, companyTrade === t && styles.tradeChipTextActive]}>{t}</Text>
+                  <Text style={[styles.tradeChipText, { color: theme.text.muted }, companyTrade === t && styles.tradeChipTextActive]}>{t}</Text>
                 </TouchableOpacity>
               ))}
             </View>

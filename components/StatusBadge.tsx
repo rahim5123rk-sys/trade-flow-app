@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useAppTheme } from '../src/context/ThemeContext';
 import { getStatusStyle } from '../src/utils/formatting';
 
 interface StatusBadgeProps {
@@ -26,6 +27,7 @@ export function StatusBadge({
   showIcon = false,
   compact = false,
 }: StatusBadgeProps) {
+  const { isDark } = useAppTheme();
   const { label, color, bg } = getStatusStyle(status);
   const iconName = STATUS_ICONS[status] || 'ellipse-outline';
 
@@ -34,6 +36,7 @@ export function StatusBadge({
       style={[
         styles.badge,
         { backgroundColor: bg },
+        isDark && styles.badgeDark,
         compact && styles.compact,
       ]}
     >
@@ -66,6 +69,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
     alignSelf: 'flex-start',
+  },
+  badgeDark: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   text: {
     fontSize: 11,

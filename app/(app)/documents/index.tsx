@@ -22,9 +22,10 @@ import {
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI} from '../../../constants/theme';
+import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 import { Document } from '../../../src/types';
 
 // ─── Constants ──────────────────────────────────────────────────
@@ -72,7 +73,10 @@ const isCp12Document = (doc: Document): boolean => {
 
 export default function DocumentsHubScreen() {
   const { userProfile } = useAuth();
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const glassBg = isDark ? theme.glass.bg : GLASS_BG;
+  const glassBorder = isDark ? theme.glass.border : GLASS_BORDER;
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -192,18 +196,37 @@ export default function DocumentsHubScreen() {
       </TouchableOpacity>
     );
 
+    const statusBg = isDark ? theme.surface.elevated : (isCp12 ? UI.surface.base : statusStyle.bg);
+    const statusTextColor = isDark ? theme.text.bodyLight : (isCp12 ? '#0284c7' : statusStyle.color);
+    const statusDotColor = isDark ? (isCp12 ? theme.text.bodyLight : statusStyle.color) : (isCp12 ? '#0284c7' : statusStyle.color);
+
     // Card gradient & icon config
     const cardConfig = isCp12
-      ? { gradient: UI.gradients.cp12, icon: 'shield-checkmark-outline' as const, iconBg: UI.surface.base, iconColor: UI.brand.primary }
+      ? {
+          gradient: isDark ? theme.gradients.cp12 : UI.gradients.cp12,
+          icon: 'shield-checkmark-outline' as const,
+          iconBg: isDark ? theme.surface.elevated : UI.surface.base,
+          iconColor: isDark ? theme.text.title : UI.brand.primary,
+        }
       : isInvoice
-        ? { gradient: UI.gradients.amberLight, icon: 'receipt-outline' as const, iconBg: '#FFF7ED', iconColor: '#C2410C' }
-        : { gradient: UI.gradients.primary, icon: 'document-text-outline' as const, iconBg: UI.surface.primaryLight, iconColor: UI.brand.primary };
+        ? {
+            gradient: isDark ? theme.gradients.amberLight : UI.gradients.amberLight,
+            icon: 'receipt-outline' as const,
+            iconBg: isDark ? theme.surface.elevated : '#FFF7ED',
+            iconColor: isDark ? theme.text.title : '#C2410C',
+          }
+        : {
+            gradient: isDark ? theme.gradients.primary : UI.gradients.primary,
+            icon: 'document-text-outline' as const,
+            iconBg: isDark ? theme.surface.elevated : UI.surface.primaryLight,
+            iconColor: isDark ? theme.text.title : UI.brand.primary,
+          };
 
     return (
       <Animated.View entering={FadeInRight.delay(Math.min(index * 50, 300)).springify()}>
         <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
           <TouchableOpacity
-            style={st.card}
+            style={[st.card, { backgroundColor: glassBg, borderColor: glassBorder }]}
             activeOpacity={0.7}
             onPress={() => router.push(`/(app)/documents/${item.id}` as any)}
           >
@@ -216,12 +239,12 @@ export default function DocumentsHubScreen() {
                   <Ionicons name={cardConfig.icon} size={18} color={cardConfig.iconColor} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={st.cardRef}>
+                  <Text style={[st.cardRef, { color: theme.text.muted }]}>
                     {isCp12
                       ? item.reference || `CP12-${String(item.number).padStart(4, '0')}`
                       : `${isInvoice ? 'INV' : 'QTE'}-${String(item.number).padStart(4, '0')}`}
                   </Text>
-                  <Text style={st.cardCustomer} numberOfLines={1}>
+                  <Text style={[st.cardCustomer, { color: theme.text.title }]} numberOfLines={1}>
                     {item.customer_snapshot?.name || 'Unknown Customer'}
                   </Text>
                 </View>
@@ -232,11 +255,11 @@ export default function DocumentsHubScreen() {
                       <Text style={st.cp12BadgeText}>CP12</Text>
                     </View>
                   ) : (
-                    <Text style={st.cardTotal}>£{item.total?.toFixed(2) || '0.00'}</Text>
+                    <Text style={[st.cardTotal, { color: theme.text.title }]}>£{item.total?.toFixed(2) || '0.00'}</Text>
                   )}
-                  <View style={[st.statusBadge, { backgroundColor: isCp12 ? UI.surface.base : statusStyle.bg }]}>
-                    <View style={[st.statusDot, { backgroundColor: isCp12 ? '#0284c7' : statusStyle.color }]} />
-                    <Text style={[st.statusText, { color: isCp12 ? '#0284c7' : statusStyle.color }]}>
+                  <View style={[st.statusBadge, { backgroundColor: statusBg }]}>
+                    <View style={[st.statusDot, { backgroundColor: statusDotColor }]} />
+                    <Text style={[st.statusText, { color: statusTextColor }]}>
                       {isCp12 ? 'Issued' : item.status}
                     </Text>
                   </View>
@@ -244,10 +267,10 @@ export default function DocumentsHubScreen() {
               </View>
 
               {/* Bottom meta */}
-              <View style={st.cardBottomRow}>
+              <View style={[st.cardBottomRow, isDark && { borderTopColor: theme.surface.divider }]}>
                 <View style={st.cardMeta}>
-                  <Ionicons name="calendar-outline" size={12} color={UI.text.muted} />
-                  <Text style={st.cardDate}>
+                  <Ionicons name="calendar-outline" size={12} color={theme.text.muted} />
+                  <Text style={[st.cardDate, { color: theme.text.muted }]}>
                     {new Date(item.created_at).toLocaleDateString('en-GB', {
                       day: 'numeric',
                       month: 'short',
@@ -257,11 +280,11 @@ export default function DocumentsHubScreen() {
                 </View>
                 {isCp12 && item.expiry_date && (
                   <View style={st.cardMeta}>
-                    <Ionicons name="time-outline" size={12} color={UI.status.pending} />
-                    <Text style={[st.cardDate, { color: UI.status.pending }]}>Due: {item.expiry_date}</Text>
+                    <Ionicons name="time-outline" size={12} color={isDark ? theme.text.bodyLight : UI.status.pending} />
+                    <Text style={[st.cardDate, { color: isDark ? theme.text.bodyLight : UI.status.pending }]}>Due: {item.expiry_date}</Text>
                   </View>
                 )}
-                <Ionicons name="chevron-forward" size={16} color={UI.surface.border} />
+                <Ionicons name="chevron-forward" size={16} color={isDark ? theme.text.muted : UI.surface.border} />
               </View>
             </View>
           </TouchableOpacity>
@@ -274,9 +297,9 @@ export default function DocumentsHubScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={st.root}>
+      <View style={[st.root, { backgroundColor: theme.surface.base }]}>
         <LinearGradient
-          colors={UI.gradients.appBackground}
+          colors={theme.gradients.appBackground}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -286,21 +309,21 @@ export default function DocumentsHubScreen() {
           {/* Header */}
           <Animated.View entering={FadeInDown.delay(50).springify()} style={st.header}>
             <View>
-              <Text style={st.screenTitle}>Documents</Text>
-              <Text style={st.screenSubtitle}>Invoices, Quotes & CP12s</Text>
+              <Text style={[st.screenTitle, { color: theme.text.title }]}>Documents</Text>
+              <Text style={[st.screenSubtitle, { color: theme.text.muted }]}>Invoices, Quotes & CP12s</Text>
             </View>
             <View style={st.headerBadges}>
-              <View style={[st.countBadge, { backgroundColor: '#FFF7ED' }]}>
-                <Ionicons name="receipt-outline" size={12} color="#C2410C" />
-                <Text style={[st.countText, { color: '#C2410C' }]}>{stats.invoices}</Text>
+              <View style={[st.countBadge, { backgroundColor: isDark ? theme.surface.elevated : '#FFF7ED', borderWidth: isDark ? 1 : 0, borderColor: isDark ? theme.surface.border : 'transparent' }]}>
+                <Ionicons name="receipt-outline" size={12} color={isDark ? theme.text.bodyLight : '#C2410C'} />
+                <Text style={[st.countText, { color: isDark ? theme.text.bodyLight : '#C2410C' }]}>{stats.invoices}</Text>
               </View>
-              <View style={[st.countBadge, { backgroundColor: UI.surface.primaryLight }]}>
-                <Ionicons name="document-text-outline" size={12} color={UI.brand.primary} />
-                <Text style={[st.countText, { color: UI.brand.primary }]}>{stats.quotes}</Text>
+              <View style={[st.countBadge, { backgroundColor: isDark ? theme.surface.elevated : UI.surface.primaryLight, borderWidth: isDark ? 1 : 0, borderColor: isDark ? theme.surface.border : 'transparent' }]}>
+                <Ionicons name="document-text-outline" size={12} color={isDark ? theme.text.bodyLight : UI.brand.primary} />
+                <Text style={[st.countText, { color: isDark ? theme.text.bodyLight : UI.brand.primary }]}>{stats.quotes}</Text>
               </View>
-              <View style={[st.countBadge, { backgroundColor: UI.surface.base }]}>
-                <Ionicons name="shield-checkmark-outline" size={12} color={UI.brand.primary} />
-                <Text style={[st.countText, { color: UI.brand.primary }]}>{stats.cp12s}</Text>
+              <View style={[st.countBadge, { backgroundColor: isDark ? theme.surface.elevated : UI.surface.base, borderWidth: isDark ? 1 : 0, borderColor: isDark ? theme.surface.border : 'transparent' }]}>
+                <Ionicons name="shield-checkmark-outline" size={12} color={isDark ? theme.text.bodyLight : UI.brand.primary} />
+                <Text style={[st.countText, { color: isDark ? theme.text.bodyLight : UI.brand.primary }]}>{stats.cp12s}</Text>
               </View>
             </View>
           </Animated.View>
@@ -308,54 +331,54 @@ export default function DocumentsHubScreen() {
           {/* Quick Create */}
           <Animated.View entering={FadeInDown.delay(100).springify()} style={st.createRow}>
             <TouchableOpacity
-              style={st.createBtn}
+              style={[st.createBtn, { backgroundColor: glassBg, borderColor: glassBorder }]}
               activeOpacity={0.75}
               onPress={() => router.push('/(app)/invoice' as any)}
             >
               <LinearGradient colors={UI.gradients.amberLight} style={st.createGradient}>
                 <Ionicons name="receipt" size={18} color={UI.text.white} />
               </LinearGradient>
-              <Text style={st.createBtnText}>Invoice</Text>
+              <Text style={[st.createBtnText, { color: theme.text.body }]}>Invoice</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={st.createBtn}
+              style={[st.createBtn, { backgroundColor: glassBg, borderColor: glassBorder }]}
               activeOpacity={0.75}
               onPress={() => router.push('/(app)/quote' as any)}
             >
               <LinearGradient colors={UI.gradients.violet} style={st.createGradient}>
                 <Ionicons name="document-text" size={18} color={UI.text.white} />
               </LinearGradient>
-              <Text style={st.createBtnText}>Quote</Text>
+              <Text style={[st.createBtnText, { color: theme.text.body }]}>Quote</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={st.createBtn}
+              style={[st.createBtn, { backgroundColor: glassBg, borderColor: glassBorder }]}
               activeOpacity={0.75}
               onPress={() => router.push('/(app)/cp12' as any)}
             >
               <LinearGradient colors={UI.gradients.cp12} style={st.createGradient}>
                 <Ionicons name="shield-checkmark" size={18} color={UI.text.white} />
               </LinearGradient>
-              <Text style={st.createBtnText}>CP12</Text>
+              <Text style={[st.createBtnText, { color: theme.text.body }]}>CP12</Text>
             </TouchableOpacity>
           </Animated.View>
 
           {/* Search */}
           <Animated.View entering={FadeInDown.delay(150).springify()} style={st.searchWrap}>
-            <View style={st.searchBar}>
-              <Ionicons name="search" size={18} color={UI.text.muted} />
+            <View style={[st.searchBar, { backgroundColor: glassBg, borderColor: glassBorder }]}>
+              <Ionicons name="search" size={18} color={theme.text.muted} />
               <TextInput
-                style={st.searchInput}
+                style={[st.searchInput, { color: theme.text.title }]}
                 placeholder="Search by name, ref or number..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={theme.text.placeholder}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 returnKeyType="search"
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color={UI.text.muted} />
+                  <Ionicons name="close-circle" size={18} color={theme.text.muted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -373,7 +396,7 @@ export default function DocumentsHubScreen() {
                 const active = filter === item.key;
                 return (
                   <TouchableOpacity
-                    style={[st.filterChip, active && st.filterChipActive]}
+                    style={[st.filterChip, { backgroundColor: glassBg, borderColor: glassBorder }, active && st.filterChipActive]}
                     onPress={() => setFilter(item.key)}
                   >
                     {active ? (
@@ -392,8 +415,8 @@ export default function DocumentsHubScreen() {
                       </LinearGradient>
                     ) : (
                       <View style={st.filterChipInner}>
-                        <Ionicons name={item.icon} size={13} color={UI.text.muted} style={{ marginRight: 4 }} />
-                        <Text style={st.filterText}>{item.label}</Text>
+                        <Ionicons name={item.icon} size={13} color={theme.text.muted} style={{ marginRight: 4 }} />
+                        <Text style={[st.filterText, { color: theme.text.muted }]}>{item.label}</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -422,14 +445,14 @@ export default function DocumentsHubScreen() {
                 />
               }
               ListEmptyComponent={
-                <View style={st.emptyCard}>
-                  <View style={st.emptyIconWrap}>
+                <View style={[st.emptyCard, { backgroundColor: glassBg, borderColor: glassBorder }]}>
+                  <View style={[st.emptyIconWrap, { backgroundColor: isDark ? theme.surface.elevated : UI.surface.elevated, borderWidth: isDark ? 1 : 0, borderColor: isDark ? theme.surface.border : 'transparent' }]}>
                     <Ionicons
                       name={filter === 'cp12' ? 'shield-checkmark-outline' : 'documents-outline'}
                       size={28}
-                      color={UI.text.muted}                     />
+                      color={theme.text.muted}                     />
                   </View>
-                  <Text style={st.emptyTitle}>
+                  <Text style={[st.emptyTitle, { color: theme.text.body }]}>
                     {filter === 'cp12'
                       ? 'No CP12 certificates yet'
                       : filter === 'invoice'
@@ -438,7 +461,7 @@ export default function DocumentsHubScreen() {
                           ? 'No quotes found'
                           : 'No documents found'}
                   </Text>
-                  <Text style={st.emptySubtitle}>
+                  <Text style={[st.emptySubtitle, { color: theme.text.muted }]}>
                     {filter === 'cp12'
                       ? 'Create your first gas safety certificate above.'
                       : 'Try adjusting your filters or create one above.'}

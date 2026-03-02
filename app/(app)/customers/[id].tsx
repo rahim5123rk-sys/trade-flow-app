@@ -23,9 +23,10 @@ import {
     CustomerSelector,
     EMPTY_CUSTOMER_FORM
 } from '../../../components/CustomerSelector';
-import { Colors, UI} from '../../../constants/theme';
+import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,6 +36,7 @@ export default function CustomerDetailScreen() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const { theme, isDark } = useAppTheme();
 
   const [formData, setFormData] = useState<CustomerFormData>(EMPTY_CUSTOMER_FORM);
 
@@ -189,11 +191,11 @@ export default function CustomerDetailScreen() {
 
     return (
       <TouchableOpacity 
-        style={styles.historyCard} 
+        style={[styles.historyCard, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]} 
         onPress={() => router.push(isJob ? `/(app)/jobs/${item.id}` : `/(app)/documents/${item.id}` as any)}
       >
         <View style={styles.historyLeft}>
-          <View style={[styles.iconCircle, { backgroundColor: isJob ? UI.surface.base : (item.type === 'invoice' ? '#FFF7ED' : '#F5F3FF') }]}>
+          <View style={[styles.iconCircle, { backgroundColor: isJob ? (isDark ? theme.surface.elevated : UI.surface.base) : (item.type === 'invoice' ? (isDark ? 'rgba(194,65,12,0.15)' : '#FFF7ED') : (isDark ? 'rgba(139,92,246,0.15)' : '#F5F3FF')) }]}>
             <Ionicons 
               name={isJob ? 'briefcase' : (item.type === 'invoice' ? 'receipt' : 'document-text')} 
               size={18} 
@@ -201,13 +203,13 @@ export default function CustomerDetailScreen() {
             />
           </View>
           <View>
-            <Text style={styles.historyTitle}>{isJob ? item.title : `${item.type.toUpperCase()} #${String(item.number).padStart(4, '0')}`}</Text>
-            <Text style={styles.historyDate}>{displayDate} • {isJob ? 'Job' : item.type}</Text>
+            <Text style={[styles.historyTitle, isDark && { color: theme.text.title }]}>{isJob ? item.title : `${item.type.toUpperCase()} #${String(item.number).padStart(4, '0')}`}</Text>
+            <Text style={[styles.historyDate, isDark && { color: theme.text.muted }]}>{displayDate} • {isJob ? 'Job' : item.type}</Text>
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={[styles.historyStatus, { color: getStatusColor(item.status) }]}>{item.status.toUpperCase()}</Text>
-          <Text style={styles.historyPrice}>£{(item.price || item.total || 0).toFixed(2)}</Text>
+          <Text style={[styles.historyPrice, isDark && { color: theme.text.title }]}>£{(item.price || item.total || 0).toFixed(2)}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -218,8 +220,8 @@ export default function CustomerDetailScreen() {
   if (editing) {
     return (
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
-          <Text style={styles.sectionTitle}>Editing Details</Text>
+        <ScrollView style={[styles.container, isDark && { backgroundColor: theme.surface.base }]} contentContainerStyle={{ paddingBottom: 60 }}>
+          <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Editing Details</Text>
           
           <CustomerSelector 
             value={formData}
@@ -231,8 +233,8 @@ export default function CustomerDetailScreen() {
           />
 
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-            <TouchableOpacity style={[styles.btn, { flex: 1, backgroundColor: UI.surface.divider }]} onPress={() => setEditing(false)}>
-              <Text style={{ color: Colors.text }}>Cancel</Text>
+            <TouchableOpacity style={[styles.btn, { flex: 1, backgroundColor: isDark ? theme.surface.elevated : UI.surface.divider }]} onPress={() => setEditing(false)}>
+              <Text style={{ color: isDark ? theme.text.title : Colors.text }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.btn, { flex: 1 }]} onPress={handleUpdate}>
               <Text style={styles.btnText}>Save Customer</Text>
@@ -244,14 +246,14 @@ export default function CustomerDetailScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: theme.surface.base }]}>
       {/* Profile Header */}
-      <View style={styles.card}>
+      <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{customer?.name}</Text>
-            {customer?.company_name && <Text style={styles.companyText}>{customer.company_name}</Text>}
-            <Text style={styles.detail}>{customer?.address}</Text>
+            <Text style={[styles.name, isDark && { color: theme.text.title }]}>{customer?.name}</Text>
+            {customer?.company_name && <Text style={[styles.companyText, isDark && { color: theme.brand.primary }]}>{customer.company_name}</Text>}
+            <Text style={[styles.detail, isDark && { color: theme.text.muted }]}>{customer?.address}</Text>
             
             {/* EMAIL AND PHONE DISPLAY */}
             {customer?.email && (
@@ -272,7 +274,7 @@ export default function CustomerDetailScreen() {
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Activity History ({history.length})</Text>
+      <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Activity History ({history.length})</Text>
 
       <FlatList
         data={history}
@@ -280,7 +282,7 @@ export default function CustomerDetailScreen() {
         renderItem={renderHistoryItem}
         contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<Text style={styles.emptyText}>No activity recorded yet.</Text>}
+        ListEmptyComponent={<Text style={[styles.emptyText, isDark && { color: theme.text.muted }]}>No activity recorded yet.</Text>}
       />
     </View>
   );

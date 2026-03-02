@@ -22,6 +22,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, UI } from '../../../constants/theme';
 import { useCP12 } from '../../../src/context/CP12Context';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 import { CP12FinalChecks, YesNoNA } from '../../../src/types/cp12';
 
 const GLASS_BG = UI.glass.bg;
@@ -100,6 +101,7 @@ const SectionDivider = ({ title, icon }: { title: string; icon?: keyof typeof Io
 // ─── Main ───────────────────────────────────────────────────────
 
 export default function FinalChecksScreen() {
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const {
     finalChecks,
@@ -133,7 +135,7 @@ export default function FinalChecksScreen() {
   return (
     <View style={s.root}>
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={theme.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -155,14 +157,14 @@ export default function FinalChecksScreen() {
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={s.backBtn}
+              style={[s.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
               activeOpacity={0.7}
             >
-              <Ionicons name="arrow-back" size={22} color={Colors.text} />
+              <Ionicons name="arrow-back" size={22} color={theme.text.title} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>Final Checks</Text>
-              <Text style={s.subtitleText}>
+              <Text style={[s.title, { color: theme.text.title }]}>Final Checks</Text>
+              <Text style={[s.subtitleText, { color: theme.text.muted }]}>
                 {appliances.length} appliance(s) inspected
               </Text>
             </View>

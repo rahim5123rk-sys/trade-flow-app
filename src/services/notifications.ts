@@ -8,6 +8,8 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
 
+const JOB_REMINDER_TYPE = 'job_reminder';
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -110,6 +112,89 @@ export function setupNotificationListeners(
     receivedSubscription.remove();
     responseSubscription.remove();
   };
+}
+
+async function ensureNotificationPermissions(): Promise<boolean> {
+  if (!Device.isDevice) {
+    return false;
+  }
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  return finalStatus === 'granted';
+}
+
+export async function cancelScheduledJobReminders(jobId: string): Promise<void> {
+  if (!jobId) return;
+
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  const matching = scheduled.filter((entry) => {
+    const data = entry.content.data as Record<string, any> | undefined;
+    return data?.type === JOB_REMINDER_TYPE && data?.jobId === jobId;
+  });
+
+  await Promise.all(
+    matching.map((entry) => Notifications.cancelScheduledNotificationAsync(entry.identifier))
+  );
+}
+
+export async function scheduleJobReminders(
+  jobId: string,
+  jobTitle: string,
+  scheduledDateMs: number,
+): Promise<void> {
+  if (!jobId || !scheduledDateMs) return;
+
+  const hasPermission = await ensureNotificationPermissions();
+  if (!hasPermission) return;
+
+  await cancelScheduledJobReminders(jobId);
+
+  const jobDate = new Date(scheduledDateMs);
+  const now = new Date();
+  if (jobDate <= now) return;
+
+  const oneHourBefore = new Date(jobDate.getTime() - 60 * 60 * 1000);
+
+  if (oneHourBefore > now) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Job Reminder',
+        body: `${jobTitle} starts in 1 hour`,
+        data: {
+          type: JOB_REMINDER_TYPE,
+          jobId,
+          reminder: 'one_hour',
+        },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: oneHourBefore,
+      },
+    });
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Job Starting Now',
+      body: `${jobTitle} is scheduled now`,
+      data: {
+        type: JOB_REMINDER_TYPE,
+        jobId,
+        reminder: 'start_time',
+      },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: jobDate,
+    },
+  });
 }
 
 export async function sendPushNotification(

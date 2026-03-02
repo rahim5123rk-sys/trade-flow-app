@@ -26,6 +26,8 @@ import { WorkerPicker } from '../../../../components/WorkerPicker';
 import { Colors, UI } from '../../../../constants/theme';
 import { supabase } from '../../../../src/config/supabase';
 import { useAuth } from '../../../../src/context/AuthContext';
+import { useAppTheme } from '../../../../src/context/ThemeContext';
+import { scheduleJobReminders } from '../../../../src/services/notifications';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -51,6 +53,7 @@ export default function EditJobScreen() {
   // Picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
+  const { theme, isDark } = useAppTheme();
 
   useEffect(() => {
     if (!id) return;
@@ -123,6 +126,13 @@ export default function EditJobScreen() {
         .eq('id', id);
 
       if (error) throw error;
+
+      await scheduleJobReminders(
+        id,
+        title.trim(),
+        scheduledDate.getTime(),
+      );
+
       router.back();
     } catch {
       Alert.alert('Error', 'Update failed.');
@@ -134,8 +144,8 @@ export default function EditJobScreen() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <LinearGradient colors={UI.gradients.appBackground} style={StyleSheet.absoluteFill} />
-        <ActivityIndicator size="large" color={UI.brand.primary} />
+        <LinearGradient colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground} style={StyleSheet.absoluteFill} />
+        <ActivityIndicator size="large" color={isDark ? theme.brand.primary : UI.brand.primary} />
       </View>
     );
   }
@@ -143,7 +153,7 @@ export default function EditJobScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -168,31 +178,31 @@ export default function EditJobScreen() {
 
           {/* ─── Job Title ─── */}
           <Animated.View entering={FadeInDown.delay(60).duration(350)}>
-            <View style={styles.glassCard}>
+            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
-                  <Ionicons name="briefcase" size={15} color={UI.brand.primary} />
+                  <Ionicons name="briefcase" size={15} color={isDark ? theme.brand.primary : UI.brand.primary} />
                 </View>
-                <Text style={styles.sectionTitle}>Job Title</Text>
+                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Job Title</Text>
               </View>
               <TextInput
-                style={styles.input}
+                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                 value={title}
                 onChangeText={setTitle}
                 placeholder="e.g. Kitchen renovation"
-                placeholderTextColor={UI.text.muted}
+                placeholderTextColor={isDark ? theme.text.placeholder : UI.text.muted}
               />
             </View>
           </Animated.View>
 
           {/* ─── Schedule ─── */}
           <Animated.View entering={FadeInDown.delay(100).duration(350)}>
-            <View style={styles.glassCard}>
+            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
                   <Ionicons name="calendar" size={15} color={UI.status.inProgress} />
                 </View>
-                <Text style={styles.sectionTitle}>Schedule</Text>
+                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Schedule</Text>
               </View>
 
               {/* Date row */}
@@ -201,12 +211,12 @@ export default function EditJobScreen() {
                   <Ionicons name="chevron-back" size={18} color={UI.brand.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.dateDisplay}
+                  style={[styles.dateDisplay, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
                   onPress={() => { setPickerMode('date'); setShowDatePicker(true); }}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="calendar-outline" size={15} color={UI.text.muted} />
-                  <Text style={styles.dateText}>
+                  <Ionicons name="calendar-outline" size={15} color={isDark ? theme.text.muted : UI.text.muted} />
+                  <Text style={[styles.dateText, isDark && { color: theme.text.title }]}>
                     {scheduledDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                   </Text>
                 </TouchableOpacity>
@@ -221,12 +231,12 @@ export default function EditJobScreen() {
                   <Ionicons name="chevron-back" size={18} color={UI.brand.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.dateDisplay}
+                  style={[styles.dateDisplay, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
                   onPress={() => { setPickerMode('time'); setShowDatePicker(true); }}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="time-outline" size={15} color={UI.text.muted} />
-                  <Text style={styles.dateText}>
+                  <Ionicons name="time-outline" size={15} color={isDark ? theme.text.muted : UI.text.muted} />
+                  <Text style={[styles.dateText, isDark && { color: theme.text.title }]}>
                     {scheduledDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </TouchableOpacity>
@@ -241,44 +251,44 @@ export default function EditJobScreen() {
           <Animated.View entering={FadeInDown.delay(140).duration(350)}>
             <View style={styles.twoCol}>
               {/* Price */}
-              <View style={[styles.glassCard, { flex: 1, marginRight: 6 }]}>
+              <View style={[styles.glassCard, { flex: 1, marginRight: 6 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.iconWrap, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
                     <Ionicons name="cash" size={15} color={UI.status.complete} />
                   </View>
-                  <Text style={styles.sectionTitle}>Price</Text>
+                  <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Price</Text>
                 </View>
                 <View style={styles.priceInputRow}>
-                  <Text style={styles.currencySymbol}>£</Text>
+                  <Text style={[styles.currencySymbol, isDark && { color: theme.text.muted }]}>£</Text>
                   <TextInput
-                    style={[styles.input, styles.priceInput]}
+                    style={[styles.input, styles.priceInput, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                     value={price}
                     onChangeText={setPrice}
                     keyboardType="decimal-pad"
                     placeholder="0.00"
-                    placeholderTextColor={UI.text.muted}
+                    placeholderTextColor={isDark ? theme.text.placeholder : UI.text.muted}
                   />
                 </View>
               </View>
 
               {/* Duration */}
-              <View style={[styles.glassCard, { flex: 1, marginLeft: 6 }]}>
+              <View style={[styles.glassCard, { flex: 1, marginLeft: 6 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.iconWrap, { backgroundColor: 'rgba(139,92,246,0.1)' }]}>
                     <Ionicons name="hourglass" size={15} color={UI.status.paid} />
                   </View>
-                  <Text style={styles.sectionTitle}>Duration</Text>
+                  <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Duration</Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.durationBtn}
+                  style={[styles.durationBtn, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
                   onPress={() => {
                     const idx = DURATIONS.indexOf(estimatedDuration);
                     setEstimatedDuration(DURATIONS[(idx + 1) % DURATIONS.length]);
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.durationText}>{estimatedDuration}</Text>
-                  <Ionicons name="swap-vertical" size={16} color={UI.text.muted} />
+                  <Text style={[styles.durationText, isDark && { color: theme.text.title }]}>{estimatedDuration}</Text>
+                  <Ionicons name="swap-vertical" size={16} color={isDark ? theme.text.muted : UI.text.muted} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -286,22 +296,22 @@ export default function EditJobScreen() {
 
           {/* ─── Notes ─── */}
           <Animated.View entering={FadeInDown.delay(180).duration(350)}>
-            <View style={styles.glassCard}>
+            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(245,158,11,0.1)' }]}>
                   <Ionicons name="create" size={15} color={UI.status.pending} />
                 </View>
-                <Text style={styles.sectionTitle}>Notes</Text>
+                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Notes</Text>
               </View>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                 value={notes}
                 onChangeText={setNotes}
                 multiline
                 numberOfLines={5}
                 textAlignVertical="top"
                 placeholder="Add any job details or special instructions..."
-                placeholderTextColor={UI.text.muted}
+                placeholderTextColor={isDark ? theme.text.placeholder : UI.text.muted}
               />
             </View>
           </Animated.View>
@@ -309,12 +319,12 @@ export default function EditJobScreen() {
           {/* ─── Assign Workers ─── */}
           {hasWorkers && (
             <Animated.View entering={FadeInDown.delay(220).duration(350)}>
-              <View style={styles.glassCard}>
+              <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.iconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
                     <Ionicons name="people" size={15} color={UI.status.inProgress} />
                   </View>
-                  <Text style={styles.sectionTitle}>Assigned Workers</Text>
+                  <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Assigned Workers</Text>
                 </View>
                 <WorkerPicker
                   companyId={userProfile?.company_id || ''}
@@ -351,9 +361,9 @@ export default function EditJobScreen() {
       {/* ─── Date/Time Picker Modal ─── */}
       <Modal transparent visible={showDatePicker} animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.pickerModal}>
+          <View style={[styles.pickerModal, isDark && { backgroundColor: theme.surface.card }]}>
             <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>
+              <Text style={[styles.pickerTitle, isDark && { color: theme.text.title }]}>
                 {pickerMode === 'date' ? 'Select Date' : 'Select Time'}
               </Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)} activeOpacity={0.7}>

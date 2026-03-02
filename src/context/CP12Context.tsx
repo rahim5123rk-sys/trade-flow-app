@@ -46,6 +46,7 @@ interface CP12ContextValue extends CP12State {
   setNextDueDate: (v: string) => void;
   setCustomerSignature: (v: string) => void;
   setCertRef: (v: string) => void;
+  hydrateFromDuplicate: (seed: { propertyAddress?: string; appliances?: CP12Appliance[] }) => void;
   resetCP12: () => void;
 }
 
@@ -87,6 +88,26 @@ export function CP12Provider({ children }: { children: React.ReactNode }) {
 
   const removeAppliance = useCallback((id: string) => {
     setAppliances((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const hydrateFromDuplicate = useCallback((seed: { propertyAddress?: string; appliances?: CP12Appliance[] }) => {
+    const appliancesSeed = Array.isArray(seed.appliances) ? seed.appliances : [];
+    const addressParts = (seed.propertyAddress || '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    setAppliances(
+      appliancesSeed.slice(0, 5).map((appliance, index) => ({
+        ...appliance,
+        id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+      }))
+    );
+
+    setTenantAddressLine1(addressParts[0] || '');
+    setTenantAddressLine2(addressParts.length > 3 ? addressParts.slice(1, -2).join(', ') : addressParts[1] || '');
+    setTenantCity(addressParts.length > 2 ? addressParts[addressParts.length - 2] : '');
+    setTenantPostCode(addressParts.length > 1 ? addressParts[addressParts.length - 1] : '');
   }, []);
 
   const resetCP12 = useCallback(() => {
@@ -140,6 +161,7 @@ export function CP12Provider({ children }: { children: React.ReactNode }) {
         setCustomerSignature,
         certRef,
         setCertRef,
+        hydrateFromDuplicate,
         resetCP12,
       }}
     >

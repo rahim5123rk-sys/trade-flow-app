@@ -7,23 +7,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { UI } from '../constants/theme';
 import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
+import { useAppTheme } from '../src/context/ThemeContext';
 import { Customer } from '../src/types';
 
 // ─── Design tokens ──────────────────────────────────────────────────
@@ -113,6 +114,15 @@ export function CustomerSelector({
   showActions = true,
 }: CustomerSelectorProps) {
   const { userProfile } = useAuth();
+  const { theme, isDark } = useAppTheme();
+
+  // Dynamic dark-mode style overrides
+  const darkCard = isDark ? { backgroundColor: theme.glass.bg, borderColor: theme.glass.border, shadowColor: '#000' } : undefined;
+  const darkInput = isDark ? { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title } : undefined;
+  const darkLabel = isDark ? { color: theme.text.muted } : undefined;
+  const darkTitle = isDark ? { color: theme.text.title } : undefined;
+  const darkBody = isDark ? { color: theme.text.body } : undefined;
+  const darkMuted = isDark ? { color: theme.text.muted } : undefined;
 
   const [customerMode, setCustomerMode] = useState<'new' | 'existing'>(
     value.customerId ? 'existing' : 'new',
@@ -249,7 +259,7 @@ export function CustomerSelector({
   // ──────────────────────────────────────────────────────────────────
 
   const renderLabel = (text: string) => (
-    <Text style={s.label}>{text}</Text>
+    <Text style={[s.label, darkLabel]}>{text}</Text>
   );
 
   const renderInput = (
@@ -260,9 +270,9 @@ export function CustomerSelector({
   ) => (
     <View style={s.inputWrap}>
       <TextInput
-        style={s.input}
+        style={[s.input, darkInput]}
         placeholder={placeholder}
-        placeholderTextColor="#94a3b8"
+        placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
         value={fieldValue}
         onChangeText={(t) => update(field, t)}
         keyboardType={opts?.keyboard}
@@ -273,12 +283,12 @@ export function CustomerSelector({
 
   const renderAvatar = (name: string, size: number = 44) => (
     <LinearGradient
-      colors={UI.gradients.primary}
+      colors={isDark ? [theme.brand.primary, theme.brand.primaryDark] as [string, string] : UI.gradients.primary}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }]}
     >
-      <Text style={[s.avatarText, { fontSize: size * 0.36 }]}>
+      <Text style={[s.avatarText, { fontSize: size * 0.36 }, isDark && { color: theme.text.inverse }]}>
         {getInitials(name || '?')}
       </Text>
     </LinearGradient>
@@ -291,22 +301,22 @@ export function CustomerSelector({
         <Animated.View entering={FadeIn.duration(300)} style={s.quickRow}>
           <View style={s.quickLeft}>
             <Ionicons name="flash" size={16} color={UI.status.pending} />
-            <Text style={s.quickLabel}>Quick Entry</Text>
+            <Text style={[s.quickLabel, darkMuted]}>Quick Entry</Text>
           </View>
           <Switch
             value={isQuick}
             onValueChange={handleToggleQuick}
-            trackColor={{ false: UI.surface.divider, true: UI.brand.accent }}
-            thumbColor={isQuick ? UI.brand.primary : '#f4f4f5'}
+            trackColor={{ false: isDark ? theme.surface.border : UI.surface.divider, true: isDark ? theme.brand.primary : UI.brand.accent }}
+            thumbColor={isQuick ? (isDark ? theme.text.inverse : UI.brand.primary) : '#f4f4f5'}
           />
         </Animated.View>
       )}
 
       {/* ─── Locked / Prefill card ─── */}
       {isLocked && value.customerName ? (
-        <Animated.View entering={FadeInDown.duration(350).springify()} style={s.prefillCard}>
+        <Animated.View entering={FadeInDown.duration(350).springify()} style={[s.prefillCard, darkCard]}>
           <LinearGradient
-            colors={UI.gradients.primary}
+            colors={isDark ? [theme.brand.primary, theme.brand.primaryDark] as [string, string] : UI.gradients.primary}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={s.prefillAccent}
@@ -315,7 +325,7 @@ export function CustomerSelector({
             <View style={s.prefillRow}>
               {renderAvatar(value.customerName, 42)}
               <View style={{ flex: 1 }}>
-                <Text style={s.prefillName}>{value.customerName}</Text>
+                <Text style={[s.prefillName, darkTitle]}>{value.customerName}</Text>
                 {value.customerCompany ? (
                   <Text style={s.prefillCompany}>{value.customerCompany}</Text>
                 ) : null}
@@ -331,13 +341,13 @@ export function CustomerSelector({
 
       {/* ─── Editing banner ─── */}
       {isEditing && (
-        <Animated.View entering={FadeInDown.duration(300)} style={s.editBanner}>
+        <Animated.View entering={FadeInDown.duration(300)} style={[s.editBanner, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
           <View style={s.editBannerIcon}>
             <Ionicons name="pencil" size={16} color={UI.status.pending} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.editBannerTitle}>Editing Details</Text>
-            <Text style={s.editBannerSub}>
+            <Text style={[s.editBannerTitle, isDark && { color: theme.text.title }]}>Editing Details</Text>
+            <Text style={[s.editBannerSub, isDark && { color: theme.text.muted }]}>
               Update this record or save as a new customer.
             </Text>
           </View>
@@ -348,7 +358,7 @@ export function CustomerSelector({
         <>
           {/* ─── New / Existing tabs ─── */}
           {!hideTabs && !isEditing && prefillMode === 'none' && (
-            <Animated.View entering={FadeInDown.delay(50).duration(350)} style={s.tabBar}>
+            <Animated.View entering={FadeInDown.delay(50).duration(350)} style={[s.tabBar, isDark && { backgroundColor: theme.surface.elevated }]}>
               {(['new', 'existing'] as const).map((tab) => {
                 const active = customerMode === tab;
                 const label = tab === 'new' ? 'New Customer' : 'Existing';
@@ -369,18 +379,18 @@ export function CustomerSelector({
                   >
                     {active ? (
                       <LinearGradient
-                        colors={UI.gradients.primary}
+                        colors={isDark ? [theme.brand.primary, theme.brand.primaryDark] as [string, string] : UI.gradients.primary}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={s.tabGradient}
                       >
-                        <Ionicons name={icon as any} size={16} color={UI.text.white} />
-                        <Text style={s.tabTextActive}>{label}</Text>
+                        <Ionicons name={icon as any} size={16} color={isDark ? theme.text.inverse : UI.text.white} />
+                        <Text style={[s.tabTextActive, isDark && { color: theme.text.inverse }]}>{label}</Text>
                       </LinearGradient>
                     ) : (
                       <View style={s.tabInner}>
-                        <Ionicons name={icon as any} size={16} color={UI.text.muted} />
-                        <Text style={s.tabText}>{label}</Text>
+                        <Ionicons name={icon as any} size={16} color={isDark ? theme.text.muted : UI.text.muted} />
+                        <Text style={[s.tabText, darkMuted]}>{label}</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -393,11 +403,11 @@ export function CustomerSelector({
             /* ─── EXISTING MODE PICKER ─── */
             <Animated.View
               entering={FadeInDown.delay(100).duration(350).springify()}
-              style={s.card}
+              style={[s.card, darkCard]}
             >
               {renderLabel('Select Customer *')}
               <TouchableOpacity
-                style={s.pickerBtn}
+                style={[s.pickerBtn, darkInput]}
                 activeOpacity={0.7}
                 onPress={() => setShowPicker(true)}
               >
@@ -407,30 +417,30 @@ export function CustomerSelector({
                   </View>
                   <Text
                     style={
-                      value.customerName ? s.pickerText : s.placeholderText
+                      value.customerName ? [s.pickerText, darkTitle] : [s.placeholderText, darkMuted]
                     }
                   >
                     {value.customerName || 'Search customers…'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-down" size={18} color={UI.text.muted} />
+                <Ionicons name="chevron-down" size={18} color={isDark ? theme.text.muted : UI.text.muted} />
               </TouchableOpacity>
 
               {value.customerName ? (
                 <Animated.View
                   entering={FadeIn.duration(300)}
-                  style={s.selectedCard}
+                  style={[s.selectedCard, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
                 >
                   <View style={s.selectedRow}>
                     {renderAvatar(value.customerName, 40)}
                     <View style={{ flex: 1 }}>
-                      <Text style={s.selectedName}>{value.customerName}</Text>
+                      <Text style={[s.selectedName, darkTitle]}>{value.customerName}</Text>
                       {value.customerCompany ? (
                         <Text style={s.selectedCompany}>
                           {value.customerCompany}
                         </Text>
                       ) : null}
-                      <Text style={s.selectedAddr}>
+                      <Text style={[s.selectedAddr, darkMuted]}>
                         {[value.addressLine1, value.city, value.postCode]
                           .filter(Boolean)
                           .join(', ')}
@@ -470,7 +480,7 @@ export function CustomerSelector({
             /* ─── INPUT FIELDS ─── */
             <Animated.View
               entering={FadeInDown.delay(100).duration(350).springify()}
-              style={s.card}
+              style={[s.card, darkCard]}
             >
               {renderLabel('Contact Name *')}
               {renderInput('e.g. Sarah Jenkins', value.customerName, 'customerName')}
@@ -556,8 +566,8 @@ export function CustomerSelector({
                 <Animated.View entering={FadeInUp.delay(100).duration(300)} style={{ marginTop: 10 }}>
                   {!hasChanged ? (
                     <View style={s.editActions}>
-                      <TouchableOpacity style={s.cancelBtn} onPress={cancelEditing}>
-                        <Text style={s.cancelBtnText}>Cancel</Text>
+                      <TouchableOpacity style={[s.cancelBtn, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={cancelEditing}>
+                        <Text style={[s.cancelBtnText, darkMuted]}>Cancel</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={s.gradientBtnWrap}
@@ -565,21 +575,21 @@ export function CustomerSelector({
                         onPress={() => setIsEditing(false)}
                       >
                         <LinearGradient
-                          colors={UI.gradients.primary}
+                          colors={isDark ? [theme.brand.primary, theme.brand.primaryDark] as [string, string] : UI.gradients.primary}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
                           style={s.gradientBtn}
                         >
-                          <Ionicons name="checkmark" size={18} color={UI.text.white} />
-                          <Text style={s.gradientBtnText}>Done</Text>
+                          <Ionicons name="checkmark" size={18} color={isDark ? theme.text.inverse : UI.text.white} />
+                          <Text style={[s.gradientBtnText, isDark && { color: theme.text.inverse }]}>Done</Text>
                         </LinearGradient>
                       </TouchableOpacity>
                     </View>
                   ) : (
                     <View style={{ gap: 10 }}>
                       <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <TouchableOpacity style={s.cancelBtn} onPress={cancelEditing}>
-                          <Text style={s.cancelBtnText}>Cancel</Text>
+                        <TouchableOpacity style={[s.cancelBtn, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={cancelEditing}>
+                          <Text style={[s.cancelBtnText, darkMuted]}>Cancel</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={s.gradientBtnWrap}
@@ -650,10 +660,10 @@ export function CustomerSelector({
       {showJobAddress && !isQuick && !isLocked && !isEditing && (
         <Animated.View
           entering={FadeInDown.delay(150).duration(350).springify()}
-          style={s.jobCard}
+          style={[s.jobCard, darkCard]}
         >
           <LinearGradient
-            colors={UI.gradients.blueLight}
+            colors={isDark ? [theme.brand.primary, theme.brand.primaryDark] as [string, string] : UI.gradients.blueLight}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={s.jobAccent}
@@ -722,24 +732,24 @@ export function CustomerSelector({
             
             <Animated.View
               entering={FadeInDown.duration(350).springify()}
-              style={s.modal}
+              style={[s.modal, isDark && { backgroundColor: theme.surface.card }]}
             >
               {/* Header */}
               <View style={s.modalHeader}>
                 <View style={s.modalTitleRow}>
                   <LinearGradient
-                    colors={UI.gradients.primary}
+                    colors={isDark ? [theme.brand.primary, theme.brand.primaryDark] as [string, string] : UI.gradients.primary}
                     style={s.modalTitleIcon}
                   >
-                    <Ionicons name="people" size={18} color={UI.text.white} />
+                    <Ionicons name="people" size={18} color={isDark ? theme.text.inverse : UI.text.white} />
                   </LinearGradient>
-                  <Text style={s.modalTitle}>Select Customer</Text>
+                  <Text style={[s.modalTitle, darkTitle]}>Select Customer</Text>
                 </View>
                 <TouchableOpacity
-                  style={s.modalClose}
+                  style={[s.modalClose, isDark && { backgroundColor: theme.surface.elevated }]}
                   onPress={() => setShowPicker(false)}
                 >
-                  <Ionicons name="close" size={20} color={UI.text.muted} />
+                  <Ionicons name="close" size={20} color={isDark ? theme.text.muted : UI.text.muted} />
                 </TouchableOpacity>
               </View>
 
@@ -756,13 +766,13 @@ export function CustomerSelector({
                 />
                 {searchText.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchText('')}>
-                    <Ionicons name="close-circle" size={18} color={UI.surface.border} />
+                    <Ionicons name="close-circle" size={18} color={isDark ? theme.text.muted : UI.surface.border} />
                   </TouchableOpacity>
                 )}
               </View>
 
               {/* Count */}
-              <Text style={s.modalCount}>
+              <Text style={[s.modalCount, darkMuted]}>
                 {filteredCustomers.length} customer
                 {filteredCustomers.length !== 1 ? 's' : ''}
                 {searchText ? ' found' : ''}
@@ -778,9 +788,9 @@ export function CustomerSelector({
                 contentContainerStyle={{ paddingBottom: 20 }}
                 ListEmptyComponent={
                   <View style={s.emptyList}>
-                    <Ionicons name="search-outline" size={40} color={UI.surface.border} />
-                    <Text style={s.emptyText}>No customers found</Text>
-                    <Text style={s.emptySubText}>
+                    <Ionicons name="search-outline" size={40} color={isDark ? theme.text.muted : UI.surface.border} />
+                    <Text style={[s.emptyText, darkMuted]}>No customers found</Text>
+                    <Text style={[s.emptySubText, isDark && { color: theme.text.placeholder }]}>
                       Try a different search term
                     </Text>
                   </View>
@@ -788,23 +798,23 @@ export function CustomerSelector({
                 renderItem={({ item, index }) => (
                   <Animated.View entering={FadeInDown.delay(index * 40).duration(250)}>
                     <TouchableOpacity
-                      style={s.customerRow}
+                      style={[s.customerRow, isDark && { borderBottomColor: theme.surface.border }]}
                       activeOpacity={0.6}
                       onPress={() => handleSelectCustomer(item)}
                     >
                       {renderAvatar(item.name, 40)}
                       <View style={{ flex: 1 }}>
-                        <Text style={s.customerName}>{item.name}</Text>
+                        <Text style={[s.customerName, darkTitle]}>{item.name}</Text>
                         {item.company_name ? (
                           <Text style={s.customerCompany}>
                             {item.company_name}
                           </Text>
                         ) : null}
-                        <Text style={s.customerAddr} numberOfLines={1}>
+                        <Text style={[s.customerAddr, darkMuted]} numberOfLines={1}>
                           {item.address}
                         </Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
+                      <Ionicons name="chevron-forward" size={18} color={isDark ? theme.text.muted : UI.surface.border} />
                     </TouchableOpacity>
                   </Animated.View>
                 )}

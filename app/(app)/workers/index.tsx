@@ -2,20 +2,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    FlatList,
+  Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI} from '../../../constants/theme';
+import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 export default function WorkersListScreen() {
   const { userProfile } = useAuth();
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   
@@ -48,15 +51,15 @@ export default function WorkersListScreen() {
   };
 
   const renderWorker = ({ item }: { item: any }) => (
-    <View style={styles.card}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
+    <View style={[styles.card, { backgroundColor: theme.surface.card }, isDark && { borderWidth: 1, borderColor: theme.glass.border }, theme.shadow]}>
+      <View style={[styles.avatar, { backgroundColor: isDark ? theme.surface.elevated : UI.surface.base }]}>
+        <Text style={[styles.avatarText, { color: theme.brand.primary }]}>
           {item.display_name?.[0]?.toUpperCase() || 'W'}
         </Text>
       </View>
       <View style={styles.info}>
-        <Text style={styles.name}>{item.display_name}</Text>
-        <Text style={styles.email}>{item.email}</Text>
+        <Text style={[styles.name, { color: theme.text.title }]}>{item.display_name}</Text>
+        <Text style={[styles.email, { color: theme.text.muted }]}>{item.email}</Text>
         {item.is_test_user && (
           <View style={styles.testBadge}>
             <Text style={styles.testBadgeText}>TEST USER</Text>
@@ -64,18 +67,18 @@ export default function WorkersListScreen() {
         )}
       </View>
       <TouchableOpacity style={styles.actionBtn}>
-        <Ionicons name="ellipsis-vertical" size={20} color={Colors.textLight} />
+        <Ionicons name="ellipsis-vertical" size={20} color={theme.text.muted} />
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.surface.base }]}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={Colors.text} />
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: theme.surface.card }, isDark && { borderWidth: 1, borderColor: theme.glass.border }]}>
+            <Ionicons name="arrow-back" size={24} color={theme.text.title} />
         </TouchableOpacity>
-        <Text style={styles.screenTitle}>Team</Text>
+        <Text style={[styles.screenTitle, { color: theme.text.title }]}>Team</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -95,15 +98,25 @@ export default function WorkersListScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={48} color={Colors.textLight} />
-            <Text style={styles.emptyText}>No workers found.</Text>
-            <Text style={styles.emptySub}>Tap + to invite a worker.</Text>
+            <Ionicons name="people-outline" size={48} color={theme.text.muted} />
+            <Text style={[styles.emptyText, { color: theme.text.title }]}>No workers found.</Text>
+            <Text style={[styles.emptySub, { color: theme.text.muted }]}>Tap + to invite a worker.</Text>
           </View>
         }
       />
 
-      <TouchableOpacity style={styles.fab} onPress={handleAddWorker}>
-        <Ionicons name="add" size={30} color={UI.text.white} />
+      <TouchableOpacity
+        style={[
+          styles.fab,
+          {
+            backgroundColor: theme.brand.primary,
+            shadowColor: isDark ? '#000' : Colors.primary,
+            bottom: insets.bottom + (Platform.OS === 'ios' ? 90 : 74),
+          },
+        ]}
+        onPress={handleAddWorker}
+      >
+        <Ionicons name="add" size={30} color={theme.text.inverse} />
       </TouchableOpacity>
     </View>
   );
@@ -123,7 +136,7 @@ const styles = StyleSheet.create({
   testBadge: { backgroundColor: UI.surface.elevated, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
   testBadgeText: { fontSize: 10, fontWeight: '700', color: UI.text.muted },
   actionBtn: { padding: 8 },
-  fab: { position: 'absolute', right: 20, bottom: 30, backgroundColor: Colors.primary, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', ...Colors.shadow },
+  fab: { position: 'absolute', right: 20, backgroundColor: Colors.primary, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', zIndex: 20, ...Colors.shadow },
   emptyState: { alignItems: 'center', marginTop: 80, gap: 10 },
   emptyText: { fontSize: 18, fontWeight: '700', color: Colors.text },
   emptySub: { color: Colors.textLight },

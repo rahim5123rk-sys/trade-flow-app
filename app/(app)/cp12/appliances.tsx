@@ -22,6 +22,7 @@ import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, UI } from '../../../constants/theme';
 import { useCP12 } from '../../../src/context/CP12Context';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 import {
     CP12Appliance,
     EMPTY_APPLIANCE,
@@ -237,6 +238,7 @@ const SectionDivider = ({ title }: { title: string }) => (
 // ─── Main screen ────────────────────────────────────────────────
 
 export default function AppliancesScreen() {
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { appliances, addAppliance, updateAppliance, removeAppliance } = useCP12();
   const [showForm, setShowForm] = useState(false);
@@ -305,7 +307,7 @@ export default function AppliancesScreen() {
   return (
     <View style={s.root}>
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={theme.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -327,14 +329,14 @@ export default function AppliancesScreen() {
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={s.backBtn}
+              style={[s.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
               activeOpacity={0.7}
             >
-              <Ionicons name="arrow-back" size={22} color={Colors.text} />
+              <Ionicons name="arrow-back" size={22} color={theme.text.title} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>Appliances</Text>
-              <Text style={s.subtitle}>
+              <Text style={[s.title, { color: theme.text.title }]}>Appliances</Text>
+              <Text style={[s.subtitle, { color: theme.text.muted }]}>
                 {appliances.length}/{MAX_APPLIANCES} added
               </Text>
             </View>

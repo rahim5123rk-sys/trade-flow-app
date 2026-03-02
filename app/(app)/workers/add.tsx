@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
@@ -13,9 +14,11 @@ import {
 import { Colors, UI} from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useAppTheme } from '../../../src/context/ThemeContext';
 
 export default function AddWorkerScreen() {
   const { userProfile } = useAuth();
+  const { theme, isDark } = useAppTheme();
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,36 +72,44 @@ export default function AddWorkerScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Invite Team Members</Text>
-        <Text style={styles.subtitle}>
-          Workers can join your company by entering this code during registration.
-        </Text>
+    <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
+      <LinearGradient
+        colors={theme.gradients.appBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
+        <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }] }>
+          <Text style={[styles.title, { color: theme.text.title }]}>Invite Team Members</Text>
+          <Text style={[styles.subtitle, { color: theme.text.muted }] }>
+            Workers can join your company by entering this code during registration.
+          </Text>
 
-        <View style={styles.codeBox}>
-          <Text style={styles.codeLabel}>INVITE CODE</Text>
-          <TouchableOpacity style={styles.codeRow} onPress={copyToClipboard}>
-            <Text style={styles.code}>{inviteCode || '...'}</Text>
-            <Ionicons name="copy-outline" size={24} color={Colors.primary} />
+          <View style={[styles.codeBox, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }] }>
+            <Text style={[styles.codeLabel, { color: theme.text.muted }]}>INVITE CODE</Text>
+            <TouchableOpacity style={styles.codeRow} onPress={copyToClipboard}>
+              <Text style={[styles.code, { color: theme.text.title }]}>{inviteCode || '...'}</Text>
+              <Ionicons name="copy-outline" size={24} color={theme.brand.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={[styles.button, styles.primaryBtn, { backgroundColor: theme.brand.primary }]} onPress={copyToClipboard}>
+            <Text style={[styles.primaryBtnText, { color: theme.text.inverse }]}>Copy Code</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.regenBtn} onPress={handleRegenerateCode}>
+              <Text style={styles.regenText}>Regenerate Code</Text>
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={[styles.button, styles.primaryBtn]} onPress={copyToClipboard}>
-          <Text style={styles.primaryBtnText}>Copy Code</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.regenBtn} onPress={handleRegenerateCode}>
-            <Text style={styles.regenText}>Regenerate Code</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: Colors.background },
-  card: { backgroundColor: '#fff', padding: 20, borderRadius: 12, ...Colors.shadow },
+  card: { backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(255,255,255,0.80)', padding: 20, borderRadius: 12, ...Colors.shadow },
   title: { fontSize: 20, fontWeight: '800', color: Colors.text, marginBottom: 4 },
   subtitle: { color: Colors.textLight, marginBottom: 20, fontSize: 14, lineHeight: 20 },
   codeBox: { backgroundColor: UI.surface.base, padding: 16, borderRadius: 8, borderWidth: 1, borderColor: UI.surface.divider, marginBottom: 20 },

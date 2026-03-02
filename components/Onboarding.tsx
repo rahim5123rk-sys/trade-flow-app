@@ -23,6 +23,7 @@ import Animated, {
     SlideInUp
 } from 'react-native-reanimated';
 import { UI } from '../constants/theme';
+import { useAppTheme } from '../src/context/ThemeContext';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -103,6 +104,7 @@ const arrowStyles = StyleSheet.create({
 
 // ─── Main Onboarding Component ─────────────
 export default function Onboarding({ screenKey, tips, onComplete }: OnboardingProps) {
+  const { theme, isDark } = useAppTheme();
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -133,7 +135,7 @@ export default function Onboarding({ screenKey, tips, onComplete }: OnboardingPr
 
   const tip = tips[step];
   const isLast = step === tips.length - 1;
-  const accent = tip.accent || UI.brand.primary;
+  const accent = tip.accent || (isDark ? theme.brand.primary : UI.brand.primary);
   const arrow = tip.arrowDirection || 'none';
 
   return (
@@ -149,12 +151,12 @@ export default function Onboarding({ screenKey, tips, onComplete }: OnboardingPr
           key={step}
           entering={FadeInDown.delay(100).springify()}
           exiting={FadeOut.duration(150)}
-          style={s.card}
+          style={[s.card, isDark && { backgroundColor: theme.surface.card }]}
         >
           {/* Skip button */}
           {!isLast && (
             <TouchableOpacity onPress={skip} style={s.skipBtn} hitSlop={16}>
-              <Text style={s.skipText}>Skip</Text>
+              <Text style={[s.skipText, isDark && { color: theme.text.muted }]}>Skip</Text>
             </TouchableOpacity>
           )}
 
@@ -164,8 +166,8 @@ export default function Onboarding({ screenKey, tips, onComplete }: OnboardingPr
           </View>
 
           {/* Title */}
-          <Text style={s.title}>{tip.title}</Text>
-          <Text style={s.desc}>{tip.description}</Text>
+          <Text style={[s.title, isDark && { color: theme.text.title }]}>{tip.title}</Text>
+          <Text style={[s.desc, isDark && { color: theme.text.secondary }]}>{tip.description}</Text>
 
           {/* Dots */}
           {tips.length > 1 && (
@@ -175,6 +177,7 @@ export default function Onboarding({ screenKey, tips, onComplete }: OnboardingPr
                   key={i}
                   style={[
                     s.dot,
+                    isDark && { backgroundColor: theme.surface.border },
                     i === step ? { backgroundColor: accent, width: 20 } : {},
                   ]}
                 />
@@ -188,7 +191,7 @@ export default function Onboarding({ screenKey, tips, onComplete }: OnboardingPr
             style={[s.cta, { backgroundColor: accent }]}
             activeOpacity={0.85}
           >
-            <Text style={s.ctaText}>{isLast ? 'Get Started' : 'Next'}</Text>
+            <Text style={[s.ctaText, isDark && { color: theme.text.inverse }]}>{isLast ? 'Get Started' : 'Next'}</Text>
             <Ionicons
               name={isLast ? 'checkmark-circle' : 'arrow-forward'}
               size={20}
@@ -198,7 +201,7 @@ export default function Onboarding({ screenKey, tips, onComplete }: OnboardingPr
           </TouchableOpacity>
 
           {/* Step counter */}
-          <Text style={s.counter}>
+          <Text style={[s.counter, isDark && { color: theme.text.muted }]}>
             {step + 1} of {tips.length}
           </Text>
         </Animated.View>

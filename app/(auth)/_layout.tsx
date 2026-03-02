@@ -1,11 +1,18 @@
 import { Stack } from 'expo-router';
+import React from 'react';
+import { useAppTheme } from '../../src/context/ThemeContext';
 
 export default function AuthLayout() {
+  const { theme } = useAppTheme();
   return (
     <Stack
       screenOptions={{
         headerShown: false, // We will build our own headers or use safe areas
         animation: 'slide_from_right',
+        headerStyle: { backgroundColor: theme.surface.base },
+        headerTitleStyle: { color: theme.text.title },
+        headerTintColor: theme.brand.primary,
+        contentStyle: { backgroundColor: theme.surface.base },
       }}
     >
       <Stack.Screen name="login" />

@@ -18,6 +18,7 @@ import { Colors, UI } from '../../constants/theme';
 import { useRealtimeJobs } from '../../hooks/useRealtime';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
+import { useAppTheme } from '../../src/context/ThemeContext';
 import { Job } from '../../src/types';
 import { toDateString } from '../../src/utils/dates';
 import { getStatusStyle } from '../../src/utils/formatting';
@@ -27,6 +28,7 @@ import { getStatusStyle } from '../../src/utils/formatting';
 
 export default function UnifiedCalendarScreen() {
   const { userProfile, user } = useAuth();
+  const { theme, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,16 +109,16 @@ export default function UnifiedCalendarScreen() {
     return (
       <Animated.View entering={FadeInRight.delay(Math.min(index * 40, 240)).springify()}>
         <TouchableOpacity
-          style={styles.jobCard}
+          style={[styles.jobCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
           activeOpacity={0.7}
           onPress={() => router.push(`/(app)/jobs/${item.id}` as any)}
         >
           <LinearGradient colors={[status.color, `${status.color}88`] as const} style={styles.jobStrip} />
           <View style={styles.jobBody}>
             <View style={styles.jobTopRow}>
-              <View style={styles.timePill}>
-                <Ionicons name="time-outline" size={12} color={UI.text.muted} />
-                <Text style={styles.timeText}>{time}</Text>
+              <View style={[styles.timePill, isDark && { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
+                <Ionicons name="time-outline" size={12} color={theme.text.muted} />
+                <Text style={[styles.timeText, { color: theme.text.body }]}>{time}</Text>
               </View>
               <View style={[styles.statusPill, { backgroundColor: `${status.color}18` }]}>
                 <View style={[styles.statusDot, { backgroundColor: status.color }]} />
@@ -126,28 +128,28 @@ export default function UnifiedCalendarScreen() {
               </View>
             </View>
 
-            <Text style={styles.jobTitle} numberOfLines={1}>
+            <Text style={[styles.jobTitle, { color: theme.text.title }]} numberOfLines={1}>
               {item.title}
             </Text>
 
             <View style={styles.jobMetaRow}>
-              <Ionicons name="person-outline" size={13} color={UI.text.muted} />
-              <Text style={styles.jobMetaText} numberOfLines={1}>
+              <Ionicons name="person-outline" size={13} color={theme.text.muted} />
+              <Text style={[styles.jobMetaText, { color: theme.text.body }]} numberOfLines={1}>
                 {item.customer_snapshot?.name || 'Unknown customer'}
               </Text>
             </View>
           </View>
 
-          <Ionicons name="chevron-forward" size={18} color={UI.surface.border} />
+          <Ionicons name="chevron-forward" size={18} color={theme.surface.border} />
         </TouchableOpacity>
       </Animated.View>
     );
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}> 
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.surface.base }]}> 
       <LinearGradient
-        colors={UI.gradients.appBackground}
+        colors={theme.gradients.appBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -155,56 +157,65 @@ export default function UnifiedCalendarScreen() {
 
       <Animated.View entering={FadeInDown.delay(40).springify()} style={styles.header}>
         <View>
-          <Text style={styles.screenTitle}>Calendar</Text>
-          <Text style={styles.screenSubtitle}>Plan and track your jobs</Text>
+          <Text style={[styles.screenTitle, { color: theme.text.title }]}>Calendar</Text>
+          <Text style={[styles.screenSubtitle, { color: theme.text.muted }]}>Plan and track your jobs</Text>
         </View>
-        <TouchableOpacity style={styles.todayBtn} onPress={() => setSelectedDate(new Date().toISOString().split('T')[0])}>
-          <Ionicons name="today-outline" size={14} color={UI.brand.primary} />
-          <Text style={styles.todayBtnText}>Today</Text>
+        <TouchableOpacity style={[styles.todayBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]} onPress={() => setSelectedDate(new Date().toISOString().split('T')[0])}>
+          <Ionicons name="today-outline" size={14} color={theme.brand.primary} />
+          <Text style={[styles.todayBtnText, { color: theme.brand.primary }]}>Today</Text>
         </TouchableOpacity>
       </Animated.View>
 
       {loading && !refreshing ? (
-        <ActivityIndicator style={{ marginTop: 28 }} color={UI.brand.primary} />
+        <ActivityIndicator style={{ marginTop: 28 }} color={theme.brand.primary} />
       ) : (
         <FlatList
           data={dayJobs}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchJobs(); }} tintColor={UI.brand.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchJobs(); }} tintColor={theme.brand.primary} />}
           ListHeaderComponent={
             <>
-              <Animated.View entering={FadeInDown.delay(80).springify()} style={styles.calendarCard}>
+              <Animated.View entering={FadeInDown.delay(80).springify()} style={[styles.calendarCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
                 <Calendar
                   onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
                   markedDates={markedDates}
                   markingType="multi-dot"
                   theme={{
-                    todayTextColor: UI.brand.primary,
-                    selectedDayBackgroundColor: UI.brand.primary,
-                    arrowColor: UI.brand.primary,
-                    dotColor: UI.brand.accent,
+                    calendarBackground: isDark ? 'transparent' : '#FFFFFF',
+                    dayTextColor: theme.text.title,
+                    monthTextColor: theme.text.title,
+                    textSectionTitleColor: theme.text.body,
+                    textDayHeaderFontWeight: '600' as const,
+                    textDisabledColor: isDark ? theme.text.placeholder : '#B0B8C4',
+                    todayTextColor: theme.brand.primary,
+                    selectedDayBackgroundColor: theme.brand.primary,
+                    selectedDayTextColor: isDark ? '#000' : '#fff',
+                    arrowColor: theme.brand.primary,
+                    dotColor: isDark ? theme.text.title : UI.brand.accent,
+                    textDayFontWeight: '500' as const,
+                    textMonthFontWeight: '700' as const,
                   }}
                   style={{ borderRadius: 18 }}
                 />
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.dayHeaderCard}>
+              <Animated.View entering={FadeInDown.delay(120).springify()} style={[styles.dayHeaderCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
                 <View style={styles.dayHeaderRow}>
-                  <Text style={styles.dayTitle}>{selectedDateFormatted}</Text>
-                  <View style={styles.countBadge}>
-                    <Text style={styles.countText}>{dayJobs.length}</Text>
+                  <Text style={[styles.dayTitle, { color: theme.text.title }]}>{selectedDateFormatted}</Text>
+                  <View style={[styles.countBadge, isDark && { backgroundColor: theme.surface.elevated }]}>
+                    <Text style={[styles.countText, { color: theme.brand.primary }]}>{dayJobs.length}</Text>
                   </View>
                 </View>
-                <Text style={styles.daySubtitle}>Jobs scheduled for this day</Text>
+                <Text style={[styles.daySubtitle, { color: theme.text.muted }]}>Jobs scheduled for this day</Text>
               </Animated.View>
             </>
           }
           renderItem={renderDayJob}
           ListEmptyComponent={
-            <View style={styles.emptyDay}>
-              <Ionicons name="calendar-clear-outline" size={34} color={UI.surface.border} />
-              <Text style={styles.emptyText}>No jobs on this day</Text>
+            <View style={[styles.emptyDay, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <Ionicons name="calendar-clear-outline" size={34} color={theme.surface.border} />
+              <Text style={[styles.emptyText, { color: theme.text.muted }]}>No jobs on this day</Text>
               {isAdmin && (
                 <TouchableOpacity style={styles.addJobBtn} onPress={handleCreateJobFromCalendar}>
                   <Ionicons name="add" size={16} color={UI.brand.primary} />

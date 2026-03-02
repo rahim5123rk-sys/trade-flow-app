@@ -2,14 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI} from '../../constants/theme';
+import { Colors, UI } from '../../constants/theme';
+import { useAppTheme } from '../../src/context/ThemeContext';
 
 const SECTIONS = [
   {
@@ -18,7 +19,7 @@ const SECTIONS = [
   },
   {
     title: '2. Description of Service',
-    body: `TradeFlow is a trade management application that allows tradespeople to manage customers, jobs, invoices, quotes, workers, and gas safety certificates (CP12). The service is provided "as is" for business use by qualified tradespeople and their teams.`,
+    body: `TradeFlow is a trade management application that allows tradespeople to manage customers, jobs, invoices, quotes, workers, and gas safety certificates (CP12), and send documents via email. The service is provided "as is" for business use by qualified tradespeople and their teams.`,
   },
   {
     title: '3. Account Responsibilities',
@@ -46,17 +47,22 @@ As a company administrator, you are responsible for ensuring that you have appro
   },
   {
     title: '6. Gas Safety Certificates (CP12)',
-    body: `CP12 gas safety certificates generated through TradeFlow are provided as a digital tool to assist qualified Gas Safe registered engineers. 
+    body: `CP12 gas safety certificates generated through TradeFlow are provided as a digital tool to assist qualified Gas Safe registered engineers.
 
 • You are solely responsible for the accuracy of all data entered into certificates.
-• TradeFlow does not verify your Gas Safe registration or qualifications.
+• TradeFlow does not verify your Gas Safe registration, qualifications, or ID card number.
 • Certificates must comply with the Gas Safety (Installation & Use) Regulations 1998.
 • You must retain records for a minimum of 2 years as required by law.
-• TradeFlow is not liable for any errors or omissions in certificates you generate.`,
+• TradeFlow is not liable for any errors or omissions in certificates you generate.
+• By entering your Gas Safe registration number (6 digits) and Gas Safe ID card number (7 digits) you warrant that these are your own genuine credentials and that your registration is current and unrestricted.
+• The Gas Safe Register logo is displayed on certificates solely on your authority as a registered gas engineer. TradeFlow does not claim any affiliation with, endorsement by, or licence from Gas Safe Register, Capita, or the HSE. You accept full legal responsibility for the use of Gas Safe Register branding on any certificate you generate.
+• You agree to indemnify and hold harmless TradeFlow, its directors, employees, and affiliates against any claims, losses, fines, or enforcement actions arising from your use of Gas Safe branding, generation of fraudulent or inaccurate certificates, or any breach of Gas Safety regulations.`,
   },
   {
     title: '7. Invoices & Documents',
-    body: `Invoices, quotes, and other documents generated through TradeFlow are tools provided for your convenience. You are responsible for ensuring they comply with applicable tax and business regulations (e.g., HMRC requirements for VAT invoices).`,
+    body: `Invoices, quotes, and other documents generated through TradeFlow are tools provided for your convenience. You are responsible for ensuring they comply with applicable tax and business regulations (e.g., HMRC requirements for VAT invoices).
+
+When you send documents via email through the App, emails are delivered using Resend (resend.com), a third-party transactional email service. Emails are sent from the gascertpal.com domain on your behalf. You are responsible for ensuring you have appropriate permission or legal basis to email documents to the recipients you specify. We do not monitor or review the content of emails you send.`,
   },
   {
     title: '8. Team & Worker Accounts',
@@ -100,14 +106,15 @@ As a company administrator, you are responsible for ensuring that you have appro
 
 export default function TermsOfServiceScreen() {
   const insets = useSafeAreaInsets();
+  const { theme, isDark } = useAppTheme();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.surface.base }]}> 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, isDark && { backgroundColor: theme.surface.elevated }]}> 
+          <Ionicons name="arrow-back" size={24} color={theme.text.title} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Terms of Service</Text>
+        <Text style={[styles.headerTitle, { color: theme.text.title }]}>Terms of Service</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -115,12 +122,12 @@ export default function TermsOfServiceScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.lastUpdated}>Last updated: 27 February 2026</Text>
+        <Text style={[styles.lastUpdated, { color: theme.text.muted }]}>Last updated: 1 March 2026</Text>
 
         {SECTIONS.map((s, i) => (
           <View key={i} style={styles.section}>
-            <Text style={styles.sectionTitle}>{s.title}</Text>
-            <Text style={styles.sectionBody}>{s.body}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text.title }]}>{s.title}</Text>
+            <Text style={[styles.sectionBody, { color: theme.text.body }]}>{s.body}</Text>
           </View>
         ))}
       </ScrollView>
