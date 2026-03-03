@@ -170,23 +170,6 @@ async function getCompanyAndEngineer(
 
 // ─── Tiny helpers ───────────────────────────────────────────────
 
-/** Render ✓ or ✗ for Yes/No/Pass/Fail values in table cells */
-const tick = (val: string): string => {
-  if (!val) return '';
-  if (val === 'Yes' || val === 'Pass') return '✓';
-  if (val === 'No' || val === 'Fail') return '✗';
-  return 'N/A';
-};
-
-/** For checklist tables: place ✓ in the correct Yes/No/N/A column */
-const checkIn = (val: string, col: 'Yes' | 'No' | 'N/A'): string => {
-  if (!val) return '';
-  if (col === 'Yes' && (val === 'Yes' || val === 'Pass')) return '✓';
-  if (col === 'No' && (val === 'No' || val === 'Fail')) return '✓';
-  if (col === 'N/A' && val === 'N/A') return '✓';
-  return '';
-};
-
 /** Escape user values for safe HTML interpolation */
 const esc = (v: unknown): string => escapeHtml(v);
 
@@ -230,11 +213,27 @@ function buildHtml(
     propertyAddressLine2 = propertyAddressParts[1] || '';
   }
 
+  // Styled tick helpers — green ✓, red ✗, grey N/A
+  const tickH = (val: string): string => {
+    if (!val) return '';
+    if (val === 'Yes' || val === 'Pass') return '<span style="color:#16a34a;font-weight:800;">✓</span>';
+    if (val === 'No' || val === 'Fail') return '<span style="color:#dc2626;font-weight:800;">✗</span>';
+    return '<span style="color:#6b7280;">N/A</span>';
+  };
+
+  const checkInH = (val: string, col: 'Yes' | 'No' | 'N/A'): string => {
+    if (!val) return '';
+    if (col === 'Yes' && (val === 'Yes' || val === 'Pass')) return '<span style="color:#16a34a;font-weight:800;font-size:10pt;">✓</span>';
+    if (col === 'No' && (val === 'No' || val === 'Fail')) return '<span style="color:#dc2626;font-weight:800;font-size:10pt;">✗</span>';
+    if (col === 'N/A' && val === 'N/A') return '<span style="color:#9ca3af;font-weight:700;font-size:7pt;">N/A</span>';
+    return '';
+  };
 
   // Build 5 appliance rows (always 5, pad empties)
   const appRows = [0, 1, 2, 3, 4]
     .map((i) => {
       const a = apps[i];
+      const rowBg = i % 2 === 1 ? 'background:#f9fafb;' : 'background:#fff;';
       if (a) {
         const ph = a.operatingPressure
           ? a.operatingPressure + ' mBar'
@@ -255,18 +254,18 @@ function buildHtml(
             : '';
         return `<tr>
         <td class="rn">${i + 1}</td>
-        <td>${esc(a.location)}</td><td>${esc(a.make)}</td><td>${esc(a.model)}</td>
-        <td>${esc(a.type)}</td><td>${esc(a.serialNumber)}</td><td>${esc(a.gcNumber)}</td>
-        <td>${esc(a.flueType)}</td><td>${ph}</td>
-        <td>${tick(a.safetyDevices)}</td><td>${tick(a.spillageTest)}</td><td>${tick(a.smokePelletFlueTest)}</td>
-        <td>${esc(a.fgaLow.co)}</td><td>${esc(a.fgaLow.co2)}</td><td>${lowRatio}</td>
-        <td>${esc(a.fgaHigh.co)}</td><td>${esc(a.fgaHigh.co2)}</td><td>${highRatio}</td>
-        <td>${tick(a.satisfactoryTermination)}</td><td>${tick(a.flueVisualCondition)}</td><td>${tick(a.adequateVentilation)}</td>
-        <td>${tick(a.landlordsAppliance)}</td><td>${tick(a.inspected)}</td><td>${tick(a.applianceVisualCheck)}</td>
-        <td>${tick(a.applianceServiced)}</td><td>${tick(a.applianceSafeToUse)}</td>
+        <td style="${rowBg}">${esc(a.location)}</td><td style="${rowBg}">${esc(a.make)}</td><td style="${rowBg}">${esc(a.model)}</td>
+        <td style="${rowBg}">${esc(a.type)}</td><td style="${rowBg}">${esc(a.serialNumber)}</td><td style="${rowBg}">${esc(a.gcNumber)}</td>
+        <td style="${rowBg}">${esc(a.flueType)}</td><td style="${rowBg}">${ph}</td>
+        <td style="${rowBg}">${tickH(a.safetyDevices)}</td><td style="${rowBg}">${tickH(a.spillageTest)}</td><td style="${rowBg}">${tickH(a.smokePelletFlueTest)}</td>
+        <td style="${rowBg}">${esc(a.fgaLow.co)}</td><td style="${rowBg}">${esc(a.fgaLow.co2)}</td><td style="${rowBg}">${lowRatio}</td>
+        <td style="${rowBg}">${esc(a.fgaHigh.co)}</td><td style="${rowBg}">${esc(a.fgaHigh.co2)}</td><td style="${rowBg}">${highRatio}</td>
+        <td style="${rowBg}">${tickH(a.satisfactoryTermination)}</td><td style="${rowBg}">${tickH(a.flueVisualCondition)}</td><td style="${rowBg}">${tickH(a.adequateVentilation)}</td>
+        <td style="${rowBg}">${tickH(a.landlordsAppliance)}</td><td style="${rowBg}">${tickH(a.inspected)}</td><td style="${rowBg}">${tickH(a.applianceVisualCheck)}</td>
+        <td style="${rowBg}">${tickH(a.applianceServiced)}</td><td style="${rowBg}">${tickH(a.applianceSafeToUse)}</td>
       </tr>`;
       }
-      return `<tr class="empty"><td class="rn">${i + 1}</td>${'<td></td>'.repeat(25)}</tr>`;
+      return `<tr class="empty"><td class="rn">${i + 1}</td>${`<td style="${rowBg}"></td>`.repeat(25)}</tr>`;
     })
     .join('\n');
 
@@ -278,7 +277,7 @@ function buildHtml(
 <style>
   @page { margin: 0; size: A4 landscape; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  
+
   html, body {
     width: 297mm;
     max-height: 210mm;
@@ -288,11 +287,11 @@ function buildHtml(
   }
 
   body {
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
     font-size: 7pt;
-    line-height: 1.15;
-    color: #000;
-
+    line-height: 1.2;
+    color: #111827;
+    background: #fff;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -307,49 +306,48 @@ function buildHtml(
     page-break-after: avoid;
   }
 
-  .top-bar-cell {
-    background: #1a2e3b;
-    color: #fff;
-  }
-
   /* ═══ GLOBAL TABLE STYLES ═══ */
   table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
   td, th {
-    border: 0.8px solid #9CA3AF;
+    border: 0.5px solid #d1d5db;
     padding: 2px 4px;
     vertical-align: middle;
     font-size: 6pt;
   }
   th {
-    background: #1a4763;
+    background: #334155;
     color: #fff;
-    font-weight: bold;
-    font-size: 6pt;
+    font-weight: 700;
+    font-size: 5.5pt;
     text-transform: uppercase;
+    letter-spacing: 0.2px;
     text-align: left;
   }
   td { background: #fff; }
 
   .label-cell {
-    background: #E8F1FE;
-    font-weight: 700;
-    width: 28%;
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #1e293b;
+    width: 32%;
+    font-size: 5.5pt;
   }
   .value-cell {
     background: #fff;
-    width: 72%;
+    color: #111827;
+    font-size: 6pt;
   }
 
   /* ═══ SECTION HEADER BARS ═══ */
   .shdr {
-    background: #1a4763;
+    background: linear-gradient(90deg, #334155 0%, #475569 100%);
     color: #fff;
-    font-weight: bold;
-    font-size: 7pt;
+    font-weight: 700;
+    font-size: 6.5pt;
     text-align: center;
     text-transform: uppercase;
-    padding: 2.5px 4px;
-    letter-spacing: 0.3px;
+    padding: 3px 6px;
+    letter-spacing: 0.5px;
   }
 
   /* ═══ APPLIANCE TABLE ═══ */
@@ -361,85 +359,85 @@ function buildHtml(
     word-wrap: break-word;
     overflow-wrap: break-word;
   }
-  .at th { font-size: 4.5pt; line-height: 1.15; }
+  .at th { font-size: 4.5pt; line-height: 1.1; background: #334155; }
   .at .grp {
-    background: #1a4763;
+    background: #1e293b;
     color: #fff;
-    font-size: 5.5pt;
-    font-weight: bold;
+    font-size: 5pt;
+    font-weight: 700;
   }
-  .at td { font-size: 5.5pt; background: #fff; }
-  .at tbody td { height: 16px; }
+  .at td { font-size: 5.5pt; }
+  .at tbody td { height: 15px; }
   .at .rn {
-    background: #E8F1FE;
-    font-weight: bold;
+    background: #e2e8f0 !important;
+    font-weight: 700;
+    color: #334155;
     width: 14px;
   }
-  .at tr.empty td { height: 16px; }
+  .at tr.empty td { height: 15px; }
 
   /* ═══ CHECKLIST TABLE ═══ */
   .cl td, .cl th { font-size: 6pt; text-align: center; }
-  .cl .lbl { text-align: left; font-weight: normal; }
-  .cl .cnum { width: 18px; text-align: center; background: #E8F1FE; font-weight: bold; }
-  .cl .yna { width: 30px; }
-  .ck { font-size: 9pt; font-weight: bold; color: #000; }
+  .cl .lbl { text-align: left; font-weight: 400; color: #374151; }
+  .cl .cnum { width: 16px; text-align: center; background: #e2e8f0; font-weight: 700; color: #334155; font-size: 5.5pt; }
+  .cl .yna { width: 26px; }
 
   /* ═══ FAULTS TABLE ═══ */
-  .flt th { width: 18%; font-size: 5.5pt; vertical-align: top; }
+  .flt th { font-size: 5.5pt; font-weight: 600; background: #f1f5f9; color: #1e293b; vertical-align: top; width: 18%; }
   .flt td { font-size: 6pt; background: #fff; min-height: 12px; vertical-align: top; }
   .flt tr.tall-row th,
-  .flt tr.tall-row td {
-    height: 28px;
-  }
+  .flt tr.tall-row td { height: 22px; }
 
   /* ═══ SIGNATURE FOOTER ═══ */
-  .sig-img { height: 40px; max-width: 100%; display: block; margin: 0 auto; }
-  .highlight {
-    background: #FFFFCC !important;
-    font-weight: bold;
+  .sig-img { height: 38px; max-width: 100%; display: block; margin: 0 auto; }
+  .next-due {
+    background: #fefce8 !important;
+    font-weight: 800;
     font-size: 9pt;
     text-align: center;
+    color: #92400e;
     vertical-align: middle;
-    color: #900;
   }
-  .highlight-label {
-    font-size: 5.5pt;
-    font-weight: bold;
+  .next-due-label {
+    font-size: 5pt;
+    font-weight: 700;
     text-transform: uppercase;
-    color: #333;
+    color: #78350f;
     display: block;
     margin-bottom: 2px;
   }
   .certbox {
-    background: #E0ECFF !important;
-    font-weight: bold;
+    background: #f1f5f9 !important;
+    font-weight: 800;
     font-size: 8pt;
     text-align: center;
+    color: #334155;
     vertical-align: middle;
   }
   .certbox-label {
-    font-size: 5.5pt;
-    font-weight: bold;
+    font-size: 5pt;
+    font-weight: 700;
     text-transform: uppercase;
-    color: #333;
+    color: #1e293b;
     display: block;
     margin-bottom: 2px;
   }
+  .sig-hdr { background: #f1f5f9; color: #1e293b; font-size: 6pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
 
   /* ═══ WARNING FOOTER ═══ */
   .warn {
-    border: 1px solid #000;
-    border-top: 2px solid #000;
-    background: #FFF3F3;
+    border: 1px solid #fca5a5;
+    background: #fff7f7;
     text-align: center;
     font-size: 5.5pt;
-    font-weight: bold;
-    color: #900;
-    padding: 3px 6px;
-    line-height: 1.3;
+    font-weight: 600;
+    color: #991b1b;
+    padding: 3px 8px;
+    line-height: 1.4;
+    margin-top: -0.5px;
   }
 
-  /* ═══ COLLAPSE ADJACENT TABLE BORDERS ═══ */
+  /* ═══ UTILITIES ═══ */
   .mt { margin-top: -1px; }
 </style>
 </head>
@@ -451,25 +449,25 @@ function buildHtml(
      ═══════════════════════════════════════════════════════════════════ -->
 <table>
   <tr>
-    <td class="top-bar-cell" style="width:14%; padding:4px 6px; vertical-align:middle;">
-      ${companyLogoSrc ? `<img src="${companyLogoSrc}" style="max-height:44px;max-width:130px;display:block;"/>` : ''}
+    <td style="width:13%; padding:5px 8px; vertical-align:middle; background:linear-gradient(135deg,#1e293b 0%,#334155 100%);">
+      ${companyLogoSrc ? `<img src="${companyLogoSrc}" style="max-height:42px;max-width:124px;display:block;"/>` : '<div style="height:42px;"></div>'}
     </td>
-    <td class="top-bar-cell" style="text-align:center; padding:4px 6px; vertical-align:middle;">
-      <div style="font-size:10pt; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; color:#fff;">
+    <td style="text-align:center; padding:5px 8px; vertical-align:middle; background:linear-gradient(135deg,#334155 0%,#475569 100%);">
+      <div style="font-size:11pt; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; color:#fff;">
         Homeowner / Landlord Gas Safety Record
       </div>
-      <div style="font-size:5.5pt; color:#E5E7EB; line-height:1.35;">
-        Gas Safety (Installation &amp; Use) Regulations 1998 &mdash; In accordance with Regulation 36.<br/>
-        IMPORTANT: This record is required as evidence that a gas safety check has been carried out on the appliance(s) listed below.
-        A visual inspection of the flue is included where accessible, but this alone does not guarantee flue integrity.
+      <div style="font-size:5.5pt; color:#cbd5e1; line-height:1.5;">
+        This inspection is for gas safety purposes only to comply with the Gas Safety (Installation and Use) Regulations. Flues have been inspected
+        and checked for satisfactory evacuation of products of combustion. A detailed internal inspection of the flue integrity, construction and the
+        lining has NOT been carried out.
       </div>
     </td>
-    <td class="top-bar-cell" style="width:14%; text-align:center; padding:4px 6px; vertical-align:middle;">
-      ${gasSafeLogoBase64 ? `<img src="${gasSafeLogoBase64}" style="height:48px;max-width:120px;display:block;margin:0 auto 2px;"/>` : ''}
-      <div style="font-size:5.5pt; color:#E5E7EB; margin-top:2px;">Gas Cert Ref</div>
-      <div style="font-size:9pt; font-weight:bold; color:#fff;">${esc(data.certRef)}</div>
-      <div style="font-size:5.5pt; color:#E5E7EB; margin-top:4px;">No. Appliances</div>
-      <div style="font-size:8pt; font-weight:bold; color:#fff;">${apps.length}</div>
+    <td style="width:13%; text-align:center; padding:5px 8px; vertical-align:middle; background:linear-gradient(135deg,#334155 0%,#1e293b 100%);">
+      ${gasSafeLogoBase64 ? `<img src="${gasSafeLogoBase64}" style="height:46px;max-width:116px;display:block;margin:0 auto 3px;"/>` : ''}
+      <div style="font-size:5pt; color:#cbd5e1; margin-top:2px; text-transform:uppercase; letter-spacing:0.3px;">Cert Ref</div>
+      <div style="font-size:9pt; font-weight:800; color:#fff;">${esc(data.certRef)}</div>
+      <div style="font-size:5pt; color:#cbd5e1; margin-top:3px; text-transform:uppercase; letter-spacing:0.3px;">Appliances</div>
+      <div style="font-size:9pt; font-weight:800; color:#fff;">${apps.length}</div>
     </td>
   </tr>
 </table>
@@ -532,9 +530,13 @@ function buildHtml(
 </table>
 <table class="at mt">
   <thead>
-    <!-- Row 1: Parent headers -->
     <tr>
-      <th rowspan="2" style="width:14px;">#</th>
+      <th rowspan="3" style="width:14px;">#</th>
+      <th class="grp" colspan="7">Appliance Details</th>
+      <th class="grp" colspan="10">Flue Tests</th>
+      <th class="grp" colspan="8">Inspection Details</th>
+    </tr>
+    <tr>
       <th rowspan="2">Location</th>
       <th rowspan="2">Make</th>
       <th rowspan="2">Model</th>
@@ -551,9 +553,12 @@ function buildHtml(
       <th rowspan="2">Sat. Termin&shy;ation</th>
       <th rowspan="2">Flue Visual Cond.</th>
       <th rowspan="2">Adeq. Ventil&shy;ation</th>
-      <th class="grp" colspan="5">Inspection Details</th>
+      <th rowspan="2">Landlords Appliance</th>
+      <th rowspan="2">Inspec&shy;ted</th>
+      <th rowspan="2">Visual Check</th>
+      <th rowspan="2">Serv&shy;iced</th>
+      <th rowspan="2">Safe to Use</th>
     </tr>
-    <!-- Row 2: Sub-headers -->
     <tr>
       <th>CO (ppm)</th>
       <th>CO&#8322; (%)</th>
@@ -561,11 +566,6 @@ function buildHtml(
       <th>CO (ppm)</th>
       <th>CO&#8322; (%)</th>
       <th>Ratio</th>
-      <th>Land&shy;lord's</th>
-      <th>Inspec&shy;ted</th>
-      <th>Visual Check</th>
-      <th>Serv&shy;iced</th>
-      <th>Safe to Use</th>
     </tr>
   </thead>
   <tbody>
@@ -574,11 +574,11 @@ ${appRows}
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     5. VISUAL INSPECTION CHECKLISTS (Yes / No / N/A columns)
+     4. VISUAL INSPECTION CHECKLISTS
      ═══════════════════════════════════════════════════════════════════ -->
 <table class="cl mt">
   <tr>
-    <td class="shdr" colspan="5" style="width:50%;">Visual Inspection of Gas Installation</td>
+    <td class="shdr" colspan="5" style="width:50%;">Gas Installation Pipework</td>
     <td class="shdr" colspan="5" style="width:50%;">Alarm Checks</td>
   </tr>
   <tr>
@@ -596,58 +596,58 @@ ${appRows}
   <tr>
     <td class="cnum">1</td>
     <td class="lbl">Satisfactory Visual Inspection of Pipework</td>
-    <td class="ck">${checkIn(fc.visualInspection, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.visualInspection, 'No')}</td>
-    <td class="ck">${checkIn(fc.visualInspection, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.visualInspection, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.visualInspection, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.visualInspection, 'N/A')}</td>
     <td class="cnum">5</td>
     <td class="lbl">CO Alarm Fitted</td>
-    <td class="ck">${checkIn(fc.coAlarmFitted, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.coAlarmFitted, 'No')}</td>
-    <td class="ck">${checkIn(fc.coAlarmFitted, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmFitted, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmFitted, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmFitted, 'N/A')}</td>
   </tr>
   <tr>
     <td class="cnum">2</td>
     <td class="lbl">Emergency Control Valve (ECV) Accessible</td>
-    <td class="ck">${checkIn(fc.ecvAccessible, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.ecvAccessible, 'No')}</td>
-    <td class="ck">${checkIn(fc.ecvAccessible, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.ecvAccessible, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.ecvAccessible, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.ecvAccessible, 'N/A')}</td>
     <td class="cnum">6</td>
     <td class="lbl">Testing of CO Alarm Satisfactory</td>
-    <td class="ck">${checkIn(fc.coAlarmTestSatisfactory, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.coAlarmTestSatisfactory, 'No')}</td>
-    <td class="ck">${checkIn(fc.coAlarmTestSatisfactory, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmTestSatisfactory, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmTestSatisfactory, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmTestSatisfactory, 'N/A')}</td>
   </tr>
   <tr>
     <td class="cnum">3</td>
     <td class="lbl">Satisfactory Gas Tightness Test</td>
-    <td class="ck">${checkIn(fc.tightnessTest, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.tightnessTest, 'No')}</td>
-    <td class="ck">${checkIn(fc.tightnessTest, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.tightnessTest, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.tightnessTest, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.tightnessTest, 'N/A')}</td>
     <td class="cnum">7</td>
     <td class="lbl">Smoke Alarm Fitted</td>
-    <td class="ck">${checkIn(fc.smokeAlarmFitted, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.smokeAlarmFitted, 'No')}</td>
-    <td class="ck">${checkIn(fc.smokeAlarmFitted, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmFitted, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmFitted, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmFitted, 'N/A')}</td>
   </tr>
   <tr>
     <td class="cnum">4</td>
     <td class="lbl">Equipotential Bonding Satisfactory</td>
-    <td class="ck">${checkIn(fc.equipotentialBonding, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.equipotentialBonding, 'No')}</td>
-    <td class="ck">${checkIn(fc.equipotentialBonding, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.equipotentialBonding, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.equipotentialBonding, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.equipotentialBonding, 'N/A')}</td>
     <td class="cnum">8</td>
     <td class="lbl">Smoke Alarm Tested Satisfactory</td>
-    <td class="ck">${checkIn(fc.smokeAlarmTested, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.smokeAlarmTested, 'No')}</td>
-    <td class="ck">${checkIn(fc.smokeAlarmTested, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmTested, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmTested, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmTested, 'N/A')}</td>
   </tr>
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     6. FAULTS & WORKS BOX
+     5. FAULTS & WORKS BOX
      ═══════════════════════════════════════════════════════════════════ -->
-<table class="flt" style="margin-top:0; border-top:none;">
-  <tr><td class="shdr" colspan="2" style="border-top:0.8px solid #9CA3AF;">Faults Identified &amp; Remedial Work</td></tr>
+<table class="flt mt">
+  <tr><td class="shdr" colspan="2">Faults Identified &amp; Remedial Work</td></tr>
   <tr class="tall-row">
     <th>Give Details of Any Faults Identified</th>
     <td>${esc(fc.faults)}</td>
@@ -663,26 +663,26 @@ ${appRows}
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     7. SIGNATURES FOOTER
+     6. SIGNATURES FOOTER
      ═══════════════════════════════════════════════════════════════════ -->
 <table class="mt">
   <tr>
-    <th colspan="2" style="text-align:center; width:25%; background:#D0D0D0; font-size:6.5pt;">Engineer</th>
-    <th colspan="2" style="text-align:center; width:25%; background:#D0D0D0; font-size:6.5pt;">Received By (Customer / Tenant)</th>
+    <th colspan="2" class="sig-hdr" style="text-align:center; width:25%;">Engineer</th>
+    <th colspan="2" class="sig-hdr" style="text-align:center; width:25%;">Received By (Customer / Tenant)</th>
     <td class="shdr" style="width:25%;">Next Inspection Date</td>
-    <td class="shdr" style="width:15%;">Cert No.</td>
+    <td class="shdr" style="width:15%;">Certificate No.</td>
   </tr>
   <tr>
-    <th style="width:7%;">Sign</th>
-    <td style="height:40px; text-align:center;">
+    <th class="sig-hdr" style="width:7%;">Signature</th>
+    <td style="height:38px; text-align:center;">
       ${company.signatureBase64 ? `<img src="${company.signatureBase64}" class="sig-img"/>` : ''}
     </td>
-    <th style="width:7%;">Sign</th>
-    <td style="height:40px; text-align:center;">
+    <th class="sig-hdr" style="width:7%;">Signature</th>
+    <td style="height:38px; text-align:center;">
       ${data.customerSignature ? `<img src="${data.customerSignature}" class="sig-img"/>` : ''}
     </td>
-    <td rowspan="3" class="highlight">
-      <span class="highlight-label">Next Inspection Due</span>
+    <td rowspan="3" class="next-due">
+      <span class="next-due-label">Next Inspection Due</span>
       ${esc(data.nextDueDate)}
     </td>
     <td rowspan="3" class="certbox">
@@ -691,15 +691,15 @@ ${appRows}
     </td>
   </tr>
   <tr>
-    <th>Print Name</th>
+    <th class="sig-hdr">Print Name</th>
     <td>${esc(engineer.name)}</td>
-    <th>Print Name</th>
+    <th class="sig-hdr">Print Name</th>
     <td>${esc(data.tenantName || data.landlordName || '')}</td>
   </tr>
   <tr>
-    <th>Date</th>
+    <th class="sig-hdr">Date</th>
     <td>${esc(data.inspectionDate)}</td>
-    <th>Date</th>
+    <th class="sig-hdr">Date</th>
     <td>${esc(data.inspectionDate)}</td>
   </tr>
 </table>
@@ -713,7 +713,6 @@ ${appRows}
 </div>
 
 </div>
-
 </body>
 </html>`;
 }

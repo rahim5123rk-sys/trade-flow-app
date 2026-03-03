@@ -382,31 +382,12 @@ export default function DashboardScreen() {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
 
-    const active = allJobs.filter((j) => j.status === 'in_progress').length;
-    const pending = allJobs.filter((j) => j.status === 'pending').length;
-
-    const revenue = isAdmin
-      ? allJobs
-          .filter((j) => j.status === 'paid' || j.payment_status === 'paid')
-          .reduce((sum, j) => sum + (j.price || 0), 0)
-      : 0;
-
     const todaysJobs = allJobs.filter(
       (j) => j.scheduled_date >= startOfDay && j.scheduled_date < endOfDay
     );
 
-    const upcomingJobs = allJobs
-      .filter(
-        (j) =>
-          j.scheduled_date >= endOfDay && !['complete', 'paid'].includes(j.status)
-      )
-      .slice(0, 5);
-
-    return { active, pending, revenue, todaysJobs, upcomingJobs };
-  }, [allJobs, isAdmin]);
-
-  const fmtCurrency = (n: number) =>
-    `£${n.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
+    return { todaysJobs };
+  }, [allJobs]);
 
   if (loading && allJobs.length === 0) {
     return (
@@ -467,52 +448,9 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Stats Row */}
-        <View style={s.statsRow}>
-          <GlassCard
-            label="Active"
-            value={stats.active}
-            icon="flash"
-            accent={isDark ? theme.text.title : UI.status.inProgress}
-            delay={100}
-            isDark={isDark}
-            theme={theme}
-          />
-          <GlassCard
-            label="Pending"
-            value={stats.pending}
-            icon="hourglass-outline"
-            accent={isDark ? theme.text.secondary : UI.status.pending}
-            delay={150}
-            isDark={isDark}
-            theme={theme}
-          />
-          {isAdmin ? (
-            <GlassCard
-              label="Revenue"
-              value={fmtCurrency(stats.revenue)}
-              icon="trending-up"
-              accent={isDark ? theme.text.title : UI.status.complete}
-              delay={200}
-              isDark={isDark}
-              theme={theme}
-            />
-          ) : (
-            <GlassCard
-              label="Done"
-              value={allJobs.filter((j) => j.status === 'complete').length}
-              icon="checkmark-done"
-              accent={isDark ? theme.text.title : UI.status.complete}
-              delay={200}
-              isDark={isDark}
-              theme={theme}
-            />
-          )}
-        </View>
-
         {/* Quick Actions */}
         {isAdmin ? (
-          <Animated.View entering={FadeInDown.delay(250).springify()}>
+          <Animated.View entering={FadeInDown.delay(100).springify()}>
             <Text style={[s.sectionLabel, { color: theme.text.title }]}>Quick Actions</Text>
             <ScrollView
               horizontal
@@ -520,20 +458,20 @@ export default function DashboardScreen() {
               contentContainerStyle={s.quickRow}
             >
               <QuickAction
-                icon="add-circle"
-                label="New Job"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.primary}
-                onPress={() => router.push('/(app)/jobs/create' as any)}
-                delay={300}
+                icon="documents"
+                label="Forms"
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.danger}
+                onPress={() => router.push('/(app)/forms' as any)}
+                delay={120}
                 isDark={isDark}
                 theme={theme}
               />
               <QuickAction
-                icon="document-text"
-                label="Quote"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.violet}
-                onPress={() => router.push('/(app)/quote' as any)}
-                delay={350}
+                icon="add-circle"
+                label="New Job"
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.primary}
+                onPress={() => router.push('/(app)/jobs/create' as any)}
+                delay={160}
                 isDark={isDark}
                 theme={theme}
               />
@@ -542,7 +480,16 @@ export default function DashboardScreen() {
                 label="Invoice"
                 gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.amber}
                 onPress={() => router.push('/(app)/invoice' as any)}
-                delay={400}
+                delay={200}
+                isDark={isDark}
+                theme={theme}
+              />
+              <QuickAction
+                icon="document-text"
+                label="Quote"
+                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.violet}
+                onPress={() => router.push('/(app)/quote' as any)}
+                delay={240}
                 isDark={isDark}
                 theme={theme}
               />
@@ -551,23 +498,14 @@ export default function DashboardScreen() {
                 label="Client"
                 gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.success}
                 onPress={() => router.push('/(app)/customers/add' as any)}
-                delay={450}
-                isDark={isDark}
-                theme={theme}
-              />
-              <QuickAction
-                icon="flame"
-                label="Gas Cert"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.danger}
-                onPress={() => router.push('/(app)/cp12' as any)}
-                delay={500}
+                delay={280}
                 isDark={isDark}
                 theme={theme}
               />
             </ScrollView>
           </Animated.View>
         ) : (
-          <Animated.View entering={FadeInDown.delay(250).springify()}>
+          <Animated.View entering={FadeInDown.delay(100).springify()}>
             <Text style={[s.sectionLabel, { color: theme.text.title }]}>Quick Actions</Text>
             <View style={s.quickRow}>
               <QuickAction
@@ -575,7 +513,7 @@ export default function DashboardScreen() {
                 label="Schedule"
                 gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.primary}
                 onPress={() => router.push('/(app)/jobs')}
-                delay={300}
+                delay={120}
                 isDark={isDark}
                 theme={theme}
               />
@@ -584,7 +522,7 @@ export default function DashboardScreen() {
                 label="Calendar"
                 gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.success}
                 onPress={() => router.push('/(app)/calendar')}
-                delay={350}
+                delay={160}
                 isDark={isDark}
                 theme={theme}
               />
@@ -593,7 +531,7 @@ export default function DashboardScreen() {
         )}
 
         {/* Today's Schedule */}
-        <Animated.View entering={FadeInDown.delay(350).springify()}>
+        <Animated.View entering={FadeInDown.delay(320).springify()}>
           <View style={s.sectionHeaderRow}>
             <Text style={[s.sectionLabel, { color: theme.text.title }]}>{"Today's Schedule"}</Text>
             <View style={[s.countBadge, isDark && { backgroundColor: theme.surface.elevated }]}>
@@ -611,42 +549,14 @@ export default function DashboardScreen() {
             </View>
           ) : (
             stats.todaysJobs.map((job, i) => (
-              <JobTile key={job.id} job={job} isToday delay={400 + i * 60} />
-            ))
-          )}
-        </Animated.View>
-
-        {/* Up Next */}
-        <Animated.View entering={FadeInDown.delay(500).springify()}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={[s.sectionLabel, { color: theme.text.title }]}>Up Next</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/calendar')}
-              style={s.seeAllBtn}
-            >
-              <Text style={[s.seeAllText, { color: theme.brand.primary }]}>Calendar</Text>
-              <Ionicons name="arrow-forward" size={14} color={theme.brand.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {stats.upcomingJobs.length === 0 ? (
-            <View style={[s.emptyCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
-              <View style={[s.emptyIconWrap, isDark && { backgroundColor: theme.surface.divider }]}>
-                <Ionicons name="checkmark-circle-outline" size={28} color={theme.text.muted} />
-              </View>
-              <Text style={[s.emptyTitle, { color: theme.text.body }]}>{"You're all caught up"}</Text>
-              <Text style={[s.emptySubtitle, { color: theme.text.muted }]}>Nothing upcoming.</Text>
-            </View>
-          ) : (
-            stats.upcomingJobs.map((job, i) => (
-              <UpcomingRow key={job.id} job={job} delay={550 + i * 60} />
+              <JobTile key={job.id} job={job} isToday delay={360 + i * 60} />
             ))
           )}
         </Animated.View>
 
         {/* Navigation Grid (admin) */}
         {isAdmin && (
-          <Animated.View entering={FadeInDown.delay(650).springify()}>
+          <Animated.View entering={FadeInDown.delay(480).springify()}>
             <Text style={[s.sectionLabel, { marginTop: 8, color: theme.text.title }]}>Navigate</Text>
             <View style={[s.navGrid, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <NavButton icon="briefcase-outline" label="All Jobs" onPress={() => router.push('/(app)/jobs')} delay={700} isDark={isDark} theme={theme} />

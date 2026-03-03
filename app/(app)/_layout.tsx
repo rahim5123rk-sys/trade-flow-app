@@ -101,6 +101,7 @@ export default function AppLayout() {
         <Tabs.Screen name="settings/privacy-policy" options={{ href: null }} />
         <Tabs.Screen name="settings/terms-of-service" options={{ href: null }} />
         <Tabs.Screen name="cp12" options={{ href: null }} />
+        <Tabs.Screen name="forms" options={{ href: null }} />
       </Tabs>
     </View>
   );

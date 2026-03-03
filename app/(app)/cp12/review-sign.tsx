@@ -114,6 +114,7 @@ export default function ReviewSign() {
     appliances,
     finalChecks,
     resetCP12,
+    editingDocumentId,
   } = useCP12();
 
   // Loading state for PDF generation
@@ -130,6 +131,7 @@ export default function ReviewSign() {
   useEffect(() => {
     const preloadNextReference = async () => {
       if (certRef) return;
+      if (editingDocumentId) return; // Skip for edit mode – certRef already set
 
       const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {
         reserve: false,
@@ -205,6 +207,42 @@ export default function ReviewSign() {
       userProfile.id,
     );
 
+    const customerSnapshot = {
+      name: landlordForm.customerName || tenantName || 'Gas Safety Customer',
+      company_name: landlordForm.customerCompany || null,
+      address_line_1: landlordForm.addressLine1 || null,
+      address_line_2: landlordForm.addressLine2 || null,
+      city: landlordForm.city || null,
+      postal_code: landlordForm.postCode || null,
+      phone: landlordForm.phone || null,
+      email: landlordForm.email || null,
+      address: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode]
+        .filter(Boolean)
+        .join(', '),
+    };
+
+    // ── EDIT MODE: Update existing document ──
+    if (editingDocumentId) {
+      const {error: updateError} = await supabase
+        .from('documents')
+        .update({
+          reference: cp12Reference,
+          expiry_date: nextDueDate || null,
+          customer_id: landlordForm.customerId || null,
+          customer_snapshot: customerSnapshot,
+          payment_info: JSON.stringify(lockedPayload),
+        })
+        .eq('id', editingDocumentId);
+
+      if (updateError) throw updateError;
+
+      return {
+        lockedPayload,
+        documentId: editingDocumentId,
+      };
+    }
+
+    // ── NEW MODE: Insert new document ──
     const cp12Number = Number(String(Date.now()).slice(-8));
 
     const documentBase = {
@@ -216,19 +254,7 @@ export default function ReviewSign() {
       expiry_date: nextDueDate || null,
       status: 'Sent' as const,
       customer_id: landlordForm.customerId || null,
-      customer_snapshot: {
-        name: landlordForm.customerName || tenantName || 'Gas Safety Customer',
-        company_name: landlordForm.customerCompany || null,
-        address_line_1: landlordForm.addressLine1 || null,
-        address_line_2: landlordForm.addressLine2 || null,
-        city: landlordForm.city || null,
-        postal_code: landlordForm.postCode || null,
-        phone: landlordForm.phone || null,
-        email: landlordForm.email || null,
-        address: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode]
-          .filter(Boolean)
-          .join(', '),
-      },
+      customer_snapshot: customerSnapshot,
       items: [],
       subtotal: 0,
       discount_percent: 0,
@@ -286,20 +312,25 @@ export default function ReviewSign() {
 
     setProcessingAction(action);
     try {
-      const cp12Reference = await getNextCp12Reference();
+      // In edit mode, reuse existing cert ref; otherwise generate a new one
+      const cp12Reference = editingDocumentId && certRef
+        ? certRef
+        : await getNextCp12Reference();
       const {lockedPayload, documentId} = await createCp12Document(cp12Reference);
 
       if (!documentId) {
         throw new Error('Failed to create gas certificate document record.');
       }
 
+      const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
+
       if (action === 'save') {
-        Alert.alert('Saved', `Certificate ${cp12Reference} was saved to Documents.`, [
+        Alert.alert(savedLabel, `Certificate ${cp12Reference} was ${editingDocumentId ? 'updated' : 'saved'}.`, [
           {
             text: 'Done',
             onPress: () => {
               resetCP12();
-              router.replace('/(app)/documents' as any);
+              router.replace(`/(app)/documents/${documentId}` as any);
             },
           },
         ]);
@@ -343,14 +374,14 @@ export default function ReviewSign() {
       );
 
       Alert.alert(
-        'Saved & Sent ✓',
-        `Certificate ${cp12Reference} was saved and emailed to ${recipients.join(', ')}.`,
+        `${savedLabel} & Sent ✓`,
+        `Certificate ${cp12Reference} was ${editingDocumentId ? 'updated' : 'saved'} and emailed to ${recipients.join(', ')}.`,
         [
           {
             text: 'Done',
             onPress: () => {
               resetCP12();
-              router.replace('/(app)/documents' as any);
+              router.replace(`/(app)/documents/${documentId}` as any);
             },
           },
         ],
@@ -388,8 +419,8 @@ export default function ReviewSign() {
               <Ionicons name="chevron-back" size={20} color={theme.brand.primary} />
             </TouchableOpacity>
             <View>
-              <Text style={[s.title, {color: theme.text.title}]}>Review & Sign</Text>
-              <Text style={[s.subtitleText, {color: theme.text.muted}]}>Step 4 of 4</Text>
+              <Text style={[s.title, {color: theme.text.title}]}>{editingDocumentId ? 'Edit & Update' : 'Review & Sign'}</Text>
+              <Text style={[s.subtitleText, {color: theme.text.muted}]}>{editingDocumentId ? 'Editing existing certificate' : 'Step 4 of 4'}</Text>
             </View>
           </Animated.View>
 
@@ -557,8 +588,8 @@ export default function ReviewSign() {
               <ActivityIndicator color={UI.brand.primary} size="small" />
             ) : (
               <>
-                <Ionicons name="save-outline" size={20} color={UI.brand.primary} />
-                <Text style={s.saveCp12Text}>Save</Text>
+                <Ionicons name={editingDocumentId ? 'checkmark-circle-outline' : 'save-outline'} size={20} color={UI.brand.primary} />
+                <Text style={s.saveCp12Text}>{editingDocumentId ? 'Update' : 'Save'}</Text>
               </>
             )}
           </TouchableOpacity>

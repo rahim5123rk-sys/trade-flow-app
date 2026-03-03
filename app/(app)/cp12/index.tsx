@@ -30,6 +30,7 @@ const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 const CP12_DUPLICATE_SEED_KEY = 'cp12_duplicate_seed_v1';
+const CP12_EDIT_SEED_KEY = 'cp12_edit_seed_v1';
 
 // ─── Step indicator ─────────────────────────────────────────────
 
@@ -146,11 +147,37 @@ export default function CP12DetailsScreen() {
     setTenantPostCode,
     propertyAddress,
     hydrateFromDuplicate,
+    hydrateForEdit,
+    editingDocumentId,
   } = useCP12();
 
   useEffect(() => {
-    const loadDuplicateSeed = async () => {
+    const loadSeed = async () => {
       try {
+        // Check for edit seed first (takes priority over duplicate)
+        const editRaw = await AsyncStorage.getItem(CP12_EDIT_SEED_KEY);
+        if (editRaw) {
+          const parsed = JSON.parse(editRaw);
+          hydrateForEdit({
+            propertyAddress: parsed?.propertyAddress,
+            appliances: parsed?.appliances,
+            landlordForm: parsed?.landlordForm,
+            tenantName: parsed?.tenantName,
+            tenantEmail: parsed?.tenantEmail,
+            tenantPhone: parsed?.tenantPhone,
+            nextDueDate: parsed?.nextDueDate,
+            inspectionDate: parsed?.inspectionDate,
+            finalChecks: parsed?.finalChecks,
+            customerSignature: parsed?.customerSignature,
+            certRef: parsed?.certRef,
+            documentId: parsed?.documentId,
+          });
+          await AsyncStorage.removeItem(CP12_EDIT_SEED_KEY);
+          Alert.alert('Editing Certificate', 'All certificate details have been loaded. Make your changes and save on the Review page.');
+          return;
+        }
+
+        // Otherwise check for duplicate seed
         const raw = await AsyncStorage.getItem(CP12_DUPLICATE_SEED_KEY);
         if (!raw) return;
         const parsed = JSON.parse(raw);
@@ -167,11 +194,12 @@ export default function CP12DetailsScreen() {
         Alert.alert('Certificate Duplicated', 'Previous landlord, tenant and property details have been prefilled. Review and update before saving.');
       } catch {
         await AsyncStorage.removeItem(CP12_DUPLICATE_SEED_KEY);
+        await AsyncStorage.removeItem(CP12_EDIT_SEED_KEY);
       }
     };
 
-    void loadDuplicateSeed();
-  }, [hydrateFromDuplicate]);
+    void loadSeed();
+  }, [hydrateFromDuplicate, hydrateForEdit]);
 
   const handleNext = () => {
     if (!landlordForm.customerName.trim()) {

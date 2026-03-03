@@ -1,0 +1,313 @@
+// ============================================
+// FILE: app/(app)/forms/index.tsx
+// Forms Hub – Browse & create gas forms
+// ============================================
+
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import React from 'react';
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UI } from '../../../constants/theme';
+import { useAppTheme } from '../../../src/context/ThemeContext';
+import { FORM_REGISTRY, FormDefinition } from '../../../src/types/forms';
+
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
+
+// ─── Form Card ──────────────────────────────────────────────────
+
+function FormCard({
+  form,
+  index,
+  isDark,
+  theme,
+}: {
+  form: FormDefinition;
+  index: number;
+  isDark: boolean;
+  theme: any;
+}) {
+  const handlePress = () => {
+    if (!form.available) return;
+    router.push(form.route as any);
+  };
+
+  return (
+    <Animated.View entering={FadeInDown.delay(80 + index * 60).springify()}>
+      <TouchableOpacity
+        style={[
+          styles.card,
+          isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' },
+          !form.available && styles.cardDisabled,
+        ]}
+        onPress={handlePress}
+        activeOpacity={form.available ? 0.7 : 1}
+      >
+        <View style={styles.cardRow}>
+          <LinearGradient
+            colors={form.gradient as [string, string]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.iconCircle, !form.available && { opacity: 0.4 }]}
+          >
+            <Ionicons
+              name={form.icon as any}
+              size={24}
+              color="#fff"
+            />
+          </LinearGradient>
+
+          <View style={styles.cardContent}>
+            <View style={styles.cardTitleRow}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  isDark && { color: theme.text.title },
+                  !form.available && { opacity: 0.5 },
+                ]}
+                numberOfLines={1}
+              >
+                {form.shortLabel}
+              </Text>
+              {!form.available && (
+                <View style={[styles.comingSoonBadge, isDark && { backgroundColor: theme.surface.elevated }]}>
+                  <Text style={styles.comingSoonText}>Coming Soon</Text>
+                </View>
+              )}
+            </View>
+            <Text
+              style={[
+                styles.cardDescription,
+                isDark && { color: theme.text.muted },
+                !form.available && { opacity: 0.5 },
+              ]}
+              numberOfLines={2}
+            >
+              {form.description}
+            </Text>
+            <View style={styles.cardMeta}>
+              <View style={styles.metaChip}>
+                <Ionicons name="layers-outline" size={12} color={form.available ? form.color : UI.text.muted} />
+                <Text style={[styles.metaText, form.available && { color: form.color }]}>
+                  {form.stepsCount} steps
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {form.available && (
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={isDark ? theme.text.muted : UI.text.muted}
+            />
+          )}
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ─── Main screen ────────────────────────────────────────────────
+
+export default function FormsHubScreen() {
+  const { theme, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
+  const availableForms = FORM_REGISTRY.filter((f) => f.available);
+  const comingSoonForms = FORM_REGISTRY.filter((f) => !f.available);
+
+  return (
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <LinearGradient
+        colors={theme.gradients.appBackground}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
+          <TouchableOpacity
+            style={[
+              styles.backBtn,
+              isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border },
+            ]}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={20} color={theme.brand.primary} />
+          </TouchableOpacity>
+          <View>
+            <Text style={[styles.title, { color: theme.text.title }]}>Gas Forms</Text>
+            <Text style={[styles.subtitle, { color: theme.text.muted }]}>
+              Create certificates, notices & reports
+            </Text>
+          </View>
+        </Animated.View>
+
+        {/* Available forms */}
+        {availableForms.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>
+              Available
+            </Text>
+            {availableForms.map((form, i) => (
+              <FormCard key={form.type} form={form} index={i} isDark={isDark} theme={theme} />
+            ))}
+          </View>
+        )}
+
+        {/* Coming soon forms */}
+        {comingSoonForms.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>
+              Coming Soon
+            </Text>
+            {comingSoonForms.map((form, i) => (
+              <FormCard
+                key={form.type}
+                form={form}
+                index={availableForms.length + i}
+                isDark={isDark}
+                theme={theme}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Styles ─────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  scroll: { paddingHorizontal: 20 },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    gap: 12,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: UI.glass.bg,
+    borderWidth: 1,
+    borderColor: UI.glass.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: UI.text.title,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: UI.text.muted,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+
+  // Sections
+  section: { marginBottom: 20 },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: UI.text.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+
+  // Cards
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardDisabled: { opacity: 0.85 },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardContent: { flex: 1 },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: UI.text.title,
+  },
+  comingSoonBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  comingSoonText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: UI.text.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  cardDescription: {
+    fontSize: 12,
+    color: UI.text.muted,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  cardMeta: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 10,
+  },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: UI.text.muted,
+  },
+});
