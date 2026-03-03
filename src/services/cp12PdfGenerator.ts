@@ -19,6 +19,7 @@ import {
     generatePdfUrlFromPayload,
     getBaseCss,
     getCompanyAndEngineer,
+    parseAddress,
     tickH
 } from './pdf/shared';
 
@@ -82,27 +83,7 @@ function buildHtml(
   const landlordAddressLine1 = landlordAddressParts[0] || data.landlordAddress || '';
   const landlordAddressLine2 = landlordAddressParts.slice(1).join(', ');
 
-  const propertyAddressParts = (data.propertyAddress || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const propertyAddressLine1 = propertyAddressParts[0] || data.propertyAddress || '';
-
-  let propertyAddressLine2 = '';
-  let propertyCity = '';
-  let propertyPostcode = '';
-
-  if (propertyAddressParts.length >= 4) {
-    propertyAddressLine2 = propertyAddressParts.slice(1, -2).join(', ');
-    propertyCity = propertyAddressParts[propertyAddressParts.length - 2] || '';
-    propertyPostcode = propertyAddressParts[propertyAddressParts.length - 1] || '';
-  } else if (propertyAddressParts.length === 3) {
-    propertyAddressLine2 = propertyAddressParts[1] || '';
-    propertyPostcode = propertyAddressParts[2] || '';
-  } else if (propertyAddressParts.length === 2) {
-    propertyAddressLine2 = propertyAddressParts[1] || '';
-  }
+  const {line1: propertyAddressLine1, line2: propertyAddressLine2, city: propertyCity, postcode: propertyPostcode} = parseAddress(data.propertyAddress);
 
   // tickH and checkInH are imported from shared
 

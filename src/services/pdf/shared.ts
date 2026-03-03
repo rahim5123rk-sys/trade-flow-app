@@ -85,9 +85,8 @@ export async function getGasSafeLogoBase64(): Promise<string> {
   }
 }
 
-export async function getCompanyLogoSrc(companyLogoUrl: string): Promise<string> {
-  if (!companyLogoUrl) return '';
-  return companyLogoUrl;
+export function getCompanyLogoSrc(companyLogoUrl: string): string {
+  return companyLogoUrl || '';
 }
 
 export async function getLatestCompanyLogoUrl(
@@ -114,20 +113,13 @@ export async function getCompanyAndEngineer(
   companyId: string,
   userId: string,
 ): Promise<{ company: CompanyInfo; engineer: EngineerInfo }> {
-  const { data } = await supabase
-    .from('companies')
-    .select('*')
-    .eq('id', companyId)
-    .single();
+  const [{ data }, { data: profile }] = await Promise.all([
+    supabase.from('companies').select('*').eq('id', companyId).single(),
+    supabase.from('profiles').select('display_name').eq('id', userId).single(),
+  ]);
 
   const s = data?.settings || {};
   const userDetails = s.userDetailsById?.[userId] || {};
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name')
-    .eq('id', userId)
-    .single();
 
   return {
     company: {
@@ -601,9 +593,11 @@ export async function resolveAndBuildHtml<P extends BaseLockedPayload>(
   titleFn: (payload: P) => string,
   companyId?: string,
 ): Promise<{ html: string; title: string }> {
-  const gasSafeLogoBase64 = await getGasSafeLogoBase64();
-  const liveCompanyLogoUrl = await getLatestCompanyLogoUrl(companyId, payload.company.logoUrl);
-  const companyLogoSrc = await getCompanyLogoSrc(liveCompanyLogoUrl);
+  const [gasSafeLogoBase64, liveCompanyLogoUrl] = await Promise.all([
+    getGasSafeLogoBase64(),
+    getLatestCompanyLogoUrl(companyId, payload.company.logoUrl),
+  ]);
+  const companyLogoSrc = getCompanyLogoSrc(liveCompanyLogoUrl);
   const companyForRender: CompanyInfo = { ...payload.company, logoUrl: liveCompanyLogoUrl };
   const html = buildHtmlFn(
     payload.pdfData,

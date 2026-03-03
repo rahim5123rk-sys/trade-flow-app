@@ -23,6 +23,7 @@ import {
     generatePdfUrlFromPayload,
     getBaseCss,
     getCompanyAndEngineer,
+    parseAddress,
     tickH,
 } from './pdf/shared';
 
@@ -115,19 +116,7 @@ function buildHtml(
   const fi = data.finalInfo;
 
   // Parse property address parts
-  const propParts = (data.propertyAddress || '').split(',').map(s => s.trim()).filter(Boolean);
-  const propLine1 = propParts[0] || data.propertyAddress || '';
-  let propLine2 = '', propCity = '', propPostcode = '';
-  if (propParts.length >= 4) {
-    propLine2 = propParts.slice(1, -2).join(', ');
-    propCity = propParts[propParts.length - 2] || '';
-    propPostcode = propParts[propParts.length - 1] || '';
-  } else if (propParts.length === 3) {
-    propLine2 = propParts[1] || '';
-    propPostcode = propParts[2] || '';
-  } else if (propParts.length === 2) {
-    propLine2 = propParts[1] || '';
-  }
+  const {line1: propLine1, line2: propLine2, city: propCity, postcode: propPostcode} = parseAddress(data.propertyAddress);
 
   // Parse customer address parts
   const custParts = (data.customerAddress || '').split(',').map(s => s.trim()).filter(Boolean);

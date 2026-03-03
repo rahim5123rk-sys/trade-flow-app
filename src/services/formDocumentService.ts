@@ -241,8 +241,6 @@ export async function completeFormAction(
 
   if (!documentId) throw new Error(`Failed to create ${config.label} document.`);
 
-  const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
-
   if (action === 'save') {
     return documentId;
   }
