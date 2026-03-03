@@ -72,7 +72,7 @@ export const FORM_REGISTRY: FormDefinition[] = [
     route: '/(app)/forms/service-record',
     stepsCount: 3,
     stepLabels: ['Details', 'Service', 'Review'],
-    available: false,
+    available: true,
   },
   {
     type: 'commissioning',
