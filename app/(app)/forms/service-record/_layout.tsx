@@ -3,20 +3,20 @@
 // Service Record multi-step layout with context
 // ============================================
 
-import { Stack } from 'expo-router';
+import {Stack} from 'expo-router';
 import React from 'react';
-import { ServiceRecordProvider } from '../../../../src/context/ServiceRecordContext';
-import { useAppTheme } from '../../../../src/context/ThemeContext';
+import {ServiceRecordProvider} from '../../../../src/context/ServiceRecordContext';
+import {useAppTheme} from '../../../../src/context/ThemeContext';
 
 export default function ServiceRecordLayout() {
-  const { theme } = useAppTheme();
+  const {theme} = useAppTheme();
 
   return (
     <ServiceRecordProvider>
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: theme.surface.base },
+          contentStyle: {backgroundColor: theme.surface.base},
           animation: 'slide_from_right',
         }}
       >

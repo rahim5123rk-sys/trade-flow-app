@@ -37,8 +37,8 @@ export interface FormDefinition {
 export const FORM_REGISTRY: FormDefinition[] = [
   {
     type: 'cp12',
-    label: 'Gas Safety Certificate (CP12)',
-    shortLabel: 'CP12 / LGSR',
+    label: 'Gas Safety Certificate',
+    shortLabel: 'Gas Safety Cert',
     description: 'Landlord Gas Safety Record — annual inspection of gas appliances, flues and pipework.',
     icon: 'shield-checkmark',
     gradient: ['#0EA5E9', '#1D4ED8'] as const,

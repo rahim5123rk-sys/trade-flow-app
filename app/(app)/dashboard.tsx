@@ -3,32 +3,32 @@
 // Modern glassmorphism dashboard
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect } from 'expo-router';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router, useFocusEffect} from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, {
-    FadeIn,
-    FadeInDown,
-    FadeInRight,
-    SlideInRight,
+  FadeIn,
+  FadeInDown,
+  FadeInRight,
+  SlideInRight,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Onboarding, { OnboardingTip } from '../../components/Onboarding';
-import { Colors, UI } from '../../constants/theme';
-import { supabase } from '../../src/config/supabase';
-import { useAuth } from '../../src/context/AuthContext';
-import { ThemeTokens, useAppTheme } from '../../src/context/ThemeContext';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import Onboarding, {OnboardingTip} from '../../components/Onboarding';
+import {Colors, UI} from '../../constants/theme';
+import {supabase} from '../../src/config/supabase';
+import {useAuth} from '../../src/context/AuthContext';
+import {ThemeTokens, useAppTheme} from '../../src/context/ThemeContext';
 
 // ─── Dashboard Onboarding Tips ─────────────
 const ADMIN_TIPS: OnboardingTip[] = [
@@ -150,20 +150,20 @@ const QuickAction = ({
 }) => {
   const resolvedTheme = t || UI;
   return (
-  <Animated.View entering={FadeInDown.delay(delay).springify()}>
-    <TouchableOpacity style={s.quickAction} activeOpacity={0.75} onPress={onPress}>
-      <LinearGradient
-        colors={gradient as [string, string, ...string[]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[s.quickGradient, isDark && { shadowColor: 'rgba(255,255,255,0.3)' }]}
-      >
-        <Ionicons name={icon} size={26} color={isDark ? '#000' : UI.text.white} />
-      </LinearGradient>
-      <Text style={[s.quickLabel, { color: resolvedTheme.text.body }]}>{label}</Text>
-    </TouchableOpacity>
-  </Animated.View>
-);
+    <Animated.View entering={FadeInDown.delay(delay).springify()}>
+      <TouchableOpacity style={s.quickAction} activeOpacity={0.75} onPress={onPress}>
+        <LinearGradient
+          colors={gradient as [string, string, ...string[]]}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+          style={[s.quickGradient, isDark && {shadowColor: 'rgba(255,255,255,0.3)'}]}
+        >
+          <Ionicons name={icon} size={26} color={isDark ? '#000' : UI.text.white} />
+        </LinearGradient>
+        <Text style={[s.quickLabel, {color: resolvedTheme.text.body}]}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
 };
 
 // --- Glassmorphic Stat Card ---
@@ -186,22 +186,22 @@ const GlassCard = ({
 }) => {
   const resolvedTheme = t || UI;
   return (
-  <Animated.View
-    entering={FadeInDown.delay(delay).springify()}
-    style={s.glassOuter}
-  >
-    <View style={[s.glassCard, isDark && { backgroundColor: resolvedTheme.glass.bg, borderColor: resolvedTheme.glass.border }]}>
-      <View style={[s.glassAccent, { backgroundColor: accent }]} />
-      <View style={s.glassBody}>
-        <View style={[s.glassIconCircle, { backgroundColor: `${accent}18` }]}>
-          <Ionicons name={icon} size={18} color={accent} />
+    <Animated.View
+      entering={FadeInDown.delay(delay).springify()}
+      style={s.glassOuter}
+    >
+      <View style={[s.glassCard, isDark && {backgroundColor: resolvedTheme.glass.bg, borderColor: resolvedTheme.glass.border}]}>
+        <View style={[s.glassAccent, {backgroundColor: accent}]} />
+        <View style={s.glassBody}>
+          <View style={[s.glassIconCircle, {backgroundColor: `${accent}18`}]}>
+            <Ionicons name={icon} size={18} color={accent} />
+          </View>
+          <Text style={[s.glassValue, {color: resolvedTheme.text.title}]}>{value}</Text>
+          <Text style={[s.glassLabel, {color: resolvedTheme.text.muted}]}>{label}</Text>
         </View>
-        <Text style={[s.glassValue, { color: resolvedTheme.text.title }]}>{value}</Text>
-        <Text style={[s.glassLabel, { color: resolvedTheme.text.muted }]}>{label}</Text>
       </View>
-    </View>
-  </Animated.View>
-);
+    </Animated.View>
+  );
 };
 
 // --- Modern Job Card ---
@@ -214,14 +214,14 @@ const JobTile = ({
   isToday?: boolean;
   delay?: number;
 }) => {
-  const { theme, isDark } = useAppTheme();
-  const statusMap: Record<string, { color: string; label: string }> = {
-    in_progress: { color: UI.status.inProgress, label: 'In Progress' },
-    pending: { color: UI.status.pending, label: 'Pending' },
-    complete: { color: UI.status.complete, label: 'Complete' },
-    paid: { color: UI.status.paid, label: 'Paid' },
+  const {theme, isDark} = useAppTheme();
+  const statusMap: Record<string, {color: string; label: string}> = {
+    in_progress: {color: UI.status.inProgress, label: 'In Progress'},
+    pending: {color: UI.status.pending, label: 'Pending'},
+    complete: {color: UI.status.complete, label: 'Complete'},
+    paid: {color: UI.status.paid, label: 'Paid'},
   };
-  const st = statusMap[job.status] || { color: Colors.secondary, label: job.status };
+  const st = statusMap[job.status] || {color: Colors.secondary, label: job.status};
   const time = new Date(job.scheduled_date).toLocaleTimeString('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
@@ -230,9 +230,9 @@ const JobTile = ({
   return (
     <Animated.View entering={FadeInRight.delay(delay).springify()}>
       <TouchableOpacity
-        style={[s.jobTile, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+        style={[s.jobTile, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
         activeOpacity={0.7}
-        onPress={() => router.push({ pathname: '/(app)/jobs/[id]', params: { id: job.id } })}
+        onPress={() => router.push({pathname: '/(app)/jobs/[id]', params: {id: job.id}})}
       >
         {/* Left accent strip */}
         <LinearGradient
@@ -244,28 +244,28 @@ const JobTile = ({
           <View style={s.jobTopRow}>
             <View style={s.jobTimeBox}>
               <Ionicons name="time-outline" size={12} color={theme.text.muted} />
-              <Text style={[s.jobTime, { color: theme.text.muted }]}>{time}</Text>
+              <Text style={[s.jobTime, {color: theme.text.muted}]}>{time}</Text>
             </View>
             {isToday && (
               <LinearGradient
                 colors={UI.gradients.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
                 style={s.todayChip}
               >
                 <Text style={s.todayChipText}>TODAY</Text>
               </LinearGradient>
             )}
-            <View style={[s.statusDot, { backgroundColor: st.color }]} />
-            <Text style={[s.statusLabel, { color: st.color }]}>{st.label}</Text>
+            <View style={[s.statusDot, {backgroundColor: st.color}]} />
+            <Text style={[s.statusLabel, {color: st.color}]}>{st.label}</Text>
           </View>
 
-          <Text style={[s.jobTileTitle, { color: theme.text.title }]} numberOfLines={1}>
+          <Text style={[s.jobTileTitle, {color: theme.text.title}]} numberOfLines={1}>
             {job.title}
           </Text>
           <View style={s.jobMeta}>
             <Ionicons name="person-outline" size={13} color={theme.text.muted} />
-            <Text style={[s.jobMetaText, { color: theme.text.muted }]} numberOfLines={1}>
+            <Text style={[s.jobMetaText, {color: theme.text.muted}]} numberOfLines={1}>
               {job.customer_snapshot?.name || 'Unknown'}
             </Text>
           </View>
@@ -293,10 +293,10 @@ const UpcomingRow = ({
       <View style={s.upDatePill}>
         <Text style={s.upDay}>{d.getDate()}</Text>
         <Text style={s.upMonth}>
-          {d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase()}
+          {d.toLocaleDateString('en-GB', {month: 'short'}).toUpperCase()}
         </Text>
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={{flex: 1}}>
         <JobTile job={job} />
       </View>
     </Animated.View>
@@ -321,20 +321,20 @@ const NavButton = ({
 }) => {
   const resolvedTheme = t || UI;
   return (
-  <Animated.View entering={FadeIn.delay(delay)} style={s.navBtnWrap}>
-    <TouchableOpacity style={[s.navBtn, isDark && { borderBottomColor: resolvedTheme.surface.divider }]} onPress={onPress} activeOpacity={0.7}>
-      <Ionicons name={icon} size={20} color={resolvedTheme.text.secondary} />
-      <Text style={[s.navLabel, { color: resolvedTheme.text.body }]}>{label}</Text>
-      <Ionicons name="chevron-forward" size={14} color={resolvedTheme.surface.border} />
-    </TouchableOpacity>
-  </Animated.View>
-);
+    <Animated.View entering={FadeIn.delay(delay)} style={s.navBtnWrap}>
+      <TouchableOpacity style={[s.navBtn, isDark && {borderBottomColor: resolvedTheme.surface.divider}]} onPress={onPress} activeOpacity={0.7}>
+        <Ionicons name={icon} size={20} color={resolvedTheme.text.secondary} />
+        <Text style={[s.navLabel, {color: resolvedTheme.text.body}]}>{label}</Text>
+        <Ionicons name="chevron-forward" size={14} color={resolvedTheme.surface.border} />
+      </TouchableOpacity>
+    </Animated.View>
+  );
 };
 
 // --- Main Dashboard ---
 export default function DashboardScreen() {
-  const { userProfile, user } = useAuth();
-  const { theme, colors, isDark } = useAppTheme();
+  const {userProfile, user} = useAuth();
+  const {theme, colors, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const [allJobs, setAllJobs] = useState<DashboardJob[]>([]);
   const [loading, setLoading] = useState(true);
@@ -365,13 +365,13 @@ export default function DashboardScreen() {
       .select('*')
       .eq('company_id', userProfile.company_id)
       .neq('status', 'cancelled')
-      .order('scheduled_date', { ascending: true });
+      .order('scheduled_date', {ascending: true});
 
     if (!isAdmin && user?.id) {
       query = query.contains('assigned_to', [user.id]);
     }
 
-    const { data } = await query;
+    const {data} = await query;
     if (data) setAllJobs(data as any);
     setLoading(false);
     setRefreshing(false);
@@ -386,12 +386,12 @@ export default function DashboardScreen() {
       (j) => j.scheduled_date >= startOfDay && j.scheduled_date < endOfDay
     );
 
-    return { todaysJobs };
+    return {todaysJobs};
   }, [allJobs]);
 
   if (loading && allJobs.length === 0) {
     return (
-      <View style={[s.center, { backgroundColor: theme.surface.base }]}>
+      <View style={[s.center, {backgroundColor: theme.surface.base}]}>
         <ActivityIndicator size="large" color={theme.brand.primary} />
       </View>
     );
@@ -400,16 +400,16 @@ export default function DashboardScreen() {
   const firstName = userProfile?.display_name?.split(' ')[0] || 'There';
 
   return (
-    <View style={[s.root, { backgroundColor: theme.surface.base }]}>
+    <View style={[s.root, {backgroundColor: theme.surface.base}]}>
       {/* Background gradient */}
       <LinearGradient
         colors={theme.gradients.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
         style={StyleSheet.absoluteFill}
       />
       <ScrollView
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 8 }]}
+        contentContainerStyle={[s.scroll, {paddingTop: insets.top + 8}]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -424,10 +424,10 @@ export default function DashboardScreen() {
       >
         {/* Header */}
         <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={[s.headerGreeting, { color: theme.text.secondary }]}>{getGreeting()},</Text>
-            <Text style={[s.headerName, { color: theme.text.title }]}>{firstName}</Text>
-            <Text style={[s.headerDate, { color: theme.text.muted }]}>
+          <View style={{flex: 1}}>
+            <Text style={[s.headerGreeting, {color: theme.text.secondary}]}>{getGreeting()},</Text>
+            <Text style={[s.headerName, {color: theme.text.title}]}>{firstName}</Text>
+            <Text style={[s.headerDate, {color: theme.text.muted}]}>
               {new Date().toLocaleDateString('en-GB', {
                 weekday: 'long',
                 day: 'numeric',
@@ -441,9 +441,9 @@ export default function DashboardScreen() {
           >
             <LinearGradient
               colors={isDark ? theme.gradients.primary : UI.gradients.primary}
-              style={[s.avatar, isDark && { shadowColor: '#000' }]}
+              style={[s.avatar, isDark && {shadowColor: '#000'}]}
             >
-              <Text style={[s.avatarText, { color: isDark ? '#000' : UI.text.white }]}>{firstName.charAt(0).toUpperCase()}</Text>
+              <Text style={[s.avatarText, {color: isDark ? '#000' : UI.text.white}]}>{firstName.charAt(0).toUpperCase()}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -451,7 +451,7 @@ export default function DashboardScreen() {
         {/* Quick Actions */}
         {isAdmin ? (
           <Animated.View entering={FadeInDown.delay(100).springify()}>
-            <Text style={[s.sectionLabel, { color: theme.text.title }]}>Quick Actions</Text>
+            <Text style={[s.sectionLabel, {color: theme.text.title}]}>Quick Actions</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -506,7 +506,7 @@ export default function DashboardScreen() {
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInDown.delay(100).springify()}>
-            <Text style={[s.sectionLabel, { color: theme.text.title }]}>Quick Actions</Text>
+            <Text style={[s.sectionLabel, {color: theme.text.title}]}>Quick Actions</Text>
             <View style={s.quickRow}>
               <QuickAction
                 icon="list"
@@ -533,19 +533,19 @@ export default function DashboardScreen() {
         {/* Today's Schedule */}
         <Animated.View entering={FadeInDown.delay(320).springify()}>
           <View style={s.sectionHeaderRow}>
-            <Text style={[s.sectionLabel, { color: theme.text.title }]}>{"Today's Schedule"}</Text>
-            <View style={[s.countBadge, isDark && { backgroundColor: theme.surface.elevated }]}>
-              <Text style={[s.countText, { color: theme.brand.primary }]}>{stats.todaysJobs.length}</Text>
+            <Text style={[s.sectionLabel, {color: theme.text.title}]}>{"Today's Schedule"}</Text>
+            <View style={[s.countBadge, isDark && {backgroundColor: theme.surface.elevated}]}>
+              <Text style={[s.countText, {color: theme.brand.primary}]}>{stats.todaysJobs.length}</Text>
             </View>
           </View>
 
           {stats.todaysJobs.length === 0 ? (
-            <View style={[s.emptyCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
-              <View style={[s.emptyIconWrap, isDark && { backgroundColor: theme.surface.divider }]}>
+            <View style={[s.emptyCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+              <View style={[s.emptyIconWrap, isDark && {backgroundColor: theme.surface.divider}]}>
                 <Ionicons name="sunny-outline" size={28} color={theme.text.muted} />
               </View>
-              <Text style={[s.emptyTitle, { color: theme.text.body }]}>All clear!</Text>
-              <Text style={[s.emptySubtitle, { color: theme.text.muted }]}>No jobs scheduled for today.</Text>
+              <Text style={[s.emptyTitle, {color: theme.text.body}]}>All clear!</Text>
+              <Text style={[s.emptySubtitle, {color: theme.text.muted}]}>No jobs scheduled for today.</Text>
             </View>
           ) : (
             stats.todaysJobs.map((job, i) => (
@@ -557,8 +557,8 @@ export default function DashboardScreen() {
         {/* Navigation Grid (admin) */}
         {isAdmin && (
           <Animated.View entering={FadeInDown.delay(480).springify()}>
-            <Text style={[s.sectionLabel, { marginTop: 8, color: theme.text.title }]}>Navigate</Text>
-            <View style={[s.navGrid, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <Text style={[s.sectionLabel, {marginTop: 8, color: theme.text.title}]}>Navigate</Text>
+            <View style={[s.navGrid, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <NavButton icon="briefcase-outline" label="All Jobs" onPress={() => router.push('/(app)/jobs')} delay={700} isDark={isDark} theme={theme} />
               <NavButton icon="people-outline" label="Customers" onPress={() => router.push('/(app)/customers' as any)} delay={740} isDark={isDark} theme={theme} />
               <NavButton icon="person-outline" label="Team" onPress={() => router.push('/(app)/workers' as any)} delay={780} isDark={isDark} theme={theme} />
@@ -571,7 +571,7 @@ export default function DashboardScreen() {
           <TouchableOpacity
             activeOpacity={0.82}
             onPress={() => WebBrowser.openBrowserAsync('https://www.freeboilermanuals.com')}
-            style={[s.resourceBanner, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+            style={[s.resourceBanner, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
           >
             <LinearGradient
               colors={['#FFF7ED', '#FFEDD5']}
@@ -580,8 +580,8 @@ export default function DashboardScreen() {
               <Ionicons name="book-outline" size={22} color="#EA580C" />
             </LinearGradient>
             <View style={s.resourceText}>
-              <Text style={[s.resourceTitle, { color: theme.text.title }]}>Free Boiler Manuals</Text>
-              <Text style={[s.resourceSubtitle, { color: theme.text.muted }]}>Service manuals &amp; boiler documentation</Text>
+              <Text style={[s.resourceTitle, {color: theme.text.title}]}>Free Boiler Manuals</Text>
+              <Text style={[s.resourceSubtitle, {color: theme.text.muted}]}>Service manuals &amp; boiler documentation</Text>
             </View>
             <Ionicons name="open-outline" size={16} color={theme.text.muted} />
           </TouchableOpacity>
@@ -602,9 +602,9 @@ const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: UI.surface.elevated },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { paddingHorizontal: 20, paddingBottom: 120 },
+  root: {flex: 1, backgroundColor: UI.surface.elevated},
+  center: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+  scroll: {paddingHorizontal: 20, paddingBottom: 120},
 
   // Header
   header: {
@@ -613,9 +613,9 @@ const s = StyleSheet.create({
     marginBottom: 28,
     marginTop: 8,
   },
-  headerGreeting: { fontSize: 15, fontWeight: '600', color: UI.text.secondary, letterSpacing: 0.3 },
-  headerName: { fontSize: 32, fontWeight: '800', color: UI.text.title, marginTop: 2, letterSpacing: -0.5 },
-  headerDate: { fontSize: 14, color: UI.text.muted, marginTop: 4, fontWeight: '500' },
+  headerGreeting: {fontSize: 15, fontWeight: '600', color: UI.text.secondary, letterSpacing: 0.3},
+  headerName: {fontSize: 32, fontWeight: '800', color: UI.text.title, marginTop: 2, letterSpacing: -0.5},
+  headerDate: {fontSize: 14, color: UI.text.muted, marginTop: 4, fontWeight: '500'},
   avatar: {
     width: 48,
     height: 48,
@@ -623,16 +623,16 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: UI.brand.primary,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  avatarText: { fontSize: 20, fontWeight: '800', color: UI.text.white },
+  avatarText: {fontSize: 20, fontWeight: '800', color: UI.text.white},
 
   // Stats
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 28 },
-  glassOuter: { flex: 1 },
+  statsRow: {flexDirection: 'row', gap: 10, marginBottom: 28},
+  glassOuter: {flex: 1},
   glassCard: {
     borderRadius: 18,
     backgroundColor: GLASS_BG,
@@ -641,8 +641,8 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     ...UI.shadow,
   },
-  glassAccent: { height: 4, borderTopLeftRadius: 18, borderTopRightRadius: 18 },
-  glassBody: { padding: 14 },
+  glassAccent: {height: 4, borderTopLeftRadius: 18, borderTopRightRadius: 18},
+  glassBody: {padding: 14},
   glassIconCircle: {
     width: 36,
     height: 36,
@@ -651,12 +651,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  glassValue: { fontSize: 22, fontWeight: '800', color: UI.text.title, letterSpacing: -0.3 },
-  glassLabel: { fontSize: 12, fontWeight: '700', color: UI.text.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  glassValue: {fontSize: 22, fontWeight: '800', color: UI.text.title, letterSpacing: -0.3},
+  glassLabel: {fontSize: 12, fontWeight: '700', color: UI.text.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5},
 
   // Quick actions
-  quickRow: { flexDirection: 'row', gap: 14, marginBottom: 28, paddingRight: 8 },
-  quickAction: { alignItems: 'center', width: 80 },
+  quickRow: {flexDirection: 'row', gap: 14, marginBottom: 28, paddingRight: 8},
+  quickAction: {alignItems: 'center', width: 80},
   quickGradient: {
     width: 64,
     height: 64,
@@ -665,20 +665,20 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
     shadowColor: UI.text.title,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.18,
     shadowRadius: 10,
     elevation: 5,
   },
-  quickLabel: { fontSize: 13, fontWeight: '700', color: UI.text.body, textAlign: 'center' },
+  quickLabel: {fontSize: 13, fontWeight: '700', color: UI.text.body, textAlign: 'center'},
 
   // Section headers
-  sectionLabel: { fontSize: 18, fontWeight: '700', color: UI.text.title, marginBottom: 14, letterSpacing: -0.2 },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  countBadge: { backgroundColor: UI.surface.primaryLight, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
-  countText: { fontSize: 13, fontWeight: '700', color: UI.brand.primary },
-  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  seeAllText: { fontSize: 14, fontWeight: '600', color: UI.brand.primary },
+  sectionLabel: {fontSize: 18, fontWeight: '700', color: UI.text.title, marginBottom: 14, letterSpacing: -0.2},
+  sectionHeaderRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14},
+  countBadge: {backgroundColor: UI.surface.primaryLight, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12},
+  countText: {fontSize: 13, fontWeight: '700', color: UI.brand.primary},
+  seeAllBtn: {flexDirection: 'row', alignItems: 'center', gap: 4},
+  seeAllText: {fontSize: 14, fontWeight: '600', color: UI.brand.primary},
 
   // Job tiles
   jobTile: {
@@ -692,22 +692,22 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     ...UI.shadowLight,
   },
-  jobStrip: { width: 5, alignSelf: 'stretch', borderTopLeftRadius: 16, borderBottomLeftRadius: 16 },
-  jobBody: { flex: 1, paddingVertical: 16, paddingHorizontal: 16 },
-  jobTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  jobTimeBox: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  jobTime: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
-  todayChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  todayChipText: { fontSize: 10, fontWeight: '800', color: UI.text.white, letterSpacing: 0.5 },
-  statusDot: { width: 7, height: 7, borderRadius: 4, marginLeft: 'auto' },
-  statusLabel: { fontSize: 11, fontWeight: '700' },
-  jobTileTitle: { fontSize: 16, fontWeight: '700', color: UI.text.title, marginBottom: 4 },
-  jobMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  jobMetaText: { fontSize: 13, color: UI.text.muted, flex: 1 },
-  jobChevron: { paddingRight: 14 },
+  jobStrip: {width: 5, alignSelf: 'stretch', borderTopLeftRadius: 16, borderBottomLeftRadius: 16},
+  jobBody: {flex: 1, paddingVertical: 16, paddingHorizontal: 16},
+  jobTopRow: {flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6},
+  jobTimeBox: {flexDirection: 'row', alignItems: 'center', gap: 4},
+  jobTime: {fontSize: 13, fontWeight: '600', color: UI.text.muted},
+  todayChip: {paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6},
+  todayChipText: {fontSize: 10, fontWeight: '800', color: UI.text.white, letterSpacing: 0.5},
+  statusDot: {width: 7, height: 7, borderRadius: 4, marginLeft: 'auto'},
+  statusLabel: {fontSize: 11, fontWeight: '700'},
+  jobTileTitle: {fontSize: 16, fontWeight: '700', color: UI.text.title, marginBottom: 4},
+  jobMeta: {flexDirection: 'row', alignItems: 'center', gap: 4},
+  jobMetaText: {fontSize: 13, color: UI.text.muted, flex: 1},
+  jobChevron: {paddingRight: 14},
 
   // Upcoming
-  upRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  upRow: {flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4},
   upDatePill: {
     width: 48,
     height: 56,
@@ -716,8 +716,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  upDay: { fontSize: 20, fontWeight: '800', color: UI.brand.primaryDark },
-  upMonth: { fontSize: 10, fontWeight: '700', color: UI.brand.accent, letterSpacing: 0.5 },
+  upDay: {fontSize: 20, fontWeight: '800', color: UI.brand.primaryDark},
+  upMonth: {fontSize: 10, fontWeight: '700', color: UI.brand.accent, letterSpacing: 0.5},
 
   // Nav grid
   navGrid: {
@@ -738,7 +738,7 @@ const s = StyleSheet.create({
     borderBottomColor: UI.surface.divider,
     gap: 12,
   },
-  navLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: UI.text.body },
+  navLabel: {flex: 1, fontSize: 15, fontWeight: '600', color: UI.text.body},
 
   // Resource banner
   resourceBanner: {
@@ -760,9 +760,9 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  resourceText: { flex: 1 },
-  resourceTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  resourceSubtitle: { fontSize: 12, fontWeight: '500' },
+  resourceText: {flex: 1},
+  resourceTitle: {fontSize: 15, fontWeight: '700', marginBottom: 2},
+  resourceSubtitle: {fontSize: 12, fontWeight: '500'},
 
   // Empty state
   emptyCard: {
@@ -784,6 +784,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: UI.text.body, marginBottom: 4 },
-  emptySubtitle: { fontSize: 14, color: UI.text.muted },
+  emptyTitle: {fontSize: 16, fontWeight: '700', color: UI.text.body, marginBottom: 4},
+  emptySubtitle: {fontSize: 14, color: UI.text.muted},
 });

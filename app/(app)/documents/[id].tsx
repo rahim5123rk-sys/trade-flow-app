@@ -1,6 +1,6 @@
 // ============================================
 // FILE: app/(app)/documents/[id].tsx
-// View/manage a single quote, invoice or CP12
+// View/manage a single quote, invoice or gas form
 // ============================================
 
 import {Ionicons} from '@expo/vector-icons';
@@ -29,13 +29,16 @@ import {useAuth} from '../../../src/context/AuthContext';
 import {useOfflineMode} from '../../../src/context/OfflineContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 import {generateDocument, generateDocumentUrl} from '../../../src/services/DocumentGenerator';
-import {
-  CP12LockedPayload,
-  generateCP12PdfBase64FromPayload,
-  generateCP12PdfFromPayload,
-  generateCP12PdfUrl,
-} from '../../../src/services/cp12PdfGenerator';
+import type {CP12LockedPayload} from '../../../src/services/cp12PdfGenerator';
 import {sanitizeRecipients, sendCp12CertificateEmail} from '../../../src/services/email';
+// Importing the barrel registers all PDF generators in the registry
+import {
+  generateRegisteredPdf,
+  generateRegisteredPdfBase64,
+  generateRegisteredPdfUrl,
+  parseLockedPayload,
+} from '../../../src/services/pdf';
+import type {ServiceRecordLockedPayload} from '../../../src/services/serviceRecordPdfGenerator';
 import {Document} from '../../../src/types';
 
 const INVOICE_STATUSES = ['Draft', 'Sent', 'Unpaid', 'Paid', 'Overdue'];
@@ -53,15 +56,6 @@ const STATUS_COLORS: Record<string, {color: string; bg: string}> = {
   Overdue: {color: UI.brand.danger, bg: '#fef2f2'},
 };
 
-const parseCp12Payload = (doc: Document | null): CP12LockedPayload | null => {
-  if (!doc?.payment_info) return null;
-  try {
-    const parsed = JSON.parse(doc.payment_info);
-    return parsed?.kind === 'cp12' ? (parsed as CP12LockedPayload) : null;
-  } catch {
-    return null;
-  }
-};
 
 export default function DocumentDetailScreen() {
   const {id} = useLocalSearchParams<{id: string}>();
@@ -70,7 +64,6 @@ export default function DocumentDetailScreen() {
   const {offlineModeEnabled} = useOfflineMode();
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
@@ -144,28 +137,6 @@ export default function DocumentDetailScreen() {
     };
   };
 
-  // ─── Save PDF to device ─────────────────────────────────────
-
-  const handleSave = async () => {
-    if (!doc || !userProfile?.company_id) return;
-    setSaving(true);
-    try {
-      const cp12Payload = parseCp12Payload(doc);
-      if (cp12Payload) {
-        await generateCP12PdfFromPayload(
-          cp12Payload,
-          'save',
-          userProfile.company_id,
-        );
-      } else {
-        const docData = buildDocData();
-        if (docData) await generateDocument(docData, userProfile.company_id, 'save');
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to save PDF.');
-    }
-    setSaving(false);
-  };
 
   // ─── Share PDF ──────────────────────────────────────────────
 
@@ -173,13 +144,9 @@ export default function DocumentDetailScreen() {
     if (!doc || !userProfile?.company_id) return;
     setSharing(true);
     try {
-      const cp12Payload = parseCp12Payload(doc);
-      if (cp12Payload) {
-        await generateCP12PdfFromPayload(
-          cp12Payload,
-          'share',
-          userProfile.company_id,
-        );
+      const payload = parseLockedPayload(doc.payment_info);
+      if (payload) {
+        await generateRegisteredPdf(payload, 'share', userProfile.company_id);
       } else {
         const docData = buildDocData();
         if (docData) await generateDocument(docData, userProfile.company_id, 'share');
@@ -191,13 +158,15 @@ export default function DocumentDetailScreen() {
   };
 
   const handleViewCertificate = async () => {
-    if (!cp12Payload || !userProfile?.company_id) return;
+    if (!doc || !userProfile?.company_id) return;
     setViewing(true);
     try {
-      const pdfUrl = await generateCP12PdfUrl(cp12Payload, userProfile.company_id);
+      const payload = parseLockedPayload(doc.payment_info);
+      if (!payload) throw new Error('No gas form payload found');
+      const pdfUrl = await generateRegisteredPdfUrl(payload, userProfile.company_id, doc.reference || '');
       await WebBrowser.openBrowserAsync(pdfUrl);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to open certificate view.');
+      Alert.alert('Error', e.message || 'Failed to open document view.');
     }
     setViewing(false);
   };
@@ -217,62 +186,68 @@ export default function DocumentDetailScreen() {
   };
 
   const openSendEmailModal = () => {
-    if (!cp12Payload || !doc) return;
-    const recipients = sanitizeRecipients([
-      cp12Payload.pdfData.landlordEmail || '',
-      cp12Payload.pdfData.tenantEmail || '',
-      doc.customer_snapshot?.email || '',
-    ]);
+    if (!doc) return;
+    const payload = parseLockedPayload(doc.payment_info);
+    if (!payload) return;
 
+    // For CP12, include landlord + tenant emails; for all others, use customer snapshot
+    const cp12P = payload.kind === 'cp12' ? payload as CP12LockedPayload : null;
+    const emailCandidates = cp12P
+      ? [cp12P.pdfData.landlordEmail || '', cp12P.pdfData.tenantEmail || '', doc.customer_snapshot?.email || '']
+      : [doc.customer_snapshot?.email || ''];
+
+    const recipients = sanitizeRecipients(emailCandidates);
     if (!recipients.length) {
-      Alert.alert('No Email Found', 'No valid landlord or tenant email found for this certificate.');
+      Alert.alert('No Email Found', 'No valid email found for this document.');
       return;
     }
 
-    const defaultSubject = `Gas Certificate for ${cp12Payload.pdfData.propertyAddress || doc.customer_snapshot?.address || 'Property'}`.trim();
-    setEmailSubject(defaultSubject);
+    const defaultSubject = cp12P
+      ? `Gas Certificate for ${cp12P.pdfData.propertyAddress || doc.customer_snapshot?.address || 'Property'}`
+      : `${doc.reference || 'Service Record'} — ${doc.customer_snapshot?.name || 'Customer'}`;
+    setEmailSubject(defaultSubject.trim());
     setShowEmailModal(true);
   };
 
   const handleSendEmail = async () => {
-    if (!cp12Payload) return;
+    if (!doc || !userProfile?.company_id) return;
     if (offlineModeEnabled) {
       Alert.alert('Offline Mode', 'Disable Offline Mode to send emails.');
       return;
     }
 
-    const recipients = sanitizeRecipients([
-      cp12Payload.pdfData.landlordEmail || '',
-      cp12Payload.pdfData.tenantEmail || '',
-      doc?.customer_snapshot?.email || '',
-    ]);
+    const payload = parseLockedPayload(doc.payment_info);
+    if (!payload) return;
 
+    const cp12P = payload.kind === 'cp12' ? payload as CP12LockedPayload : null;
+    const emailCandidates = cp12P
+      ? [cp12P.pdfData.landlordEmail || '', cp12P.pdfData.tenantEmail || '', doc.customer_snapshot?.email || '']
+      : [doc.customer_snapshot?.email || ''];
+
+    const recipients = sanitizeRecipients(emailCandidates);
     if (!recipients.length) {
-      Alert.alert('No Email Found', 'No valid landlord or tenant email found for this certificate.');
+      Alert.alert('No Email Found', 'No valid email found for this document.');
       return;
     }
 
     setSendingEmail(true);
     try {
-      const pdfBase64 = await generateCP12PdfBase64FromPayload(
-        cp12Payload,
-        userProfile?.company_id,
-      );
+      const pdfBase64 = await generateRegisteredPdfBase64(payload, userProfile.company_id);
       await sendCp12CertificateEmail({
         to: recipients,
-        certRef: doc?.reference || cp12Payload.pdfData.certRef || 'LGSR',
-        propertyAddress: cp12Payload.pdfData.propertyAddress,
-        inspectionDate: cp12Payload.pdfData.inspectionDate,
-        nextDueDate: cp12Payload.pdfData.nextDueDate,
-        landlordName: cp12Payload.pdfData.landlordName,
-        tenantName: cp12Payload.pdfData.tenantName,
+        certRef: doc.reference || cp12P?.pdfData.certRef || 'REF',
+        propertyAddress: cp12P?.pdfData.propertyAddress || doc.customer_snapshot?.address || '',
+        inspectionDate: cp12P?.pdfData.inspectionDate || '',
+        nextDueDate: cp12P?.pdfData.nextDueDate || '',
+        landlordName: cp12P?.pdfData.landlordName || doc.customer_snapshot?.name || '',
+        tenantName: cp12P?.pdfData.tenantName || '',
         pdfBase64,
         subjectOverride: emailSubject,
       });
       setShowEmailModal(false);
-      Alert.alert('Email Sent', `Certificate emailed to ${recipients.join(', ')}.`);
+      Alert.alert('Email Sent', `Document emailed to ${recipients.join(', ')}.`);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to send certificate email.');
+      Alert.alert('Error', e.message || 'Failed to send email.');
     }
     setSendingEmail(false);
   };
@@ -285,9 +260,11 @@ export default function DocumentDetailScreen() {
       Alert.alert('Offline Mode', 'Disable Offline Mode to delete documents.');
       return;
     }
-    const cp12Payload = parseCp12Payload(doc);
-    const isCp12 = !!cp12Payload || doc.type === 'cp12' || doc.reference?.startsWith('CP12-');
-    const label = isCp12 ? 'Gas Certificate' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
+    const payload = parseLockedPayload(doc.payment_info);
+    const isCp12 = payload?.kind === 'cp12' || (doc.type as string) === 'cp12' || doc.reference?.startsWith('CP12-');
+    const isSRDoc = payload?.kind === 'service_record' || (doc.type as string) === 'service_record' || doc.reference?.startsWith('SR-');
+    const isGasDoc = !!payload || isCp12 || isSRDoc;
+    const label = isCp12 ? 'Gas Certificate' : isSRDoc ? 'Service Record' : isGasDoc ? 'Gas Form' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
     Alert.alert(
       `Delete ${label}`,
       'This cannot be undone.',
@@ -419,23 +396,39 @@ export default function DocumentDetailScreen() {
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>;
   if (!doc) return <View style={styles.center}><Text>Document not found.</Text></View>;
 
-  const cp12Payload = parseCp12Payload(doc);
-  const isCp12 = !!cp12Payload || doc.type === 'cp12' || doc.reference?.startsWith('CP12-');
-  const isInvoice = doc.type === 'invoice' && !isCp12;
+  const lockedPayload = parseLockedPayload(doc.payment_info);
+  const cp12Payload = lockedPayload?.kind === 'cp12' ? lockedPayload as CP12LockedPayload : null;
+  const srPayload = lockedPayload?.kind === 'service_record' ? lockedPayload as ServiceRecordLockedPayload : null;
+  const isCp12 = lockedPayload?.kind === 'cp12' || (doc.type as string) === 'cp12' || doc.reference?.startsWith('CP12-');
+  const isSR = lockedPayload?.kind === 'service_record' || (doc.type as string) === 'service_record' || doc.reference?.startsWith('SR-');
+  const isGasForm = !!lockedPayload || isCp12 || isSR;
+  const isInvoice = doc.type === 'invoice' && !isGasForm;
   const statuses = isInvoice ? INVOICE_STATUSES : QUOTE_STATUSES;
   const statusStyle = STATUS_COLORS[doc.status] || STATUS_COLORS.Draft;
 
   // Document type config
   const typeConfig = isCp12
     ? {label: 'GAS CERTIFICATE', icon: 'shield-checkmark-outline' as const, color: UI.brand.primary, bg: UI.surface.base, gradient: UI.gradients.cp12}
-    : isInvoice
-      ? {label: 'INVOICE', icon: 'receipt-outline' as const, color: '#C2410C', bg: '#FFF7ED', gradient: UI.gradients.amberLight}
-      : {label: 'QUOTE', icon: 'document-text-outline' as const, color: UI.brand.primary, bg: UI.surface.primaryLight, gradient: UI.gradients.primary};
+    : isSR
+      ? {label: 'SERVICE RECORD', icon: 'construct-outline' as const, color: '#059669', bg: '#ecfdf5', gradient: ['#059669', '#10b981'] as [string, string]}
+      : isInvoice
+        ? {label: 'INVOICE', icon: 'receipt-outline' as const, color: '#C2410C', bg: '#FFF7ED', gradient: UI.gradients.amberLight}
+        : {label: 'QUOTE', icon: 'document-text-outline' as const, color: UI.brand.primary, bg: UI.surface.primaryLight, gradient: UI.gradients.primary};
 
-  const isBusy = saving || sharing || updating || duplicating || viewing || sendingEmail;
+  const isBusy = sharing || updating || duplicating || viewing || sendingEmail;
 
   return (
-    <ScrollView style={[styles.container, isDark && {backgroundColor: theme.surface.base}]} contentContainerStyle={{paddingBottom: insets.bottom + 40}}>
+    <ScrollView style={[styles.container, isDark && {backgroundColor: theme.surface.base}]} contentContainerStyle={{paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40}}>
+      {/* Back button */}
+      <TouchableOpacity
+        onPress={() => router.replace('/(app)/documents' as any)}
+        style={[styles.backBtn, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="arrow-back" size={20} color={isDark ? theme.text.title : UI.text.title} />
+        <Text style={[styles.backBtnText, isDark && {color: theme.text.title}]}>Back</Text>
+      </TouchableOpacity>
+
       {/* Header Card */}
       <Animated.View entering={FadeInDown.delay(50).springify()}>
         <View style={[styles.headerCard, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
@@ -448,12 +441,14 @@ export default function DocumentDetailScreen() {
               <Text style={[styles.docNumber, isDark && {color: theme.text.title}]}>
                 {isCp12
                   ? doc.reference || `CP12-${String(doc.number).padStart(4, '0')}`
-                  : `#${String(doc.number).padStart(4, '0')}`}
+                  : isSR
+                    ? doc.reference || `SR-${String(doc.number).padStart(4, '0')}`
+                    : `#${String(doc.number).padStart(4, '0')}`}
               </Text>
             </View>
-            <View style={[styles.statusBadgeLg, {backgroundColor: isCp12 ? UI.surface.base : statusStyle.bg}]}>
-              <Text style={[styles.statusTextLg, {color: isCp12 ? '#0284c7' : statusStyle.color}]}>
-                {isCp12 ? 'Issued' : doc.status}
+            <View style={[styles.statusBadgeLg, {backgroundColor: isGasForm ? UI.surface.base : statusStyle.bg}]}>
+              <Text style={[styles.statusTextLg, {color: isGasForm ? '#0284c7' : statusStyle.color}]}>
+                {isGasForm ? 'Issued' : doc.status}
               </Text>
             </View>
           </View>
@@ -467,13 +462,13 @@ export default function DocumentDetailScreen() {
             </View>
             {doc.expiry_date ? (
               <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={14} color={isCp12 ? UI.status.pending : Colors.textLight} />
-                <Text style={[styles.metaText, isCp12 && {color: UI.status.pending, fontWeight: '600'}]}>
-                  {isCp12 ? 'Next due' : isInvoice ? 'Due' : 'Valid until'}: {doc.expiry_date}
+                <Ionicons name="time-outline" size={14} color={isGasForm ? UI.status.pending : Colors.textLight} />
+                <Text style={[styles.metaText, isGasForm && {color: UI.status.pending, fontWeight: '600'}]}>
+                  {isCp12 ? 'Next due' : isSR ? 'Next inspection' : isInvoice ? 'Due' : 'Valid until'}: {doc.expiry_date}
                 </Text>
               </View>
             ) : null}
-            {doc.reference && !isCp12 ? (
+            {doc.reference && !isGasForm ? (
               <View style={styles.metaItem}>
                 <Ionicons name="bookmark-outline" size={14} color={isDark ? theme.text.muted : Colors.textLight} />
                 <Text style={[styles.metaText, isDark && {color: theme.text.muted}]}>Ref: {doc.reference}</Text>
@@ -586,6 +581,104 @@ export default function DocumentDetailScreen() {
             </View>
           </View>
         </Animated.View>
+      ) : isSR && srPayload ? (
+        /* Service Record details */
+        <Animated.View entering={FadeInDown.delay(100).springify()}>
+          {/* Engineer info */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Engineer</Text>
+            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
+              <View style={styles.detailRow}>
+                <Ionicons name="person-outline" size={16} color="#059669" />
+                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{srPayload.engineer.name || 'Not specified'}</Text>
+              </View>
+              {srPayload.engineer.gasSafeNumber ? (
+                <View style={styles.detailRow}>
+                  <Ionicons name="shield-outline" size={16} color={UI.status.complete} />
+                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>Gas Safe: {srPayload.engineer.gasSafeNumber}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Customer & Property */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Customer & Property</Text>
+            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
+              <View style={styles.detailRow}>
+                <Ionicons name="person-outline" size={16} color={UI.status.pending} />
+                <View>
+                  <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text>
+                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{srPayload.pdfData.customerName || '—'}</Text>
+                </View>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.detailRow}>
+                <Ionicons name="home-outline" size={16} color={UI.status.inProgress} />
+                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{srPayload.pdfData.propertyAddress || 'No address'}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Appliance summary */}
+          {srPayload.pdfData.appliances.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Appliance</Text>
+              <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
+                {srPayload.pdfData.appliances.map((app, i) => (
+                  <View key={i} style={[styles.applianceRow, i > 0 && {borderTopWidth: 1, borderTopColor: isDark ? theme.surface.divider : UI.surface.elevated, paddingTop: 10}]}>
+                    <View style={styles.applianceNum}>
+                      <Text style={styles.applianceNumText}>{i + 1}</Text>
+                    </View>
+                    <View style={{flex: 1}}>
+                      <Text style={[styles.applianceName, isDark && {color: theme.text.title}]}>{app.make} {app.model}</Text>
+                      <Text style={[styles.applianceLocation, isDark && {color: theme.text.muted}]}>{app.location} • {app.category}</Text>
+                    </View>
+                    <View style={[
+                      styles.safetyBadge,
+                      {backgroundColor: app.applianceCondition === 'Safe' ? '#F0FDF4' : app.applianceCondition === 'Unsafe' ? '#FEF2F2' : UI.surface.elevated}
+                    ]}>
+                      <Ionicons
+                        name={app.applianceCondition === 'Safe' ? 'checkmark-circle' : app.applianceCondition === 'Unsafe' ? 'close-circle' : 'help-circle'}
+                        size={14}
+                        color={app.applianceCondition === 'Safe' ? '#15803d' : app.applianceCondition === 'Unsafe' ? UI.brand.danger : UI.text.muted}
+                      />
+                      <Text style={[
+                        styles.safetyText,
+                        {color: app.applianceCondition === 'Safe' ? '#15803d' : app.applianceCondition === 'Unsafe' ? UI.brand.danger : UI.text.muted}
+                      ]}>
+                        {app.applianceCondition || 'N/A'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Service dates */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Service Dates</Text>
+            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
+              <View style={styles.dateRow}>
+                <View style={styles.dateItem}>
+                  <Ionicons name="calendar" size={18} color="#059669" />
+                  <View>
+                    <Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Service Date</Text>
+                    <Text style={[styles.dateValue, isDark && {color: theme.text.title}]}>{srPayload.pdfData.serviceDate}</Text>
+                  </View>
+                </View>
+                <View style={styles.dateItem}>
+                  <Ionicons name="alarm" size={18} color={UI.status.pending} />
+                  <View>
+                    <Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Next Inspection</Text>
+                    <Text style={[styles.dateValue, {color: UI.status.pending}]}>{srPayload.pdfData.nextInspectionDate || '—'}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
       ) : (
         /* Non-CP12 document sections */
         <Animated.View entering={FadeInDown.delay(100).springify()}>
@@ -659,48 +752,33 @@ export default function DocumentDetailScreen() {
         </Animated.View>
       )}
 
-      {/* ─── Action Buttons: Save & Share ──────────────────── */}
+      {/* ─── Action Buttons ──────────────────────────────── */}
       <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.actionsSection}>
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.saveAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleSave}
-            disabled={isBusy}
-            activeOpacity={0.8}
+        <TouchableOpacity
+          style={styles.shareAction}
+          onPress={handleShare}
+          disabled={isBusy}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={isCp12 ? UI.gradients.cp12 : typeConfig.gradient}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 0}}
+            style={styles.shareGradient}
           >
-            {saving ? (
-              <ActivityIndicator color={UI.brand.primary} size="small" />
+            {sharing ? (
+              <ActivityIndicator color={UI.text.white} size="small" />
             ) : (
               <>
-                <Ionicons name="download-outline" size={20} color={UI.brand.primary} />
-                <Text style={[styles.saveActionText, isDark && {color: theme.brand.primary}]}>Save PDF</Text>
+                <Ionicons name="share-outline" size={20} color={UI.text.white} />
+                <Text style={styles.shareActionText}>Share</Text>
               </>
             )}
-          </TouchableOpacity>
+          </LinearGradient>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.shareAction}
-            onPress={handleShare}
-            disabled={isBusy}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={isCp12 ? UI.gradients.cp12 : typeConfig.gradient}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 0}}
-              style={styles.shareGradient}
-            >
-              {sharing ? (
-                <ActivityIndicator color={UI.text.white} size="small" />
-              ) : (
-                <>
-                  <Ionicons name="share-outline" size={20} color={UI.text.white} />
-                  <Text style={styles.shareActionText}>Share</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
-        {!isCp12 ? (
+        {/* View PDF — invoice/quote uses handleViewDocument; gas forms use handleViewCertificate */}
+        {!isGasForm ? (
           <TouchableOpacity
             style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
             onPress={handleViewDocument}
@@ -718,6 +796,7 @@ export default function DocumentDetailScreen() {
           </TouchableOpacity>
         ) : null}
 
+        {/* CP12-specific: edit + duplicate */}
         {isCp12 ? (
           <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleEditCp12} disabled={isBusy}>
             {duplicating ? (
@@ -744,7 +823,8 @@ export default function DocumentDetailScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {isCp12 ? (
+        {/* View + Email buttons — all gas forms */}
+        {isGasForm ? (
           <View style={styles.cp12ExtraActions}>
             <TouchableOpacity style={[styles.secondaryAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleViewCertificate} disabled={isBusy}>
               {viewing ? (
@@ -752,7 +832,9 @@ export default function DocumentDetailScreen() {
               ) : (
                 <>
                   <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
-                  <Text style={styles.secondaryActionText}>View Certificate</Text>
+                  <Text style={styles.secondaryActionText}>
+                    {isCp12 ? 'View Certificate' : isSR ? 'View Service Record' : 'View Document'}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -772,7 +854,9 @@ export default function DocumentDetailScreen() {
 
         <TouchableOpacity style={[styles.deleteAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: '#FCA5A5'}]} onPress={handleDelete} disabled={isBusy}>
           <Ionicons name="trash-outline" size={18} color={Colors.danger} />
-          <Text style={styles.deleteActionText}>Delete {isCp12 ? 'Certificate' : isInvoice ? 'Invoice' : 'Quote'}</Text>
+          <Text style={styles.deleteActionText}>
+            Delete {isCp12 ? 'Certificate' : isSR ? 'Service Record' : isGasForm ? 'Gas Form' : isInvoice ? 'Invoice' : 'Quote'}
+          </Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -784,7 +868,7 @@ export default function DocumentDetailScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, isDark && {backgroundColor: theme.surface.card}]}>
-            <Text style={[styles.modalTitle, isDark && {color: theme.text.title}]}>Send Gas Certificate Email</Text>
+            <Text style={[styles.modalTitle, isDark && {color: theme.text.title}]}>Send Document Email</Text>
             <Text style={[styles.modalSubtitle, isDark && {color: theme.text.muted}]}>Edit the subject line before sending.</Text>
 
             <Text style={[styles.modalLabel, isDark && {color: theme.text.body}]}>Subject</Text>
@@ -828,6 +912,13 @@ export default function DocumentDetailScreen() {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background, padding: 16},
   center: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+  backBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: UI.surface.divider,
+    marginBottom: 12,
+  },
+  backBtnText: {fontSize: 14, fontWeight: '600', color: UI.text.title},
 
   // Header card
   headerCard: {backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, ...Colors.shadow},
@@ -906,21 +997,7 @@ const styles = StyleSheet.create({
 
   // Actions
   actionsSection: {gap: 12, marginTop: 8, marginBottom: 20},
-  actionRow: {flexDirection: 'row', gap: 12},
-  saveAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 16,
-    borderRadius: 14,
-    backgroundColor: UI.surface.primaryLight,
-    borderWidth: 1.5,
-    borderColor: '#C7D2FE',
-  },
-  saveActionText: {color: UI.brand.primary, fontWeight: '700', fontSize: 15},
-  shareAction: {flex: 1, borderRadius: 14, overflow: 'hidden'},
+  shareAction: {borderRadius: 14, overflow: 'hidden'},
   shareGradient: {
     flexDirection: 'row',
     alignItems: 'center',

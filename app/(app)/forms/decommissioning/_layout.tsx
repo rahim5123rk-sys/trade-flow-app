@@ -1,11 +1,11 @@
-import { Stack } from 'expo-router';
+import {Stack} from 'expo-router';
 import React from 'react';
-import { useAppTheme } from '../../../../src/context/ThemeContext';
+import {useAppTheme} from '../../../../src/context/ThemeContext';
 
 export default function DecommissioningLayout() {
-  const { theme } = useAppTheme();
+  const {theme} = useAppTheme();
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.surface.base } }}>
+    <Stack screenOptions={{headerShown: false, contentStyle: {backgroundColor: theme.surface.base}}}>
       <Stack.Screen name="index" />
     </Stack>
   );

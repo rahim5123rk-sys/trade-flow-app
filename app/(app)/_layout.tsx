@@ -1,22 +1,22 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Redirect, Tabs } from 'expo-router';
+import {Ionicons} from '@expo/vector-icons';
+import {Redirect, Tabs} from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
-import { HapticTab } from '../../components/haptic-tab';
-import { UI } from '../../constants/theme';
-import { useAuth } from '../../src/context/AuthContext';
-import { useOfflineMode } from '../../src/context/OfflineContext';
-import { useAppTheme } from '../../src/context/ThemeContext';
+import {ActivityIndicator, Platform, StyleSheet, Text, View} from 'react-native';
+import {HapticTab} from '../../components/haptic-tab';
+import {UI} from '../../constants/theme';
+import {useAuth} from '../../src/context/AuthContext';
+import {useOfflineMode} from '../../src/context/OfflineContext';
+import {useAppTheme} from '../../src/context/ThemeContext';
 
 export default function AppLayout() {
-  const { session, isLoading, role } = useAuth();
-  const { offlineModeEnabled } = useOfflineMode();
-  const { theme, colors, isDark } = useAppTheme();
+  const {session, isLoading, role} = useAuth();
+  const {offlineModeEnabled} = useOfflineMode();
+  const {theme, colors, isDark} = useAppTheme();
   const isAdmin = role === 'admin';
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.surface.base }}>
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.surface.base}}>
         <ActivityIndicator size="large" color={theme.brand.primary} />
       </View>
     );
@@ -27,11 +27,11 @@ export default function AppLayout() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
+    <View style={{flex: 1, backgroundColor: theme.surface.base}}>
       {offlineModeEnabled ? (
-        <View style={[styles.offlineBanner, isDark && { backgroundColor: theme.text.muted }]}>
+        <View style={[styles.offlineBanner, isDark && {backgroundColor: theme.text.muted}]}>
           <Ionicons name="cloud-offline-outline" size={14} color={theme.text.white} />
-          <Text style={[styles.offlineBannerText, { color: theme.text.white }]}>Offline Mode Enabled</Text>
+          <Text style={[styles.offlineBannerText, {color: theme.text.white}]}>Offline Mode Enabled</Text>
         </View>
       ) : null}
 
@@ -43,9 +43,9 @@ export default function AppLayout() {
           tabBarInactiveTintColor: theme.text.muted,
           tabBarShowLabel: true,
           tabBarLabelStyle: styles.tabLabel,
-          tabBarStyle: [styles.tabBar, isDark && { borderTopColor: 'rgba(255,255,255,0.06)' }],
+          tabBarStyle: [styles.tabBar, isDark && {borderTopColor: 'rgba(255,255,255,0.06)'}],
           tabBarBackground: () => (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.surface.base, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]} />
+            <View style={[StyleSheet.absoluteFill, {backgroundColor: theme.surface.base, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}]} />
           ),
         }}
       >
@@ -53,7 +53,7 @@ export default function AppLayout() {
           name="dashboard"
           options={{
             title: 'Home',
-            tabBarIcon: ({ color, focused }) => (
+            tabBarIcon: ({color, focused}) => (
               <Ionicons name={focused ? 'grid' : 'grid-outline'} size={24} color={color} />
             ),
           }}
@@ -63,7 +63,7 @@ export default function AppLayout() {
           name="calendar"
           options={{
             title: 'Calendar',
-            tabBarIcon: ({ color, focused }) => (
+            tabBarIcon: ({color, focused}) => (
               <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
             ),
           }}
@@ -73,7 +73,7 @@ export default function AppLayout() {
           name="jobs"
           options={{
             title: 'Jobs',
-            tabBarIcon: ({ color, focused }) => (
+            tabBarIcon: ({color, focused}) => (
               <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={24} color={color} />
             ),
           }}
@@ -84,24 +84,24 @@ export default function AppLayout() {
           options={{
             title: 'Docs',
             href: isAdmin ? undefined : null,
-            tabBarIcon: ({ color, focused }) => (
+            tabBarIcon: ({color, focused}) => (
               <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={24} color={color} />
             ),
           }}
         />
 
         {/* ─── HIDDEN SCREENS ─── */}
-        <Tabs.Screen name="customers" options={{ href: null }} />
-        <Tabs.Screen name="workers" options={{ href: null }} />
-        <Tabs.Screen name="invoice" options={{ href: null }} />
-        <Tabs.Screen name="quote" options={{ href: null }} />
-        <Tabs.Screen name="settings/index" options={{ href: null }} />
-        <Tabs.Screen name="settings/user-details" options={{ href: null }} />
-        <Tabs.Screen name="settings/company-details" options={{ href: null }} />
-        <Tabs.Screen name="settings/privacy-policy" options={{ href: null }} />
-        <Tabs.Screen name="settings/terms-of-service" options={{ href: null }} />
-        <Tabs.Screen name="cp12" options={{ href: null }} />
-        <Tabs.Screen name="forms" options={{ href: null }} />
+        <Tabs.Screen name="customers" options={{href: null}} />
+        <Tabs.Screen name="workers" options={{href: null}} />
+        <Tabs.Screen name="invoice" options={{href: null}} />
+        <Tabs.Screen name="quote" options={{href: null}} />
+        <Tabs.Screen name="settings/index" options={{href: null}} />
+        <Tabs.Screen name="settings/user-details" options={{href: null}} />
+        <Tabs.Screen name="settings/company-details" options={{href: null}} />
+        <Tabs.Screen name="settings/privacy-policy" options={{href: null}} />
+        <Tabs.Screen name="settings/terms-of-service" options={{href: null}} />
+        <Tabs.Screen name="cp12" options={{href: null}} />
+        <Tabs.Screen name="forms" options={{href: null}} />
       </Tabs>
     </View>
   );

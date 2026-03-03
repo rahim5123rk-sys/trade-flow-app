@@ -4,40 +4,27 @@
 // Covers boilers, fires, cookers/hobs
 // ============================================
 
-export type YesNoNA = 'Yes' | 'No' | 'N/A' | '';
-export type PassFailNA = 'Pass' | 'Fail' | 'N/A' | '';
-export type SafeUnsafe = 'Safe' | 'Unsafe' | '';
+import type {
+    ApplianceCategory,
+    BoilerType,
+    FGAReadings,
+    FlueType,
+    FuelType,
+    PassFailNA,
+    SafeUnsafe,
+    YesNoNA,
+} from './gasForms';
 
-export type ApplianceCategory = 'Boiler' | 'Fire' | 'Cooker' | 'Hob' | 'Other' | '';
-
-export type FlueType =
-  | ''
-  | 'Balanced Flue'
-  | 'Room Sealed'
-  | 'Open Flue'
-  | 'Flu-less'
-  | 'Conventional Flue'
-  | 'Fanned Flue';
-
-export type BoilerType =
-  | ''
-  | 'Combi'
-  | 'System'
-  | 'Regular (Heat Only)'
-  | 'Back Boiler';
-
-export type FuelType =
-  | ''
-  | 'Natural Gas'
-  | 'LPG';
-
-// ─── FGA Readings (shared with CP12) ───────────────────────────
-
-export interface FGAReadings {
-  co: string;
-  co2: string;
-  ratio: string;
-}
+export type {
+    ApplianceCategory,
+    BoilerType,
+    FGAReadings,
+    FlueType,
+    FuelType,
+    PassFailNA,
+    SafeUnsafe,
+    YesNoNA
+};
 
 // ─── Service appliance fields ───────────────────────────────────
 
@@ -79,6 +66,7 @@ export interface ServiceAppliance {
   thermistorChecked: YesNoNA;
   pumpChecked: YesNoNA;
   expansionVesselChecked: YesNoNA;
+  expansionVesselRecharged: YesNoNA;
   flueChecked: YesNoNA;
   sealsGasketsChecked: YesNoNA;
   ventilationAdequate: YesNoNA;
@@ -90,6 +78,8 @@ export interface ServiceAppliance {
 
   // ── Parts replaced ──
   partsReplaced: string;
+  defectsFound: string;
+  remedialActionTaken: string;
 
   // ── Condition & outcome ──
   applianceCondition: SafeUnsafe;
@@ -114,7 +104,8 @@ export interface ServiceFinalInfo {
 
 // ─── Empty defaults ─────────────────────────────────────────────
 
-export const EMPTY_FGA: FGAReadings = { co: '', co2: '', ratio: '' };
+export { EMPTY_FGA } from './gasForms';
+import { EMPTY_FGA } from './gasForms';
 
 export const EMPTY_SERVICE_APPLIANCE: Omit<ServiceAppliance, 'id'> = {
   category: '',
@@ -145,6 +136,7 @@ export const EMPTY_SERVICE_APPLIANCE: Omit<ServiceAppliance, 'id'> = {
   thermistorChecked: '',
   pumpChecked: '',
   expansionVesselChecked: '',
+  expansionVesselRecharged: '',
   flueChecked: '',
   sealsGasketsChecked: '',
   ventilationAdequate: '',
@@ -152,6 +144,8 @@ export const EMPTY_SERVICE_APPLIANCE: Omit<ServiceAppliance, 'id'> = {
   spillageTest: '',
   flueFlowTest: '',
   partsReplaced: '',
+  defectsFound: '',
+  remedialActionTaken: '',
   applianceCondition: '',
   recommendedWork: '',
   engineerNotes: '',

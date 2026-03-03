@@ -3,9 +3,9 @@
 // Forms Hub – Browse & create gas forms
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router} from 'expo-router';
 import React from 'react';
 import {
   Platform,
@@ -15,11 +15,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UI } from '../../../constants/theme';
-import { useAppTheme } from '../../../src/context/ThemeContext';
-import { FORM_REGISTRY, FormDefinition } from '../../../src/types/forms';
+import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {UI} from '../../../constants/theme';
+import {useAppTheme} from '../../../src/context/ThemeContext';
+import {FORM_REGISTRY, FormDefinition} from '../../../src/types/forms';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
@@ -46,7 +46,7 @@ function FormCard({
       <TouchableOpacity
         style={[
           styles.card,
-          isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' },
+          isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'},
           !form.available && styles.cardDisabled,
         ]}
         onPress={handlePress}
@@ -55,9 +55,9 @@ function FormCard({
         <View style={styles.cardRow}>
           <LinearGradient
             colors={form.gradient as [string, string]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.iconCircle, !form.available && { opacity: 0.4 }]}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 1}}
+            style={[styles.iconCircle, !form.available && {opacity: 0.4}]}
           >
             <Ionicons
               name={form.icon as any}
@@ -71,15 +71,15 @@ function FormCard({
               <Text
                 style={[
                   styles.cardTitle,
-                  isDark && { color: theme.text.title },
-                  !form.available && { opacity: 0.5 },
+                  isDark && {color: theme.text.title},
+                  !form.available && {opacity: 0.5},
                 ]}
                 numberOfLines={1}
               >
                 {form.shortLabel}
               </Text>
               {!form.available && (
-                <View style={[styles.comingSoonBadge, isDark && { backgroundColor: theme.surface.elevated }]}>
+                <View style={[styles.comingSoonBadge, isDark && {backgroundColor: theme.surface.elevated}]}>
                   <Text style={styles.comingSoonText}>Coming Soon</Text>
                 </View>
               )}
@@ -87,8 +87,8 @@ function FormCard({
             <Text
               style={[
                 styles.cardDescription,
-                isDark && { color: theme.text.muted },
-                !form.available && { opacity: 0.5 },
+                isDark && {color: theme.text.muted},
+                !form.available && {opacity: 0.5},
               ]}
               numberOfLines={2}
             >
@@ -97,7 +97,7 @@ function FormCard({
             <View style={styles.cardMeta}>
               <View style={styles.metaChip}>
                 <Ionicons name="layers-outline" size={12} color={form.available ? form.color : UI.text.muted} />
-                <Text style={[styles.metaText, form.available && { color: form.color }]}>
+                <Text style={[styles.metaText, form.available && {color: form.color}]}>
                   {form.stepsCount} steps
                 </Text>
               </View>
@@ -120,14 +120,14 @@ function FormCard({
 // ─── Main screen ────────────────────────────────────────────────
 
 export default function FormsHubScreen() {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const availableForms = FORM_REGISTRY.filter((f) => f.available);
   const comingSoonForms = FORM_REGISTRY.filter((f) => !f.available);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={[styles.root, {paddingTop: insets.top}]}>
       <LinearGradient
         colors={theme.gradients.appBackground}
         style={StyleSheet.absoluteFill}
@@ -135,7 +135,7 @@ export default function FormsHubScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 40 }}
+        contentContainerStyle={{paddingBottom: TAB_BAR_HEIGHT + 40}}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -143,7 +143,7 @@ export default function FormsHubScreen() {
           <TouchableOpacity
             style={[
               styles.backBtn,
-              isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border },
+              isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border},
             ]}
             onPress={() => router.back()}
             activeOpacity={0.7}
@@ -151,8 +151,8 @@ export default function FormsHubScreen() {
             <Ionicons name="chevron-back" size={20} color={theme.brand.primary} />
           </TouchableOpacity>
           <View>
-            <Text style={[styles.title, { color: theme.text.title }]}>Gas Forms</Text>
-            <Text style={[styles.subtitle, { color: theme.text.muted }]}>
+            <Text style={[styles.title, {color: theme.text.title}]}>Gas Forms</Text>
+            <Text style={[styles.subtitle, {color: theme.text.muted}]}>
               Create certificates, notices & reports
             </Text>
           </View>
@@ -161,7 +161,7 @@ export default function FormsHubScreen() {
         {/* Available forms */}
         {availableForms.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>
+            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>
               Available
             </Text>
             {availableForms.map((form, i) => (
@@ -173,7 +173,7 @@ export default function FormsHubScreen() {
         {/* Coming soon forms */}
         {comingSoonForms.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && { color: theme.text.muted }]}>
+            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>
               Coming Soon
             </Text>
             {comingSoonForms.map((form, i) => (
@@ -195,8 +195,8 @@ export default function FormsHubScreen() {
 // ─── Styles ─────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { paddingHorizontal: 20 },
+  root: {flex: 1},
+  scroll: {paddingHorizontal: 20},
 
   // Header
   header: {
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
 
   // Sections
-  section: { marginBottom: 20 },
+  section: {marginBottom: 20},
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
@@ -247,12 +247,12 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
-  cardDisabled: { opacity: 0.85 },
+  cardDisabled: {opacity: 0.85},
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardContent: { flex: 1 },
+  cardContent: {flex: 1},
   cardTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -3,9 +3,9 @@
 // Step 1 – Customer & Property Details
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router} from 'expo-router';
 import React from 'react';
 import {
   Alert,
@@ -18,12 +18,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CustomerSelector } from '../../../../components/CustomerSelector';
-import { Colors, UI } from '../../../../constants/theme';
-import { useServiceRecord } from '../../../../src/context/ServiceRecordContext';
-import { useAppTheme } from '../../../../src/context/ThemeContext';
+import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {CustomerSelector} from '../../../../components/CustomerSelector';
+import {Colors, UI} from '../../../../constants/theme';
+import {useServiceRecord} from '../../../../src/context/ServiceRecordContext';
+import {useAppTheme} from '../../../../src/context/ThemeContext';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -31,10 +31,10 @@ const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
 // ─── Step indicator ─────────────────────────────────────────────
 
-const StepIndicator = ({ current }: { current: number }) => {
-  const { isDark, theme } = useAppTheme();
+const StepIndicator = ({current}: {current: number}) => {
+  const {isDark, theme} = useAppTheme();
   return (
-    <View style={[s.stepRow, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+    <View style={[s.stepRow, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
       {['Details', 'Service', 'Review'].map((label, i) => {
         const step = i + 1;
         const isActive = step === current;
@@ -48,15 +48,15 @@ const StepIndicator = ({ current }: { current: number }) => {
                 <Text
                   style={[
                     s.stepDotText,
-                    (isActive || isDone) && { color: UI.text.white },
-                    isDark && !isActive && !isDone && { color: theme.text.muted },
+                    (isActive || isDone) && {color: UI.text.white},
+                    isDark && !isActive && !isDone && {color: theme.text.muted},
                   ]}
                 >
                   {step}
                 </Text>
               )}
             </View>
-            <Text style={[s.stepLabel, isActive ? { color: theme.brand.primary } : isDark && { color: theme.text.muted }]}>
+            <Text style={[s.stepLabel, isActive ? {color: theme.brand.primary} : isDark && {color: theme.text.muted}]}>
               {label}
             </Text>
           </View>
@@ -90,18 +90,18 @@ const FormInput = ({
   theme?: any;
 }) => (
   <View style={s.inputContainer}>
-    <Text style={[s.inputLabel, isDark && theme && { color: theme.text.bodyLight }]}>{label}</Text>
-    <View style={[s.inputWrapper, isDark && theme && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
+    <Text style={[s.inputLabel, isDark && theme && {color: theme.text.bodyLight}]}>{label}</Text>
+    <View style={[s.inputWrapper, isDark && theme && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
       {icon && (
         <Ionicons
           name={icon}
           size={18}
           color={isDark && theme ? theme.text.muted : UI.text.muted}
-          style={{ marginRight: 10 }}
+          style={{marginRight: 10}}
         />
       )}
       <TextInput
-        style={[s.input, isDark && theme && { color: theme.text.title }]}
+        style={[s.input, isDark && theme && {color: theme.text.title}]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
@@ -117,7 +117,7 @@ const FormInput = ({
 // ─── Main screen ────────────────────────────────────────────────
 
 export default function ServiceRecordDetailsScreen() {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const {
     customerForm,
@@ -161,19 +161,19 @@ export default function ServiceRecordDetailsScreen() {
     <View style={s.root}>
       <LinearGradient
         colors={theme.gradients.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
         style={StyleSheet.absoluteFill}
       />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{flex: 1}}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={[
             s.scroll,
-            { paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + 100 },
+            {paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + 100},
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -182,14 +182,14 @@ export default function ServiceRecordDetailsScreen() {
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={[s.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+              style={[s.backBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
               activeOpacity={0.7}
             >
               <Ionicons name="arrow-back" size={22} color={theme.text.title} />
             </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.title, { color: theme.text.title }]}>Service Record</Text>
-              <Text style={[s.subtitle, { color: theme.text.muted }]}>Gas Appliance Service & Maintenance</Text>
+            <View style={{flex: 1}}>
+              <Text style={[s.title, {color: theme.text.title}]}>Service Record</Text>
+              <Text style={[s.subtitle, {color: theme.text.muted}]}>Gas Appliance Service & Maintenance</Text>
             </View>
           </Animated.View>
 
@@ -201,7 +201,7 @@ export default function ServiceRecordDetailsScreen() {
               <LinearGradient colors={['#059669', '#10B981']} style={s.sectionIcon}>
                 <Ionicons name="person" size={16} color={UI.text.white} />
               </LinearGradient>
-              <Text style={[s.sectionTitle, { color: theme.text.title }]}>Customer Details</Text>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Customer Details</Text>
             </View>
 
             <CustomerSelector
@@ -216,15 +216,15 @@ export default function ServiceRecordDetailsScreen() {
 
           {/* Property Address */}
           <Animated.View entering={FadeInDown.delay(250).springify()}>
-            <View style={[s.sectionHeader, { marginTop: 24 }]}>
+            <View style={[s.sectionHeader, {marginTop: 24}]}>
               <LinearGradient colors={['#059669', '#10B981']} style={s.sectionIcon}>
                 <Ionicons name="home" size={16} color={UI.text.white} />
               </LinearGradient>
-              <Text style={[s.sectionTitle, { color: theme.text.title }]}>Property Address</Text>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Property Address</Text>
             </View>
 
-            <View style={[s.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
-              <Text style={[s.hintText, { color: theme.text.muted }]}>
+            <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+              <Text style={[s.hintText, {color: theme.text.muted}]}>
                 Address of the property where the service was carried out. Address Line 1, City and Postcode are required.
               </Text>
 
@@ -248,7 +248,7 @@ export default function ServiceRecordDetailsScreen() {
               />
 
               <View style={s.row}>
-                <View style={{ flex: 1 }}>
+                <View style={{flex: 1}}>
                   <FormInput
                     label="City / Town *"
                     value={propertyCity}
@@ -259,7 +259,7 @@ export default function ServiceRecordDetailsScreen() {
                     theme={theme}
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{flex: 1}}>
                   <FormInput
                     label="Postcode *"
                     value={propertyPostCode}
@@ -296,13 +296,13 @@ export default function ServiceRecordDetailsScreen() {
         {/* Bottom CTA */}
         <Animated.View
           entering={FadeIn.delay(500)}
-          style={[s.bottomBar, { bottom: TAB_BAR_HEIGHT, paddingBottom: 12 }, isDark && { backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)' }]}
+          style={[s.bottomBar, {bottom: TAB_BAR_HEIGHT, paddingBottom: 12}, isDark && {backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)'}]}
         >
           <TouchableOpacity style={s.nextBtn} activeOpacity={0.85} onPress={handleNext}>
             <LinearGradient
               colors={['#059669', '#10B981']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 0}}
               style={s.nextGradient}
             >
               <Text style={s.nextText}>Next: Service Details</Text>
@@ -318,55 +318,55 @@ export default function ServiceRecordDetailsScreen() {
 // ─── Styles ─────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { paddingHorizontal: 20 },
+  root: {flex: 1},
+  scroll: {paddingHorizontal: 20},
 
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
+  header: {flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12},
   backBtn: {
     width: 40, height: 40, borderRadius: 14,
     backgroundColor: GLASS_BG, borderWidth: 1, borderColor: GLASS_BORDER,
     justifyContent: 'center', alignItems: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2 },
+  title: {fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5},
+  subtitle: {fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2},
 
   stepRow: {
     flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 24,
     paddingVertical: 14, backgroundColor: GLASS_BG, borderRadius: 16,
     borderWidth: 1, borderColor: GLASS_BORDER,
   },
-  stepItem: { alignItems: 'center', gap: 6 },
+  stepItem: {alignItems: 'center', gap: 6},
   stepDot: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: UI.surface.divider, justifyContent: 'center', alignItems: 'center',
   },
-  stepDotActive: { backgroundColor: '#059669' },
-  stepDotDone: { backgroundColor: UI.status.complete },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: UI.text.muted },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted },
+  stepDotActive: {backgroundColor: '#059669'},
+  stepDotDone: {backgroundColor: UI.status.complete},
+  stepDotText: {fontSize: 12, fontWeight: '700', color: UI.text.muted},
+  stepLabel: {fontSize: 11, fontWeight: '600', color: UI.text.muted},
 
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  sectionHeader: {flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12},
   sectionIcon: {
     width: 32, height: 32, borderRadius: 10,
     justifyContent: 'center', alignItems: 'center',
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: UI.text.title },
+  sectionTitle: {fontSize: 17, fontWeight: '700', color: UI.text.title},
 
   card: {
     backgroundColor: GLASS_BG, borderRadius: 18, borderWidth: 1, borderColor: GLASS_BORDER,
     padding: 16, shadowColor: UI.text.muted,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
+    shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
 
-  inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6 },
+  inputContainer: {marginBottom: 14},
+  inputLabel: {fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6},
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: UI.surface.base, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
-  input: { flex: 1, fontSize: 15, color: UI.text.title, padding: 0 },
-  row: { flexDirection: 'row', gap: 10 },
+  input: {flex: 1, fontSize: 15, color: UI.text.title, padding: 0},
+  row: {flexDirection: 'row', gap: 10},
 
   hintText: {
     fontSize: 12, color: UI.text.muted, fontWeight: '500', marginBottom: 14, lineHeight: 18,
@@ -377,14 +377,14 @@ const s = StyleSheet.create({
     alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 12,
     borderRadius: 10, backgroundColor: UI.surface.primaryLight, marginTop: 2,
   },
-  autofillText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
+  autofillText: {fontSize: 12, fontWeight: '600', color: Colors.primary},
 
   previewRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 12, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: UI.surface.elevated,
   },
-  previewText: { fontSize: 13, color: UI.text.bodyLight, fontWeight: '500', flex: 1 },
+  previewText: {fontSize: 13, color: UI.text.bodyLight, fontWeight: '500', flex: 1},
 
   bottomBar: {
     position: 'absolute', left: 0, right: 0,
@@ -392,10 +392,10 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(248,250,252,0.92)',
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.06)',
   },
-  nextBtn: { borderRadius: 16, overflow: 'hidden' },
+  nextBtn: {borderRadius: 16, overflow: 'hidden'},
   nextGradient: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 16, gap: 8,
   },
-  nextText: { fontSize: 16, fontWeight: '700', color: UI.text.white },
+  nextText: {fontSize: 16, fontWeight: '700', color: UI.text.white},
 });

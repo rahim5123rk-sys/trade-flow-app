@@ -4,13 +4,12 @@
 // ============================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useState } from 'react';
-import { CustomerFormData, EMPTY_CUSTOMER_FORM } from '../../components/CustomerSelector';
+import React, {createContext, useCallback, useContext, useState} from 'react';
+import {CustomerFormData, EMPTY_CUSTOMER_FORM} from '../../components/CustomerSelector';
 import {
-  EMPTY_SERVICE_APPLIANCE,
   EMPTY_SERVICE_FINAL_INFO,
   ServiceAppliance,
-  ServiceFinalInfo,
+  ServiceFinalInfo
 } from '../types/serviceRecord';
 
 const DRAFT_KEY = 'service_record_draft_v1';
@@ -24,6 +23,7 @@ interface ServiceRecordState {
   appliances: ServiceAppliance[];
   finalInfo: ServiceFinalInfo;
   serviceDate: string;
+  nextInspectionDate: string;
   customerSignature: string;
   certRef: string;
 }
@@ -40,6 +40,7 @@ interface ServiceRecordContextValue extends ServiceRecordState {
   removeAppliance: (id: string) => void;
   setFinalInfo: (f: ServiceFinalInfo) => void;
   setServiceDate: (v: string) => void;
+  setNextInspectionDate: (v: string) => void;
   setCustomerSignature: (v: string) => void;
   setCertRef: (v: string) => void;
   editingDocumentId: string | null;
@@ -49,7 +50,7 @@ interface ServiceRecordContextValue extends ServiceRecordState {
 
 const ServiceRecordContext = createContext<ServiceRecordContextValue | null>(null);
 
-export function ServiceRecordProvider({ children }: { children: React.ReactNode }) {
+export function ServiceRecordProvider({children}: {children: React.ReactNode}) {
   const [customerForm, setCustomerForm] = useState<CustomerFormData>(EMPTY_CUSTOMER_FORM);
   const [propertyAddressLine1, setPropertyAddressLine1] = useState('');
   const [propertyAddressLine2, setPropertyAddressLine2] = useState('');
@@ -60,6 +61,7 @@ export function ServiceRecordProvider({ children }: { children: React.ReactNode 
 
   const todayStr = new Date().toLocaleDateString('en-GB');
   const [serviceDate, setServiceDate] = useState(todayStr);
+  const [nextInspectionDate, setNextInspectionDate] = useState('');
   const [customerSignature, setCustomerSignature] = useState('');
   const [certRef, setCertRef] = useState('');
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export function ServiceRecordProvider({ children }: { children: React.ReactNode 
     .join(', ');
 
   const addAppliance = useCallback((a: ServiceAppliance) => {
-    setAppliances((prev) => [...prev, a]);
+    setAppliances([a]);
   }, []);
 
   const updateAppliance = useCallback((id: string, a: ServiceAppliance) => {
@@ -89,6 +91,7 @@ export function ServiceRecordProvider({ children }: { children: React.ReactNode 
     setAppliances([]);
     setFinalInfo(EMPTY_SERVICE_FINAL_INFO);
     setServiceDate(new Date().toLocaleDateString('en-GB'));
+    setNextInspectionDate('');
     setCustomerSignature('');
     setCertRef('');
     setEditingDocumentId(null);
@@ -117,6 +120,8 @@ export function ServiceRecordProvider({ children }: { children: React.ReactNode 
         setFinalInfo,
         serviceDate,
         setServiceDate,
+        nextInspectionDate,
+        setNextInspectionDate,
         customerSignature,
         setCustomerSignature,
         certRef,

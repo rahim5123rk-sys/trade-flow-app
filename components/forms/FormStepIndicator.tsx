@@ -3,25 +3,25 @@
 // Reusable step indicator for all form flows
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
+import {Ionicons} from '@expo/vector-icons';
 import React from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
-import { UI } from '../../constants/theme';
-import { useAppTheme } from '../../src/context/ThemeContext';
+import {StyleSheet, Text, View} from 'react-native';
+import {UI} from '../../constants/theme';
+import {useAppTheme} from '../../src/context/ThemeContext';
 
 interface FormStepIndicatorProps {
   steps: string[];
   current: number; // 1-based
 }
 
-export function FormStepIndicator({ steps, current }: FormStepIndicatorProps) {
-  const { isDark, theme } = useAppTheme();
+export function FormStepIndicator({steps, current}: FormStepIndicatorProps) {
+  const {isDark, theme} = useAppTheme();
 
   return (
     <View
       style={[
         styles.stepRow,
-        isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border },
+        isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border},
       ]}
     >
       {steps.map((label, i) => {
@@ -43,8 +43,8 @@ export function FormStepIndicator({ steps, current }: FormStepIndicatorProps) {
                 <Text
                   style={[
                     styles.stepDotText,
-                    (isActive || isDone) && { color: UI.text.white },
-                    isDark && !isActive && !isDone && { color: theme.text.muted },
+                    (isActive || isDone) && {color: UI.text.white},
+                    isDark && !isActive && !isDone && {color: theme.text.muted},
                   ]}
                 >
                   {step}
@@ -54,7 +54,7 @@ export function FormStepIndicator({ steps, current }: FormStepIndicatorProps) {
             <Text
               style={[
                 styles.stepLabel,
-                isActive ? { color: theme.brand.primary } : isDark && { color: theme.text.muted },
+                isActive ? {color: theme.brand.primary} : isDark && {color: theme.text.muted},
               ]}
             >
               {label}
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: GLASS_BORDER,
   },
-  stepItem: { alignItems: 'center', gap: 6 },
+  stepItem: {alignItems: 'center', gap: 6},
   stepDot: {
     width: 28,
     height: 28,
@@ -90,8 +90,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  stepDotActive: { backgroundColor: UI.brand.primary },
-  stepDotDone: { backgroundColor: UI.status.complete },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: UI.text.muted },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted },
+  stepDotActive: {backgroundColor: UI.brand.primary},
+  stepDotDone: {backgroundColor: UI.status.complete},
+  stepDotText: {fontSize: 12, fontWeight: '700', color: UI.text.muted},
+  stepLabel: {fontSize: 11, fontWeight: '600', color: UI.text.muted},
 });

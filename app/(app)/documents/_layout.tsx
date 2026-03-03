@@ -18,18 +18,7 @@ export default function DocumentsLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen
-        name="[id]"
-        options={{
-          headerShown: true,
-          title: 'Document Details',
-          headerTintColor: theme.brand.primary,
-          headerStyle: { backgroundColor: theme.surface.base },
-          headerTitleStyle: { color: theme.text.title },
-          headerShadowVisible: !isDark,
-          headerBackTitle: '',
-        }}
-      />
+      <Stack.Screen name="[id]" options={{headerShown: false}} />
     </Stack>
   );
 }

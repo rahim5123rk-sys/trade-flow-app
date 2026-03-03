@@ -3,18 +3,18 @@
 // Warning Notice multi-step layout (scaffold)
 // ============================================
 
-import { Stack } from 'expo-router';
+import {Stack} from 'expo-router';
 import React from 'react';
-import { useAppTheme } from '../../../../src/context/ThemeContext';
+import {useAppTheme} from '../../../../src/context/ThemeContext';
 
 export default function WarningNoticeLayout() {
-  const { theme } = useAppTheme();
+  const {theme} = useAppTheme();
 
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: theme.surface.base },
+        contentStyle: {backgroundColor: theme.surface.base},
       }}
     >
       <Stack.Screen name="index" />

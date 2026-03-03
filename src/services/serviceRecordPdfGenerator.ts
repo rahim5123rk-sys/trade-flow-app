@@ -1,23 +1,30 @@
 // ============================================
 // FILE: src/services/serviceRecordPdfGenerator.ts
 // Gas Service Record PDF generator
-// Uses same slate/charcoal A4 landscape styling as CP12
+//
+// Uses shared PDF infrastructure from ./pdf/shared.ts
+// Only contains the service-record-specific HTML body layout.
 // ============================================
 
-import { Asset } from 'expo-asset';
-import * as LegacyFileSystem from 'expo-file-system/legacy';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { Image, Platform } from 'react-native';
-import { supabase } from '../config/supabase';
 import {
-  ApplianceCategory,
-  ServiceAppliance,
-  ServiceFinalInfo,
+    ApplianceCategory,
+    ServiceAppliance,
+    ServiceFinalInfo,
 } from '../types/serviceRecord';
-import { escapeHtml } from '../utils/escapeHtml';
-import { getSignedUrl, uploadPdfBase64AndGetUrl } from './storage';
-import type { CompanyInfo, EngineerInfo } from './cp12PdfGenerator';
+import { registerFormPdf } from './pdf/registry';
+import {
+    type BaseLockedPayload,
+    checkInH,
+    type CompanyInfo,
+    type EngineerInfo,
+    esc,
+    generatePdfBase64FromPayload,
+    generatePdfFromPayload,
+    generatePdfUrlFromPayload,
+    getBaseCss,
+    getCompanyAndEngineer,
+    tickH,
+} from './pdf/shared';
 
 // ─── Data contract ──────────────────────────────────────────────
 
@@ -31,123 +38,17 @@ export interface ServiceRecordPdfData {
   appliances: ServiceAppliance[];
   finalInfo: ServiceFinalInfo;
   serviceDate: string;
+  nextInspectionDate: string;
   customerSignature: string;
   certRef: string;
 }
 
-export interface ServiceRecordLockedPayload {
+export interface ServiceRecordLockedPayload extends BaseLockedPayload<'service_record', ServiceRecordPdfData> {
   kind: 'service_record';
   version: 1;
-  savedAt: string;
-  pdfData: ServiceRecordPdfData;
-  company: CompanyInfo;
-  engineer: EngineerInfo;
 }
 
-// ─── Shared asset helpers ───────────────────────────────────────
-
-function getMimeTypeFromUri(uri: string): string {
-  const lower = uri.toLowerCase();
-  if (lower.endsWith('.png')) return 'image/png';
-  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-  if (lower.endsWith('.webp')) return 'image/webp';
-  return 'image/png';
-}
-
-async function getImageDataUriFromUri(uri: string): Promise<string> {
-  const base64 = await LegacyFileSystem.readAsStringAsync(uri, {
-    encoding: 'base64' as any,
-  });
-  return `data:${getMimeTypeFromUri(uri)};base64,${base64}`;
-}
-
-async function getGasSafeLogoBase64(): Promise<string> {
-  try {
-    const moduleRef = require('../../assets/images/gaslogo.png');
-    const asset = Asset.fromModule(moduleRef);
-    if (!asset.localUri) await asset.downloadAsync();
-    const uri = asset.localUri || Image.resolveAssetSource(moduleRef).uri;
-    if (!uri) return '';
-    return await getImageDataUriFromUri(uri);
-  } catch {
-    return '';
-  }
-}
-
-async function getCompanyLogoSrc(companyLogoUrl: string): Promise<string> {
-  if (!companyLogoUrl) return '';
-  return companyLogoUrl;
-}
-
-async function getLatestCompanyLogoUrl(
-  companyId?: string,
-  fallbackLogoUrl = '',
-): Promise<string> {
-  if (!companyId) return fallbackLogoUrl;
-  try {
-    const { data } = await supabase
-      .from('companies')
-      .select('logo_url')
-      .eq('id', companyId)
-      .single();
-    if (!data?.logo_url) return '';
-    return await getSignedUrl(data.logo_url);
-  } catch {
-    return fallbackLogoUrl;
-  }
-}
-
-async function getCompanyAndEngineer(
-  companyId: string,
-  userId: string,
-): Promise<{ company: CompanyInfo; engineer: EngineerInfo }> {
-  const { data } = await supabase
-    .from('companies')
-    .select('*')
-    .eq('id', companyId)
-    .single();
-  const s = data?.settings || {};
-  const userDetails = s.userDetailsById?.[userId] || {};
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name')
-    .eq('id', userId)
-    .single();
-  return {
-    company: {
-      name: data?.name || '',
-      email: data?.email || '',
-      phone: data?.phone || '',
-      address: data?.address || '',
-      logoUrl: data?.logo_url ? await getSignedUrl(data.logo_url) : '',
-      signatureBase64: s.signatureBase64 || '',
-    },
-    engineer: {
-      name: profile?.display_name || '',
-      gasSafeNumber: userDetails.gasSafeRegisterNumber || '',
-      gasLicenceNumber: userDetails.gasLicenceNumber || '',
-    },
-  };
-}
-
-// ─── Tiny helpers ───────────────────────────────────────────────
-
-const esc = (v: unknown): string => escapeHtml(v);
-
-const tickH = (val: string): string => {
-  if (!val) return '';
-  if (val === 'Yes' || val === 'Pass') return '<span style="color:#16a34a;font-weight:800;">✓</span>';
-  if (val === 'No' || val === 'Fail') return '<span style="color:#dc2626;font-weight:800;">✗</span>';
-  return '<span style="color:#6b7280;">N/A</span>';
-};
-
-const checkInH = (val: string, col: 'Yes' | 'No' | 'N/A'): string => {
-  if (!val) return '';
-  if (col === 'Yes' && (val === 'Yes' || val === 'Pass')) return '<span style="color:#16a34a;font-weight:800;font-size:10pt;">✓</span>';
-  if (col === 'No' && (val === 'No' || val === 'Fail')) return '<span style="color:#dc2626;font-weight:800;font-size:10pt;">✗</span>';
-  if (col === 'N/A' && val === 'N/A') return '<span style="color:#9ca3af;font-weight:700;font-size:7pt;">N/A</span>';
-  return '';
-};
+// ─── Service-record-specific helpers ────────────────────────────
 
 const conditionBadge = (val: string): string => {
   if (val === 'Safe') return '<span style="background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:3px;font-weight:700;font-size:6pt;">SAFE</span>';
@@ -185,6 +86,7 @@ function getComponentCheckRows(a: ServiceAppliance): Array<{ label: string; val:
       { label: 'Thermistor', val: a.thermistorChecked },
       { label: 'Pump', val: a.pumpChecked },
       { label: 'Expansion Vessel', val: a.expansionVesselChecked },
+      { label: 'Expansion Vessel Recharged', val: a.expansionVesselRecharged },
       ...base.slice(4),
     ];
   }
@@ -209,7 +111,7 @@ function buildHtml(
   gasSafeLogoBase64 = '',
   companyLogoSrc = '',
 ): string {
-  const apps = data.appliances;
+  const appliance = data.appliances[0];
   const fi = data.finalInfo;
 
   // Parse property address parts
@@ -232,8 +134,10 @@ function buildHtml(
   const custLine1 = custParts[0] || data.customerAddress || '';
   const custLine2 = custParts.length > 1 ? custParts.slice(1).join(', ') : '';
 
-  // ── Build per-appliance detail blocks ──
-  const applianceBlocks = apps.map((a, idx) => {
+  // ── Build appliance detail block (single appliance) ──
+  const applianceBlocks = appliance ? (() => {
+    const a = appliance;
+    const idx = 0;
     const checks = getComponentCheckRows(a);
     // Build pairs for 2-column layout
     const checkPairs: Array<[{ label: string; val: string }, { label: string; val: string } | null]> = [];
@@ -327,130 +231,33 @@ function buildHtml(
       <tr>
         <th style="width:15%;">Parts Replaced</th>
         <td style="width:35%;">${esc(a.partsReplaced)}</td>
-        <th style="width:15%;">Recommended Work</th>
-        <td style="width:35%;">${esc(a.recommendedWork)}</td>
+        <th style="width:15%;">Defects Found</th>
+        <td style="width:35%;">${esc(a.defectsFound)}</td>
+      </tr>
+      <tr>
+        <th>Remedial Action Taken</th>
+        <td>${esc(a.remedialActionTaken)}</td>
+        <th>Recommended Work</th>
+        <td>${esc(a.recommendedWork)}</td>
       </tr>
       ${a.engineerNotes ? `<tr><th>Engineer Notes</th><td colspan="3">${esc(a.engineerNotes)}</td></tr>` : ''}
     </table>
     `;
-  }).join('\n');
+  })() : `
+    <table class="mt">
+      <tr><td class="shdr" colspan="8">Appliance Details</td></tr>
+      <tr><td style="padding:8px;text-align:center;">No appliance details recorded.</td></tr>
+    </table>
+  `;
 
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8"/>
 <style>
-  @page { margin: 0; size: A4 landscape; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  ${getBaseCss()}
 
-  html, body {
-    width: 297mm;
-    margin: 0; padding: 0;
-  }
-
-  body {
-    font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
-    font-size: 7pt;
-    line-height: 1.2;
-    color: #111827;
-    background: #fff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .page {
-    width: 100%;
-    padding: 3mm;
-    display: flex;
-    flex-direction: column;
-  }
-
-  table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
-  td, th {
-    border: 0.5px solid #d1d5db;
-    padding: 2px 4px;
-    vertical-align: middle;
-    font-size: 6pt;
-  }
-  th {
-    background: #334155;
-    color: #fff;
-    font-weight: 700;
-    font-size: 5.5pt;
-    text-transform: uppercase;
-    letter-spacing: 0.2px;
-    text-align: left;
-  }
-  td { background: #fff; }
-
-  .label-cell {
-    background: #f1f5f9;
-    font-weight: 600;
-    color: #1e293b;
-    width: 32%;
-    font-size: 5.5pt;
-  }
-  .value-cell {
-    background: #fff;
-    color: #111827;
-    font-size: 6pt;
-  }
-
-  .shdr {
-    background: linear-gradient(90deg, #334155 0%, #475569 100%);
-    color: #fff;
-    font-weight: 700;
-    font-size: 6.5pt;
-    text-align: center;
-    text-transform: uppercase;
-    padding: 3px 6px;
-    letter-spacing: 0.5px;
-  }
-
-  .cl td, .cl th { font-size: 6pt; text-align: center; }
-  .cl .lbl { text-align: left; font-weight: 400; color: #374151; }
-  .cl .cnum { width: 16px; text-align: center; background: #e2e8f0; font-weight: 700; color: #334155; font-size: 5.5pt; }
-  .cl .yna { width: 26px; }
-
-  .flt th { font-size: 5.5pt; font-weight: 600; background: #f1f5f9; color: #1e293b; vertical-align: top; width: 18%; }
-  .flt td { font-size: 6pt; background: #fff; min-height: 12px; vertical-align: top; }
-  .flt tr.tall-row th,
-  .flt tr.tall-row td { height: 22px; }
-
-  .sig-img { height: 38px; max-width: 100%; display: block; margin: 0 auto; }
-  .sig-hdr { background: #f1f5f9; color: #1e293b; font-size: 6pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
-
-  .certbox {
-    background: #f1f5f9 !important;
-    font-weight: 800;
-    font-size: 8pt;
-    text-align: center;
-    color: #334155;
-    vertical-align: middle;
-  }
-  .certbox-label {
-    font-size: 5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #1e293b;
-    display: block;
-    margin-bottom: 2px;
-  }
-
-  .warn {
-    border: 1px solid #fca5a5;
-    background: #fff7f7;
-    text-align: center;
-    font-size: 5.5pt;
-    font-weight: 600;
-    color: #991b1b;
-    padding: 3px 8px;
-    line-height: 1.4;
-    margin-top: -0.5px;
-  }
-
-  .mt { margin-top: -1px; }
-
+  /* Service-record-specific styles */
   .date-box {
     background: #ecfdf5 !important;
     font-weight: 800;
@@ -458,14 +265,6 @@ function buildHtml(
     text-align: center;
     color: #065f46;
     vertical-align: middle;
-  }
-  .date-box-label {
-    font-size: 5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #064e3b;
-    display: block;
-    margin-bottom: 2px;
   }
 </style>
 </head>
@@ -494,7 +293,7 @@ function buildHtml(
       <div style="font-size:5pt;color:#cbd5e1;margin-top:2px;text-transform:uppercase;letter-spacing:0.3px;">Record Ref</div>
       <div style="font-size:9pt;font-weight:800;color:#fff;">${esc(data.certRef)}</div>
       <div style="font-size:5pt;color:#cbd5e1;margin-top:3px;text-transform:uppercase;letter-spacing:0.3px;">Appliances</div>
-      <div style="font-size:9pt;font-weight:800;color:#fff;">${apps.length}</div>
+      <div style="font-size:9pt;font-weight:800;color:#fff;">${appliance ? 1 : 0}</div>
     </td>
   </tr>
 </table>
@@ -652,10 +451,9 @@ ${applianceBlocks}
      ═══════════════════════════════════════════════════════════════ -->
 <table class="mt">
   <tr>
-    <th colspan="2" class="sig-hdr" style="text-align:center;width:30%;">Engineer</th>
-    <th colspan="2" class="sig-hdr" style="text-align:center;width:30%;">Customer</th>
-    <td class="shdr" style="width:22%;">Service Date</td>
-    <td class="shdr" style="width:18%;">Record Ref.</td>
+    <th colspan="2" class="sig-hdr" style="text-align:center;width:33.33%;">Engineer</th>
+    <th colspan="2" class="sig-hdr" style="text-align:center;width:33.33%;">Customer</th>
+    <td class="shdr" style="width:33.34%;">Date &amp; Next Inspection</td>
   </tr>
   <tr>
     <th class="sig-hdr" style="width:7%;">Signature</th>
@@ -666,13 +464,12 @@ ${applianceBlocks}
     <td style="height:38px;text-align:center;">
       ${data.customerSignature ? `<img src="${data.customerSignature}" class="sig-img"/>` : ''}
     </td>
-    <td rowspan="3" class="date-box">
+    <td rowspan="3" class="next-due">
       <span class="date-box-label">Service Date</span>
       ${esc(data.serviceDate)}
-    </td>
-    <td rowspan="3" class="certbox">
-      <span class="certbox-label">Record Ref.</span>
-      ${esc(data.certRef)}
+      <br/>
+      <span class="next-due-label" style="margin-top:6px;">Next Inspection Due</span>
+      ${esc(data.nextInspectionDate || '')}
     </td>
   </tr>
   <tr>
@@ -700,73 +497,13 @@ ${applianceBlocks}
 </html>`;
 }
 
-// ─── Print / share helpers ──────────────────────────────────────
+// ─── Title helper ───────────────────────────────────────────────
 
-async function printHtmlToPdf(html: string): Promise<string> {
-  const { uri } = await Print.printToFileAsync({
-    html,
-    base64: false,
-    width: 842,
-    height: 595,
-  });
-  return uri;
+function srTitle(payload: ServiceRecordLockedPayload): string {
+  return `Service Record - ${payload.pdfData.customerName || 'Gas Service'}`;
 }
 
-async function printHtmlToPdfBase64(html: string): Promise<string> {
-  const { base64 } = await Print.printToFileAsync({
-    html,
-    base64: true,
-    width: 842,
-    height: 595,
-  });
-  if (!base64) throw new Error('Failed to create Service Record PDF base64 output');
-  return base64;
-}
-
-async function shareHtmlAsPdf(html: string, title: string): Promise<void> {
-  if (!(await Sharing.isAvailableAsync())) {
-    throw new Error('Sharing is not available on this device');
-  }
-  const uri = await printHtmlToPdf(html);
-  const shareOptions = {
-    mimeType: 'application/pdf',
-    dialogTitle: title,
-    UTI: 'com.adobe.pdf',
-  } as const;
-  if (Platform.OS === 'ios') {
-    void Sharing.shareAsync(uri, shareOptions).catch((err) => {
-      console.warn('Service Record share dismissed/failed on iOS:', err);
-    });
-    return;
-  }
-  await Sharing.shareAsync(uri, shareOptions);
-}
-
-// ─── Build locked payload from resolved company data ────────────
-
-async function buildRenderedHtml(
-  payload: ServiceRecordLockedPayload,
-  companyId?: string,
-): Promise<{ html: string; title: string }> {
-  const gasSafeLogoBase64 = await getGasSafeLogoBase64();
-  const liveCompanyLogoUrl = await getLatestCompanyLogoUrl(
-    companyId,
-    payload.company.logoUrl,
-  );
-  const companyLogoSrc = await getCompanyLogoSrc(liveCompanyLogoUrl);
-  const companyForRender: CompanyInfo = { ...payload.company, logoUrl: liveCompanyLogoUrl };
-  const html = buildHtml(
-    payload.pdfData,
-    companyForRender,
-    payload.engineer,
-    gasSafeLogoBase64,
-    companyLogoSrc,
-  );
-  const title = `Service Record - ${payload.pdfData.customerName || 'Gas Service'}`;
-  return { html, title };
-}
-
-// ─── Public API ─────────────────────────────────────────────────
+// ─── Public API (thin wrappers around shared infrastructure) ────
 
 export async function buildServiceRecordLockedPayload(
   data: ServiceRecordPdfData,
@@ -789,26 +526,32 @@ export async function generateServiceRecordPdfFromPayload(
   mode: 'share' | 'save' | 'view' = 'share',
   companyId?: string,
 ): Promise<void> {
-  const { html, title } = await buildRenderedHtml(payload, companyId);
-  if (mode === 'view') {
-    await Print.printAsync({ html });
-    return;
-  }
-  await shareHtmlAsPdf(html, mode === 'save' ? `${title} (Save)` : title);
+  return generatePdfFromPayload(payload, buildHtml, srTitle, mode, companyId);
 }
 
 export async function generateServiceRecordPdfBase64FromPayload(
   payload: ServiceRecordLockedPayload,
   companyId?: string,
 ): Promise<string> {
-  const { html } = await buildRenderedHtml(payload, companyId);
-  return printHtmlToPdfBase64(html);
+  return generatePdfBase64FromPayload(payload, buildHtml, companyId);
 }
 
 export async function generateServiceRecordPdfUrl(
   payload: ServiceRecordLockedPayload,
   companyId: string,
 ): Promise<string> {
-  const base64 = await generateServiceRecordPdfBase64FromPayload(payload, companyId);
-  return uploadPdfBase64AndGetUrl(base64, companyId, payload.pdfData.certRef);
+  return generatePdfUrlFromPayload(payload, buildHtml, companyId, payload.pdfData.certRef);
 }
+
+// ─── Register in the polymorphic registry ───────────────────────
+
+registerFormPdf('service_record', {
+  label: 'Gas Service Record',
+  shortLabel: 'Service Record',
+  icon: 'construct-outline',
+  color: '#059669',
+  buildHtml: (pdfData, company, engineer, gasSafeLogo, companyLogo) =>
+    buildHtml(pdfData as ServiceRecordPdfData, company, engineer, gasSafeLogo, companyLogo),
+  titleFn: (payload) =>
+    `Service Record - ${(payload.pdfData as ServiceRecordPdfData).customerName || 'Gas Service'}`,
+});

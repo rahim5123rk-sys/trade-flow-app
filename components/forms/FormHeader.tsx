@@ -3,13 +3,13 @@
 // Reusable form header with back button + title
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import {Ionicons} from '@expo/vector-icons';
+import {router} from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { UI } from '../../constants/theme';
-import { useAppTheme } from '../../src/context/ThemeContext';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import Animated, {FadeIn} from 'react-native-reanimated';
+import {UI} from '../../constants/theme';
+import {useAppTheme} from '../../src/context/ThemeContext';
 
 interface FormHeaderProps {
   title: string;
@@ -17,15 +17,15 @@ interface FormHeaderProps {
   onBack?: () => void;
 }
 
-export function FormHeader({ title, subtitle, onBack }: FormHeaderProps) {
-  const { theme, isDark } = useAppTheme();
+export function FormHeader({title, subtitle, onBack}: FormHeaderProps) {
+  const {theme, isDark} = useAppTheme();
 
   return (
     <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
       <TouchableOpacity
         style={[
           styles.backBtn,
-          isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border },
+          isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border},
         ]}
         onPress={onBack ?? (() => router.back())}
         activeOpacity={0.7}
@@ -33,9 +33,9 @@ export function FormHeader({ title, subtitle, onBack }: FormHeaderProps) {
         <Ionicons name="chevron-back" size={20} color={theme.brand.primary} />
       </TouchableOpacity>
       <View>
-        <Text style={[styles.title, { color: theme.text.title }]}>{title}</Text>
+        <Text style={[styles.title, {color: theme.text.title}]}>{title}</Text>
         {subtitle ? (
-          <Text style={[styles.subtitle, { color: theme.text.muted }]}>{subtitle}</Text>
+          <Text style={[styles.subtitle, {color: theme.text.muted}]}>{subtitle}</Text>
         ) : null}
       </View>
     </Animated.View>
