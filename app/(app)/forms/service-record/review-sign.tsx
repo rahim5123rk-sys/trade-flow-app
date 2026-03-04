@@ -7,7 +7,7 @@ import {Ionicons} from '@expo/vector-icons';
 import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router} from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
+
 import React, {useEffect, useState} from 'react';
 import {
   ActivityIndicator,
@@ -25,19 +25,14 @@ import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {SignaturePad} from '../../../../components/SignaturePad';
 import {UI} from '../../../../constants/theme';
-import {supabase} from '../../../../src/config/supabase';
+
 import {useAuth} from '../../../../src/context/AuthContext';
 import {useOfflineMode} from '../../../../src/context/OfflineContext';
 import {useServiceRecord} from '../../../../src/context/ServiceRecordContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
-import {sanitizeRecipients, sendCp12CertificateEmail} from '../../../../src/services/email';
-import {
-  buildServiceRecordLockedPayload,
-  generateServiceRecordPdfBase64FromPayload,
-  generateServiceRecordPdfFromPayload,
-  generateServiceRecordPdfUrl,
-  ServiceRecordPdfData,
-} from '../../../../src/services/serviceRecordPdfGenerator';
+import {sanitizeRecipients} from '../../../../src/services/email';
+import {completeFormAction, getNextCertReference} from '../../../../src/services/formDocumentService';
+import type {ServiceRecordPdfData} from '../../../../src/services/serviceRecordPdfGenerator';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -118,8 +113,8 @@ export default function ServiceRecordReviewSign() {
       if (certRef) return;
       if (editingDocumentId) return;
       try {
-        const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {reserve: false});
-        if (!error && typeof data === 'string') setCertRef(data);
+        const ref = await getNextCertReference(false);
+        setCertRef(ref);
       } catch { }
     };
     void preloadNextReference();
@@ -140,101 +135,6 @@ export default function ServiceRecordReviewSign() {
     setShowSigPad(false);
   };
 
-  const getNextReference = async () => {
-    const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {reserve: true});
-    if (error || typeof data !== 'string') throw new Error(error?.message || 'Failed to generate reference.');
-    setCertRef(data);
-    return data;
-  };
-
-  const createDocument = async (reference: string) => {
-    if (!userProfile?.company_id) throw new Error('Company profile not found.');
-
-    const pdfData: ServiceRecordPdfData = {
-      customerName: customerForm.customerName || '',
-      customerCompany: customerForm.customerCompany || '',
-      customerAddress: [customerForm.addressLine1, customerForm.addressLine2, customerForm.city, customerForm.postCode].filter(Boolean).join(', '),
-      customerEmail: customerForm.email || '',
-      customerPhone: customerForm.phone || '',
-      propertyAddress,
-      appliances,
-      finalInfo,
-      serviceDate,
-      nextInspectionDate,
-      customerSignature,
-      certRef: reference,
-    };
-
-    const lockedPayload = await buildServiceRecordLockedPayload(pdfData, userProfile.company_id, userProfile.id);
-
-    const customerSnapshot = {
-      name: customerForm.customerName || 'Service Customer',
-      company_name: customerForm.customerCompany || null,
-      address_line_1: customerForm.addressLine1 || null,
-      address_line_2: customerForm.addressLine2 || null,
-      city: customerForm.city || null,
-      postal_code: customerForm.postCode || null,
-      phone: customerForm.phone || null,
-      email: customerForm.email || null,
-      address: [customerForm.addressLine1, customerForm.addressLine2, customerForm.city, customerForm.postCode].filter(Boolean).join(', '),
-    };
-
-    if (editingDocumentId) {
-      const {error: updateError} = await supabase
-        .from('documents')
-        .update({
-          reference,
-          customer_id: customerForm.customerId || null,
-          customer_snapshot: customerSnapshot,
-          payment_info: JSON.stringify(lockedPayload),
-        })
-        .eq('id', editingDocumentId);
-      if (updateError) throw updateError;
-      return {lockedPayload, documentId: editingDocumentId};
-    }
-
-    const docNumber = Number(String(Date.now()).slice(-8));
-    const documentBase = {
-      company_id: userProfile.company_id,
-      type: 'service_record' as any,
-      number: docNumber,
-      reference,
-      date: new Date().toISOString(),
-      status: 'Sent' as const,
-      customer_id: customerForm.customerId || null,
-      customer_snapshot: customerSnapshot,
-      items: [],
-      subtotal: 0,
-      discount_percent: 0,
-      total: 0,
-      notes: 'Gas Service Record (locked snapshot)',
-      payment_info: JSON.stringify(lockedPayload),
-    };
-
-    const {data: insertedRows, error: saveError} = await supabase
-      .from('documents')
-      .insert(documentBase)
-      .select('id')
-      .limit(1);
-
-    if (saveError) {
-      // Fallback: if type constraint fails, use quote
-      const msg = (saveError.message || '').toLowerCase();
-      if (msg.includes('type') || msg.includes('enum') || msg.includes('check constraint')) {
-        const {data: fallbackRows, error: fbErr} = await supabase
-          .from('documents')
-          .insert({...documentBase, type: 'quote' as const})
-          .select('id')
-          .limit(1);
-        if (fbErr) throw fbErr;
-        return {lockedPayload, documentId: fallbackRows?.[0]?.id as string};
-      }
-      throw saveError;
-    }
-
-    return {lockedPayload, documentId: insertedRows?.[0]?.id as string};
-  };
-
   const handleComplete = async (action: 'save' | 'email' | 'view') => {
     if (!userProfile?.company_id) {
       Alert.alert('Error', 'Company profile not found.');
@@ -244,57 +144,77 @@ export default function ServiceRecordReviewSign() {
       Alert.alert('Offline Mode', 'Disable Offline Mode to save service records.');
       return;
     }
+    if (action === 'email' && !emailRecipients.length) {
+      Alert.alert('No Email Found', 'Add a customer email before using Save & Send.');
+      return;
+    }
 
     setProcessingAction(action);
     try {
-      const reference = editingDocumentId && certRef ? certRef : await getNextReference();
-      const {lockedPayload, documentId} = await createDocument(reference);
-      if (!documentId) throw new Error('Failed to create service record.');
-
-      const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
-
-      if (action === 'save') {
-        Alert.alert(savedLabel, `Service Record ${reference} was ${editingDocumentId ? 'updated' : 'saved'}.`, [
-          {text: 'Done', onPress: () => {resetServiceRecord(); router.replace(`/(app)/documents/${documentId}` as any);}},
-        ]);
-        return;
-      }
-
-      if (action === 'view') {
-        const pdfUrl = await generateServiceRecordPdfUrl(lockedPayload, userProfile.company_id);
-        resetServiceRecord();
-        router.replace(`/(app)/documents/${documentId}` as any);
-        await WebBrowser.openBrowserAsync(pdfUrl);
-        return;
-      }
-
-      // Email
-      const recipients = sanitizeRecipients([customerForm.email || '']);
-      if (!recipients.length) {
-        Alert.alert('No Email Found', 'Add a customer email before using Save & Send.');
-        return;
-      }
-
-      const pdfBase64 = await generateServiceRecordPdfBase64FromPayload(lockedPayload, userProfile.company_id);
-
-      await sendCp12CertificateEmail({
-        to: recipients,
-        certRef: reference,
+      const pdfData: ServiceRecordPdfData = {
+        customerName: customerForm.customerName || '',
+        customerCompany: customerForm.customerCompany || '',
+        customerAddress: [customerForm.addressLine1, customerForm.addressLine2, customerForm.city, customerForm.postCode].filter(Boolean).join(', '),
+        customerEmail: customerForm.email || '',
+        customerPhone: customerForm.phone || '',
         propertyAddress,
-        inspectionDate: serviceDate,
-        nextDueDate: nextInspectionDate || '',
-        landlordName: customerForm.customerName,
-        tenantName: '',
-        pdfBase64,
+        appliances,
+        finalInfo,
+        serviceDate,
+        nextInspectionDate,
+        customerSignature,
+        certRef: certRef || '',
+      };
+      const customerSnapshot = {
+        name: customerForm.customerName || 'Service Customer',
+        company_name: customerForm.customerCompany || null,
+        address_line_1: customerForm.addressLine1 || null,
+        address_line_2: customerForm.addressLine2 || null,
+        city: customerForm.city || null,
+        postal_code: customerForm.postCode || null,
+        phone: customerForm.phone || null,
+        email: customerForm.email || null,
+        address: [customerForm.addressLine1, customerForm.addressLine2, customerForm.city, customerForm.postCode].filter(Boolean).join(', '),
+      };
+
+      let resolvedRef = certRef || '';
+      const documentId = await completeFormAction({
+        action,
+        config: {kind: 'service_record', documentType: 'service_record', label: 'Gas Service Record'},
+        companyId: userProfile.company_id,
+        userId: userProfile.id,
+        certRef: certRef || '',
+        pdfData,
+        customerSnapshot,
+        customerId: customerForm.customerId,
+        editingDocumentId,
+        emailRecipients: [customerForm.email || ''],
+        emailContext: {
+          propertyAddress,
+          inspectionDate: serviceDate,
+          nextDueDate: nextInspectionDate || '',
+          landlordName: customerForm.customerName || '',
+          tenantName: '',
+        },
+        onReset: resetServiceRecord,
+        setCertRef: (ref) => { resolvedRef = ref; setCertRef(ref); },
       });
 
-      await generateServiceRecordPdfFromPayload(lockedPayload, 'share', userProfile.company_id);
-
-      Alert.alert(
-        `${savedLabel} & Sent ✓`,
-        `Service Record ${reference} was ${editingDocumentId ? 'updated' : 'saved'} and emailed to ${recipients.join(', ')}.`,
-        [{text: 'Done', onPress: () => {resetServiceRecord(); router.replace(`/(app)/documents/${documentId}` as any);}}],
-      );
+      const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
+      if (action === 'save') {
+        Alert.alert(savedLabel, `Service Record ${resolvedRef} was ${editingDocumentId ? 'updated' : 'saved'}.`, [
+          {text: 'Done', onPress: () => { resetServiceRecord(); router.replace(`/(app)/documents/${documentId}` as any); }},
+        ]);
+      } else if (action === 'view') {
+        resetServiceRecord();
+        router.replace(`/(app)/documents/${documentId}` as any);
+      } else {
+        Alert.alert(
+          `${savedLabel} & Sent ✓`,
+          `Service Record ${resolvedRef} was ${editingDocumentId ? 'updated' : 'saved'} and emailed to ${emailRecipients.join(', ')}.`,
+          [{text: 'Done', onPress: () => { resetServiceRecord(); router.replace(`/(app)/documents/${documentId}` as any); }}],
+        );
+      }
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to generate service record.');
     } finally {

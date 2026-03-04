@@ -9,7 +9,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router} from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
+
 import React, {useEffect, useState} from 'react';
 import {
   ActivityIndicator,
@@ -27,19 +27,14 @@ import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {SignaturePad} from '../../../components/SignaturePad';
 import {UI} from '../../../constants/theme';
-import {supabase} from '../../../src/config/supabase';
+
 import {useAuth} from '../../../src/context/AuthContext';
 import {useCP12} from '../../../src/context/CP12Context';
 import {useOfflineMode} from '../../../src/context/OfflineContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
-import {
-  buildCP12LockedPayload,
-  CP12PdfData,
-  generateCP12PdfBase64FromPayload,
-  generateCP12PdfFromPayload,
-  generateCP12PdfUrl,
-} from '../../../src/services/cp12PdfGenerator';
-import {sanitizeRecipients, sendCp12CertificateEmail} from '../../../src/services/email';
+import type {CP12PdfData} from '../../../src/services/cp12PdfGenerator';
+import {sanitizeRecipients} from '../../../src/services/email';
+import {completeFormAction, getNextCertReference} from '../../../src/services/formDocumentService';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -131,19 +126,12 @@ export default function ReviewSign() {
   useEffect(() => {
     const preloadNextReference = async () => {
       if (certRef) return;
-      if (editingDocumentId) return; // Skip for edit mode – certRef already set
-
-      const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {
-        reserve: false,
-      });
-
-      if (error || typeof data !== 'string') {
-        return;
-      }
-
-      setCertRef(data);
+      if (editingDocumentId) return;
+      try {
+        const ref = await getNextCertReference(false);
+        setCertRef(ref);
+      } catch { }
     };
-
     void preloadNextReference();
   }, [certRef, setCertRef]);
 
@@ -164,228 +152,94 @@ export default function ReviewSign() {
     setShowSigPad(false);
   };
 
-  const getNextCp12Reference = async () => {
-    const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {
-      reserve: true,
-    });
-
-    if (error || typeof data !== 'string') {
-      throw new Error(error?.message || 'Failed to generate certificate reference. Run latest database migration and try again.');
-    }
-
-    setCertRef(data);
-    return data;
-  };
-
-  const createCp12Document = async (cp12Reference: string) => {
-    if (!userProfile?.company_id) {
-      throw new Error('Company profile not found. Please check your settings.');
-    }
-
-    const pdfData: CP12PdfData = {
-      landlordName: landlordForm.customerName || '',
-      landlordCompany: landlordForm.customerCompany || '',
-      landlordAddress: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode].filter(Boolean).join(', '),
-      landlordPostcode: landlordForm.postCode || '',
-      landlordEmail: landlordForm.email || '',
-      landlordPhone: landlordForm.phone || '',
-      tenantName,
-      tenantEmail,
-      tenantPhone,
-      propertyAddress,
-      appliances,
-      finalChecks,
-      inspectionDate,
-      nextDueDate,
-      customerSignature,
-      certRef: cp12Reference,
-    };
-
-    const lockedPayload = await buildCP12LockedPayload(
-      pdfData,
-      userProfile.company_id,
-      userProfile.id,
-    );
-
-    const customerSnapshot = {
-      name: landlordForm.customerName || tenantName || 'Gas Safety Customer',
-      company_name: landlordForm.customerCompany || null,
-      address_line_1: landlordForm.addressLine1 || null,
-      address_line_2: landlordForm.addressLine2 || null,
-      city: landlordForm.city || null,
-      postal_code: landlordForm.postCode || null,
-      phone: landlordForm.phone || null,
-      email: landlordForm.email || null,
-      address: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode]
-        .filter(Boolean)
-        .join(', '),
-    };
-
-    // ── EDIT MODE: Update existing document ──
-    if (editingDocumentId) {
-      const {error: updateError} = await supabase
-        .from('documents')
-        .update({
-          reference: cp12Reference,
-          expiry_date: nextDueDate || null,
-          customer_id: landlordForm.customerId || null,
-          customer_snapshot: customerSnapshot,
-          payment_info: JSON.stringify(lockedPayload),
-        })
-        .eq('id', editingDocumentId);
-
-      if (updateError) throw updateError;
-
-      return {
-        lockedPayload,
-        documentId: editingDocumentId,
-      };
-    }
-
-    // ── NEW MODE: Insert new document ──
-    const cp12Number = Number(String(Date.now()).slice(-8));
-
-    const documentBase = {
-      company_id: userProfile.company_id,
-      type: 'cp12' as const,
-      number: cp12Number,
-      reference: cp12Reference,
-      date: new Date().toISOString(),
-      expiry_date: nextDueDate || null,
-      status: 'Sent' as const,
-      customer_id: landlordForm.customerId || null,
-      customer_snapshot: customerSnapshot,
-      items: [],
-      subtotal: 0,
-      discount_percent: 0,
-      total: 0,
-      notes: 'Gas Safety Certificate (locked snapshot)',
-      payment_info: JSON.stringify(lockedPayload),
-    };
-
-    const {data: insertedRows, error: saveError} = await supabase
-      .from('documents')
-      .insert(documentBase)
-      .select('id')
-      .limit(1);
-
-    if (saveError) {
-      const msg = (saveError.message || '').toLowerCase();
-      const canFallback =
-        msg.includes('type') ||
-        msg.includes('enum') ||
-        msg.includes('check constraint');
-
-      if (!canFallback) throw saveError;
-
-      const {data: fallbackRows, error: fallbackError} = await supabase
-        .from('documents')
-        .insert({...documentBase, type: 'quote' as const})
-        .select('id')
-        .limit(1);
-
-      if (fallbackError) throw fallbackError;
-
-      return {
-        lockedPayload,
-        documentId: fallbackRows?.[0]?.id as string,
-      };
-    }
-
-    return {
-      lockedPayload,
-      documentId: insertedRows?.[0]?.id as string,
-    };
-  };
-
-  // ── complete ──
   const handleComplete = async (action: 'save' | 'email' | 'view') => {
     if (!userProfile?.company_id) {
       Alert.alert('Error', 'Company profile not found. Please check your settings.');
       return;
     }
-
     if (offlineModeEnabled) {
       Alert.alert('Offline Mode', 'Disable Offline Mode to save, view, or send gas certificates.');
       return;
     }
-
-    setProcessingAction(action);
-    try {
-      // In edit mode, reuse existing cert ref; otherwise generate a new one
-      const cp12Reference = editingDocumentId && certRef
-        ? certRef
-        : await getNextCp12Reference();
-      const {lockedPayload, documentId} = await createCp12Document(cp12Reference);
-
-      if (!documentId) {
-        throw new Error('Failed to create gas certificate document record.');
-      }
-
-      const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
-
-      if (action === 'save') {
-        Alert.alert(savedLabel, `Certificate ${cp12Reference} was ${editingDocumentId ? 'updated' : 'saved'}.`, [
-          {
-            text: 'Done',
-            onPress: () => {
-              resetCP12();
-              router.replace(`/(app)/documents/${documentId}` as any);
-            },
-          },
-        ]);
-        return;
-      }
-
-      if (action === 'view') {
-        const pdfUrl = await generateCP12PdfUrl(lockedPayload, userProfile.company_id);
-        resetCP12();
-        router.replace(`/(app)/documents/${documentId}` as any);
-        await WebBrowser.openBrowserAsync(pdfUrl);
-        return;
-      }
-
-      const recipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '']);
-      if (!recipients.length) {
+    if (action === 'email') {
+      const preCheck = sanitizeRecipients([landlordForm.email || '', tenantEmail || '']);
+      if (!preCheck.length) {
         Alert.alert('No Email Found', 'Add a landlord or tenant email before using Save & Send Email.');
         return;
       }
+    }
 
-      const pdfBase64 = await generateCP12PdfBase64FromPayload(
-        lockedPayload,
-        userProfile.company_id,
-      );
-
-      await sendCp12CertificateEmail({
-        to: recipients,
-        certRef: cp12Reference,
+    setProcessingAction(action);
+    try {
+      const pdfData: CP12PdfData = {
+        landlordName: landlordForm.customerName || '',
+        landlordCompany: landlordForm.customerCompany || '',
+        landlordAddress: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode].filter(Boolean).join(', '),
+        landlordPostcode: landlordForm.postCode || '',
+        landlordEmail: landlordForm.email || '',
+        landlordPhone: landlordForm.phone || '',
+        tenantName,
+        tenantEmail,
+        tenantPhone,
         propertyAddress,
+        appliances,
+        finalChecks,
         inspectionDate,
         nextDueDate,
-        landlordName: landlordForm.customerName,
-        tenantName,
-        pdfBase64,
+        customerSignature,
+        certRef: certRef || '',
+      };
+      const customerSnapshot = {
+        name: landlordForm.customerName || tenantName || 'Gas Safety Customer',
+        company_name: landlordForm.customerCompany || null,
+        address_line_1: landlordForm.addressLine1 || null,
+        address_line_2: landlordForm.addressLine2 || null,
+        city: landlordForm.city || null,
+        postal_code: landlordForm.postCode || null,
+        phone: landlordForm.phone || null,
+        email: landlordForm.email || null,
+        address: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode].filter(Boolean).join(', '),
+      };
+
+      let resolvedRef = certRef || '';
+      const documentId = await completeFormAction({
+        action,
+        config: {kind: 'cp12', documentType: 'cp12', label: 'Gas Safety Certificate'},
+        companyId: userProfile.company_id,
+        userId: userProfile.id,
+        certRef: certRef || '',
+        pdfData,
+        customerSnapshot,
+        customerId: landlordForm.customerId,
+        editingDocumentId,
+        expiryDate: nextDueDate || null,
+        emailRecipients: [landlordForm.email || '', tenantEmail || ''],
+        emailContext: {
+          propertyAddress,
+          inspectionDate,
+          nextDueDate,
+          landlordName: landlordForm.customerName || '',
+          tenantName,
+        },
+        onReset: resetCP12,
+        setCertRef: (ref) => { resolvedRef = ref; setCertRef(ref); },
       });
 
-      await generateCP12PdfFromPayload(
-        lockedPayload,
-        'share',
-        userProfile.company_id,
-      );
-
-      Alert.alert(
-        `${savedLabel} & Sent ✓`,
-        `Certificate ${cp12Reference} was ${editingDocumentId ? 'updated' : 'saved'} and emailed to ${recipients.join(', ')}.`,
-        [
-          {
-            text: 'Done',
-            onPress: () => {
-              resetCP12();
-              router.replace(`/(app)/documents/${documentId}` as any);
-            },
-          },
-        ],
-      );
+      const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
+      if (action === 'save') {
+        Alert.alert(savedLabel, `Certificate ${resolvedRef} was ${editingDocumentId ? 'updated' : 'saved'}.`, [
+          {text: 'Done', onPress: () => { resetCP12(); router.replace(`/(app)/documents/${documentId}` as any); }},
+        ]);
+      } else if (action === 'view') {
+        resetCP12();
+        router.replace(`/(app)/documents/${documentId}` as any);
+      } else {
+        Alert.alert(
+          `${savedLabel} & Sent ✓`,
+          `Certificate ${resolvedRef} was ${editingDocumentId ? 'updated' : 'saved'} and emailed to ${emailRecipients.join(', ')}.`,
+          [{text: 'Done', onPress: () => { resetCP12(); router.replace(`/(app)/documents/${documentId}` as any); }}],
+        );
+      }
     } catch (err: any) {
       Alert.alert('PDF Error', err?.message || 'Failed to generate gas certificate PDF.');
     } finally {

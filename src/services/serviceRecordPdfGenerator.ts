@@ -18,11 +18,7 @@ import {
     type CompanyInfo,
     type EngineerInfo,
     esc,
-    generatePdfBase64FromPayload,
-    generatePdfFromPayload,
-    generatePdfUrlFromPayload,
     getBaseCss,
-    getCompanyAndEngineer,
     parseAddress,
     tickH,
 } from './pdf/shared';
@@ -484,52 +480,6 @@ ${applianceBlocks}
 </div>
 </body>
 </html>`;
-}
-
-// ─── Title helper ───────────────────────────────────────────────
-
-function srTitle(payload: ServiceRecordLockedPayload): string {
-  return `Service Record - ${payload.pdfData.customerName || 'Gas Service'}`;
-}
-
-// ─── Public API (thin wrappers around shared infrastructure) ────
-
-export async function buildServiceRecordLockedPayload(
-  data: ServiceRecordPdfData,
-  companyId: string,
-  userId: string,
-): Promise<ServiceRecordLockedPayload> {
-  const { company, engineer } = await getCompanyAndEngineer(companyId, userId);
-  return {
-    kind: 'service_record',
-    version: 1,
-    savedAt: new Date().toISOString(),
-    pdfData: data,
-    company,
-    engineer,
-  };
-}
-
-export async function generateServiceRecordPdfFromPayload(
-  payload: ServiceRecordLockedPayload,
-  mode: 'share' | 'save' | 'view' = 'share',
-  companyId?: string,
-): Promise<void> {
-  return generatePdfFromPayload(payload, buildHtml, srTitle, mode, companyId);
-}
-
-export async function generateServiceRecordPdfBase64FromPayload(
-  payload: ServiceRecordLockedPayload,
-  companyId?: string,
-): Promise<string> {
-  return generatePdfBase64FromPayload(payload, buildHtml, companyId);
-}
-
-export async function generateServiceRecordPdfUrl(
-  payload: ServiceRecordLockedPayload,
-  companyId: string,
-): Promise<string> {
-  return generatePdfUrlFromPayload(payload, buildHtml, companyId, payload.pdfData.certRef);
 }
 
 // ─── Register in the polymorphic registry ───────────────────────

@@ -14,11 +14,7 @@ import {
     type CompanyInfo,
     type EngineerInfo,
     esc,
-    generatePdfBase64FromPayload,
-    generatePdfFromPayload,
-    generatePdfUrlFromPayload,
     getBaseCss,
-    getCompanyAndEngineer,
     parseAddress,
     tickH
 } from './pdf/shared';
@@ -412,62 +408,6 @@ ${appRows}
 </div>
 </body>
 </html>`;
-}
-
-// ─── Title helper ───────────────────────────────────────────────
-
-function cp12Title(payload: CP12LockedPayload): string {
-  return `CP12 - ${payload.pdfData.landlordName || 'Gas Safety Record'}`;
-}
-
-// ─── Public API (thin wrappers around shared infrastructure) ────
-
-export async function generateCP12PdfFromPayload(
-  payload: CP12LockedPayload,
-  mode: 'share' | 'save' | 'view' = 'share',
-  companyId?: string,
-): Promise<void> {
-  return generatePdfFromPayload(payload, buildHtml, cp12Title, mode, companyId);
-}
-
-export async function generateCP12PdfBase64FromPayload(
-  payload: CP12LockedPayload,
-  companyId?: string,
-): Promise<string> {
-  return generatePdfBase64FromPayload(payload, buildHtml, companyId);
-}
-
-export async function buildCP12LockedPayload(
-  data: CP12PdfData,
-  companyId: string,
-  userId: string,
-): Promise<CP12LockedPayload> {
-  const { company, engineer } = await getCompanyAndEngineer(companyId, userId);
-  return {
-    kind: 'cp12',
-    version: 1,
-    savedAt: new Date().toISOString(),
-    pdfData: data,
-    company,
-    engineer,
-  };
-}
-
-export async function generateCP12Pdf(
-  data: CP12PdfData,
-  companyId: string,
-  userId: string,
-  mode: 'share' | 'save' | 'view' = 'share',
-): Promise<void> {
-  const payload = await buildCP12LockedPayload(data, companyId, userId);
-  await generateCP12PdfFromPayload(payload, mode, companyId);
-}
-
-export async function generateCP12PdfUrl(
-  payload: CP12LockedPayload,
-  companyId: string,
-): Promise<string> {
-  return generatePdfUrlFromPayload(payload, buildHtml, companyId, payload.pdfData.certRef);
 }
 
 // ─── Register in the polymorphic registry ───────────────────────
