@@ -20,42 +20,44 @@ const FAB_ACTIONS = [
     label: 'New Job',
     icon: 'briefcase-outline' as const,
     route: '/(app)/jobs/create',
-    offsetX: -122,
-    offsetY: -24,
+    offsetX: -150,
+    offsetY: -8,
   },
   {
     key: 'form',
     label: 'New Form',
     icon: 'document-text-outline' as const,
     route: '/(app)/forms',
-    offsetX: -92,
-    offsetY: -116,
+    offsetX: -128,
+    offsetY: -82,
   },
   {
     key: 'customer',
     label: 'New Customer',
     icon: 'person-add-outline' as const,
     route: '/(app)/customers/add',
-    offsetX: -12,
-    offsetY: -176,
+    offsetX: -76,
+    offsetY: -138,
   },
   {
     key: 'tools',
     label: 'Tools',
     icon: 'hammer-outline' as const,
     route: '/(app)/toolbox',
-    offsetX: -118,
-    offsetY: -248,
+    offsetX: -12,
+    offsetY: -160,
   },
 ];
 
 function FabMenuItem({
   action,
+  index,
   onPress,
   progress,
   cardColor,
 }: {
   action: typeof FAB_ACTIONS[number];
+  index: number;
   onPress: () => void;
   progress: SharedValue<number>;
   cardColor: string;
@@ -63,19 +65,19 @@ function FabMenuItem({
   const actionStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
     transform: [
-      {translateX: interpolate(progress.value, [0, 1], [0, action.offsetX])},
-      {translateY: interpolate(progress.value, [0, 1], [0, action.offsetY])},
+      {translateX: interpolate(progress.value, [0, 1], [18, 0])},
+      {translateY: interpolate(progress.value, [0, 1], [8, -((index + 1) * 72)])},
       {scale: interpolate(progress.value, [0, 1], [0.92, 1])},
     ],
   }));
 
   return (
     <Animated.View style={[styles.fabMenuItemWrap, actionStyle]}>
-      <TouchableOpacity activeOpacity={0.9} style={styles.fabMenuTouch} onPress={onPress}>
-        <Text style={styles.fabMenuText}>{action.label}</Text>
+      <TouchableOpacity activeOpacity={0.9} style={[styles.fabMenuTouch, {backgroundColor: cardColor}]} onPress={onPress}>
         <View style={[styles.fabMenuItem, {backgroundColor: cardColor}]}>
           <Ionicons name={action.icon} size={19} color="#111111" />
         </View>
+        <Text style={styles.fabMenuText}>{action.label}</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -257,6 +259,7 @@ export default function AppLayout() {
                   <FabMenuItem
                     key={action.key}
                     action={action}
+                    index={index}
                     progress={progress}
                     cardColor="#FFFFFF"
                     onPress={() => {
@@ -367,8 +370,8 @@ const styles = StyleSheet.create({
   },
   fabOverlay: {
     position: 'absolute',
-    right: 6,
-    width: 320,
+    right: 20,
+    width: 240,
     height: 372,
   },
   fabMenuItemWrap: {
@@ -379,29 +382,31 @@ const styles = StyleSheet.create({
   fabMenuTouch: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    width: 176,
-  },
-  fabMenuItem: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    width: 208,
+    height: 58,
+    borderRadius: 18,
+    paddingHorizontal: 10,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.08,
     shadowRadius: 14,
     elevation: 6,
   },
+  fabMenuItem: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+  },
   fabMenuText: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#111111',
-    marginRight: 14,
-    lineHeight: 20,
-    textAlign: 'right',
+    marginLeft: 12,
+    lineHeight: 22,
+    textAlign: 'left',
     includeFontPadding: false,
   },
 });

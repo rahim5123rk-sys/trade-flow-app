@@ -296,11 +296,13 @@ const QuickAction = ({
   theme?: ThemeTokens;
 }) => {
   const resolvedTheme = t || UI;
+  const resolvedButtonColor = isDark ? iconColor : backgroundColor;
+  const resolvedIconColor = isDark ? '#FFFFFF' : iconColor;
   return (
     <Animated.View entering={FadeInDown.delay(delay).springify()}>
       <TouchableOpacity style={s.quickAction} activeOpacity={0.75} onPress={onPress}>
-        <View style={[s.quickButton, {backgroundColor}, isDark && {shadowColor: 'rgba(255,255,255,0.16)'}]}>
-          <Ionicons name={icon} size={24} color={iconColor} />
+        <View style={[s.quickButton, {backgroundColor: resolvedButtonColor}, isDark && {shadowColor: 'rgba(255,255,255,0.16)'}]}>
+          <Ionicons name={icon} size={24} color={resolvedIconColor} />
         </View>
         <Text style={[s.quickLabel, {color: resolvedTheme.text.body}]}>{label}</Text>
       </TouchableOpacity>
@@ -369,6 +371,8 @@ const JobTile = ({
     minute: '2-digit',
   });
   const primaryAddress = getPrimaryJobAddressLine(job);
+  const cardTitle = isToday ? primaryAddress : job.title;
+  const cardSubtitle = isToday ? job.title : primaryAddress;
 
   return (
     <Animated.View entering={FadeInRight.delay(delay).springify()}>
@@ -384,10 +388,10 @@ const JobTile = ({
 
             <View style={s.jobCopy}>
               <Text style={[s.jobTileTitle, {color: theme.text.title}]} numberOfLines={1}>
-                {job.title}
+                {cardTitle}
               </Text>
               <Text style={[s.jobMetaText, {color: theme.text.muted}]} numberOfLines={1}>
-                {primaryAddress}
+                {cardSubtitle}
               </Text>
             </View>
 
