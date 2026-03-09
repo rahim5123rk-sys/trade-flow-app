@@ -9,6 +9,7 @@ import { Platform, ViewStyle } from 'react-native';
 // ─── Raw palette (private) ───────────────────────
 const P = {
   // Blues
+  blue25:  '#EAF3FF',
   blue50:  '#EFF6FF',
   blue100: '#DBEAFE',
   blue500: '#3B82F6',
@@ -81,7 +82,7 @@ export const UI = {
 
   // Pre-built gradient pairs
   gradients: {
-    appBackground: [P.slate100, P.blue50, P.emerald50]  as const,
+    appBackground: [P.blue25, P.blue50, P.white]        as const,
     primary:       [P.blue700,  P.blue600]               as const,
     primaryDark:   [P.blue700,  P.blue900]               as const,
     blue:          [P.blue600,  P.blue500]               as const,
@@ -117,7 +118,7 @@ export const UI = {
 
   // Surface / background colours
   surface: {
-    base:         P.slate50,   // page background
+    base:         '#F8F9FA',   // page background (cool light gray)
     card:         P.white,
     elevated:     P.slate100,  // slightly raised surfaces
     primaryLight: P.blue100,   // blue-tinted badges/chips

@@ -19,6 +19,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -102,6 +103,8 @@ export default function ReviewSign() {
     setInspectionDate,
     nextDueDate,
     setNextDueDate,
+    renewalReminderEnabled,
+    setRenewalReminderEnabled,
     customerSignature,
     setCustomerSignature,
     certRef,
@@ -197,6 +200,7 @@ export default function ReviewSign() {
       finalChecks,
       inspectionDate,
       nextDueDate,
+      renewalReminderEnabled,
       customerSignature,
       certRef: cp12Reference,
     };
@@ -545,6 +549,28 @@ export default function ReviewSign() {
             )}
           </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(260).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+            <View style={s.sectionHeader}>
+              <View style={s.sectionIconWrap}>
+                <Ionicons name="notifications-outline" size={16} color={theme.brand.primary} />
+              </View>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Renewal Reminder</Text>
+            </View>
+
+            <View style={[s.reminderRow, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
+              <View style={s.reminderCopy}>
+                <Text style={[s.reminderTitle, {color: theme.text.title}]}>Email customer 7 days before renewal</Text>
+                <Text style={[s.reminderDescription, {color: theme.text.muted}]}>Turn this on to automatically send a renewal reminder before the due date.</Text>
+              </View>
+              <Switch
+                value={renewalReminderEnabled}
+                onValueChange={setRenewalReminderEnabled}
+                trackColor={{false: isDark ? theme.surface.divider : UI.surface.divider, true: theme.brand.primary}}
+                thumbColor="#fff"
+              />
+            </View>
+          </Animated.View>
+
           <Animated.View entering={FadeInDown.delay(280).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <View style={s.sectionHeader}>
               <View style={s.sectionIconWrap}>
@@ -774,6 +800,29 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: UI.text.muted,
     lineHeight: 18,
+  },
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: UI.surface.base,
+    borderWidth: 1,
+    borderColor: UI.surface.divider,
+  },
+  reminderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  reminderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reminderDescription: {
+    fontSize: 12,
+    lineHeight: 17,
   },
   viewCertificateBtn: {
     marginTop: 10,

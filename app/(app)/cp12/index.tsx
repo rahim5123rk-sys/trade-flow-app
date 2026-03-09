@@ -166,6 +166,7 @@ export default function CP12DetailsScreen() {
             tenantEmail: parsed?.tenantEmail,
             tenantPhone: parsed?.tenantPhone,
             nextDueDate: parsed?.nextDueDate,
+            renewalReminderEnabled: parsed?.renewalReminderEnabled,
             inspectionDate: parsed?.inspectionDate,
             finalChecks: parsed?.finalChecks,
             customerSignature: parsed?.customerSignature,
@@ -189,6 +190,7 @@ export default function CP12DetailsScreen() {
           tenantEmail: parsed?.tenantEmail,
           tenantPhone: parsed?.tenantPhone,
           nextDueDate: parsed?.nextDueDate,
+          renewalReminderEnabled: parsed?.renewalReminderEnabled,
         });
         await AsyncStorage.removeItem(CP12_DUPLICATE_SEED_KEY);
         Alert.alert('Certificate Duplicated', 'Previous landlord, tenant and property details have been prefilled. Review and update before saving.');

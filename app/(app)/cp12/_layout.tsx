@@ -31,6 +31,7 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
     finalChecks,
     inspectionDate,
     nextDueDate,
+    renewalReminderEnabled,
     customerSignature,
     certRef,
     editingDocumentId,
@@ -78,6 +79,7 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
       tenantEmail,
       tenantPhone,
       nextDueDate,
+      renewalReminderEnabled,
       inspectionDate,
       finalChecks,
       customerSignature,
@@ -90,7 +92,7 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
   }, [
     landlordForm, tenantName, tenantEmail, tenantPhone,
     tenantAddressLine1, tenantAddressLine2, tenantCity, tenantPostCode,
-    appliances, finalChecks, inspectionDate, nextDueDate,
+    appliances, finalChecks, inspectionDate, nextDueDate, renewalReminderEnabled,
     customerSignature, certRef, editingDocumentId,
   ]);
 
@@ -141,6 +143,7 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
                     tenantEmail: draft.tenantEmail,
                     tenantPhone: draft.tenantPhone,
                     nextDueDate: draft.nextDueDate,
+                    renewalReminderEnabled: draft.renewalReminderEnabled,
                     inspectionDate: draft.inspectionDate,
                     finalChecks: draft.finalChecks,
                     customerSignature: draft.customerSignature,
@@ -156,6 +159,7 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
                     tenantEmail: draft.tenantEmail,
                     tenantPhone: draft.tenantPhone,
                     nextDueDate: draft.nextDueDate,
+                    renewalReminderEnabled: draft.renewalReminderEnabled,
                   });
                   if (draft.finalChecks) setFinalChecks(draft.finalChecks);
                   if (draft.inspectionDate) setInspectionDate(draft.inspectionDate);

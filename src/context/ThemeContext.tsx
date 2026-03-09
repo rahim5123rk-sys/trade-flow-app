@@ -4,11 +4,11 @@
 // ============================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { ViewStyle } from 'react-native';
-import { Colors, DarkColors, DarkUI, UI } from '../../constants/theme';
+import React, {createContext, useContext, useEffect, useState} from 'react';
+import {ViewStyle} from 'react-native';
+import {Colors, DarkColors, DarkUI, UI} from '../../constants/theme';
 
-const STORAGE_KEY = '@tradeflow_dark_mode';
+const STORAGE_KEY = '@pilotlight_dark_mode';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -17,12 +17,12 @@ type GradientPair = readonly [string, string, ...string[]];
 
 /** Structural type matching both UI and DarkUI */
 export interface ThemeTokens {
-  brand: { primary: string; primaryDark: string; secondary: string; accent: string; success: string; warning: string; danger: string };
-  status: { inProgress: string; pending: string; complete: string; paid: string };
+  brand: {primary: string; primaryDark: string; secondary: string; accent: string; success: string; warning: string; danger: string};
+  status: {inProgress: string; pending: string; complete: string; paid: string};
   gradients: Record<string, GradientPair>;
-  glass: { bg: string; border: string };
-  text: { title: string; body: string; bodyLight: string; secondary: string; muted: string; placeholder: string; white: string; inverse: string };
-  surface: { base: string; card: string; elevated: string; primaryLight: string; divider: string; border: string; muted: string };
+  glass: {bg: string; border: string};
+  text: {title: string; body: string; bodyLight: string; secondary: string; muted: string; placeholder: string; white: string; inverse: string};
+  surface: {base: string; card: string; elevated: string; primaryLight: string; divider: string; border: string; muted: string};
   shadow: ViewStyle;
   shadowLight: ViewStyle;
 }
@@ -47,13 +47,13 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue>({
   mode: 'light',
   isDark: false,
-  toggleTheme: () => {},
-  setMode: () => {},
+  toggleTheme: () => { },
+  setMode: () => { },
   theme: UI as ThemeTokens,
   colors: Colors as ColorsCompat,
 });
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({children}: {children: React.ReactNode}) {
   const [mode, setModeState] = useState<ThemeMode>('light');
 
   // Load persisted preference on mount
@@ -72,7 +72,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setMode = (newMode: ThemeMode) => {
     setModeState(newMode);
-    AsyncStorage.setItem(STORAGE_KEY, newMode).catch(() => {});
+    AsyncStorage.setItem(STORAGE_KEY, newMode).catch(() => { });
   };
 
   const toggleTheme = () => {
@@ -84,7 +84,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const colors = isDark ? DarkColors : Colors;
 
   return (
-    <ThemeContext.Provider value={{ mode, isDark, toggleTheme, setMode, theme, colors }}>
+    <ThemeContext.Provider value={{mode, isDark, toggleTheme, setMode, theme, colors}}>
       {children}
     </ThemeContext.Provider>
   );

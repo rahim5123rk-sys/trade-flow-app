@@ -83,13 +83,13 @@ Under the UK GDPR, you retain the right to:
 
 **Please note:** Where data is retained for regulatory compliance or legal defence purposes, we may be unable to fulfil erasure or restriction requests until the applicable retention period has expired.
 
-To exercise any of these rights, contact us at: **support@gascertpal.com**
+To exercise any of these rights, contact us at: **support@pilotlight.app**
 
 ---
 
 ## 7. Contact and Complaints
 
-If you have concerns about how your data is being processed, you may contact us at **support@gascertpal.com**.
+If you have concerns about how your data is being processed, you may contact us at **support@pilotlight.app**.
 
 You also have the right to lodge a complaint with the **Information Commissioner's Office (ICO)**:
 - Website: [https://ico.org.uk](https://ico.org.uk)

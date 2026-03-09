@@ -32,6 +32,7 @@ import {useOfflineMode} from '../../../src/context/OfflineContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 import type {CP12LockedPayload} from '../../../src/services/cp12PdfGenerator';
 import {sanitizeRecipients, sendHtmlEmail} from '../../../src/services/email';
+import type {ServiceRecordLockedPayload} from '../../../src/services/serviceRecordPdfGenerator';
 import {getSignedUrl, uploadImage} from '../../../src/services/storage';
 
 const SETTINGS_TIPS: OnboardingTip[] = [
@@ -160,11 +161,11 @@ const SettingRow = ({
       activeOpacity={hasToggle ? 1 : 0.7}
       disabled={hasToggle && !onPress}
     >
-      <View style={[styles.iconBox, isDestructive && styles.destructiveIconBox, isDark && !isDestructive && {backgroundColor: 'rgba(255,255,255,0.08)'}, isDark && isDestructive && {backgroundColor: 'rgba(239,68,68,0.12)'}]}>
+      <View style={styles.iconBox}>
         <Ionicons
           name={icon}
           size={20}
-          color={isDestructive ? UI.brand.danger : theme.brand.primary}
+          color={isDestructive ? UI.brand.danger : theme.text.secondary}
         />
       </View>
       <View style={styles.rowContent}>
@@ -595,13 +596,13 @@ export default function SettingsScreen() {
               };
 
               const json = JSON.stringify(exportData, null, 2);
-              const file = new File(Paths.cache, 'tradeflow-data-export.json');
+              const file = new File(Paths.cache, 'pilotlight-data-export.json');
               file.write(json);
 
               if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(file.uri, {
                   mimeType: 'application/json',
-                  dialogTitle: 'TradeFlow Data Export',
+                  dialogTitle: 'PilotLight Data Export',
                 });
               } else {
                 Alert.alert('Exported', 'Data has been saved to your device.');
@@ -638,9 +639,9 @@ export default function SettingsScreen() {
     try {
       const {data: docs, error} = await supabase
         .from('documents')
-        .select('id,reference,expiry_date,customer_snapshot,payment_info')
+        .select('id,type,reference,expiry_date,customer_snapshot,payment_info')
         .eq('company_id', userProfile.company_id)
-        .eq('type', 'cp12');
+        .in('type', ['cp12', 'service_record']);
 
       if (error) throw error;
 
@@ -657,41 +658,52 @@ export default function SettingsScreen() {
         due.setHours(0, 0, 0, 0);
         if (due < today || due > cutoff) continue;
 
-        let tenantEmail = '';
-        let tenantName = '';
         let propertyAddress = '';
+        let occupantName = '';
+        let fallbackEmail = '';
+        let reminderEnabled = false;
+        let reminderSentForDate = '';
+        let parsedPayload: (CP12LockedPayload | ServiceRecordLockedPayload | null) = null;
 
         try {
-          const payload = JSON.parse(doc.payment_info || '{}') as CP12LockedPayload;
+          const payload = JSON.parse(doc.payment_info || '{}') as (CP12LockedPayload & {reminderMeta?: {lastSentForDate?: string}}) | (ServiceRecordLockedPayload & {reminderMeta?: {lastSentForDate?: string}});
+          parsedPayload = payload;
           if (payload?.kind === 'cp12') {
-            tenantEmail = payload.pdfData?.tenantEmail || '';
-            tenantName = payload.pdfData?.tenantName || '';
+            occupantName = payload.pdfData?.tenantName || payload.pdfData?.landlordName || '';
+            fallbackEmail = payload.pdfData?.tenantEmail || payload.pdfData?.landlordEmail || '';
             propertyAddress = payload.pdfData?.propertyAddress || '';
+            reminderEnabled = !!payload.pdfData?.renewalReminderEnabled;
+            reminderSentForDate = payload.reminderMeta?.lastSentForDate || '';
+          } else if (payload?.kind === 'service_record') {
+            occupantName = payload.pdfData?.customerName || '';
+            fallbackEmail = payload.pdfData?.customerEmail || '';
+            propertyAddress = payload.pdfData?.propertyAddress || '';
+            reminderEnabled = !!payload.pdfData?.renewalReminderEnabled;
+            reminderSentForDate = payload.reminderMeta?.lastSentForDate || '';
           }
         } catch {
           // ignore malformed payload
         }
 
-        const landlordEmail = doc.customer_snapshot?.email || '';
-        const recipients = sanitizeRecipients(
-          cp12ReminderRecipients === 'both'
-            ? [landlordEmail, tenantEmail]
-            : cp12ReminderRecipients === 'landlord'
-              ? [landlordEmail]
-              : [tenantEmail],
-        );
+        if (!reminderEnabled) continue;
+        if (reminderSentForDate && reminderSentForDate === doc.expiry_date) continue;
+
+        const customerEmail = doc.customer_snapshot?.email || fallbackEmail;
+        const recipients = sanitizeRecipients([customerEmail]);
 
         if (!recipients.length) continue;
 
-        const subject = `Gas Safety Reminder: Certificate ${doc.reference || ''} expires on ${doc.expiry_date}`;
+        const docLabel = doc.type === 'service_record' ? 'Service Record' : 'Gas Safety Certificate';
+        const subject = `${docLabel} Reminder: ${doc.reference || 'Document'} expires on ${doc.expiry_date}`;
         const html = `
           <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#0f172a;line-height:1.5;">
-            <h2 style="margin:0 0 12px;">Gas Safety Renewal Reminder</h2>
-            <p style="margin:0 0 12px;">Your gas safety certificate is due to expire soon.</p>
+            <h2 style="margin:0 0 12px;">Renewal Reminder</h2>
+            <p style="margin:0 0 12px;">Your ${docLabel.toLowerCase()} is due to expire soon.</p>
             <table style="width:100%;border-collapse:collapse;margin:12px 0 20px;">
+              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Document</td><td style="padding:8px;border:1px solid #e2e8f0;">${docLabel}</td></tr>
               <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Reference</td><td style="padding:8px;border:1px solid #e2e8f0;">${doc.reference || 'N/A'}</td></tr>
               <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Property</td><td style="padding:8px;border:1px solid #e2e8f0;">${propertyAddress || 'N/A'}</td></tr>
-              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Tenant</td><td style="padding:8px;border:1px solid #e2e8f0;">${tenantName || 'N/A'}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Customer</td><td style="padding:8px;border:1px solid #e2e8f0;">${occupantName || doc.customer_snapshot?.name || 'N/A'}</td></tr>
               <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Expiry Date</td><td style="padding:8px;border:1px solid #e2e8f0;">${doc.expiry_date || 'N/A'}</td></tr>
             </table>
             <p style="margin:0;color:#475569;font-size:14px;">Please arrange an inspection to stay compliant.</p>
@@ -699,12 +711,29 @@ export default function SettingsScreen() {
         `;
 
         await sendHtmlEmail({to: recipients, subject, html});
+
+        if (parsedPayload) {
+          const nextPayload = {
+            ...parsedPayload,
+            reminderMeta: {
+              ...((parsedPayload as any).reminderMeta || {}),
+              lastSentAt: new Date().toISOString(),
+              lastSentForDate: doc.expiry_date || '',
+            },
+          };
+
+          await supabase
+            .from('documents')
+            .update({payment_info: JSON.stringify(nextPayload)})
+            .eq('id', doc.id);
+        }
+
         sentCount += 1;
       }
 
-      Alert.alert('Reminders Sent', sentCount > 0 ? `Sent ${sentCount} reminder email(s).` : 'No gas certificates are due in your reminder window.');
+      Alert.alert('Reminders Sent', sentCount > 0 ? `Sent ${sentCount} reminder email(s).` : 'No enabled gas certificates or service records are due in your reminder window.');
     } catch (error: any) {
-      Alert.alert('Reminder Error', error?.message || 'Failed to send gas certificate reminders.');
+      Alert.alert('Reminder Error', error?.message || 'Failed to send renewal reminders.');
     } finally {
       setSendingReminders(false);
     }
@@ -753,13 +782,7 @@ export default function SettingsScreen() {
             <Text style={[styles.screenTitle, {color: theme.text.title}]}>Settings</Text>
             <Text style={[styles.screenSubtitle, {color: theme.text.muted}]}>{isAdmin ? 'Business profile & preferences' : 'Your profile & preferences'}</Text>
           </View>
-          {isLoading ? (
-            <ActivityIndicator color={UI.brand.primary} />
-          ) : (
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>{userProfile?.role === 'admin' ? 'ADMIN' : 'WORKER'}</Text>
-            </View>
-          )}
+          {isLoading ? <ActivityIndicator color={UI.brand.primary} /> : <View />}
         </Animated.View>
 
         {/* --- Profile Card --- */}
@@ -784,7 +807,7 @@ export default function SettingsScreen() {
           />
           {isAdmin && (
             <>
-              <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
+              <View style={styles.detailsSpacer} />
               <SettingRow
                 icon="business-outline"
                 label="Company Details"
@@ -807,8 +830,9 @@ export default function SettingsScreen() {
                 <View style={{flex: 1}}>
                   <Text style={[styles.logoLabel, {color: theme.text.title}]}>Company Logo</Text>
                   <Text style={[styles.logoSub, {color: theme.text.muted}]}>Used on invoices and job sheets.</Text>
-                  <TouchableOpacity onPress={handleLogoUpload}>
-                    <Text style={styles.uploadLink}>Upload New Image</Text>
+                  <TouchableOpacity style={[styles.uploadButton, isDark && {backgroundColor: theme.surface.elevated}]} onPress={handleLogoUpload}>
+                    <Ionicons name="cloud-upload-outline" size={14} color={isDark ? theme.text.title : '#111111'} />
+                    <Text style={[styles.uploadButtonText, {color: isDark ? theme.text.title : '#111111'}]}>Upload New Image</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -825,7 +849,7 @@ export default function SettingsScreen() {
                 icon="people-outline"
                 label="Manage Team"
                 value={workerCount > 0 ? `${workerCount} worker${workerCount !== 1 ? 's' : ''}` : 'No workers yet'}
-                onPress={() => router.push('/(app)/workers')}
+                onPress={() => router.push('/(app)/workers' as any)}
               />
             </View>
           </>
@@ -1039,7 +1063,7 @@ export default function SettingsScreen() {
           <SettingRow icon="trash-outline" label="Delete My Account" isDestructive onPress={handleDeleteAccount} />
         </View>
 
-        <Text style={[styles.versionText, {color: theme.text.muted}]}>TradeFlow v1.0.5</Text>
+        <Text style={[styles.versionText, {color: theme.text.muted}]}>PilotLight v1.0.5</Text>
       </ScrollView>
 
       {/* First-run onboarding */}
@@ -1053,13 +1077,6 @@ const styles = StyleSheet.create({
   headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18},
   screenTitle: {fontSize: 30, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5},
   screenSubtitle: {fontSize: 13, color: UI.text.muted, marginTop: 2},
-  roleBadge: {
-    backgroundColor: 'rgba(99,102,241,0.12)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  roleBadgeText: {fontSize: 11, fontWeight: '800', color: UI.brand.primary, letterSpacing: 0.6},
 
   // Profile Card
   profileCard: {
@@ -1076,7 +1093,7 @@ const styles = StyleSheet.create({
   avatarContainer: {width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginRight: 16},
   avatarText: {fontSize: 24, fontWeight: '700', color: UI.text.white},
   profileName: {fontSize: 18, fontWeight: '700', color: UI.text.title},
-  profileRole: {fontSize: 13, color: UI.text.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5},
+  profileRole: {fontSize: 13, color: UI.text.muted, marginTop: 2},
 
   sectionHeader: {fontSize: 12, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, marginLeft: 4},
   card: {
@@ -1089,6 +1106,7 @@ const styles = StyleSheet.create({
     ...Colors.shadow,
   },
   divider: {height: 1, backgroundColor: 'rgba(148,163,184,0.18)', marginVertical: 12},
+  detailsSpacer: {height: 20},
 
   // Logo
   logoSection: {flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16},
@@ -1106,7 +1124,17 @@ const styles = StyleSheet.create({
   logoImg: {width: '100%', height: '100%'},
   logoLabel: {fontSize: 15, fontWeight: '700', color: UI.text.title},
   logoSub: {fontSize: 12, color: UI.text.muted, marginBottom: 8},
-  uploadLink: {fontSize: 13, fontWeight: '700', color: UI.brand.primary},
+  uploadButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  uploadButtonText: {fontSize: 13, fontWeight: '700'},
 
   // Inputs
   inputContainer: {gap: 6},
@@ -1126,8 +1154,8 @@ const styles = StyleSheet.create({
 
   // Settings Row
   row: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4},
-  iconBox: {width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(99,102,241,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12},
-  destructiveIconBox: {backgroundColor: '#FEF2F2'},
+  iconBox: {width: 24, height: 24, justifyContent: 'center', alignItems: 'center', marginRight: 12},
+  destructiveIconBox: {backgroundColor: 'transparent'},
   rowContent: {flex: 1},
   rowLabel: {fontSize: 15, fontWeight: '600', color: UI.text.title},
   destructiveText: {color: Colors.danger, fontWeight: '600'},

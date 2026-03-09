@@ -67,7 +67,16 @@ export interface Customer {
 
 // ─── NEW: Document type for quotes & invoices ───────────────────
 
-export type DocumentType = 'invoice' | 'quote' | 'cp12';
+export type DocumentType =
+  | 'invoice'
+  | 'quote'
+  | 'cp12'
+  | 'service_record'
+  | 'commissioning'
+  | 'decommissioning'
+  | 'warning_notice'
+  | 'breakdown_report'
+  | 'installation_cert';
 
 export type DocumentStatus = 
   | 'Draft'

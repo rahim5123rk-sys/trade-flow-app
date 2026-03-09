@@ -53,6 +53,7 @@ export interface CP12PdfData {
   // Review / sign
   inspectionDate: string;
   nextDueDate: string;
+  renewalReminderEnabled?: boolean;
   customerSignature: string; // base64
   certRef: string;
 }
@@ -121,14 +122,16 @@ function buildHtml(
         const lowCo2 = Number.parseFloat(a.fgaLow.co2 || '');
         const highCo = Number.parseFloat(a.fgaHigh.co || '');
         const highCo2 = Number.parseFloat(a.fgaHigh.co2 || '');
-        const lowRatio =
+        const lowRatio = (a.fgaLow.ratio || '').trim() || (
           Number.isFinite(lowCo) && Number.isFinite(lowCo2) && lowCo2 > 0
-            ? (lowCo / lowCo2).toFixed(4)
-            : '';
-        const highRatio =
+            ? (lowCo / (lowCo2 * 10000)).toFixed(4)
+            : ''
+        );
+        const highRatio = (a.fgaHigh.ratio || '').trim() || (
           Number.isFinite(highCo) && Number.isFinite(highCo2) && highCo2 > 0
-            ? (highCo / highCo2).toFixed(4)
-            : '';
+            ? (highCo / (highCo2 * 10000)).toFixed(4)
+            : ''
+        );
         return `<tr>
         <td class="rn">${i + 1}</td>
         <td style="${rowBg}">${esc(a.location)}</td><td style="${rowBg}">${esc(a.make)}</td><td style="${rowBg}">${esc(a.model)}</td>

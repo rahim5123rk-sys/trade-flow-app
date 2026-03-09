@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Platform,
   RefreshControl,
   StyleSheet,
@@ -41,18 +42,41 @@ const STATUS_COLORS: Record<string, {color: string; bg: string}> = {
   Issued: {color: '#0284c7', bg: '#f0f9ff'},
 };
 
+const GAS_BADGE_STYLES = {
+  default: {bg: '#F3F4F6', text: '#374151'},
+  cp12: {bg: '#EEF5FF', text: '#1D4ED8'},
+  service: {bg: '#ECFDF5', text: '#047857'},
+  commissioning: {bg: '#F5F3FF', text: '#7C3AED'},
+  decommissioning: {bg: '#F8FAFC', text: '#475569'},
+  warning: {bg: '#FEF2F2', text: '#B91C1C'},
+  breakdown: {bg: '#FFF7ED', text: '#C2410C'},
+  install: {bg: '#EFF6FF', text: '#1D4ED8'},
+} as const;
+
 const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.92)';
 const GLASS_BORDER = 'rgba(255,255,255,0.80)';
 
-type FilterType = 'all' | 'invoice' | 'quote' | 'gas_forms' | 'unpaid' | 'draft';
+type DocumentFilterKey =
+  | 'invoice'
+  | 'quote'
+  | 'cp12'
+  | 'service_record'
+  | 'commissioning'
+  | 'decommissioning'
+  | 'warning_notice'
+  | 'breakdown_report'
+  | 'installation_cert';
 
-const FILTERS: {key: FilterType; label: string; icon: keyof typeof Ionicons.glyphMap}[] = [
-  {key: 'all', label: 'All', icon: 'albums-outline'},
+const FILTER_OPTIONS: {key: DocumentFilterKey; label: string; icon: keyof typeof Ionicons.glyphMap}[] = [
   {key: 'invoice', label: 'Invoices', icon: 'receipt-outline'},
   {key: 'quote', label: 'Quotes', icon: 'document-text-outline'},
-  {key: 'gas_forms', label: 'Gas Forms', icon: 'shield-checkmark-outline'},
-  {key: 'unpaid', label: 'Unpaid', icon: 'alert-circle-outline'},
-  {key: 'draft', label: 'Drafts', icon: 'create-outline'},
+  {key: 'cp12', label: 'Gas Certificates', icon: 'shield-checkmark-outline'},
+  {key: 'service_record', label: 'Service Records', icon: 'construct-outline'},
+  {key: 'commissioning', label: 'Commissioning', icon: 'checkmark-circle-outline'},
+  {key: 'decommissioning', label: 'Decommissioning', icon: 'close-circle-outline'},
+  {key: 'warning_notice', label: 'Warning Notices', icon: 'warning-outline'},
+  {key: 'breakdown_report', label: 'Breakdown Reports', icon: 'build-outline'},
+  {key: 'installation_cert', label: 'Installation Certs', icon: 'home-outline'},
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -79,7 +103,7 @@ const getSiteAddress = (doc: Document): string => {
     try {
       const parsed = JSON.parse(doc.payment_info);
       if (parsed?.pdfData?.propertyAddress) return parsed.pdfData.propertyAddress as string;
-    } catch {}
+    } catch { }
   }
   const j = (doc as any).job_address;
   if (j?.address_line_1) {
@@ -99,6 +123,33 @@ const getPaymentInfoKind = (doc: Document): string | null => {
   }
 };
 
+const formatDisplayDate = (value?: string | null): string | null => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const getDueTone = (value?: string | null) => {
+  if (!value) return {color: UI.text.muted, urgent: false};
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return {color: '#B45309', urgent: true};
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  parsed.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.ceil((parsed.getTime() - today.getTime()) / 86400000);
+
+  if (diffDays < 0) return {color: UI.brand.danger, urgent: true};
+  if (diffDays <= 7) return {color: '#B45309', urgent: true};
+  return {color: UI.text.muted, urgent: false};
+};
+
 const isCp12Document = (doc: Document): boolean =>
   (doc.type as string) === 'cp12' ||
   doc.reference?.startsWith('CP12-') === true ||
@@ -109,12 +160,96 @@ const isServiceRecordDocument = (doc: Document): boolean =>
   doc.reference?.startsWith('SR-') === true ||
   getPaymentInfoKind(doc) === 'service_record';
 
+const isCommissioningDocument = (doc: Document): boolean =>
+  (doc.type as string) === 'commissioning' ||
+  getPaymentInfoKind(doc) === 'commissioning';
+
+const isDecommissioningDocument = (doc: Document): boolean =>
+  (doc.type as string) === 'decommissioning' ||
+  getPaymentInfoKind(doc) === 'decommissioning';
+
+const isWarningNoticeDocument = (doc: Document): boolean =>
+  (doc.type as string) === 'warning_notice' ||
+  getPaymentInfoKind(doc) === 'warning_notice';
+
+const isBreakdownReportDocument = (doc: Document): boolean =>
+  (doc.type as string) === 'breakdown_report' ||
+  getPaymentInfoKind(doc) === 'breakdown_report';
+
+const isInstallationCertDocument = (doc: Document): boolean =>
+  (doc.type as string) === 'installation_cert' ||
+  getPaymentInfoKind(doc) === 'installation_cert';
+
 /** Returns true if the document is any gas form type (CP12, Service Record, or any future kind) */
 const isGasFormDocument = (doc: Document): boolean => {
   if (GAS_FORM_KINDS.has(doc.type as string)) return true;
   if (doc.reference?.startsWith('CP12-') || doc.reference?.startsWith('SR-')) return true;
   const kind = getPaymentInfoKind(doc);
   return kind !== null && GAS_FORM_KINDS.has(kind);
+};
+
+const getDocumentReference = (doc: Document): string => {
+  const isCp12 = isCp12Document(doc);
+  const isSR = isServiceRecordDocument(doc);
+  const isCommissioning = isCommissioningDocument(doc);
+  const isDecommissioning = isDecommissioningDocument(doc);
+  const isGasForm = isGasFormDocument(doc);
+  const isInvoice = doc.type === 'invoice' && !isGasForm;
+
+  return isCp12
+    ? doc.reference || `CP12-${String(doc.number).padStart(4, '0')}`
+    : isSR
+      ? doc.reference || `SR-${String(doc.number).padStart(4, '0')}`
+      : isCommissioning || isDecommissioning
+        ? doc.reference || `REF-${String(doc.number).padStart(4, '0')}`
+        : isGasForm
+          ? doc.reference || `GAS-${String(doc.number).padStart(4, '0')}`
+          : `${isInvoice ? 'INV' : 'QTE'}-${String(doc.number).padStart(4, '0')}`;
+};
+
+const getDocumentTypeLabel = (doc: Document): string => {
+  const isCp12 = isCp12Document(doc);
+  const isSR = isServiceRecordDocument(doc);
+  const isCommissioning = isCommissioningDocument(doc);
+  const isDecommissioning = isDecommissioningDocument(doc);
+  const isWarningNotice = isWarningNoticeDocument(doc);
+  const isBreakdown = isBreakdownReportDocument(doc);
+  const isInstallation = isInstallationCertDocument(doc);
+  const isGasForm = isGasFormDocument(doc);
+  const isInvoice = doc.type === 'invoice' && !isGasForm;
+
+  return isCp12
+    ? 'Gas Certificate'
+    : isSR
+      ? 'Service Record'
+      : isCommissioning
+        ? 'Commissioning'
+        : isDecommissioning
+          ? 'Decommissioning'
+          : isWarningNotice
+            ? 'Warning Notice'
+            : isBreakdown
+              ? 'Breakdown Report'
+              : isInstallation
+                ? 'Installation Certificate'
+                : isGasForm
+                  ? 'Gas Form'
+                  : isInvoice
+                    ? 'Invoice'
+                    : 'Quote';
+};
+
+const getDocumentFilterKey = (doc: Document): DocumentFilterKey | null => {
+  if (isCp12Document(doc)) return 'cp12';
+  if (isServiceRecordDocument(doc)) return 'service_record';
+  if (isCommissioningDocument(doc)) return 'commissioning';
+  if (isDecommissioningDocument(doc)) return 'decommissioning';
+  if (isWarningNoticeDocument(doc)) return 'warning_notice';
+  if (isBreakdownReportDocument(doc)) return 'breakdown_report';
+  if (isInstallationCertDocument(doc)) return 'installation_cert';
+  if (doc.type === 'invoice' && !isGasFormDocument(doc)) return 'invoice';
+  if (doc.type === 'quote' && !isGasFormDocument(doc)) return 'quote';
+  return null;
 };
 
 // ─── Screen ─────────────────────────────────────────────────────
@@ -128,12 +263,13 @@ export default function DocumentsHubScreen() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilters, setSelectedFilters] = useState<DocumentFilterKey[]>([]);
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   useEffect(() => {
     if (userProfile?.company_id) fetchDocuments();
-  }, [userProfile, filter]);
+  }, [userProfile]);
 
   const fetchDocuments = useCallback(async () => {
     if (!userProfile?.company_id) return;
@@ -144,30 +280,23 @@ export default function DocumentsHubScreen() {
       .eq('company_id', userProfile.company_id)
       .order('created_at', {ascending: false});
 
-    if (filter === 'invoice') {
-      query = query.eq('type', 'invoice');
-    } else if (filter === 'quote') {
-      query = query.eq('type', 'quote');
-    } else if (filter === 'unpaid') {
-      query = query.in('status', ['Unpaid', 'Overdue']);
-    } else if (filter === 'draft') {
-      query = query.eq('status', 'Draft');
-    }
-    // cp12: no server-side type filter — isCp12Document() checks type, reference
-    // AND payment_info JSON, so client-side filtering via filteredDocuments is reliable.
-
     const {data, error} = await query;
     if (error) console.error('Error fetching documents:', error);
     if (data) setDocuments(data as Document[]);
     setLoading(false);
     setRefreshing(false);
-  }, [userProfile?.company_id, filter]);
+  }, [userProfile?.company_id]);
 
   const handleDelete = (doc: Document) => {
     const isCp12 = isCp12Document(doc);
     const isSR = isServiceRecordDocument(doc);
+    const isCommissioning = isCommissioningDocument(doc);
+    const isDecommissioning = isDecommissioningDocument(doc);
+    const isWarningNotice = isWarningNoticeDocument(doc);
+    const isBreakdown = isBreakdownReportDocument(doc);
+    const isInstallation = isInstallationCertDocument(doc);
     const isGasForm = isGasFormDocument(doc);
-    const label = isCp12 ? 'Gas Certificate' : isSR ? 'Service Record' : isGasForm ? 'Gas Form' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
+    const label = isCp12 ? 'Gas Certificate' : isSR ? 'Service Record' : isCommissioning ? 'Commissioning' : isDecommissioning ? 'Decommissioning' : isWarningNotice ? 'Warning Notice' : isBreakdown ? 'Breakdown Report' : isInstallation ? 'Installation Certificate' : isGasForm ? 'Gas Form' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
     Alert.alert(
       `Delete ${label}`,
       `Are you sure you want to delete ${isGasForm ? `${doc.reference || label}` : `${doc.type === 'invoice' ? 'Invoice' : 'Quote'} #${doc.number}`}? This cannot be undone.`,
@@ -197,14 +326,16 @@ export default function DocumentsHubScreen() {
     gasForms: documents.filter((d) => isGasFormDocument(d)).length,
   };
 
+  const actionNeededCount = documents.filter((d) => ['Draft', 'Unpaid', 'Overdue', 'Declined'].includes(d.status)).length;
+  const activeFilterLabels = FILTER_OPTIONS.filter((option) => selectedFilters.includes(option.key)).map((option) => option.label);
+
   // ─── Filtered list ────────────────────────────────────────────
 
   const filteredDocuments = documents.filter((doc) => {
-    // Gas forms filter: CP12s + service records + future gas form types
-    if (filter === 'gas_forms' && !isGasFormDocument(doc)) return false;
-    // For non-gas-form filters, exclude gas form docs from invoice/quote views
-    if (filter === 'invoice' && isGasFormDocument(doc)) return false;
-    if (filter === 'quote' && isGasFormDocument(doc)) return false;
+    if (selectedFilters.length > 0) {
+      const docFilterKey = getDocumentFilterKey(doc);
+      if (!docFilterKey || !selectedFilters.includes(docFilterKey)) return false;
+    }
 
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -221,9 +352,20 @@ export default function DocumentsHubScreen() {
   const renderDocument = ({item, index}: {item: Document; index: number}) => {
     const isCp12 = isCp12Document(item);
     const isSR = isServiceRecordDocument(item);
+    const isCommissioning = isCommissioningDocument(item);
+    const isDecommissioning = isDecommissioningDocument(item);
+    const isWarningNotice = isWarningNoticeDocument(item);
+    const isBreakdown = isBreakdownReportDocument(item);
+    const isInstallation = isInstallationCertDocument(item);
     const isGasForm = isGasFormDocument(item);
     const statusStyle = STATUS_COLORS[item.status] || STATUS_COLORS.Draft;
     const isInvoice = item.type === 'invoice' && !isGasForm;
+    const referenceText = getDocumentReference(item);
+    const typeLabel = getDocumentTypeLabel(item);
+    const metadataParts = [item.customer_snapshot?.name, referenceText].filter(Boolean);
+    const createdDate = formatDisplayDate((item as any).created_at || item.date);
+    const dueDate = formatDisplayDate(item.expiry_date);
+    const dueTone = getDueTone(item.expiry_date);
 
     const renderRightActions = () => (
       <TouchableOpacity style={st.deleteSwipeBtn} onPress={() => handleDelete(item)}>
@@ -232,126 +374,112 @@ export default function DocumentsHubScreen() {
       </TouchableOpacity>
     );
 
-    const statusBg = isDark ? theme.surface.elevated : (isGasForm ? UI.surface.base : statusStyle.bg);
-    const statusTextColor = isDark ? theme.text.bodyLight : (isGasForm ? '#0284c7' : statusStyle.color);
-    const statusDotColor = isDark ? (isGasForm ? theme.text.bodyLight : statusStyle.color) : (isGasForm ? '#0284c7' : statusStyle.color);
-
-    // Badge config for gas forms (expandable for future kinds)
     const gasKind = getPaymentInfoKind(item);
-    const gasBadge = isCp12
-      ? {icon: 'shield-checkmark' as const, label: 'GAS CERT', bg: UI.brand.primary}
+    const gasFormBadge = isCp12
+      ? {label: 'GAS CERT', style: GAS_BADGE_STYLES.cp12}
       : isSR
-        ? {icon: 'construct' as const, label: 'SERVICE', bg: '#059669'}
-        : {icon: 'flame' as const, label: (gasKind?.slice(0, 6).toUpperCase() || 'GAS'), bg: '#6B7280'};
+        ? {label: 'SERVICE', style: GAS_BADGE_STYLES.service}
+        : isCommissioning
+          ? {label: 'COMM', style: GAS_BADGE_STYLES.commissioning}
+          : isDecommissioning
+            ? {label: 'DECOMM', style: GAS_BADGE_STYLES.decommissioning}
+            : isWarningNotice
+              ? {label: 'WARNING', style: GAS_BADGE_STYLES.warning}
+              : isBreakdown
+                ? {label: 'REPAIR', style: GAS_BADGE_STYLES.breakdown}
+                : isInstallation
+                  ? {label: 'INSTALL', style: GAS_BADGE_STYLES.install}
+                  : {label: (gasKind?.slice(0, 6).toUpperCase() || 'GAS'), style: GAS_BADGE_STYLES.default};
+    const statusBg = isDark
+      ? theme.surface.elevated
+      : isGasForm
+        ? gasFormBadge.style.bg
+        : statusStyle.bg;
+    const statusTextColor = isDark
+      ? theme.text.bodyLight
+      : isGasForm
+        ? gasFormBadge.style.text
+        : statusStyle.color;
 
-    // Card gradient & icon config
     const cardConfig = isCp12
       ? {
-        gradient: isDark ? theme.gradients.cp12 : UI.gradients.cp12,
         icon: 'shield-checkmark-outline' as const,
-        iconBg: isDark ? theme.surface.elevated : UI.surface.base,
-        iconColor: isDark ? theme.text.title : UI.brand.primary,
       }
       : isSR
         ? {
-          gradient: isDark ? theme.gradients.cp12 : ['#059669', '#10b981'] as [string, string],
           icon: 'construct-outline' as const,
-          iconBg: isDark ? theme.surface.elevated : '#ecfdf5',
-          iconColor: isDark ? theme.text.title : '#059669',
         }
-        : isGasForm
+        : isCommissioning
           ? {
-            gradient: ['#6B7280', '#9CA3AF'] as [string, string],
-            icon: 'flame-outline' as const,
-            iconBg: isDark ? theme.surface.elevated : '#F3F4F6',
-            iconColor: isDark ? theme.text.title : '#374151',
+            icon: 'checkmark-circle-outline' as const,
           }
-          : isInvoice
+          : isDecommissioning
             ? {
-              gradient: isDark ? theme.gradients.amberLight : UI.gradients.amberLight,
-              icon: 'receipt-outline' as const,
-              iconBg: isDark ? theme.surface.elevated : '#FFF7ED',
-              iconColor: isDark ? theme.text.title : '#C2410C',
+              icon: 'close-circle-outline' as const,
             }
-            : {
-              gradient: isDark ? theme.gradients.primary : UI.gradients.primary,
-              icon: 'document-text-outline' as const,
-              iconBg: isDark ? theme.surface.elevated : UI.surface.primaryLight,
-              iconColor: isDark ? theme.text.title : UI.brand.primary,
-            };
+            : isWarningNotice
+              ? {
+                icon: 'warning-outline' as const,
+              }
+              : isBreakdown
+                ? {
+                  icon: 'build-outline' as const,
+                }
+                : isInstallation
+                  ? {
+                    icon: 'home-outline' as const,
+                  }
+                  : isGasForm
+                    ? {
+                      icon: 'flame-outline' as const,
+                    }
+                    : isInvoice
+                      ? {
+                        icon: 'receipt-outline' as const,
+                      }
+                      : {
+                        icon: 'document-text-outline' as const,
+                      };
 
     return (
       <Animated.View entering={FadeInRight.delay(Math.min(index * 50, 300)).springify()}>
         <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
           <TouchableOpacity
-            style={[st.card, {backgroundColor: glassBg, borderColor: glassBorder}]}
+            style={[st.card, {backgroundColor: isDark ? theme.glass.bg : '#FFFFFF', borderColor: isDark ? theme.glass.border : 'transparent'}]}
             activeOpacity={0.7}
             onPress={() => router.push(`/(app)/documents/${item.id}` as any)}
           >
-            <LinearGradient colors={[...cardConfig.gradient]} style={st.cardStrip} />
-
             <View style={st.cardBody}>
-              {/* Top row */}
               <View style={st.cardTopRow}>
-                <View style={[st.typeIcon, {backgroundColor: cardConfig.iconBg}]}>
-                  <Ionicons name={cardConfig.icon} size={18} color={cardConfig.iconColor} />
+                <View style={[st.typeIcon, {backgroundColor: isDark ? theme.surface.elevated : '#F3F4F6'}]}>
+                  <Ionicons name={cardConfig.icon} size={18} color={isDark ? theme.text.bodyLight : '#4B5563'} />
                 </View>
-                <View style={{flex: 1}}>
-                  <Text style={[st.cardRef, {color: theme.text.muted}]}>
-                    {isCp12
-                      ? item.reference || `CP12-${String(item.number).padStart(4, '0')}`
-                      : isSR
-                        ? item.reference || `SR-${String(item.number).padStart(4, '0')}`
-                        : isGasForm
-                          ? item.reference || `GAS-${String(item.number).padStart(4, '0')}`
-                          : `${isInvoice ? 'INV' : 'QTE'}-${String(item.number).padStart(4, '0')}`}
-                  </Text>
+                <View style={st.cardContent}>
                   <Text style={[st.cardAddress, {color: theme.text.title}]} numberOfLines={1}>
                     {getSiteAddress(item) || item.customer_snapshot?.name || 'No address'}
                   </Text>
-                  {item.customer_snapshot?.name ? (
-                    <Text style={[st.cardCustomerSub, {color: theme.text.muted}]} numberOfLines={1}>
-                      {item.customer_snapshot.name}
-                    </Text>
-                  ) : null}
+                  <Text style={[st.cardCustomerSub, {color: theme.text.muted}]} numberOfLines={1}>
+                    {metadataParts.join(' • ') || typeLabel}
+                  </Text>
                 </View>
-                <View style={{alignItems: 'flex-end'}}>
-                  {isGasForm ? (
-                    <View style={[st.cp12Badge, {backgroundColor: gasBadge.bg}]}>
-                      <Ionicons name={gasBadge.icon} size={12} color={UI.text.white} />
-                      <Text style={st.cp12BadgeText}>{gasBadge.label}</Text>
-                    </View>
-                  ) : (
-                    <Text style={[st.cardTotal, {color: theme.text.title}]}>£{item.total?.toFixed(2) || '0.00'}</Text>
-                  )}
+                <View style={st.cardStatusWrap}>
                   <View style={[st.statusBadge, {backgroundColor: statusBg}]}>
-                    <View style={[st.statusDot, {backgroundColor: statusDotColor}]} />
                     <Text style={[st.statusText, {color: statusTextColor}]}>
-                      {isGasForm ? 'Issued' : item.status}
+                      {isGasForm ? gasFormBadge.label : item.status}
                     </Text>
                   </View>
                 </View>
               </View>
 
-              {/* Bottom meta */}
               <View style={[st.cardBottomRow, isDark && {borderTopColor: theme.surface.divider}]}>
-                <View style={st.cardMeta}>
-                  <Ionicons name="calendar-outline" size={12} color={theme.text.muted} />
-                  <Text style={[st.cardDate, {color: theme.text.muted}]}>
-                    {new Date(item.created_at).toLocaleDateString('en-GB', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
+                <Text style={[st.cardDate, {color: theme.text.muted}]}>
+                  {createdDate || '—'}
+                </Text>
+                {dueDate ? (
+                  <Text style={[st.cardDueDate, {color: isDark && !dueTone.urgent ? theme.text.bodyLight : dueTone.color}]}>
+                    Due {dueDate}
                   </Text>
-                </View>
-                {isGasForm && item.expiry_date && (
-                  <View style={st.cardMeta}>
-                    <Ionicons name="time-outline" size={12} color={isDark ? theme.text.bodyLight : UI.status.pending} />
-                    <Text style={[st.cardDate, {color: isDark ? theme.text.bodyLight : UI.status.pending}]}>Due: {item.expiry_date}</Text>
-                  </View>
-                )}
-                <Ionicons name="chevron-forward" size={16} color={isDark ? theme.text.muted : UI.surface.border} />
+                ) : <View />}
               </View>
             </View>
           </TouchableOpacity>
@@ -379,55 +507,46 @@ export default function DocumentsHubScreen() {
               <Text style={[st.screenTitle, {color: theme.text.title}]}>Documents</Text>
               <Text style={[st.screenSubtitle, {color: theme.text.muted}]}>Invoices, Quotes & Gas Forms</Text>
             </View>
-            <View style={st.headerBadges}>
-              <View style={[st.countBadge, {backgroundColor: isDark ? theme.surface.elevated : '#FFF7ED', borderWidth: isDark ? 1 : 0, borderColor: isDark ? theme.surface.border : 'transparent'}]}>
-                <Ionicons name="receipt-outline" size={12} color={isDark ? theme.text.bodyLight : '#C2410C'} />
-                <Text style={[st.countText, {color: isDark ? theme.text.bodyLight : '#C2410C'}]}>{stats.invoices}</Text>
-              </View>
-              <View style={[st.countBadge, {backgroundColor: isDark ? theme.surface.elevated : UI.surface.primaryLight, borderWidth: isDark ? 1 : 0, borderColor: isDark ? theme.surface.border : 'transparent'}]}>
-                <Ionicons name="document-text-outline" size={12} color={isDark ? theme.text.bodyLight : UI.brand.primary} />
-                <Text style={[st.countText, {color: isDark ? theme.text.bodyLight : UI.brand.primary}]}>{stats.quotes}</Text>
-              </View>
-              <View style={[st.countBadge, {backgroundColor: isDark ? theme.surface.elevated : UI.surface.base, borderWidth: isDark ? 1 : 0, borderColor: isDark ? theme.surface.border : 'transparent'}]}>
-                <Ionicons name="shield-checkmark-outline" size={12} color={isDark ? theme.text.bodyLight : UI.brand.primary} />
-                <Text style={[st.countText, {color: isDark ? theme.text.bodyLight : UI.brand.primary}]}>{stats.gasForms}</Text>
-              </View>
+            <View style={[st.summaryBadge, {backgroundColor: isDark ? theme.surface.elevated : '#F3F4F6'}]}>
+              <Text style={[st.summaryBadgeText, {color: theme.text.title}]}>
+                {actionNeededCount} Action Needed
+              </Text>
             </View>
           </Animated.View>
 
           {/* Quick Create */}
           <Animated.View entering={FadeInDown.delay(100).springify()} style={st.createRow}>
             <TouchableOpacity
-              style={[st.createBtn, {backgroundColor: glassBg, borderColor: glassBorder}]}
+              style={st.createBtn}
               activeOpacity={0.75}
               onPress={() => router.push('/(app)/invoice' as any)}
             >
-              <LinearGradient colors={UI.gradients.amberLight} style={st.createGradient}>
-                <Ionicons name="receipt" size={18} color={UI.text.white} />
-              </LinearGradient>
-              <Text style={[st.createBtnText, {color: theme.text.body}]}>Invoice</Text>
+              <View style={[st.createCircle, {backgroundColor: isDark ? 'rgba(255,255,255,0.14)' : '#E7EEF9'}]}>
+                <Ionicons name="receipt" size={20} color={isDark ? theme.text.title : '#111111'} />
+              </View>
+              <Text style={[st.createBtnText, {color: theme.text.body}]}>New Invoice</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[st.createBtn, {backgroundColor: glassBg, borderColor: glassBorder}]}
+              style={st.createBtn}
               activeOpacity={0.75}
               onPress={() => router.push('/(app)/quote' as any)}
             >
-              <LinearGradient colors={UI.gradients.violet} style={st.createGradient}>
-                <Ionicons name="document-text" size={18} color={UI.text.white} />
-              </LinearGradient>
-              <Text style={[st.createBtnText, {color: theme.text.body}]}>Quote</Text>
+              <View style={[st.createCircle, {backgroundColor: isDark ? 'rgba(255,255,255,0.14)' : '#F5EEDD'}]}>
+                <Ionicons name="document-text" size={20} color={isDark ? theme.text.title : '#111111'} />
+              </View>
+              <Text style={[st.createBtnText, {color: theme.text.body}]}>New Quote</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[st.createBtn, {backgroundColor: glassBg, borderColor: glassBorder}]}
+              style={st.createBtn}
               activeOpacity={0.75}
-              onPress={() => router.push('/(app)/cp12' as any)}
+              onPress={() => router.push('/(app)/forms' as any)}
             >
-              <LinearGradient colors={UI.gradients.cp12} style={st.createGradient}>
-                <Ionicons name="shield-checkmark" size={18} color={UI.text.white} />
-              </LinearGradient>
-              <Text style={[st.createBtnText, {color: theme.text.body}]}>Gas Cert</Text>
+              <View style={[st.createCircle, {backgroundColor: isDark ? 'rgba(255,255,255,0.14)' : '#E8F3EC'}]}>
+                <Ionicons name="documents-outline" size={20} color={isDark ? theme.text.title : '#111111'} />
+              </View>
+              <Text style={[st.createBtnText, {color: theme.text.body}]}>New Form</Text>
             </TouchableOpacity>
           </Animated.View>
 
@@ -451,45 +570,37 @@ export default function DocumentsHubScreen() {
             </View>
           </Animated.View>
 
-          {/* Filter Chips */}
-          <Animated.View entering={FadeInDown.delay(200).springify()}>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={FILTERS}
-              keyExtractor={(item) => item.key}
-              contentContainerStyle={st.filterRow}
-              renderItem={({item}) => {
-                const active = filter === item.key;
-                return (
-                  <TouchableOpacity
-                    style={[st.filterChip, {backgroundColor: glassBg, borderColor: glassBorder}, active && st.filterChipActive]}
-                    onPress={() => setFilter(item.key)}
-                  >
-                    {active ? (
-                      <LinearGradient
-                        colors={
-                          item.key === 'gas_forms'
-                            ? (UI.gradients.cp12)
-                            : (UI.gradients.primary)
-                        }
-                        start={{x: 0, y: 0}}
-                        end={{x: 1, y: 0}}
-                        style={st.filterChipGradient}
-                      >
-                        <Ionicons name={item.icon} size={13} color={UI.text.white} style={{marginRight: 4}} />
-                        <Text style={st.filterTextActive}>{item.label}</Text>
-                      </LinearGradient>
-                    ) : (
-                      <View style={st.filterChipInner}>
-                        <Ionicons name={item.icon} size={13} color={theme.text.muted} style={{marginRight: 4}} />
-                        <Text style={[st.filterText, {color: theme.text.muted}]}>{item.label}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              }}
-            />
+          <Animated.View entering={FadeInDown.delay(200).springify()} style={st.filterToolbar}>
+            <TouchableOpacity
+              style={[st.filterButton, {backgroundColor: glassBg, borderColor: glassBorder}]}
+              activeOpacity={0.75}
+              onPress={() => setShowFilterModal(true)}
+            >
+              <View style={st.filterButtonLeft}>
+                <Ionicons name="options-outline" size={18} color={theme.text.title} />
+                <Text style={[st.filterButtonText, {color: theme.text.title}]}>Filter document types</Text>
+              </View>
+              <View style={[st.filterCountPill, {backgroundColor: isDark ? theme.surface.elevated : UI.surface.elevated}]}> 
+                <Text style={[st.filterCountText, {color: theme.text.body}]}> 
+                  {selectedFilters.length || 'All'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {activeFilterLabels.length > 0 ? (
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={activeFilterLabels}
+                keyExtractor={(item) => item}
+                contentContainerStyle={st.activeFilterRow}
+                renderItem={({item}) => (
+                  <View style={[st.activeFilterChip, {backgroundColor: isDark ? theme.surface.elevated : 'rgba(148,163,184,0.12)'}]}>
+                    <Text style={[st.activeFilterText, {color: theme.text.body}]}>{item}</Text>
+                  </View>
+                )}
+              />
+            ) : null}
           </Animated.View>
 
           {/* Document List */}
@@ -515,28 +626,89 @@ export default function DocumentsHubScreen() {
                 <View style={[st.emptyCard, {backgroundColor: glassBg, borderColor: glassBorder}]}>
                   <View style={[st.emptyIconWrap, {backgroundColor: isDark ? theme.surface.elevated : UI.surface.elevated, borderWidth: isDark ? 1 : 0, borderColor: isDark ? theme.surface.border : 'transparent'}]}>
                     <Ionicons
-                      name={filter === 'gas_forms' ? 'shield-checkmark-outline' : 'documents-outline'}
+                      name={selectedFilters.length > 0 ? 'options-outline' : 'documents-outline'}
                       size={28}
                       color={theme.text.muted} />
                   </View>
                   <Text style={[st.emptyTitle, {color: theme.text.body}]}>
-                    {filter === 'gas_forms'
-                      ? 'No gas forms yet'
-                      : filter === 'invoice'
-                        ? 'No invoices found'
-                        : filter === 'quote'
-                          ? 'No quotes found'
-                          : 'No documents found'}
+                    {selectedFilters.length > 0 ? 'No matching documents found' : 'No documents found'}
                   </Text>
                   <Text style={[st.emptySubtitle, {color: theme.text.muted}]}>
-                    {filter === 'gas_forms'
-                      ? 'Create a gas certificate or service record above.'
-                      : 'Try adjusting your filters or create one above.'}
+                    {selectedFilters.length > 0
+                      ? 'Try changing your selected document types.'
+                      : 'Try adjusting your search or create one above.'}
                   </Text>
                 </View>
               }
             />
           )}
+
+          <Modal
+            visible={showFilterModal}
+            animationType="fade"
+            transparent
+            onRequestClose={() => setShowFilterModal(false)}
+          >
+            <View style={st.modalOverlay}>
+              <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowFilterModal(false)} />
+              <View style={[st.filterModalCard, {backgroundColor: isDark ? theme.surface.card : '#FFFFFF', borderColor: isDark ? theme.surface.border : 'rgba(15,23,42,0.08)'}]}>
+                <View style={st.filterModalHeader}>
+                  <View>
+                    <Text style={[st.filterModalTitle, {color: theme.text.title}]}>Filter Documents</Text>
+                    <Text style={[st.filterModalSubtitle, {color: theme.text.muted}]}>Select one or more document types</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                    <Ionicons name="close" size={20} color={theme.text.muted} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={st.filterOptionsList}>
+                  {FILTER_OPTIONS.map((option) => {
+                    const selected = selectedFilters.includes(option.key);
+                    return (
+                      <TouchableOpacity
+                        key={option.key}
+                        style={[st.filterOptionRow, isDark && {borderBottomColor: theme.surface.divider}]}
+                        activeOpacity={0.75}
+                        onPress={() => {
+                          setSelectedFilters((current) =>
+                            current.includes(option.key)
+                              ? current.filter((item) => item !== option.key)
+                              : [...current, option.key],
+                          );
+                        }}
+                      >
+                        <View style={st.filterOptionInfo}>
+                          <Ionicons name={option.icon} size={18} color={selected ? theme.brand.primary : theme.text.muted} />
+                          <Text style={[st.filterOptionText, {color: theme.text.title}]}>{option.label}</Text>
+                        </View>
+                        <View style={[
+                          st.checkbox,
+                          selected
+                            ? [st.checkboxActive, {backgroundColor: theme.brand.primary, borderColor: theme.brand.primary}]
+                            : [st.checkboxInactive, isDark && {borderColor: theme.surface.border}],
+                        ]}>
+                          {selected ? <Ionicons name="checkmark" size={14} color={UI.text.white} /> : null}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <View style={st.filterModalActions}>
+                  <TouchableOpacity
+                    style={[st.filterModalSecondaryBtn, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
+                    onPress={() => setSelectedFilters([])}
+                  >
+                    <Text style={[st.filterModalSecondaryText, {color: theme.text.body}]}>Clear All</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={st.filterModalPrimaryBtn} onPress={() => setShowFilterModal(false)}>
+                    <Text style={st.filterModalPrimaryText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </View>
       </View>
     </GestureHandlerRootView>
@@ -560,6 +732,12 @@ const st = StyleSheet.create({
   screenTitle: {fontSize: 28, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5},
   screenSubtitle: {fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2},
   headerBadges: {flexDirection: 'row', gap: 6},
+  summaryBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  summaryBadgeText: {fontSize: 12, fontWeight: '700'},
   countBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -571,35 +749,66 @@ const st = StyleSheet.create({
   countText: {fontSize: 12, fontWeight: '700'},
 
   // Quick Create
-  createRow: {flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 16},
+  createRow: {flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 16, justifyContent: 'space-between'},
   createBtn: {
     flex: 1,
-    backgroundColor: GLASS_BG,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    padding: 14,
+    paddingVertical: 2,
     alignItems: 'center',
-    shadowColor: UI.text.muted,
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
   },
-  createGradient: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+  createCircle: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
-    shadowColor: UI.text.title,
+    shadowColor: '#000',
     shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
   },
-  createBtnText: {fontSize: 12, fontWeight: '700', color: UI.text.bodyLight},
+  createBtnText: {fontSize: 12, fontWeight: '700', color: UI.text.bodyLight, textAlign: 'center'},
+
+  renewalSection: {marginBottom: 14},
+  renewalHeader: {paddingHorizontal: 20, marginBottom: 10},
+  renewalTitle: {fontSize: 18, fontWeight: '800'},
+  renewalSubtitle: {fontSize: 13, marginTop: 2},
+  renewalList: {paddingHorizontal: 20, paddingRight: 8, gap: 12},
+  renewalCard: {
+    width: 248,
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  renewalTopRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12},
+  renewalIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  renewalPill: {paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999},
+  renewalPillText: {fontSize: 11, fontWeight: '700'},
+  renewalType: {fontSize: 11, fontWeight: '700', letterSpacing: 0.2, marginBottom: 4},
+  renewalAddress: {fontSize: 16, fontWeight: '800', lineHeight: 21},
+  renewalMeta: {fontSize: 12, marginTop: 6},
+  renewalFooter: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(241,245,249,0.8)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  renewalFooterText: {fontSize: 11, fontWeight: '600'},
+  renewalDueDate: {fontSize: 12, fontWeight: '700'},
 
   // Search
   searchWrap: {paddingHorizontal: 20, marginBottom: 14},
@@ -621,91 +830,78 @@ const st = StyleSheet.create({
   searchInput: {flex: 1, marginLeft: 8, fontSize: 15, color: UI.text.title, height: '100%'},
 
   // Filters
-  filterRow: {paddingHorizontal: 20, gap: 8, paddingBottom: 12},
-  filterChip: {
-    borderRadius: 20,
-    backgroundColor: GLASS_BG,
+  filterToolbar: {paddingHorizontal: 20, paddingBottom: 12, gap: 10},
+  filterButton: {
+    height: 46,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    overflow: 'hidden',
-  },
-  filterChipActive: {borderColor: 'transparent'},
-  filterChipGradient: {
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    justifyContent: 'space-between',
   },
-  filterChipInner: {
-    flexDirection: 'row',
+  filterButtonLeft: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  filterButtonText: {fontSize: 14, fontWeight: '700'},
+  filterCountPill: {
+    minWidth: 42,
+    height: 28,
+    borderRadius: 999,
+    paddingHorizontal: 10,
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    justifyContent: 'center',
   },
-  filterText: {fontSize: 13, fontWeight: '600', color: UI.text.muted},
-  filterTextActive: {fontSize: 13, fontWeight: '700', color: UI.text.white},
+  filterCountText: {fontSize: 12, fontWeight: '700'},
+  activeFilterRow: {gap: 8},
+  activeFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  activeFilterText: {fontSize: 12, fontWeight: '600'},
 
   // Cards
   card: {
     flexDirection: 'row',
-    backgroundColor: GLASS_BG,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
     marginBottom: 10,
     overflow: 'hidden',
-    shadowColor: UI.text.muted,
-    shadowOffset: {width: 0, height: 2},
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowRadius: 16,
+    elevation: 4,
   },
-  cardStrip: {width: 4, alignSelf: 'stretch'},
   cardBody: {flex: 1, padding: 16},
-  cardTopRow: {flexDirection: 'row', alignItems: 'center', gap: 12},
+  cardTopRow: {flexDirection: 'row', alignItems: 'flex-start', gap: 12},
   typeIcon: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardRef: {fontSize: 11, fontWeight: '700', color: UI.text.muted, letterSpacing: 0.3},
-  cardAddress: {fontSize: 15, fontWeight: '700', color: UI.text.title, marginTop: 2},
-  cardCustomerSub: {fontSize: 12, fontWeight: '500', color: UI.text.muted, marginTop: 1},
-  cardTotal: {fontSize: 17, fontWeight: '800', color: UI.text.title},
-  cp12Badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: UI.brand.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  cp12BadgeText: {fontSize: 11, fontWeight: '800', color: UI.text.white, letterSpacing: 0.5},
+  cardContent: {flex: 1, paddingRight: 10},
+  cardAddress: {fontSize: 17, fontWeight: '800', color: UI.text.title, marginTop: 1},
+  cardCustomerSub: {fontSize: 13, fontWeight: '500', color: UI.text.muted, marginTop: 4},
+  cardStatusWrap: {alignItems: 'flex-end', justifyContent: 'flex-start'},
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginTop: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
-  statusDot: {width: 5, height: 5, borderRadius: 3},
-  statusText: {fontSize: 10, fontWeight: '700'},
+  statusText: {fontSize: 10, fontWeight: '700', letterSpacing: 0.2},
   cardBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 10,
+    marginTop: 14,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(241,245,249,0.8)',
   },
-  cardMeta: {flexDirection: 'row', alignItems: 'center', gap: 4},
   cardDate: {fontSize: 12, color: UI.text.muted},
+  cardDueDate: {fontSize: 12, fontWeight: '600'},
 
   // Swipe to Delete
   deleteSwipeBtn: {
@@ -741,4 +937,71 @@ const st = StyleSheet.create({
   },
   emptyTitle: {fontSize: 15, fontWeight: '700', color: UI.text.bodyLight, marginBottom: 4},
   emptySubtitle: {fontSize: 13, color: UI.text.muted, textAlign: 'center'},
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.30)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  filterModalCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  filterModalTitle: {fontSize: 18, fontWeight: '800'},
+  filterModalSubtitle: {fontSize: 13, marginTop: 4},
+  filterOptionsList: {gap: 2},
+  filterOptionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(148,163,184,0.35)',
+  },
+  filterOptionInfo: {flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, paddingRight: 10},
+  filterOptionText: {fontSize: 14, fontWeight: '600'},
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {},
+  checkboxInactive: {borderColor: 'rgba(148,163,184,0.7)'},
+  filterModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 16,
+  },
+  filterModalSecondaryBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: UI.surface.elevated,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  filterModalSecondaryText: {fontSize: 13, fontWeight: '700'},
+  filterModalPrimaryBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#111111',
+  },
+  filterModalPrimaryText: {fontSize: 13, fontWeight: '700', color: UI.text.white},
 });

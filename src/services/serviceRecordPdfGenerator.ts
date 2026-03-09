@@ -39,6 +39,7 @@ export interface ServiceRecordPdfData {
   finalInfo: ServiceFinalInfo;
   serviceDate: string;
   nextInspectionDate: string;
+  renewalReminderEnabled?: boolean;
   customerSignature: string;
   certRef: string;
 }
@@ -149,8 +150,8 @@ function buildHtml(
     const fgaLowCo2 = parseFloat(a.fgaLow.co2 || '');
     const fgaHighCo = parseFloat(a.fgaHigh.co || '');
     const fgaHighCo2 = parseFloat(a.fgaHigh.co2 || '');
-    const lowRatio = isFinite(fgaLowCo) && isFinite(fgaLowCo2) && fgaLowCo2 > 0 ? (fgaLowCo / fgaLowCo2).toFixed(4) : (a.fgaLow.ratio || '');
-    const highRatio = isFinite(fgaHighCo) && isFinite(fgaHighCo2) && fgaHighCo2 > 0 ? (fgaHighCo / fgaHighCo2).toFixed(4) : (a.fgaHigh.ratio || '');
+    const lowRatio = (a.fgaLow.ratio || '').trim() || (isFinite(fgaLowCo) && isFinite(fgaLowCo2) && fgaLowCo2 > 0 ? (fgaLowCo / (fgaLowCo2 * 10000)).toFixed(4) : '');
+    const highRatio = (a.fgaHigh.ratio || '').trim() || (isFinite(fgaHighCo) && isFinite(fgaHighCo2) && fgaHighCo2 > 0 ? (fgaHighCo / (fgaHighCo2 * 10000)).toFixed(4) : '');
 
     return `
     <!-- Appliance ${idx + 1} -->

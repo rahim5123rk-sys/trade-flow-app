@@ -59,7 +59,7 @@ export const FORM_REGISTRY: FormDefinition[] = [
     route: '/(app)/forms/warning-notice',
     stepsCount: 3,
     stepLabels: ['Details', 'Hazard', 'Review'],
-    available: false,
+    available: true,
   },
   {
     type: 'service_record',
@@ -85,7 +85,7 @@ export const FORM_REGISTRY: FormDefinition[] = [
     route: '/(app)/forms/commissioning',
     stepsCount: 3,
     stepLabels: ['Details', 'Commissioning', 'Review'],
-    available: false,
+    available: true,
   },
   {
     type: 'decommissioning',
@@ -98,7 +98,7 @@ export const FORM_REGISTRY: FormDefinition[] = [
     route: '/(app)/forms/decommissioning',
     stepsCount: 3,
     stepLabels: ['Details', 'Decommission', 'Review'],
-    available: false,
+    available: true,
   },
   {
     type: 'breakdown_report',
@@ -111,7 +111,7 @@ export const FORM_REGISTRY: FormDefinition[] = [
     route: '/(app)/forms/breakdown',
     stepsCount: 3,
     stepLabels: ['Details', 'Repair', 'Review'],
-    available: false,
+    available: true,
   },
   {
     type: 'installation_cert',
@@ -124,7 +124,7 @@ export const FORM_REGISTRY: FormDefinition[] = [
     route: '/(app)/forms/installation',
     stepsCount: 3,
     stepLabels: ['Details', 'Installation', 'Review'],
-    available: false,
+    available: true,
   },
 ];
 

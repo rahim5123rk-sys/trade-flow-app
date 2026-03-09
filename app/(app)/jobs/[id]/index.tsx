@@ -3,33 +3,33 @@
 // Glassmorphism job detail screen
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
+import {Ionicons} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router, useFocusEffect, useLocalSearchParams} from 'expo-router';
+import React, {useCallback, useState} from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {FadeInDown} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import { SignaturePad } from '../../../../components/SignaturePad';
-import { Colors, UI } from '../../../../constants/theme';
-import { supabase } from '../../../../src/config/supabase';
-import { useAuth } from '../../../../src/context/AuthContext';
-import { useAppTheme } from '../../../../src/context/ThemeContext';
-import { generateJobSheet } from '../../../../src/services/pdfGenerator';
-import { getSignedUrl, getSignedUrls, uploadImage } from '../../../../src/services/storage';
-import { Job } from '../../../../src/types';
+import {SignaturePad} from '../../../../components/SignaturePad';
+import {Colors, UI} from '../../../../constants/theme';
+import {supabase} from '../../../../src/config/supabase';
+import {useAuth} from '../../../../src/context/AuthContext';
+import {useAppTheme} from '../../../../src/context/ThemeContext';
+import {generateJobSheet} from '../../../../src/services/pdfGenerator';
+import {getSignedUrl, getSignedUrls, uploadImage} from '../../../../src/services/storage';
+import {Job} from '../../../../src/types';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -39,27 +39,43 @@ const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'];
 const isValidUUID = (s: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap; gradient: readonly [string, string] }> = {
-  pending:     { label: 'Pending',     color: UI.status.pending, icon: 'time-outline',             gradient: UI.gradients.amberLight },
-  in_progress: { label: 'In Progress', color: UI.status.inProgress, icon: 'play-circle-outline',      gradient: UI.gradients.blueLight },
-  complete:    { label: 'Complete',     color: UI.status.complete, icon: 'checkmark-circle-outline',  gradient: UI.gradients.successLight },
-  paid:        { label: 'Paid',         color: UI.status.paid, icon: 'wallet-outline',            gradient: UI.gradients.violet },
-  cancelled:   { label: 'Cancelled',    color: UI.brand.danger, icon: 'close-circle-outline',      gradient: [UI.brand.danger, '#F87171'] },
+const STATUS_CONFIG: Record<string, {label: string; color: string; icon: keyof typeof Ionicons.glyphMap; gradient: readonly [string, string]}> = {
+  pending: {label: 'Pending', color: UI.status.pending, icon: 'time-outline', gradient: UI.gradients.amberLight},
+  in_progress: {label: 'In Progress', color: UI.status.inProgress, icon: 'play-circle-outline', gradient: UI.gradients.blueLight},
+  complete: {label: 'Complete', color: UI.status.complete, icon: 'checkmark-circle-outline', gradient: UI.gradients.successLight},
+  paid: {label: 'Paid', color: UI.status.paid, icon: 'wallet-outline', gradient: UI.gradients.violet},
+  cancelled: {label: 'Cancelled', color: UI.brand.danger, icon: 'close-circle-outline', gradient: [UI.brand.danger, '#F87171']},
 };
 
 export default function JobDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const {id, from, workerId} = useLocalSearchParams<{id: string; from?: string; workerId?: string}>();
   const insets = useSafeAreaInsets();
-  const { user, userProfile } = useAuth();
+  const {user, userProfile} = useAuth();
 
   const [job, setJob] = useState<Job | any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [signatureModalVisible, setSignatureModalVisible] = useState(false);
   const [resolvedPhotos, setResolvedPhotos] = useState<string[]>([]);
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
 
   const isAdmin = userProfile?.role === 'admin';
+
+  const backLabel = from === 'worker' ? 'Team' : from === 'calendar' ? 'Calendar' : 'Jobs';
+
+  const handleBack = () => {
+    if (from === 'worker' && workerId) {
+      router.replace({pathname: '/(app)/workers/[id]', params: {id: workerId}} as any);
+      return;
+    }
+
+    if (from === 'calendar') {
+      router.replace('/(app)/calendar' as any);
+      return;
+    }
+
+    router.replace('/(app)/jobs' as any);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -70,7 +86,7 @@ export default function JobDetailScreen() {
 
   const fetchJobData = async () => {
     try {
-      const { data, error } = await supabase.from('jobs').select('*').eq('id', id).single();
+      const {data, error} = await supabase.from('jobs').select('*').eq('id', id).single();
       if (error) throw error;
       setJob(data);
       // Resolve private storage refs to signed URLs for display
@@ -93,7 +109,7 @@ export default function JobDetailScreen() {
     if (!job) return;
     setUpdating(true);
     try {
-      const { error } = await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id);
+      const {error} = await supabase.from('jobs').update({status: newStatus}).eq('id', job.id);
       if (error) throw error;
       fetchJobData();
     } catch (e: any) {
@@ -104,15 +120,15 @@ export default function JobDetailScreen() {
   };
 
   const handleGeneratePdf = () => job && generateJobSheet(job);
-  const handleCreateInvoice = () => job && router.push({ pathname: '/(app)/invoice', params: { id: job.id } } as any);
+  const handleCreateInvoice = () => job && router.push({pathname: '/(app)/invoice', params: {id: job.id}} as any);
 
   // --- Worker actions ---
   const workerStartJob = async () => {
     setUpdating(true);
     try {
-      const { error } = await supabase.from('jobs').update({ status: 'in_progress' }).eq('id', id);
+      const {error} = await supabase.from('jobs').update({status: 'in_progress'}).eq('id', id);
       if (error) throw error;
-      setJob({ ...job, status: 'in_progress' });
+      setJob({...job, status: 'in_progress'});
     } catch {
       Alert.alert('Error', 'Could not start job.');
     } finally {
@@ -121,7 +137,7 @@ export default function JobDetailScreen() {
   };
 
   const workerAddPhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    const {status} = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Camera access is required to take photos.');
       return;
@@ -134,8 +150,8 @@ export default function JobDetailScreen() {
       try {
         const storageRef = await uploadImage(result.assets[0].uri, 'job-photos');
         const newPhotos = [...(job.photos || []), storageRef];
-        await supabase.from('jobs').update({ photos: newPhotos }).eq('id', id);
-        setJob({ ...job, photos: newPhotos });
+        await supabase.from('jobs').update({photos: newPhotos}).eq('id', id);
+        setJob({...job, photos: newPhotos});
         // Resolve the new photo for display
         const signedUrl = await getSignedUrl(storageRef);
         setResolvedPhotos(prev => [...prev, signedUrl]);
@@ -151,9 +167,9 @@ export default function JobDetailScreen() {
     setSignatureModalVisible(false);
     setUpdating(true);
     try {
-      await supabase.from('jobs').update({ signature, status: 'complete' }).eq('id', id);
+      await supabase.from('jobs').update({signature, status: 'complete'}).eq('id', id);
       Alert.alert('Job Complete', 'Job has been signed off.');
-      router.back();
+      handleBack();
     } catch {
       Alert.alert('Error', 'Could not save signature.');
     } finally {
@@ -169,7 +185,7 @@ export default function JobDetailScreen() {
   // --- Loading / empty ---
   if (loading) {
     return (
-      <View style={[styles.loadingWrap, { paddingTop: insets.top }]}>
+      <View style={[styles.loadingWrap, {paddingTop: insets.top}]}>
         <LinearGradient colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground} style={StyleSheet.absoluteFill} />
         <ActivityIndicator size="large" color={isDark ? theme.brand.primary : UI.brand.primary} />
       </View>
@@ -177,9 +193,9 @@ export default function JobDetailScreen() {
   }
   if (!job) {
     return (
-      <View style={[styles.loadingWrap, { paddingTop: insets.top }]}>
+      <View style={[styles.loadingWrap, {paddingTop: insets.top}]}>
         <LinearGradient colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground} style={StyleSheet.absoluteFill} />
-        <Text style={{ color: isDark ? theme.text.muted : UI.text.muted }}>Job not found.</Text>
+        <Text style={{color: isDark ? theme.text.muted : UI.text.muted}}>Job not found.</Text>
       </View>
     );
   }
@@ -189,17 +205,27 @@ export default function JobDetailScreen() {
   const nextStatusConfig = nextStatus ? STATUS_CONFIG[nextStatus] : null;
 
   const formatDate = (ts: number) =>
-    new Date(ts).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+    new Date(ts).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'long', year: 'numeric'});
+  const formatTime = (ts: number) =>
+    new Date(ts).toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
+
+  const customerName = job.customer_snapshot?.name || 'Unknown';
+  const jobAddress = job.customer_snapshot?.address || '';
+  const summaryTiles = [
+    {label: 'Customer', value: customerName, icon: 'person-outline' as const},
+    {label: 'Scheduled', value: `${formatDate(job.scheduled_date)} · ${formatTime(job.scheduled_date)}`, icon: 'calendar-outline' as const},
+    {label: 'Site', value: jobAddress || 'No address added', icon: 'location-outline' as const},
+  ];
 
   return (
     <View style={styles.root}>
-      <LinearGradient colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={StyleSheet.absoluteFill} />
 
       {/* ─── Custom header ─── */}
-      <View style={[styles.headerBar, { paddingTop: insets.top + 4 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+      <View style={[styles.headerBar, {paddingTop: insets.top + 4}]}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={22} color={UI.brand.primary} />
-          <Text style={styles.backText}>Jobs</Text>
+          <Text style={styles.backText}>{backLabel}</Text>
         </TouchableOpacity>
         {isAdmin && (
           <TouchableOpacity style={styles.editBtn} onPress={() => router.push(`/(app)/jobs/${job.id}/edit` as any)} activeOpacity={0.7}>
@@ -210,31 +236,33 @@ export default function JobDetailScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{paddingHorizontal: 16, paddingBottom: insets.bottom + 40}}
         showsVerticalScrollIndicator={false}
       >
         {/* ─── Hero card ─── */}
-        <Animated.View entering={FadeInDown.delay(50).duration(400)} style={[styles.heroCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+        <Animated.View entering={FadeInDown.delay(50).duration(400)} style={[styles.heroCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
           <LinearGradient colors={status.gradient} style={styles.heroStrip} />
           <View style={styles.heroBody}>
             <View style={styles.heroTop}>
-              <Text style={[styles.heroRef, isDark && { color: theme.text.muted }]}>{job.reference}</Text>
-              <View style={[styles.statusPill, { backgroundColor: `${status.color}18` }]}>
+              <Text style={[styles.heroRef, isDark && {color: theme.text.muted}]}>{job.reference}</Text>
+              <View style={[styles.statusPill, {backgroundColor: `${status.color}18`}]}>
                 <Ionicons name={status.icon} size={13} color={status.color} />
-                <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+                <Text style={[styles.statusText, {color: status.color}]}>{status.label}</Text>
               </View>
             </View>
-            <Text style={[styles.heroTitle, isDark && { color: theme.text.title }]} numberOfLines={2}>{job.title}</Text>
-            <View style={styles.heroDivider} />
-            <View style={styles.heroMeta}>
-              <View style={styles.metaItem}>
-                <Ionicons name="person-outline" size={14} color={UI.text.muted} />
-                <Text style={[styles.metaText, isDark && { color: theme.text.body }]} numberOfLines={1}>{job.customer_snapshot?.name || 'Unknown'}</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="calendar-outline" size={14} color={isDark ? theme.text.muted : UI.text.muted} />
-                <Text style={[styles.metaText, isDark && { color: theme.text.body }]}>{formatDate(job.scheduled_date)}</Text>
-              </View>
+            <Text style={[styles.heroTitle, isDark && {color: theme.text.title}]} numberOfLines={2}>{job.title}</Text>
+            <Text style={[styles.heroSubtitle, isDark && {color: theme.text.muted}]}>Everything for this job in one place.</Text>
+
+            <View style={styles.heroMetaGrid}>
+              {summaryTiles.map((item) => (
+                <View key={item.label} style={[styles.heroMetricCard, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                  <View style={[styles.heroMetricIcon, {backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6'}]}>
+                    <Ionicons name={item.icon} size={16} color={isDark ? theme.text.bodyLight : UI.text.secondary} />
+                  </View>
+                  <Text style={[styles.heroMetricLabel, isDark && {color: theme.text.muted}]}>{item.label}</Text>
+                  <Text style={[styles.heroMetricValue, isDark && {color: theme.text.title}]} numberOfLines={item.label === 'Site' ? 2 : 1}>{item.value}</Text>
+                </View>
+              ))}
             </View>
           </View>
         </Animated.View>
@@ -243,7 +271,7 @@ export default function JobDetailScreen() {
         {!isAdmin && job.status === 'pending' && (
           <Animated.View entering={FadeInDown.delay(100).duration(400)}>
             <TouchableOpacity onPress={workerStartJob} disabled={updating} activeOpacity={0.85}>
-              <LinearGradient colors={UI.gradients.blue} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bigAction}>
+              <LinearGradient colors={UI.gradients.blue} start={{x: 0, y: 0}} end={{x: 1, y: 0}} style={styles.bigAction}>
                 {updating ? (
                   <ActivityIndicator color={UI.text.white} />
                 ) : (
@@ -259,14 +287,14 @@ export default function JobDetailScreen() {
 
         {!isAdmin && job.status === 'in_progress' && (
           <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.workerTools}>
-            <TouchableOpacity style={[styles.toolCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]} onPress={workerAddPhoto} activeOpacity={0.75}>
-              <View style={[styles.toolIconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+            <TouchableOpacity style={[styles.toolCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]} onPress={workerAddPhoto} activeOpacity={0.75}>
+              <View style={[styles.toolIconWrap, {backgroundColor: 'rgba(59,130,246,0.1)'}]}>
                 <Ionicons name="camera" size={22} color={UI.status.inProgress} />
               </View>
-              <Text style={[styles.toolLabel, isDark && { color: theme.text.title }]}>Add Photo</Text>
+              <Text style={[styles.toolLabel, isDark && {color: theme.text.title}]}>Add Photo</Text>
             </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => setSignatureModalVisible(true)} style={{ flex: 1 }}>
-              <LinearGradient colors={UI.gradients.successLight} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.finishCard}>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => setSignatureModalVisible(true)} style={{flex: 1}}>
+              <LinearGradient colors={UI.gradients.successLight} start={{x: 0, y: 0}} end={{x: 1, y: 0}} style={styles.finishCard}>
                 <Ionicons name="checkmark-done-circle" size={22} color={UI.text.white} />
                 <Text style={styles.finishLabel}>Finish Job</Text>
               </LinearGradient>
@@ -277,42 +305,64 @@ export default function JobDetailScreen() {
         {/* ─── Location card ─── */}
         {job.customer_snapshot?.address && (
           <Animated.View entering={FadeInDown.delay(150).duration(400)}>
-            <TouchableOpacity style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]} onPress={openMaps} activeOpacity={0.75}>
+            <TouchableOpacity style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]} onPress={openMaps} activeOpacity={0.75}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+                <View style={[styles.sectionIconWrap, {backgroundColor: 'rgba(59,130,246,0.1)'}]}>
                   <Ionicons name="location" size={16} color={UI.status.inProgress} />
                 </View>
-                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Location</Text>
-                <Ionicons name="open-outline" size={16} color={isDark ? theme.text.muted : UI.text.muted} style={{ marginLeft: 'auto' }} />
+                <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Location</Text>
+                <Ionicons name="open-outline" size={16} color={isDark ? theme.text.muted : UI.text.muted} style={{marginLeft: 'auto'}} />
               </View>
-              <Text style={[styles.addressText, isDark && { color: theme.text.body }]}>{job.customer_snapshot.address}</Text>
+              <View style={[styles.infoPanel, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                <Text style={[styles.addressText, isDark && {color: theme.text.body}]}>{job.customer_snapshot.address}</Text>
+                <Text style={[styles.helperText, isDark && {color: theme.text.muted}]}>Tap to open turn-by-turn directions.</Text>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         )}
 
         {/* ─── Details card ─── */}
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-          <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
+              <View style={[styles.sectionIconWrap, {backgroundColor: 'rgba(99,102,241,0.1)'}]}>
                 <Ionicons name="document-text" size={16} color={isDark ? theme.brand.primary : UI.brand.primary} />
               </View>
-              <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Details</Text>
+              <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Details</Text>
+            </View>
+
+            <View style={styles.detailGrid}>
+              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text>
+                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]} numberOfLines={2}>{customerName}</Text>
+              </View>
+              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Scheduled</Text>
+                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]} numberOfLines={2}>{formatDate(job.scheduled_date)}</Text>
+              </View>
+              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Time</Text>
+                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]}>{formatTime(job.scheduled_date)}</Text>
+              </View>
+              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Status</Text>
+                <Text style={[styles.detailValue, {color: status.color}]}>{status.label}</Text>
+              </View>
             </View>
 
             {job.notes ? (
-              <View style={[styles.notesBox, isDark && { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
-                <Text style={[styles.notesLabel, isDark && { color: theme.text.muted }]}>Notes</Text>
-                <Text style={[styles.notesText, isDark && { color: theme.text.body }]}>{job.notes}</Text>
+              <View style={[styles.notesBox, isDark && {backgroundColor: 'rgba(255,255,255,0.05)'}]}>
+                <Text style={[styles.notesLabel, isDark && {color: theme.text.muted}]}>Notes</Text>
+                <Text style={[styles.notesText, isDark && {color: theme.text.body}]}>{job.notes}</Text>
               </View>
             ) : (
-              <Text style={[styles.notesText, { color: isDark ? theme.text.muted : UI.text.muted }]}>No notes added.</Text>
+              <Text style={[styles.notesText, {color: isDark ? theme.text.muted : UI.text.muted}]}>No notes added.</Text>
             )}
 
             {isAdmin && job.price != null && (
               <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, isDark && { color: theme.text.muted }]}>Price</Text>
-                <Text style={[styles.priceValue, isDark && { color: theme.brand.primary }]}>£{job.price.toFixed(2)}</Text>
+                <Text style={[styles.priceLabel, isDark && {color: theme.text.muted}]}>Price</Text>
+                <Text style={[styles.priceValue, isDark && {color: theme.brand.primary}]}>£{job.price.toFixed(2)}</Text>
               </View>
             )}
           </View>
@@ -321,26 +371,26 @@ export default function JobDetailScreen() {
         {/* ─── Proof of work ─── */}
         {(resolvedPhotos.length > 0 || job.signature) && (
           <Animated.View entering={FadeInDown.delay(250).duration(400)}>
-            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
+                <View style={[styles.sectionIconWrap, {backgroundColor: 'rgba(16,185,129,0.1)'}]}>
                   <Ionicons name="images" size={16} color={UI.status.complete} />
                 </View>
-                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Proof of Work</Text>
+                <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Proof of Work</Text>
               </View>
 
               {resolvedPhotos.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginTop: 8}} contentContainerStyle={styles.proofRail}>
                   {resolvedPhotos.map((uri: string, idx: number) => (
-                    <Image key={idx} source={{ uri }} style={styles.proofImage} />
+                    <Image key={idx} source={{uri}} style={styles.proofImage} />
                   ))}
                 </ScrollView>
               )}
 
               {job.signature && (
-                <View style={styles.signatureWrap}>
+                <View style={[styles.signatureWrap, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
                   <Text style={styles.signatureLabel}>Customer Signature</Text>
-                  <Image source={{ uri: job.signature }} style={styles.signatureImage} />
+                  <Image source={{uri: job.signature}} style={styles.signatureImage} />
                 </View>
               )}
             </View>
@@ -352,7 +402,7 @@ export default function JobDetailScreen() {
           <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.adminActions}>
             {nextStatus && nextStatusConfig && (
               <TouchableOpacity onPress={() => adminUpdateStatus(nextStatus)} disabled={updating} activeOpacity={0.85}>
-                <LinearGradient colors={nextStatusConfig.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.actionBtnGradient}>
+                <LinearGradient colors={nextStatusConfig.gradient} start={{x: 0, y: 0}} end={{x: 1, y: 0}} style={styles.actionBtnGradient}>
                   {updating ? (
                     <ActivityIndicator color={UI.text.white} />
                   ) : (
@@ -366,25 +416,25 @@ export default function JobDetailScreen() {
             )}
 
             <View style={styles.adminRow}>
-              <TouchableOpacity style={[styles.adminCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]} onPress={handleCreateInvoice} activeOpacity={0.75}>
-                <View style={[styles.adminCardIcon, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
+              <TouchableOpacity style={[styles.adminCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]} onPress={handleCreateInvoice} activeOpacity={0.75}>
+                <View style={[styles.adminCardIcon, {backgroundColor: 'rgba(16,185,129,0.1)'}]}>
                   <Ionicons name="receipt-outline" size={18} color={UI.status.complete} />
                 </View>
-                <Text style={[styles.adminCardLabel, isDark && { color: theme.text.title }]}>Invoice</Text>
+                <Text style={[styles.adminCardLabel, isDark && {color: theme.text.title}]}>Invoice</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.adminCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]} onPress={handleGeneratePdf} activeOpacity={0.75}>
-                <View style={[styles.adminCardIcon, { backgroundColor: 'rgba(139,92,246,0.1)' }]}>
+              <TouchableOpacity style={[styles.adminCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]} onPress={handleGeneratePdf} activeOpacity={0.75}>
+                <View style={[styles.adminCardIcon, {backgroundColor: 'rgba(139,92,246,0.1)'}]}>
                   <Ionicons name="download-outline" size={18} color={UI.status.paid} />
                 </View>
-                <Text style={[styles.adminCardLabel, isDark && { color: theme.text.title }]}>PDF</Text>
+                <Text style={[styles.adminCardLabel, isDark && {color: theme.text.title}]}>PDF</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.adminCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]} onPress={() => router.push(`/(app)/jobs/${job.id}/edit` as any)} activeOpacity={0.75}>
-                <View style={[styles.adminCardIcon, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+              <TouchableOpacity style={[styles.adminCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]} onPress={() => router.push(`/(app)/jobs/${job.id}/edit` as any)} activeOpacity={0.75}>
+                <View style={[styles.adminCardIcon, {backgroundColor: 'rgba(59,130,246,0.1)'}]}>
                   <Ionicons name="create-outline" size={18} color={UI.status.inProgress} />
                 </View>
-                <Text style={[styles.adminCardLabel, isDark && { color: theme.text.title }]}>Edit</Text>
+                <Text style={[styles.adminCardLabel, isDark && {color: theme.text.title}]}>Edit</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -401,8 +451,8 @@ export default function JobDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.background },
-  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
+  root: {flex: 1, backgroundColor: Colors.background},
+  loadingWrap: {flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background},
 
   // ── Header ──
   headerBar: {
@@ -419,7 +469,7 @@ const styles = StyleSheet.create({
     paddingRight: 12,
     gap: 2,
   },
-  backText: { fontSize: 16, color: UI.brand.primary, fontWeight: '600' },
+  backText: {fontSize: 16, color: UI.brand.primary, fontWeight: '600'},
   editBtn: {
     width: 36,
     height: 36,
@@ -431,7 +481,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  scroll: { flex: 1 },
+  scroll: {flex: 1},
 
   // ── Hero card ──
   heroCard: {
@@ -443,15 +493,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     ...Colors.shadow,
   },
-  heroStrip: { height: 4 },
-  heroBody: { padding: 16 },
+  heroStrip: {height: 4},
+  heroBody: {padding: 16},
   heroTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  heroRef: { fontSize: 11, fontWeight: '800', color: UI.text.muted, letterSpacing: 0.5 },
+  heroRef: {fontSize: 11, fontWeight: '800', color: UI.text.muted, letterSpacing: 0.5},
+  heroSubtitle: {fontSize: 14, color: UI.text.muted, lineHeight: 20, marginTop: 6},
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -460,16 +511,26 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
   },
-  statusText: { fontSize: 12, fontWeight: '700' },
-  heroTitle: { fontSize: 22, fontWeight: '800', color: UI.text.title, lineHeight: 28 },
-  heroDivider: {
-    height: 1,
-    backgroundColor: 'rgba(148,163,184,0.18)',
-    marginVertical: 12,
+  statusText: {fontSize: 12, fontWeight: '700'},
+  heroTitle: {fontSize: 22, fontWeight: '800', color: UI.text.title, lineHeight: 28},
+  heroMetaGrid: {gap: 10, marginTop: 14},
+  heroMetricCard: {
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.12)',
   },
-  heroMeta: { gap: 8 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  metaText: { fontSize: 14, color: UI.text.body, fontWeight: '500', flex: 1 },
+  heroMetricIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  heroMetricLabel: {fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4},
+  heroMetricValue: {fontSize: 14, color: UI.text.title, fontWeight: '700', lineHeight: 20},
 
   // ── Worker actions ──
   bigAction: {
@@ -481,7 +542,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 12,
   },
-  bigActionText: { color: UI.text.white, fontSize: 17, fontWeight: '800' },
+  bigActionText: {color: UI.text.white, fontSize: 17, fontWeight: '800'},
 
   workerTools: {
     flexDirection: 'row',
@@ -506,7 +567,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  toolLabel: { fontSize: 13, fontWeight: '700', color: UI.text.title },
+  toolLabel: {fontSize: 13, fontWeight: '700', color: UI.text.title},
   finishCard: {
     flex: 1,
     borderRadius: 14,
@@ -515,7 +576,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  finishLabel: { color: UI.text.white, fontSize: 13, fontWeight: '800' },
+  finishLabel: {color: UI.text.white, fontSize: 13, fontWeight: '800'},
 
   // ── Glass card (reusable) ──
   glassCard: {
@@ -540,19 +601,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: UI.text.title },
+  sectionTitle: {fontSize: 14, fontWeight: '700', color: UI.text.title},
 
   // ── Location ──
-  addressText: { fontSize: 14, color: UI.text.body, lineHeight: 20, marginLeft: 38 },
+  infoPanel: {
+    marginLeft: 38,
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.12)',
+  },
+  addressText: {fontSize: 14, color: UI.text.body, lineHeight: 20},
+  helperText: {fontSize: 12, color: UI.text.muted, marginTop: 8, fontWeight: '500'},
 
   // ── Details ──
+  detailGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  detailTile: {
+    width: '48.5%',
+    borderRadius: 14,
+    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.12)',
+  },
+  detailLabel: {fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, color: UI.text.muted, marginBottom: 6},
+  detailValue: {fontSize: 14, color: UI.text.title, fontWeight: '700', lineHeight: 20},
   notesBox: {
     backgroundColor: 'rgba(99,102,241,0.05)',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.08)',
   },
-  notesLabel: { fontSize: 10, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', marginBottom: 4, letterSpacing: 0.5 },
-  notesText: { fontSize: 14, color: UI.text.body, lineHeight: 20 },
+  notesLabel: {fontSize: 10, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', marginBottom: 4, letterSpacing: 0.5},
+  notesText: {fontSize: 14, color: UI.text.body, lineHeight: 20},
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -562,23 +650,30 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(148,163,184,0.15)',
   },
-  priceLabel: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
-  priceValue: { fontSize: 20, fontWeight: '800', color: UI.brand.primary },
+  priceLabel: {fontSize: 13, fontWeight: '600', color: UI.text.muted},
+  priceValue: {fontSize: 20, fontWeight: '800', color: UI.brand.primary},
 
   // ── Proof of work ──
+  proofRail: {paddingRight: 8},
   proofImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 10,
-    marginRight: 8,
+    width: 88,
+    height: 88,
+    borderRadius: 14,
+    marginRight: 10,
     backgroundColor: 'rgba(0,0,0,0.04)',
   },
-  signatureWrap: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(148,163,184,0.15)' },
-  signatureLabel: { fontSize: 10, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 },
-  signatureImage: { height: 60, width: 150, resizeMode: 'contain', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(148,163,184,0.15)' },
+  signatureWrap: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(148,163,184,0.15)',
+    borderRadius: 14,
+  },
+  signatureLabel: {fontSize: 10, fontWeight: '800', color: UI.text.muted, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5},
+  signatureImage: {height: 60, width: 150, resizeMode: 'contain', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(148,163,184,0.15)'},
 
   // ── Admin actions ──
-  adminActions: { marginTop: 4, gap: 12, marginBottom: 12 },
+  adminActions: {marginTop: 4, gap: 12, marginBottom: 12},
   actionBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -587,7 +682,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 14,
   },
-  actionBtnText: { color: UI.text.white, fontSize: 16, fontWeight: '700' },
+  actionBtnText: {color: UI.text.white, fontSize: 16, fontWeight: '700'},
 
   adminRow: {
     flexDirection: 'row',
@@ -611,5 +706,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  adminCardLabel: { fontSize: 12, fontWeight: '700', color: UI.text.title },
+  adminCardLabel: {fontSize: 12, fontWeight: '700', color: UI.text.title},
 });

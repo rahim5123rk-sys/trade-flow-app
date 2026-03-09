@@ -24,6 +24,7 @@ interface ServiceRecordState {
   finalInfo: ServiceFinalInfo;
   serviceDate: string;
   nextInspectionDate: string;
+  renewalReminderEnabled: boolean;
   customerSignature: string;
   certRef: string;
 }
@@ -41,6 +42,7 @@ interface ServiceRecordContextValue extends ServiceRecordState {
   setFinalInfo: (f: ServiceFinalInfo) => void;
   setServiceDate: (v: string) => void;
   setNextInspectionDate: (v: string) => void;
+  setRenewalReminderEnabled: (v: boolean) => void;
   setCustomerSignature: (v: string) => void;
   setCertRef: (v: string) => void;
   editingDocumentId: string | null;
@@ -62,6 +64,7 @@ export function ServiceRecordProvider({children}: {children: React.ReactNode}) {
   const todayStr = new Date().toLocaleDateString('en-GB');
   const [serviceDate, setServiceDate] = useState(todayStr);
   const [nextInspectionDate, setNextInspectionDate] = useState('');
+  const [renewalReminderEnabled, setRenewalReminderEnabled] = useState(false);
   const [customerSignature, setCustomerSignature] = useState('');
   const [certRef, setCertRef] = useState('');
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
@@ -92,6 +95,7 @@ export function ServiceRecordProvider({children}: {children: React.ReactNode}) {
     setFinalInfo(EMPTY_SERVICE_FINAL_INFO);
     setServiceDate(new Date().toLocaleDateString('en-GB'));
     setNextInspectionDate('');
+    setRenewalReminderEnabled(false);
     setCustomerSignature('');
     setCertRef('');
     setEditingDocumentId(null);
@@ -122,6 +126,8 @@ export function ServiceRecordProvider({children}: {children: React.ReactNode}) {
         setServiceDate,
         nextInspectionDate,
         setNextInspectionDate,
+        renewalReminderEnabled,
+        setRenewalReminderEnabled,
         customerSignature,
         setCustomerSignature,
         certRef,

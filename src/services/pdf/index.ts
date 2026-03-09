@@ -10,8 +10,13 @@
 // ─── Register all generators (side-effect imports) ──────────────
 // Each generator calls registerFormPdf() at module scope.
 // These imports MUST come before any registry usage.
+import '../breakdownReportPdfGenerator';
+import '../commissioningPdfGenerator';
 import '../cp12PdfGenerator';
+import '../decommissioningPdfGenerator';
+import '../installationCertPdfGenerator';
 import '../serviceRecordPdfGenerator';
+import '../warningNoticePdfGenerator';
 
 // Core shared utilities, types, and HTML builders
 export {

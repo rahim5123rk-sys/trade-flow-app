@@ -18,7 +18,7 @@ import {Colors, UI} from '../../constants/theme';
 import {supabase} from '../../src/config/supabase';
 import {useAppTheme} from '../../src/context/ThemeContext';
 
-const PENDING_REGISTRATION_KEY = 'tradeflow_pending_registration';
+const PENDING_REGISTRATION_KEY = 'pilotlight_pending_registration';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -88,7 +88,7 @@ export default function LoginScreen() {
         ]}
       >
         <View style={styles.header}>
-          <Text style={[styles.brand, {color: theme.brand.primary}]}>TradeFlow</Text>
+          <Text style={[styles.brand, {color: theme.brand.primary}]}>PilotLight</Text>
           <Text style={[styles.title, {color: theme.text.title}]}>Welcome Back</Text>
           <Text style={[styles.subtitle, {color: theme.text.muted}]}>Sign in to access your dashboard.</Text>
         </View>

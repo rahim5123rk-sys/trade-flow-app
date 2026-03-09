@@ -25,6 +25,7 @@ interface CP12State {
   finalChecks: CP12FinalChecks;
   inspectionDate: string;
   nextDueDate: string;
+  renewalReminderEnabled: boolean;
   customerSignature: string;
   certRef: string;
 }
@@ -45,6 +46,7 @@ interface CP12ContextValue extends CP12State {
   setFinalChecks: (f: CP12FinalChecks) => void;
   setInspectionDate: (v: string) => void;
   setNextDueDate: (v: string) => void;
+  setRenewalReminderEnabled: (v: boolean) => void;
   setCustomerSignature: (v: string) => void;
   setCertRef: (v: string) => void;
   editingDocumentId: string | null;
@@ -57,6 +59,7 @@ interface CP12ContextValue extends CP12State {
     tenantEmail?: string;
     tenantPhone?: string;
     nextDueDate?: string;
+    renewalReminderEnabled?: boolean;
   }) => void;
   hydrateForEdit: (seed: {
     propertyAddress?: string;
@@ -66,6 +69,7 @@ interface CP12ContextValue extends CP12State {
     tenantEmail?: string;
     tenantPhone?: string;
     nextDueDate?: string;
+    renewalReminderEnabled?: boolean;
     inspectionDate?: string;
     finalChecks?: CP12FinalChecks;
     customerSignature?: string;
@@ -95,6 +99,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
   const nextYear = new Date();
   nextYear.setFullYear(nextYear.getFullYear() + 1);
   const [nextDueDate, setNextDueDate] = useState(nextYear.toLocaleDateString('en-GB'));
+  const [renewalReminderEnabled, setRenewalReminderEnabled] = useState(false);
   const [customerSignature, setCustomerSignature] = useState('');
   const [certRef, setCertRef] = useState('');
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
@@ -124,6 +129,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     tenantEmail?: string;
     tenantPhone?: string;
     nextDueDate?: string;
+    renewalReminderEnabled?: boolean;
   }) => {
     const appliancesSeed = Array.isArray(seed.appliances) ? seed.appliances : [];
     const addressParts = (seed.propertyAddress || '')
@@ -150,6 +156,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     if (seed.tenantEmail !== undefined) setTenantEmail(seed.tenantEmail);
     if (seed.tenantPhone !== undefined) setTenantPhone(seed.tenantPhone);
     if (seed.nextDueDate) setNextDueDate(seed.nextDueDate);
+    if (typeof seed.renewalReminderEnabled === 'boolean') setRenewalReminderEnabled(seed.renewalReminderEnabled);
   }, []);
 
   const hydrateForEdit = useCallback((seed: {
@@ -160,6 +167,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     tenantEmail?: string;
     tenantPhone?: string;
     nextDueDate?: string;
+    renewalReminderEnabled?: boolean;
     inspectionDate?: string;
     finalChecks?: CP12FinalChecks;
     customerSignature?: string;
@@ -192,6 +200,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     if (seed.tenantEmail !== undefined) setTenantEmail(seed.tenantEmail);
     if (seed.tenantPhone !== undefined) setTenantPhone(seed.tenantPhone);
     if (seed.nextDueDate) setNextDueDate(seed.nextDueDate);
+    if (typeof seed.renewalReminderEnabled === 'boolean') setRenewalReminderEnabled(seed.renewalReminderEnabled);
 
     // Edit-specific fields
     if (seed.inspectionDate) setInspectionDate(seed.inspectionDate);
@@ -214,6 +223,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     setFinalChecks(EMPTY_FINAL_CHECKS);
     setInspectionDate(todayStr);
     setNextDueDate(nextYear.toLocaleDateString('en-GB'));
+    setRenewalReminderEnabled(false);
     setCustomerSignature('');
     setCertRef('');
     setEditingDocumentId(null);
@@ -251,6 +261,8 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
         setInspectionDate,
         nextDueDate,
         setNextDueDate,
+        renewalReminderEnabled,
+        setRenewalReminderEnabled,
         customerSignature,
         setCustomerSignature,
         certRef,

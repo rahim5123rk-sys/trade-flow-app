@@ -21,7 +21,7 @@ import {supabase} from '../../src/config/supabase';
 import {useAuth} from '../../src/context/AuthContext';
 import {useAppTheme} from '../../src/context/ThemeContext';
 
-export const PENDING_REGISTRATION_KEY = 'tradeflow_pending_registration';
+export const PENDING_REGISTRATION_KEY = 'pilotlight_pending_registration';
 
 // --- Utils ---
 
@@ -177,7 +177,7 @@ export default function RegisterScreen() {
       let userId: string;
       console.log('[Register] Step 1: Creating auth user...');
 
-      const emailRedirectTo = 'tradeflowapp://login';
+      const emailRedirectTo = 'pilotlight://login';
 
       const {data: authData, error: authError} = await withTimeout(
         supabase.auth.signUp({
@@ -464,7 +464,7 @@ export default function RegisterScreen() {
         {/* STEP 1: Account & Mode */}
         {step === 1 && (
           <View>
-            <Text style={[styles.title, {color: theme.text.title}]}>Welcome to TradeFlow</Text>
+            <Text style={[styles.title, {color: theme.text.title}]}>Welcome to PilotLight</Text>
             <Text style={[styles.subtitle, {color: theme.text.muted}]}>Create your account to get started.</Text>
 
             {/* Mode Selector */}

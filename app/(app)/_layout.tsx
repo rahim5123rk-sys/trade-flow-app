@@ -1,18 +1,129 @@
 import {Ionicons} from '@expo/vector-icons';
-import {Redirect, Tabs} from 'expo-router';
-import React from 'react';
-import {ActivityIndicator, Platform, StyleSheet, Text, View} from 'react-native';
+import {BlurView} from 'expo-blur';
+import {Redirect, Tabs, router, usePathname} from 'expo-router';
+import React, {useEffect, useState} from 'react';
+import {ActivityIndicator, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import type {SharedValue} from 'react-native-reanimated';
+import Animated, {interpolate, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {HapticTab} from '../../components/haptic-tab';
 import {UI} from '../../constants/theme';
 import {useAuth} from '../../src/context/AuthContext';
 import {useOfflineMode} from '../../src/context/OfflineContext';
 import {useAppTheme} from '../../src/context/ThemeContext';
 
+const ACTIVE_PILL_BG = 'rgba(59,130,246,0.12)';
+
+const FAB_ACTIONS = [
+  {
+    key: 'job',
+    label: 'New Job',
+    icon: 'briefcase-outline' as const,
+    route: '/(app)/jobs/create',
+    offsetX: -122,
+    offsetY: -24,
+  },
+  {
+    key: 'form',
+    label: 'New Form',
+    icon: 'document-text-outline' as const,
+    route: '/(app)/forms',
+    offsetX: -92,
+    offsetY: -116,
+  },
+  {
+    key: 'customer',
+    label: 'New Customer',
+    icon: 'person-add-outline' as const,
+    route: '/(app)/customers/add',
+    offsetX: -12,
+    offsetY: -176,
+  },
+  {
+    key: 'tools',
+    label: 'Tools',
+    icon: 'hammer-outline' as const,
+    route: '/(app)/toolbox',
+    offsetX: -118,
+    offsetY: -248,
+  },
+];
+
+function FabMenuItem({
+  action,
+  onPress,
+  progress,
+  cardColor,
+}: {
+  action: typeof FAB_ACTIONS[number];
+  onPress: () => void;
+  progress: SharedValue<number>;
+  cardColor: string;
+}) {
+  const actionStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [
+      {translateX: interpolate(progress.value, [0, 1], [0, action.offsetX])},
+      {translateY: interpolate(progress.value, [0, 1], [0, action.offsetY])},
+      {scale: interpolate(progress.value, [0, 1], [0.92, 1])},
+    ],
+  }));
+
+  return (
+    <Animated.View style={[styles.fabMenuItemWrap, actionStyle]}>
+      <TouchableOpacity activeOpacity={0.9} style={styles.fabMenuTouch} onPress={onPress}>
+        <Text style={styles.fabMenuText}>{action.label}</Text>
+        <View style={[styles.fabMenuItem, {backgroundColor: cardColor}]}>
+          <Ionicons name={action.icon} size={19} color="#111111" />
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 export default function AppLayout() {
   const {session, isLoading, role} = useAuth();
   const {offlineModeEnabled} = useOfflineMode();
-  const {theme, colors, isDark} = useAppTheme();
+  const {theme, isDark} = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 12 : 8);
+  const tabBarHeight = TAB_BAR_BASE_HEIGHT + bottomInset;
+  const fabBottomOffset = tabBarHeight + 14;
   const isAdmin = role === 'admin';
+  const hideGlobalFab = pathname.startsWith('/(app)/settings') || pathname.startsWith('/(app)/workers');
+  const [fabOpen, setFabOpen] = useState(false);
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    if (overlayVisible) {
+      progress.value = withTiming(fabOpen ? 1 : 0, {duration: fabOpen ? 220 : 180});
+    }
+  }, [fabOpen, overlayVisible, progress]);
+
+  const toggleFab = () => {
+    if (fabOpen) {
+      setFabOpen(false);
+      setTimeout(() => setOverlayVisible(false), 180);
+      return;
+    }
+
+    setOverlayVisible(true);
+    setFabOpen(true);
+  };
+
+  const closeFab = () => {
+    setFabOpen(false);
+    setTimeout(() => setOverlayVisible(false), 180);
+  };
+
+  const mainFabStyle = useAnimatedStyle(() => ({
+    transform: [
+      {rotate: `${interpolate(progress.value, [0, 1], [0, 45])}deg`},
+      {scale: interpolate(progress.value, [0, 1], [1, 0.96])},
+    ],
+  }));
 
   if (isLoading) {
     return (
@@ -27,7 +138,7 @@ export default function AppLayout() {
   }
 
   return (
-    <View style={{flex: 1, backgroundColor: theme.surface.base}}>
+    <View style={{flex: 1, backgroundColor: isDark ? theme.surface.base : '#F8F9FA'}}>
       {offlineModeEnabled ? (
         <View style={[styles.offlineBanner, isDark && {backgroundColor: theme.text.muted}]}>
           <Ionicons name="cloud-offline-outline" size={14} color={theme.text.white} />
@@ -39,13 +150,21 @@ export default function AppLayout() {
         screenOptions={{
           headerShown: false,
           tabBarButton: HapticTab,
-          tabBarActiveTintColor: theme.brand.primary,
+          tabBarActiveTintColor: '#3B82F6',
           tabBarInactiveTintColor: theme.text.muted,
           tabBarShowLabel: true,
           tabBarLabelStyle: styles.tabLabel,
-          tabBarStyle: [styles.tabBar, isDark && {borderTopColor: 'rgba(255,255,255,0.06)'}],
+          tabBarItemStyle: styles.tabBarItem,
+          tabBarStyle: [
+            styles.tabBar,
+            {
+              height: tabBarHeight,
+              paddingBottom: bottomInset,
+            },
+            isDark && {backgroundColor: theme.surface.card},
+          ],
           tabBarBackground: () => (
-            <View style={[StyleSheet.absoluteFill, {backgroundColor: theme.surface.base, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}]} />
+            <View style={[StyleSheet.absoluteFill, styles.tabBarBg, isDark && {backgroundColor: theme.surface.card}]} />
           ),
         }}
       >
@@ -54,7 +173,9 @@ export default function AppLayout() {
           options={{
             title: 'Home',
             tabBarIcon: ({color, focused}) => (
-              <Ionicons name={focused ? 'grid' : 'grid-outline'} size={24} color={color} />
+              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
+                <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />
+              </View>
             ),
           }}
         />
@@ -64,7 +185,9 @@ export default function AppLayout() {
           options={{
             title: 'Calendar',
             tabBarIcon: ({color, focused}) => (
-              <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
+              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
+                <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
+              </View>
             ),
           }}
         />
@@ -73,8 +196,12 @@ export default function AppLayout() {
           name="jobs"
           options={{
             title: 'Jobs',
+            href: '/(app)/jobs',
+            popToTopOnBlur: true,
             tabBarIcon: ({color, focused}) => (
-              <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={24} color={color} />
+              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
+                <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={22} color={color} />
+              </View>
             ),
           }}
         />
@@ -85,7 +212,9 @@ export default function AppLayout() {
             title: 'Docs',
             href: isAdmin ? undefined : null,
             tabBarIcon: ({color, focused}) => (
-              <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={24} color={color} />
+              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
+                <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={22} color={color} />
+              </View>
             ),
           }}
         />
@@ -102,25 +231,102 @@ export default function AppLayout() {
         <Tabs.Screen name="settings/terms-of-service" options={{href: null}} />
         <Tabs.Screen name="cp12" options={{href: null}} />
         <Tabs.Screen name="forms" options={{href: null}} />
+        <Tabs.Screen name="toolbox/index" options={{href: null}} />
       </Tabs>
+
+      {isAdmin && !hideGlobalFab ? (
+        <>
+          {overlayVisible ? (
+            <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={closeFab}>
+                <BlurView
+                  intensity={isDark ? 24 : 32}
+                  tint={isDark ? 'dark' : 'light'}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Pressable>
+
+              <View
+                pointerEvents="box-none"
+                style={[
+                  styles.fabOverlay,
+                  {bottom: fabBottomOffset},
+                ]}
+              >
+                {FAB_ACTIONS.map((action, index) => (
+                  <FabMenuItem
+                    key={action.key}
+                    action={action}
+                    progress={progress}
+                    cardColor="#FFFFFF"
+                    onPress={() => {
+                      closeFab();
+                      router.push(action.route as any);
+                    }}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.globalFabWrap,
+              {bottom: fabBottomOffset},
+            ]}
+          >
+            <Animated.View style={mainFabStyle}>
+              <TouchableOpacity activeOpacity={0.9} style={styles.globalFab} onPress={toggleFab}>
+                <Ionicons name="add" size={28} color="#FFFFFF" />
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </>
+      ) : null}
     </View>
   );
 }
 
+const TAB_BAR_BASE_HEIGHT = Platform.OS === 'ios' ? 70 : 62;
+
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderTopWidth: 0,
-    backgroundColor: 'transparent',
-    elevation: 0,
-    height: Platform.OS === 'ios' ? 88 : 68,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 8,
     paddingTop: 8,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 6,
   },
-  tabBg: {
-    backgroundColor: UI.surface.base,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.06)',
+  tabBarBg: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+  tabIconWrap: {
+    width: 48,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconActive: {
+    backgroundColor: ACTIVE_PILL_BG,
+  },
+  tabBarItem: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 2,
   },
   offlineBanner: {
     flexDirection: 'row',
@@ -137,7 +343,65 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
+    fontWeight: '700',
+    marginTop: 4,
+    marginBottom: 0,
+    textAlign: 'center',
+  },
+  globalFabWrap: {
+    position: 'absolute',
+    right: 20,
+  },
+  globalFab: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabOverlay: {
+    position: 'absolute',
+    right: 6,
+    width: 320,
+    height: 372,
+  },
+  fabMenuItemWrap: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+  },
+  fabMenuTouch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    width: 176,
+  },
+  fabMenuItem: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  fabMenuText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#111111',
+    marginRight: 14,
+    lineHeight: 20,
+    textAlign: 'right',
+    includeFontPadding: false,
   },
 });

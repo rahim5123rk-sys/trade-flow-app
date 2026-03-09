@@ -17,6 +17,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -94,6 +95,8 @@ export default function ServiceRecordReviewSign() {
     setServiceDate,
     nextInspectionDate,
     setNextInspectionDate,
+    renewalReminderEnabled,
+    setRenewalReminderEnabled,
     customerSignature,
     setCustomerSignature,
     certRef,
@@ -161,6 +164,7 @@ export default function ServiceRecordReviewSign() {
       finalInfo,
       serviceDate,
       nextInspectionDate,
+      renewalReminderEnabled,
       customerSignature,
       certRef: reference,
     };
@@ -184,6 +188,7 @@ export default function ServiceRecordReviewSign() {
         .from('documents')
         .update({
           reference,
+          expiry_date: nextInspectionDate || null,
           customer_id: customerForm.customerId || null,
           customer_snapshot: customerSnapshot,
           payment_info: JSON.stringify(lockedPayload),
@@ -200,6 +205,7 @@ export default function ServiceRecordReviewSign() {
       number: docNumber,
       reference,
       date: new Date().toISOString(),
+      expiry_date: nextInspectionDate || null,
       status: 'Sent' as const,
       customer_id: customerForm.customerId || null,
       customer_snapshot: customerSnapshot,
@@ -454,6 +460,26 @@ export default function ServiceRecordReviewSign() {
             )}
           </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(220).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+            <View style={s.sectionHeader}>
+              <View style={s.sectionIconWrap}><Ionicons name="notifications-outline" size={16} color={ACCENT} /></View>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Renewal Reminder</Text>
+            </View>
+
+            <View style={[s.reminderRow, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
+              <View style={s.reminderCopy}>
+                <Text style={[s.reminderTitle, {color: theme.text.title}]}>Email customer 7 days before renewal</Text>
+                <Text style={[s.reminderDescription, {color: theme.text.muted}]}>Turn this on to automatically send a reminder before the next inspection date.</Text>
+              </View>
+              <Switch
+                value={renewalReminderEnabled}
+                onValueChange={setRenewalReminderEnabled}
+                trackColor={{false: isDark ? theme.surface.divider : UI.surface.divider, true: ACCENT}}
+                thumbColor="#fff"
+              />
+            </View>
+          </Animated.View>
+
           {/* ── Email Recipients ── */}
           <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <View style={s.sectionHeader}>
@@ -632,6 +658,29 @@ const s = StyleSheet.create({
   },
   emailChipText: {fontSize: 14, fontWeight: '600'},
   noEmailText: {fontSize: 13, lineHeight: 18},
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: UI.surface.base,
+    borderWidth: 1,
+    borderColor: UI.surface.divider,
+  },
+  reminderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  reminderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reminderDescription: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
 
   bottomBar: {
     position: 'absolute', left: 0, right: 0,
