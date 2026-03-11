@@ -70,7 +70,7 @@ type DocumentFilterKey =
 const FILTER_OPTIONS: {key: DocumentFilterKey; label: string; icon: keyof typeof Ionicons.glyphMap}[] = [
   {key: 'invoice', label: 'Invoices', icon: 'receipt-outline'},
   {key: 'quote', label: 'Quotes', icon: 'document-text-outline'},
-  {key: 'cp12', label: 'Gas Certificates', icon: 'shield-checkmark-outline'},
+  {key: 'cp12', label: 'LGSRs', icon: 'shield-checkmark-outline'},
   {key: 'service_record', label: 'Service Records', icon: 'construct-outline'},
   {key: 'commissioning', label: 'Commissioning', icon: 'checkmark-circle-outline'},
   {key: 'decommissioning', label: 'Decommissioning', icon: 'close-circle-outline'},
@@ -219,7 +219,7 @@ const getDocumentTypeLabel = (doc: Document): string => {
   const isInvoice = doc.type === 'invoice' && !isGasForm;
 
   return isCp12
-    ? 'Gas Certificate'
+    ? 'Landlord Gas Safety Record'
     : isSR
       ? 'Service Record'
       : isCommissioning
@@ -296,7 +296,7 @@ export default function DocumentsHubScreen() {
     const isBreakdown = isBreakdownReportDocument(doc);
     const isInstallation = isInstallationCertDocument(doc);
     const isGasForm = isGasFormDocument(doc);
-    const label = isCp12 ? 'Gas Certificate' : isSR ? 'Service Record' : isCommissioning ? 'Commissioning' : isDecommissioning ? 'Decommissioning' : isWarningNotice ? 'Warning Notice' : isBreakdown ? 'Breakdown Report' : isInstallation ? 'Installation Certificate' : isGasForm ? 'Gas Form' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
+    const label = isCp12 ? 'Landlord Gas Safety Record' : isSR ? 'Service Record' : isCommissioning ? 'Commissioning' : isDecommissioning ? 'Decommissioning' : isWarningNotice ? 'Warning Notice' : isBreakdown ? 'Breakdown Report' : isInstallation ? 'Installation Certificate' : isGasForm ? 'Gas Form' : doc.type === 'invoice' ? 'Invoice' : 'Quote';
     Alert.alert(
       `Delete ${label}`,
       `Are you sure you want to delete ${isGasForm ? `${doc.reference || label}` : `${doc.type === 'invoice' ? 'Invoice' : 'Quote'} #${doc.number}`}? This cannot be undone.`,

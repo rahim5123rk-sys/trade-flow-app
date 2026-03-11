@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -464,7 +465,11 @@ export default function RegisterScreen() {
         {/* STEP 1: Account & Mode */}
         {step === 1 && (
           <View>
-            <Text style={[styles.title, {color: theme.text.title}]}>Welcome to GasPilot</Text>
+            <View style={styles.brandRow}>
+              <Image source={require('../../assets/images/iconlogo.png')} style={styles.brandIcon} resizeMode="contain" />
+              <Text style={[styles.brandTitle, {color: theme.text.title}]}>GasPilot</Text>
+            </View>
+            <Text style={[styles.title, {color: theme.text.title}]}>Create your account</Text>
             <Text style={[styles.subtitle, {color: theme.text.muted}]}>Create your account to get started.</Text>
 
             {/* Mode Selector */}
@@ -638,7 +643,10 @@ const styles = StyleSheet.create({
   progressBar: {height: '100%', backgroundColor: Colors.primary, borderRadius: 2},
   scrollContainer: {flex: 1, backgroundColor: '#fff', paddingHorizontal: 24},
 
-  title: {fontSize: 26, fontWeight: '800', color: Colors.text, marginTop: 32, marginBottom: 6},
+  brandRow: {flexDirection: 'row', alignItems: 'center', gap: 0, marginTop: 32, marginBottom: 4},
+  brandIcon: {width: 34, height: 34, marginTop: -4},
+  brandTitle: {fontSize: 32, fontFamily: 'ClashDisplay-Semibold', letterSpacing: -0.5},
+  title: {fontSize: 26, fontWeight: '800', color: Colors.text, marginBottom: 6},
   subtitle: {fontSize: 15, color: Colors.textLight, lineHeight: 22, marginBottom: 28},
 
   modeContainer: {flexDirection: 'row', backgroundColor: UI.surface.elevated, padding: 4, borderRadius: 12, marginBottom: 24},

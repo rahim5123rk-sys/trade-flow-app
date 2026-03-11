@@ -195,6 +195,19 @@ export default function AppLayout() {
         />
 
         <Tabs.Screen
+          name="documents"
+          options={{
+            title: 'Docs',
+            href: isAdmin ? undefined : null,
+            tabBarIcon: ({color, focused}) => (
+              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
+                <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={22} color={color} />
+              </View>
+            ),
+          }}
+        />
+
+        <Tabs.Screen
           name="jobs"
           options={{
             title: 'Jobs',
@@ -203,19 +216,6 @@ export default function AppLayout() {
             tabBarIcon: ({color, focused}) => (
               <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
                 <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={22} color={color} />
-              </View>
-            ),
-          }}
-        />
-
-        <Tabs.Screen
-          name="documents"
-          options={{
-            title: 'Docs',
-            href: isAdmin ? undefined : null,
-            tabBarIcon: ({color, focused}) => (
-              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-                <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={22} color={color} />
               </View>
             ),
           }}

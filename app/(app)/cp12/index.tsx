@@ -258,8 +258,7 @@ export default function CP12DetailsScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text.title} />
             </TouchableOpacity>
             <View style={{flex: 1}}>
-              <Text style={[s.title, {color: theme.text.title}]}>Gas Certificate</Text>
-              <Text style={[s.subtitle, {color: theme.text.muted}]}>Landlord / Homeowner Gas Safety Record</Text>
+              <Text style={[s.title, {color: theme.text.title}]}>Landlord Gas Safety Record</Text>
             </View>
           </Animated.View>
 

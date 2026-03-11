@@ -9,6 +9,7 @@ import {router, useFocusEffect} from 'expo-router';
 import React, {useCallback, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -48,7 +49,7 @@ const ADMIN_TIPS: OnboardingTip[] = [
   },
   {
     title: 'Quick Actions',
-    description: 'Tap these shortcuts to create jobs, quotes, invoices, add clients or generate gas certificates.',
+    description: 'Tap these shortcuts to create jobs, quotes, invoices, add clients or generate landlord gas safety records.',
     icon: 'flash-outline',
     arrowDirection: 'down',
     accent: '#7C3AED',
@@ -230,7 +231,7 @@ const getDocumentTypeLabel = (doc: Document): string => {
 
   switch (resolvedType) {
     case 'cp12':
-      return 'Gas Certificate';
+      return 'Landlord Gas Safety Record';
     case 'service_record':
       return 'Service Record';
     case 'commissioning':
@@ -631,9 +632,12 @@ export default function DashboardScreen() {
         {/* Header */}
         <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
           <View style={{flex: 1}}>
+            <View style={s.brandRow}>
+              <Image source={require('../../assets/images/iconlogo.png')} style={s.brandIcon} resizeMode="contain" />
+              <Text style={[s.brandTitle, {color: theme.text.title}]}>GasPilot</Text>
+            </View>
             <Text style={[s.headerGreeting, {color: theme.text.secondary}]}>
-              {getGreeting()},{' '}
-              <Text style={[s.headerNameInline, {color: theme.text.title}]}>{firstName}</Text>
+              {getGreeting()}
             </Text>
             <Text style={[s.headerDate, {color: theme.text.muted}]}>
               {new Date().toLocaleDateString('en-GB', {
@@ -666,22 +670,32 @@ export default function DashboardScreen() {
               contentContainerStyle={s.quickRow}
             >
               <QuickAction
-                icon="documents"
-                label="Forms"
+                icon="add-circle"
+                label="New Job"
                 backgroundColor="#FFFFFF"
                 iconColor="#111111"
-                onPress={() => router.push('/(app)/forms' as any)}
+                onPress={() => router.push('/(app)/jobs/create' as any)}
                 delay={120}
                 isDark={isDark}
                 theme={theme}
               />
               <QuickAction
-                icon="add-circle"
-                label="New Job"
+                icon="documents"
+                label="Forms"
                 backgroundColor="#FFFFFF"
-                iconColor="#255FCE"
-                onPress={() => router.push('/(app)/jobs/create' as any)}
+                iconColor="#111111"
+                onPress={() => router.push('/(app)/forms' as any)}
                 delay={160}
+                isDark={isDark}
+                theme={theme}
+              />
+              <QuickAction
+                icon="shield-checkmark"
+                label="Gas Cert"
+                backgroundColor="#FFFFFF"
+                iconColor="#111111"
+                onPress={() => router.push('/(app)/cp12' as any)}
+                delay={200}
                 isDark={isDark}
                 theme={theme}
               />
@@ -689,18 +703,8 @@ export default function DashboardScreen() {
                 icon="hammer"
                 label="Tools"
                 backgroundColor="#FFFFFF"
-                iconColor="#0369A1"
+                iconColor="#111111"
                 onPress={() => router.push('/(app)/toolbox' as any)}
-                delay={200}
-                isDark={isDark}
-                theme={theme}
-              />
-              <QuickAction
-                icon="person-add"
-                label="Client"
-                backgroundColor="#FFFFFF"
-                iconColor="#0F766E"
-                onPress={() => router.push('/(app)/customers/add' as any)}
                 delay={240}
                 isDark={isDark}
                 theme={theme}
@@ -709,7 +713,7 @@ export default function DashboardScreen() {
                 icon="receipt"
                 label="Invoice"
                 backgroundColor="#FFFFFF"
-                iconColor="#A16207"
+                iconColor="#111111"
                 onPress={() => router.push('/(app)/invoice' as any)}
                 delay={280}
                 isDark={isDark}
@@ -719,9 +723,19 @@ export default function DashboardScreen() {
                 icon="document-text"
                 label="Quote"
                 backgroundColor="#FFFFFF"
-                iconColor="#6D28D9"
+                iconColor="#111111"
                 onPress={() => router.push('/(app)/quote' as any)}
                 delay={320}
+                isDark={isDark}
+                theme={theme}
+              />
+              <QuickAction
+                icon="person-add"
+                label="Client"
+                backgroundColor="#FFFFFF"
+                iconColor="#111111"
+                onPress={() => router.push('/(app)/customers/add' as any)}
+                delay={360}
                 isDark={isDark}
                 theme={theme}
               />
@@ -846,6 +860,9 @@ const s = StyleSheet.create({
     marginBottom: 28,
     marginTop: 8,
   },
+  brandRow: {flexDirection: 'row', alignItems: 'center', gap: 0, marginBottom: 4},
+  brandIcon: {width: 30, height: 30, marginTop: -4},
+  brandTitle: {fontSize: 28, fontFamily: 'ClashDisplay-Semibold', letterSpacing: -0.5},
   headerGreeting: {fontSize: 28, fontWeight: '500', color: UI.text.secondary, letterSpacing: -0.4},
   headerNameInline: {fontSize: 30, fontWeight: '800', color: UI.text.title, letterSpacing: -0.6},
   headerDate: {fontSize: 14, color: UI.text.muted, marginTop: 4, fontWeight: '500'},

@@ -289,7 +289,7 @@ export default function DocumentDetailScreen() {
     }
 
     const defaultSubject = cp12P
-      ? `Gas Certificate for ${cp12P.pdfData.propertyAddress || doc.customer_snapshot?.address || 'Property'}`
+      ? `Landlord Gas Safety Record for ${cp12P.pdfData.propertyAddress || doc.customer_snapshot?.address || 'Property'}`
       : `${doc.reference || 'Service Record'} — ${doc.customer_snapshot?.name || 'Customer'}`;
     setEmailSubject(defaultSubject.trim());
     setShowEmailModal(true);
@@ -353,7 +353,7 @@ export default function DocumentDetailScreen() {
     const isDecommissioningDoc = payload?.kind === 'decommissioning' || (doc.type as string) === 'decommissioning';
     const isGasDoc = !!payload || isCp12 || isSRDoc || isCommissioningDoc || isDecommissioningDoc;
     const label = isCp12
-      ? 'Gas Certificate'
+      ? 'Landlord Gas Safety Record'
       : isSRDoc
         ? 'Service Record'
         : isCommissioningDoc

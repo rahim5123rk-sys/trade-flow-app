@@ -968,7 +968,7 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* --- Gas Certificate Reminder Settings --- */}
+        {/* --- LGSR Reminder Settings --- */}
         {isAdmin && (
           <>
             <SectionHeader title="Gas Cert Reminders" />

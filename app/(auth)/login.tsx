@@ -5,6 +5,7 @@ import React, {useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -91,7 +92,10 @@ export default function LoginScreen() {
         ]}
       >
         <View style={styles.header}>
-          <Text style={[styles.brand, {color: theme.brand.primary}]}>GasPilot</Text>
+          <View style={styles.brandRow}>
+            <Image source={require('../../assets/images/iconlogo.png')} style={styles.brandIcon} resizeMode="contain" />
+            <Text style={[styles.brand, {color: theme.text.title}]}>GasPilot</Text>
+          </View>
           <Text style={[styles.title, {color: theme.text.title}]}>Welcome Back</Text>
           <Text style={[styles.subtitle, {color: theme.text.muted}]}>Sign in to access your dashboard.</Text>
         </View>
@@ -166,13 +170,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {marginBottom: 40, alignItems: 'center'},
+  brandRow: {flexDirection: 'row', alignItems: 'center', gap: 0, marginBottom: 12},
+  brandIcon: {width: 34, height: 34, marginTop: -4},
   brand: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 32,
+    fontFamily: 'ClashDisplay-Semibold',
     color: Colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 12,
+    letterSpacing: -0.5,
   },
   title: {fontSize: 28, fontWeight: '800', color: Colors.text, marginBottom: 8},
   subtitle: {fontSize: 16, color: Colors.textLight},
