@@ -3,36 +3,37 @@
 // Modern glassmorphism dashboard
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router, useFocusEffect} from 'expo-router';
+import React, {useCallback, useMemo, useState} from 'react';
 import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, {
-    FadeIn,
-    FadeInDown,
-    FadeInRight,
-    SlideInRight,
+  FadeIn,
+  FadeInDown,
+  FadeInRight,
+  SlideInRight,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Onboarding, { OnboardingTip } from '../../components/Onboarding';
-import { Colors, UI } from '../../constants/theme';
-import { supabase } from '../../src/config/supabase';
-import { useAuth } from '../../src/context/AuthContext';
-import { ThemeTokens, useAppTheme } from '../../src/context/ThemeContext';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import Onboarding, {OnboardingTip} from '../../components/Onboarding';
+import {Colors, UI} from '../../constants/theme';
+import {supabase} from '../../src/config/supabase';
+import {useAuth} from '../../src/context/AuthContext';
+import {ThemeTokens, useAppTheme} from '../../src/context/ThemeContext';
+import {Document} from '../../src/types';
 
 // ─── Dashboard Onboarding Tips ─────────────
 const ADMIN_TIPS: OnboardingTip[] = [
   {
-    title: 'Welcome to TradeFlow 👋',
+    title: 'Welcome to GasPilot 👋',
     description: 'Your all-in-one job management app. Let\'s take a quick tour of what you can do.',
     icon: 'rocket-outline',
     arrowDirection: 'none',
@@ -77,7 +78,7 @@ const ADMIN_TIPS: OnboardingTip[] = [
 
 const WORKER_TIPS: OnboardingTip[] = [
   {
-    title: 'Welcome to TradeFlow 👋',
+    title: 'Welcome to GasPilot 👋',
     description: 'Your jobs, schedule and tasks in one place. Let\'s walk through the basics.',
     icon: 'rocket-outline',
     arrowDirection: 'none',
@@ -121,6 +122,151 @@ interface DashboardJob {
   };
 }
 
+interface DashboardRenewal {
+  doc: Document;
+  dueInDays: number | null;
+  dueDate: string | null;
+  dueTone: {color: string; urgent: boolean};
+  typeLabel: string;
+  referenceText: string;
+}
+
+const DASHBOARD_GAS_KINDS = new Set<string>([
+  'cp12',
+  'service_record',
+  'warning_notice',
+  'commissioning',
+  'decommissioning',
+  'breakdown_report',
+  'installation_cert',
+]);
+
+const getPaymentInfoKind = (doc: Document): string | null => {
+  if (!doc.payment_info) return null;
+  try {
+    return JSON.parse(doc.payment_info)?.kind ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const getSiteAddress = (doc: Document): string => {
+  if (doc.payment_info) {
+    try {
+      const parsed = JSON.parse(doc.payment_info);
+      if (parsed?.pdfData?.propertyAddress) return parsed.pdfData.propertyAddress as string;
+    } catch { }
+  }
+
+  const jobAddress = (doc as any).job_address;
+  if (jobAddress?.address_line_1) {
+    return [jobAddress.address_line_1, jobAddress.city, jobAddress.postcode].filter(Boolean).join(', ');
+  }
+
+  const snapshot = doc.customer_snapshot;
+  return [snapshot?.address_line_1, snapshot?.city, snapshot?.postal_code].filter(Boolean).join(', ') || snapshot?.address || '';
+};
+
+const getPrimaryJobAddressLine = (job: DashboardJob): string => {
+  return job.customer_snapshot?.address?.split(',')[0]?.trim() || job.customer_snapshot?.name || 'Unknown location';
+};
+
+const isRenewalEligibleDocument = (doc: Document): boolean => {
+  const type = doc.type as string;
+  const kind = getPaymentInfoKind(doc);
+
+  return (
+    type === 'cp12' ||
+    type === 'service_record' ||
+    DASHBOARD_GAS_KINDS.has(type) ||
+    doc.reference?.startsWith('CP12-') === true ||
+    doc.reference?.startsWith('SR-') === true ||
+    (!!kind && DASHBOARD_GAS_KINDS.has(kind))
+  );
+};
+
+const formatDisplayDate = (value?: string | null): string | null => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const getDaysUntil = (value?: string | null): number | null => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  parsed.setHours(0, 0, 0, 0);
+
+  return Math.ceil((parsed.getTime() - today.getTime()) / 86400000);
+};
+
+const getDueTone = (value?: string | null) => {
+  if (!value) return {color: UI.text.muted, urgent: false};
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return {color: '#B45309', urgent: true};
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  parsed.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.ceil((parsed.getTime() - today.getTime()) / 86400000);
+  if (diffDays < 0) return {color: UI.brand.danger, urgent: true};
+  if (diffDays <= 7) return {color: '#B45309', urgent: true};
+  return {color: UI.text.muted, urgent: false};
+};
+
+const getDocumentTypeLabel = (doc: Document): string => {
+  const type = doc.type as string;
+  const kind = getPaymentInfoKind(doc);
+  const resolvedType = DASHBOARD_GAS_KINDS.has(type) ? type : kind;
+
+  switch (resolvedType) {
+    case 'cp12':
+      return 'Gas Certificate';
+    case 'service_record':
+      return 'Service Record';
+    case 'commissioning':
+      return 'Commissioning';
+    case 'decommissioning':
+      return 'Decommissioning';
+    case 'warning_notice':
+      return 'Warning Notice';
+    case 'breakdown_report':
+      return 'Breakdown Report';
+    case 'installation_cert':
+      return 'Installation Certificate';
+    case 'invoice':
+      return 'Invoice';
+    default:
+      return 'Quote';
+  }
+};
+
+const getDocumentReference = (doc: Document): string => {
+  const type = doc.type as string;
+  const kind = getPaymentInfoKind(doc);
+
+  if (type === 'cp12' || kind === 'cp12' || doc.reference?.startsWith('CP12-')) {
+    return doc.reference || `CP12-${String(doc.number).padStart(4, '0')}`;
+  }
+  if (type === 'service_record' || kind === 'service_record' || doc.reference?.startsWith('SR-')) {
+    return doc.reference || `SR-${String(doc.number).padStart(4, '0')}`;
+  }
+  if (DASHBOARD_GAS_KINDS.has(type) || (kind && DASHBOARD_GAS_KINDS.has(kind))) {
+    return doc.reference || `GAS-${String(doc.number).padStart(4, '0')}`;
+  }
+
+  return `${type === 'invoice' ? 'INV' : 'QTE'}-${String(doc.number).padStart(4, '0')}`;
+};
+
 // --- Greeting based on time of day ---
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -133,7 +279,8 @@ function getGreeting(): string {
 const QuickAction = ({
   icon,
   label,
-  gradient,
+  backgroundColor,
+  iconColor,
   onPress,
   delay = 0,
   isDark = false,
@@ -141,28 +288,26 @@ const QuickAction = ({
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  gradient: readonly string[];
+  backgroundColor: string;
+  iconColor: string;
   onPress: () => void;
   delay?: number;
   isDark?: boolean;
   theme?: ThemeTokens;
 }) => {
   const resolvedTheme = t || UI;
+  const resolvedButtonColor = isDark ? iconColor : backgroundColor;
+  const resolvedIconColor = isDark ? '#FFFFFF' : iconColor;
   return (
-  <Animated.View entering={FadeInDown.delay(delay).springify()}>
-    <TouchableOpacity style={s.quickAction} activeOpacity={0.75} onPress={onPress}>
-      <LinearGradient
-        colors={gradient as [string, string, ...string[]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[s.quickGradient, isDark && { shadowColor: 'rgba(255,255,255,0.3)' }]}
-      >
-        <Ionicons name={icon} size={26} color={isDark ? '#000' : UI.text.white} />
-      </LinearGradient>
-      <Text style={[s.quickLabel, { color: resolvedTheme.text.body }]}>{label}</Text>
-    </TouchableOpacity>
-  </Animated.View>
-);
+    <Animated.View entering={FadeInDown.delay(delay).springify()}>
+      <TouchableOpacity style={s.quickAction} activeOpacity={0.75} onPress={onPress}>
+        <View style={[s.quickButton, {backgroundColor: resolvedButtonColor}, isDark && {shadowColor: 'rgba(255,255,255,0.16)'}]}>
+          <Ionicons name={icon} size={24} color={resolvedIconColor} />
+        </View>
+        <Text style={[s.quickLabel, {color: resolvedTheme.text.body}]}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
 };
 
 // --- Glassmorphic Stat Card ---
@@ -185,22 +330,22 @@ const GlassCard = ({
 }) => {
   const resolvedTheme = t || UI;
   return (
-  <Animated.View
-    entering={FadeInDown.delay(delay).springify()}
-    style={s.glassOuter}
-  >
-    <View style={[s.glassCard, isDark && { backgroundColor: resolvedTheme.glass.bg, borderColor: resolvedTheme.glass.border }]}>
-      <View style={[s.glassAccent, { backgroundColor: accent }]} />
-      <View style={s.glassBody}>
-        <View style={[s.glassIconCircle, { backgroundColor: `${accent}18` }]}>
-          <Ionicons name={icon} size={18} color={accent} />
+    <Animated.View
+      entering={FadeInDown.delay(delay).springify()}
+      style={s.glassOuter}
+    >
+      <View style={[s.glassCard, isDark && {backgroundColor: resolvedTheme.glass.bg, borderColor: resolvedTheme.glass.border}]}>
+        <View style={[s.glassAccent, {backgroundColor: accent}]} />
+        <View style={s.glassBody}>
+          <View style={[s.glassIconCircle, {backgroundColor: `${accent}18`}]}>
+            <Ionicons name={icon} size={18} color={accent} />
+          </View>
+          <Text style={[s.glassValue, {color: resolvedTheme.text.title}]}>{value}</Text>
+          <Text style={[s.glassLabel, {color: resolvedTheme.text.muted}]}>{label}</Text>
         </View>
-        <Text style={[s.glassValue, { color: resolvedTheme.text.title }]}>{value}</Text>
-        <Text style={[s.glassLabel, { color: resolvedTheme.text.muted }]}>{label}</Text>
       </View>
-    </View>
-  </Animated.View>
-);
+    </Animated.View>
+  );
 };
 
 // --- Modern Job Card ---
@@ -213,65 +358,97 @@ const JobTile = ({
   isToday?: boolean;
   delay?: number;
 }) => {
-  const { theme, isDark } = useAppTheme();
-  const statusMap: Record<string, { color: string; label: string }> = {
-    in_progress: { color: UI.status.inProgress, label: 'In Progress' },
-    pending: { color: UI.status.pending, label: 'Pending' },
-    complete: { color: UI.status.complete, label: 'Complete' },
-    paid: { color: UI.status.paid, label: 'Paid' },
+  const {theme, isDark} = useAppTheme();
+  const statusMap: Record<string, {color: string; label: string}> = {
+    in_progress: {color: UI.status.inProgress, label: 'In Progress'},
+    pending: {color: UI.status.pending, label: 'Pending'},
+    complete: {color: UI.status.complete, label: 'Complete'},
+    paid: {color: UI.status.paid, label: 'Paid'},
   };
-  const st = statusMap[job.status] || { color: Colors.secondary, label: job.status };
+  const st = statusMap[job.status] || {color: Colors.secondary, label: job.status};
   const time = new Date(job.scheduled_date).toLocaleTimeString('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
   });
+  const primaryAddress = getPrimaryJobAddressLine(job);
+  const cardTitle = isToday ? primaryAddress : job.title;
+  const cardSubtitle = isToday ? job.title : primaryAddress;
 
   return (
     <Animated.View entering={FadeInRight.delay(delay).springify()}>
       <TouchableOpacity
-        style={[s.jobTile, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+        style={[s.jobTile, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
         activeOpacity={0.7}
-        onPress={() => router.push({ pathname: '/(app)/jobs/[id]', params: { id: job.id } })}
+        onPress={() => router.push({pathname: '/(app)/jobs/[id]', params: {id: job.id, from: 'jobs'}} as any)}
       >
-        {/* Left accent strip */}
-        <LinearGradient
-          colors={[st.color, `${st.color}88`] as readonly [string, string]}
-          style={s.jobStrip}
-        />
-
         <View style={s.jobBody}>
           <View style={s.jobTopRow}>
-            <View style={s.jobTimeBox}>
-              <Ionicons name="time-outline" size={12} color={theme.text.muted} />
-              <Text style={[s.jobTime, { color: theme.text.muted }]}>{time}</Text>
-            </View>
-            {isToday && (
-              <LinearGradient
-                colors={UI.gradients.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={s.todayChip}
-              >
-                <Text style={s.todayChipText}>TODAY</Text>
-              </LinearGradient>
-            )}
-            <View style={[s.statusDot, { backgroundColor: st.color }]} />
-            <Text style={[s.statusLabel, { color: st.color }]}>{st.label}</Text>
-          </View>
+            <Text style={[s.jobTime, {color: theme.text.muted}]}>{time}</Text>
+            <View style={s.jobDivider} />
 
-          <Text style={[s.jobTileTitle, { color: theme.text.title }]} numberOfLines={1}>
-            {job.title}
-          </Text>
-          <View style={s.jobMeta}>
-            <Ionicons name="person-outline" size={13} color={theme.text.muted} />
-            <Text style={[s.jobMetaText, { color: theme.text.muted }]} numberOfLines={1}>
-              {job.customer_snapshot?.name || 'Unknown'}
-            </Text>
+            <View style={s.jobCopy}>
+              <Text style={[s.jobTileTitle, {color: theme.text.title}]} numberOfLines={1}>
+                {cardTitle}
+              </Text>
+              <Text style={[s.jobMetaText, {color: theme.text.muted}]} numberOfLines={1}>
+                {cardSubtitle}
+              </Text>
+            </View>
+
+            <View style={[s.statusPill, {backgroundColor: `${st.color}14`}]}>
+              <Text style={[s.statusLabel, {color: st.color}]}>{st.label}</Text>
+            </View>
           </View>
         </View>
 
         <View style={s.jobChevron}>
           <Ionicons name="chevron-forward" size={18} color={theme.surface.border} />
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+const RenewalCard = ({
+  item,
+  delay = 0,
+}: {
+  item: DashboardRenewal;
+  delay?: number;
+}) => {
+  const {theme, isDark} = useAppTheme();
+
+  return (
+    <Animated.View entering={FadeInRight.delay(delay).springify()}>
+      <TouchableOpacity
+        activeOpacity={0.78}
+        style={[s.renewalCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
+        onPress={() => router.push(`/(app)/documents/${item.doc.id}` as any)}
+      >
+        <View style={s.renewalTopRow}>
+          <View style={[s.renewalIconWrap, {backgroundColor: isDark ? theme.surface.elevated : '#F3F4F6'}]}>
+            <Ionicons name="time-outline" size={16} color={isDark ? theme.text.bodyLight : '#4B5563'} />
+          </View>
+          <View style={[s.renewalPill, {backgroundColor: isDark ? theme.surface.elevated : item.dueTone.urgent ? '#FFF7ED' : '#F3F4F6'}]}>
+            <Text style={[s.renewalPillText, {color: isDark && !item.dueTone.urgent ? theme.text.bodyLight : item.dueTone.color}]}>
+              {item.dueInDays === 0 ? 'Due today' : `${item.dueInDays} day${item.dueInDays === 1 ? '' : 's'}`}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={[s.renewalType, {color: theme.text.muted}]} numberOfLines={1}>{item.typeLabel}</Text>
+        <Text style={[s.renewalAddress, {color: theme.text.title}]} numberOfLines={2}>
+          {getSiteAddress(item.doc) || item.doc.customer_snapshot?.name || 'No address'}
+        </Text>
+        <Text style={[s.renewalMeta, {color: theme.text.muted}]} numberOfLines={1}>
+          {item.doc.customer_snapshot?.name || 'Unknown customer'} • {item.referenceText}
+        </Text>
+
+        <View style={s.renewalFooter}>
+          <Text style={[s.renewalFooterLabel, {color: theme.text.muted}]}>Renewal date</Text>
+          <Text style={[s.renewalFooterValue, {color: isDark && !item.dueTone.urgent ? theme.text.bodyLight : item.dueTone.color}]}>
+            {item.dueDate}
+          </Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -292,10 +469,10 @@ const UpcomingRow = ({
       <View style={s.upDatePill}>
         <Text style={s.upDay}>{d.getDate()}</Text>
         <Text style={s.upMonth}>
-          {d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase()}
+          {d.toLocaleDateString('en-GB', {month: 'short'}).toUpperCase()}
         </Text>
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={{flex: 1}}>
         <JobTile job={job} />
       </View>
     </Animated.View>
@@ -320,22 +497,23 @@ const NavButton = ({
 }) => {
   const resolvedTheme = t || UI;
   return (
-  <Animated.View entering={FadeIn.delay(delay)} style={s.navBtnWrap}>
-    <TouchableOpacity style={[s.navBtn, isDark && { borderBottomColor: resolvedTheme.surface.divider }]} onPress={onPress} activeOpacity={0.7}>
-      <Ionicons name={icon} size={20} color={resolvedTheme.text.secondary} />
-      <Text style={[s.navLabel, { color: resolvedTheme.text.body }]}>{label}</Text>
-      <Ionicons name="chevron-forward" size={14} color={resolvedTheme.surface.border} />
-    </TouchableOpacity>
-  </Animated.View>
-);
+    <Animated.View entering={FadeIn.delay(delay)} style={s.navBtnWrap}>
+      <TouchableOpacity style={s.navBtn} onPress={onPress} activeOpacity={0.7}>
+        <Ionicons name={icon} size={20} color={resolvedTheme.text.secondary} />
+        <Text style={[s.navLabel, {color: resolvedTheme.text.body}]}>{label}</Text>
+        <Ionicons name="chevron-forward" size={14} color={resolvedTheme.surface.border} />
+      </TouchableOpacity>
+    </Animated.View>
+  );
 };
 
 // --- Main Dashboard ---
 export default function DashboardScreen() {
-  const { userProfile, user } = useAuth();
-  const { theme, colors, isDark } = useAppTheme();
+  const {userProfile, user} = useAuth();
+  const {theme, colors, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const [allJobs, setAllJobs] = useState<DashboardJob[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -364,14 +542,30 @@ export default function DashboardScreen() {
       .select('*')
       .eq('company_id', userProfile.company_id)
       .neq('status', 'cancelled')
-      .order('scheduled_date', { ascending: true });
+      .order('scheduled_date', {ascending: true});
 
     if (!isAdmin && user?.id) {
       query = query.contains('assigned_to', [user.id]);
     }
 
-    const { data } = await query;
-    if (data) setAllJobs(data as any);
+    const documentsQuery = supabase
+      .from('documents')
+      .select('*')
+      .eq('company_id', userProfile.company_id)
+      .not('expiry_date', 'is', null)
+      .order('expiry_date', {ascending: true})
+      .limit(24);
+
+    const [{data: jobsData, error: jobsError}, {data: documentsData, error: documentsError}] = await Promise.all([
+      query,
+      documentsQuery,
+    ]);
+
+    if (jobsError) console.error('Error fetching dashboard jobs:', jobsError);
+    if (documentsError) console.error('Error fetching dashboard renewals:', documentsError);
+
+    if (jobsData) setAllJobs(jobsData as any);
+    if (documentsData) setDocuments(documentsData as Document[]);
     setLoading(false);
     setRefreshing(false);
   };
@@ -381,35 +575,30 @@ export default function DashboardScreen() {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
 
-    const active = allJobs.filter((j) => j.status === 'in_progress').length;
-    const pending = allJobs.filter((j) => j.status === 'pending').length;
-
-    const revenue = isAdmin
-      ? allJobs
-          .filter((j) => j.status === 'paid' || j.payment_status === 'paid')
-          .reduce((sum, j) => sum + (j.price || 0), 0)
-      : 0;
-
     const todaysJobs = allJobs.filter(
       (j) => j.scheduled_date >= startOfDay && j.scheduled_date < endOfDay
     );
 
-    const upcomingJobs = allJobs
-      .filter(
-        (j) =>
-          j.scheduled_date >= endOfDay && !['complete', 'paid'].includes(j.status)
-      )
-      .slice(0, 5);
+    const upcomingRenewals = documents
+      .filter((doc) => !!doc.expiry_date && isRenewalEligibleDocument(doc))
+      .map((doc) => ({
+        doc,
+        dueInDays: getDaysUntil(doc.expiry_date),
+        dueDate: formatDisplayDate(doc.expiry_date),
+        dueTone: getDueTone(doc.expiry_date),
+        typeLabel: getDocumentTypeLabel(doc),
+        referenceText: getDocumentReference(doc),
+      }))
+      .filter((item) => item.dueInDays !== null && item.dueInDays >= 0 && item.dueInDays <= 60)
+      .sort((a, b) => (a.dueInDays ?? 9999) - (b.dueInDays ?? 9999))
+      .slice(0, 8);
 
-    return { active, pending, revenue, todaysJobs, upcomingJobs };
-  }, [allJobs, isAdmin]);
-
-  const fmtCurrency = (n: number) =>
-    `£${n.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
+    return {todaysJobs, upcomingRenewals};
+  }, [allJobs, documents]);
 
   if (loading && allJobs.length === 0) {
     return (
-      <View style={[s.center, { backgroundColor: theme.surface.base }]}>
+      <View style={[s.center, {backgroundColor: theme.surface.base}]}>
         <ActivityIndicator size="large" color={theme.brand.primary} />
       </View>
     );
@@ -418,16 +607,15 @@ export default function DashboardScreen() {
   const firstName = userProfile?.display_name?.split(' ')[0] || 'There';
 
   return (
-    <View style={[s.root, { backgroundColor: theme.surface.base }]}>
-      {/* Background gradient */}
+    <View style={[s.root, {backgroundColor: isDark ? theme.surface.base : '#F8F9FA'}]}>
       <LinearGradient
-        colors={theme.gradients.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={isDark ? [theme.surface.base, theme.surface.base, theme.surface.base] : theme.gradients.appBackground}
+        start={{x: 0.5, y: 0}}
+        end={{x: 0.5, y: 1}}
         style={StyleSheet.absoluteFill}
       />
       <ScrollView
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 8 }]}
+        contentContainerStyle={[s.scroll, {paddingTop: insets.top + 8}]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -442,10 +630,12 @@ export default function DashboardScreen() {
       >
         {/* Header */}
         <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={[s.headerGreeting, { color: theme.text.secondary }]}>{getGreeting()},</Text>
-            <Text style={[s.headerName, { color: theme.text.title }]}>{firstName}</Text>
-            <Text style={[s.headerDate, { color: theme.text.muted }]}>
+          <View style={{flex: 1}}>
+            <Text style={[s.headerGreeting, {color: theme.text.secondary}]}>
+              {getGreeting()},{' '}
+              <Text style={[s.headerNameInline, {color: theme.text.title}]}>{firstName}</Text>
+            </Text>
+            <Text style={[s.headerDate, {color: theme.text.muted}]}>
               {new Date().toLocaleDateString('en-GB', {
                 weekday: 'long',
                 day: 'numeric',
@@ -459,131 +649,115 @@ export default function DashboardScreen() {
           >
             <LinearGradient
               colors={isDark ? theme.gradients.primary : UI.gradients.primary}
-              style={[s.avatar, isDark && { shadowColor: '#000' }]}
+              style={[s.avatar, isDark && {shadowColor: '#000'}]}
             >
-              <Text style={[s.avatarText, { color: isDark ? '#000' : UI.text.white }]}>{firstName.charAt(0).toUpperCase()}</Text>
+              <Text style={[s.avatarText, {color: isDark ? '#000' : UI.text.white}]}>{firstName.charAt(0).toUpperCase()}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Stats Row */}
-        <View style={s.statsRow}>
-          <GlassCard
-            label="Active"
-            value={stats.active}
-            icon="flash"
-            accent={isDark ? theme.text.title : UI.status.inProgress}
-            delay={100}
-            isDark={isDark}
-            theme={theme}
-          />
-          <GlassCard
-            label="Pending"
-            value={stats.pending}
-            icon="hourglass-outline"
-            accent={isDark ? theme.text.secondary : UI.status.pending}
-            delay={150}
-            isDark={isDark}
-            theme={theme}
-          />
-          {isAdmin ? (
-            <GlassCard
-              label="Revenue"
-              value={fmtCurrency(stats.revenue)}
-              icon="trending-up"
-              accent={isDark ? theme.text.title : UI.status.complete}
-              delay={200}
-              isDark={isDark}
-              theme={theme}
-            />
-          ) : (
-            <GlassCard
-              label="Done"
-              value={allJobs.filter((j) => j.status === 'complete').length}
-              icon="checkmark-done"
-              accent={isDark ? theme.text.title : UI.status.complete}
-              delay={200}
-              isDark={isDark}
-              theme={theme}
-            />
-          )}
-        </View>
-
         {/* Quick Actions */}
         {isAdmin ? (
-          <Animated.View entering={FadeInDown.delay(250).springify()}>
-            <Text style={[s.sectionLabel, { color: theme.text.title }]}>Quick Actions</Text>
+          <Animated.View entering={FadeInDown.delay(100).springify()}>
+            <Text style={[s.sectionLabel, {color: theme.text.title}]}>Quick Actions</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={s.quickRow}
             >
               <QuickAction
+                icon="documents"
+                label="Forms"
+                backgroundColor="#FFFFFF"
+                iconColor="#111111"
+                onPress={() => router.push('/(app)/forms' as any)}
+                delay={120}
+                isDark={isDark}
+                theme={theme}
+              />
+              <QuickAction
                 icon="add-circle"
                 label="New Job"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.primary}
+                backgroundColor="#FFFFFF"
+                iconColor="#255FCE"
                 onPress={() => router.push('/(app)/jobs/create' as any)}
-                delay={300}
+                delay={160}
                 isDark={isDark}
                 theme={theme}
               />
               <QuickAction
-                icon="document-text"
-                label="Quote"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.violet}
-                onPress={() => router.push('/(app)/quote' as any)}
-                delay={350}
-                isDark={isDark}
-                theme={theme}
-              />
-              <QuickAction
-                icon="receipt"
-                label="Invoice"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.amber}
-                onPress={() => router.push('/(app)/invoice' as any)}
-                delay={400}
+                icon="hammer"
+                label="Tools"
+                backgroundColor="#FFFFFF"
+                iconColor="#0369A1"
+                onPress={() => router.push('/(app)/toolbox' as any)}
+                delay={200}
                 isDark={isDark}
                 theme={theme}
               />
               <QuickAction
                 icon="person-add"
                 label="Client"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.success}
+                backgroundColor="#FFFFFF"
+                iconColor="#0F766E"
                 onPress={() => router.push('/(app)/customers/add' as any)}
-                delay={450}
+                delay={240}
                 isDark={isDark}
                 theme={theme}
               />
               <QuickAction
-                icon="flame"
-                label="Gas Cert"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.danger}
-                onPress={() => router.push('/(app)/cp12' as any)}
-                delay={500}
+                icon="receipt"
+                label="Invoice"
+                backgroundColor="#FFFFFF"
+                iconColor="#A16207"
+                onPress={() => router.push('/(app)/invoice' as any)}
+                delay={280}
+                isDark={isDark}
+                theme={theme}
+              />
+              <QuickAction
+                icon="document-text"
+                label="Quote"
+                backgroundColor="#FFFFFF"
+                iconColor="#6D28D9"
+                onPress={() => router.push('/(app)/quote' as any)}
+                delay={320}
                 isDark={isDark}
                 theme={theme}
               />
             </ScrollView>
           </Animated.View>
         ) : (
-          <Animated.View entering={FadeInDown.delay(250).springify()}>
-            <Text style={[s.sectionLabel, { color: theme.text.title }]}>Quick Actions</Text>
+          <Animated.View entering={FadeInDown.delay(100).springify()}>
+            <Text style={[s.sectionLabel, {color: theme.text.title}]}>Quick Actions</Text>
             <View style={s.quickRow}>
               <QuickAction
                 icon="list"
                 label="Schedule"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.primary}
+                backgroundColor="#FFFFFF"
+                iconColor="#111111"
                 onPress={() => router.push('/(app)/jobs')}
-                delay={300}
+                delay={120}
                 isDark={isDark}
                 theme={theme}
               />
               <QuickAction
                 icon="calendar"
                 label="Calendar"
-                gradient={isDark ? ['#FFFFFF', '#E5E5EA'] as const : UI.gradients.success}
+                backgroundColor="#FFFFFF"
+                iconColor="#255FCE"
                 onPress={() => router.push('/(app)/calendar')}
-                delay={350}
+                delay={160}
+                isDark={isDark}
+                theme={theme}
+              />
+              <QuickAction
+                icon="hammer"
+                label="Tools"
+                backgroundColor="#FFFFFF"
+                iconColor="#0369A1"
+                onPress={() => router.push('/(app)/toolbox')}
+                delay={200}
                 isDark={isDark}
                 theme={theme}
               />
@@ -592,62 +766,52 @@ export default function DashboardScreen() {
         )}
 
         {/* Today's Schedule */}
-        <Animated.View entering={FadeInDown.delay(350).springify()}>
+        <Animated.View entering={FadeInDown.delay(320).springify()}>
           <View style={s.sectionHeaderRow}>
-            <Text style={[s.sectionLabel, { color: theme.text.title }]}>{"Today's Schedule"}</Text>
-            <View style={[s.countBadge, isDark && { backgroundColor: theme.surface.elevated }]}>
-              <Text style={[s.countText, { color: theme.brand.primary }]}>{stats.todaysJobs.length}</Text>
+            <Text style={[s.sectionLabel, {color: theme.text.title}]}>{"Today's Schedule"}</Text>
+            <View style={[s.countBadge, isDark && {backgroundColor: theme.surface.elevated}]}>
+              <Text style={[s.countText, {color: theme.brand.primary}]}>{stats.todaysJobs.length}</Text>
             </View>
           </View>
 
           {stats.todaysJobs.length === 0 ? (
-            <View style={[s.emptyCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
-              <View style={[s.emptyIconWrap, isDark && { backgroundColor: theme.surface.divider }]}>
+            <View style={[s.emptyCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+              <View style={[s.emptyIconWrap, isDark && {backgroundColor: theme.surface.divider}]}>
                 <Ionicons name="sunny-outline" size={28} color={theme.text.muted} />
               </View>
-              <Text style={[s.emptyTitle, { color: theme.text.body }]}>All clear!</Text>
-              <Text style={[s.emptySubtitle, { color: theme.text.muted }]}>No jobs scheduled for today.</Text>
+              <Text style={[s.emptyTitle, {color: theme.text.body}]}>All clear!</Text>
+              <Text style={[s.emptySubtitle, {color: theme.text.muted}]}>No jobs scheduled for today.</Text>
             </View>
           ) : (
             stats.todaysJobs.map((job, i) => (
-              <JobTile key={job.id} job={job} isToday delay={400 + i * 60} />
+              <JobTile key={job.id} job={job} isToday delay={360 + i * 60} />
             ))
           )}
         </Animated.View>
 
-        {/* Up Next */}
-        <Animated.View entering={FadeInDown.delay(500).springify()}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={[s.sectionLabel, { color: theme.text.title }]}>Up Next</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/calendar')}
-              style={s.seeAllBtn}
-            >
-              <Text style={[s.seeAllText, { color: theme.brand.primary }]}>Calendar</Text>
-              <Ionicons name="arrow-forward" size={14} color={theme.brand.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {stats.upcomingJobs.length === 0 ? (
-            <View style={[s.emptyCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
-              <View style={[s.emptyIconWrap, isDark && { backgroundColor: theme.surface.divider }]}>
-                <Ionicons name="checkmark-circle-outline" size={28} color={theme.text.muted} />
+        {stats.upcomingRenewals.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(420).springify()}>
+            <View style={s.sectionHeaderRow}>
+              <Text style={[s.sectionLabel, {color: theme.text.title, marginBottom: 0}]}>Upcoming Renewals</Text>
+              <View style={[s.countBadge, isDark && {backgroundColor: theme.surface.elevated}]}>
+                <Text style={[s.countText, {color: theme.brand.primary}]}>{stats.upcomingRenewals.length}</Text>
               </View>
-              <Text style={[s.emptyTitle, { color: theme.text.body }]}>{"You're all caught up"}</Text>
-              <Text style={[s.emptySubtitle, { color: theme.text.muted }]}>Nothing upcoming.</Text>
             </View>
-          ) : (
-            stats.upcomingJobs.map((job, i) => (
-              <UpcomingRow key={job.id} job={job} delay={550 + i * 60} />
-            ))
-          )}
-        </Animated.View>
+            <Text style={[s.sectionHint, {color: theme.text.muted}]}>Due in the next 60 days</Text>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.renewalRow}>
+              {stats.upcomingRenewals.map((item, index) => (
+                <RenewalCard key={item.doc.id} item={item} delay={460 + index * 50} />
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
 
         {/* Navigation Grid (admin) */}
         {isAdmin && (
-          <Animated.View entering={FadeInDown.delay(650).springify()}>
-            <Text style={[s.sectionLabel, { marginTop: 8, color: theme.text.title }]}>Navigate</Text>
-            <View style={[s.navGrid, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <Animated.View entering={FadeInDown.delay(520).springify()}>
+            <Text style={[s.sectionLabel, {marginTop: 8, color: theme.text.title}]}>Navigate</Text>
+            <View style={[s.navGrid, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <NavButton icon="briefcase-outline" label="All Jobs" onPress={() => router.push('/(app)/jobs')} delay={700} isDark={isDark} theme={theme} />
               <NavButton icon="people-outline" label="Customers" onPress={() => router.push('/(app)/customers' as any)} delay={740} isDark={isDark} theme={theme} />
               <NavButton icon="person-outline" label="Team" onPress={() => router.push('/(app)/workers' as any)} delay={780} isDark={isDark} theme={theme} />
@@ -671,9 +835,9 @@ const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: UI.surface.elevated },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { paddingHorizontal: 20, paddingBottom: 120 },
+  root: {flex: 1, backgroundColor: '#F8F9FA'},
+  center: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+  scroll: {paddingHorizontal: 20, paddingBottom: 120},
 
   // Header
   header: {
@@ -682,36 +846,38 @@ const s = StyleSheet.create({
     marginBottom: 28,
     marginTop: 8,
   },
-  headerGreeting: { fontSize: 15, fontWeight: '600', color: UI.text.secondary, letterSpacing: 0.3 },
-  headerName: { fontSize: 32, fontWeight: '800', color: UI.text.title, marginTop: 2, letterSpacing: -0.5 },
-  headerDate: { fontSize: 14, color: UI.text.muted, marginTop: 4, fontWeight: '500' },
+  headerGreeting: {fontSize: 28, fontWeight: '500', color: UI.text.secondary, letterSpacing: -0.4},
+  headerNameInline: {fontSize: 30, fontWeight: '800', color: UI.text.title, letterSpacing: -0.6},
+  headerDate: {fontSize: 14, color: UI.text.muted, marginTop: 4, fontWeight: '500'},
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: UI.brand.primary,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  avatarText: { fontSize: 20, fontWeight: '800', color: UI.text.white },
+  avatarText: {fontSize: 20, fontWeight: '800', color: UI.text.white},
 
   // Stats
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 28 },
-  glassOuter: { flex: 1 },
+  statsRow: {flexDirection: 'row', gap: 10, marginBottom: 28},
+  glassOuter: {flex: 1},
   glassCard: {
     borderRadius: 18,
-    backgroundColor: GLASS_BG,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
-    ...UI.shadow,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  glassAccent: { height: 4, borderTopLeftRadius: 18, borderTopRightRadius: 18 },
-  glassBody: { padding: 14 },
+  glassAccent: {height: 0},
+  glassBody: {padding: 14},
   glassIconCircle: {
     width: 36,
     height: 36,
@@ -720,63 +886,106 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  glassValue: { fontSize: 22, fontWeight: '800', color: UI.text.title, letterSpacing: -0.3 },
-  glassLabel: { fontSize: 12, fontWeight: '700', color: UI.text.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  glassValue: {fontSize: 22, fontWeight: '800', color: UI.text.title, letterSpacing: -0.3},
+  glassLabel: {fontSize: 12, fontWeight: '700', color: UI.text.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5},
 
   // Quick actions
-  quickRow: { flexDirection: 'row', gap: 14, marginBottom: 28, paddingRight: 8 },
-  quickAction: { alignItems: 'center', width: 80 },
-  quickGradient: {
+  quickRow: {flexDirection: 'row', gap: 14, marginBottom: 28, paddingRight: 8},
+  quickAction: {alignItems: 'center', width: 80},
+  quickButton: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
-    shadowColor: UI.text.title,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
   },
-  quickLabel: { fontSize: 13, fontWeight: '700', color: UI.text.body, textAlign: 'center' },
+  quickLabel: {fontSize: 13, fontWeight: '700', color: UI.text.body, textAlign: 'center'},
 
   // Section headers
-  sectionLabel: { fontSize: 18, fontWeight: '700', color: UI.text.title, marginBottom: 14, letterSpacing: -0.2 },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  countBadge: { backgroundColor: UI.surface.primaryLight, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
-  countText: { fontSize: 13, fontWeight: '700', color: UI.brand.primary },
-  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  seeAllText: { fontSize: 14, fontWeight: '600', color: UI.brand.primary },
+  sectionLabel: {fontSize: 18, fontWeight: '700', color: UI.text.title, marginBottom: 14, letterSpacing: -0.2},
+  sectionHeaderRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14},
+  sectionHint: {fontSize: 13, fontWeight: '500', marginTop: -6, marginBottom: 14},
+  countBadge: {backgroundColor: UI.surface.primaryLight, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12},
+  countText: {fontSize: 13, fontWeight: '700', color: UI.brand.primary},
+  seeAllBtn: {flexDirection: 'row', alignItems: 'center', gap: 4},
+  seeAllText: {fontSize: 14, fontWeight: '600', color: UI.brand.primary},
 
   // Job tiles
   jobTile: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: GLASS_BG,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     marginBottom: 10,
     overflow: 'hidden',
-    ...UI.shadowLight,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  jobStrip: { width: 5, alignSelf: 'stretch', borderTopLeftRadius: 16, borderBottomLeftRadius: 16 },
-  jobBody: { flex: 1, paddingVertical: 16, paddingHorizontal: 16 },
-  jobTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  jobTimeBox: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  jobTime: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
-  todayChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  todayChipText: { fontSize: 10, fontWeight: '800', color: UI.text.white, letterSpacing: 0.5 },
-  statusDot: { width: 7, height: 7, borderRadius: 4, marginLeft: 'auto' },
-  statusLabel: { fontSize: 11, fontWeight: '700' },
-  jobTileTitle: { fontSize: 16, fontWeight: '700', color: UI.text.title, marginBottom: 4 },
-  jobMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  jobMetaText: { fontSize: 13, color: UI.text.muted, flex: 1 },
-  jobChevron: { paddingRight: 14 },
+  jobBody: {flex: 1, paddingVertical: 19, paddingHorizontal: 18},
+  jobTopRow: {flexDirection: 'row', alignItems: 'center', gap: 12},
+  jobTime: {fontSize: 14, fontWeight: '600', color: UI.text.muted, width: 42},
+  jobDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: 'rgba(148,163,184,0.28)',
+  },
+  jobCopy: {flex: 1},
+  statusPill: {borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4},
+  statusLabel: {fontSize: 11, fontWeight: '700'},
+  jobTileTitle: {fontSize: 16, fontWeight: '700', color: UI.text.title, marginBottom: 4},
+  jobMetaText: {fontSize: 13, color: UI.text.muted, flex: 1, lineHeight: 18},
+  jobChevron: {paddingRight: 14},
+
+  // Renewals
+  renewalRow: {paddingRight: 8, gap: 12, marginBottom: 24},
+  renewalCard: {
+    width: 264,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.12)',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  renewalTopRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14},
+  renewalIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  renewalPill: {paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999},
+  renewalPillText: {fontSize: 12, fontWeight: '700'},
+  renewalType: {fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8},
+  renewalAddress: {fontSize: 17, fontWeight: '800', lineHeight: 22, marginBottom: 8},
+  renewalMeta: {fontSize: 13, lineHeight: 18, marginBottom: 16},
+  renewalFooter: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(148,163,184,0.14)',
+    paddingTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  renewalFooterLabel: {fontSize: 12, fontWeight: '600'},
+  renewalFooterValue: {fontSize: 13, fontWeight: '700'},
 
   // Upcoming
-  upRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  upRow: {flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4},
   upDatePill: {
     width: 48,
     height: 56,
@@ -785,40 +994,70 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  upDay: { fontSize: 20, fontWeight: '800', color: UI.brand.primaryDark },
-  upMonth: { fontSize: 10, fontWeight: '700', color: UI.brand.accent, letterSpacing: 0.5 },
+  upDay: {fontSize: 20, fontWeight: '800', color: UI.brand.primaryDark},
+  upMonth: {fontSize: 10, fontWeight: '700', color: UI.brand.accent, letterSpacing: 0.5},
 
   // Nav grid
   navGrid: {
-    borderRadius: 18,
-    backgroundColor: GLASS_BG,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    overflow: 'hidden',
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 8,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   navBtnWrap: {},
   navBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: UI.surface.divider,
     gap: 12,
   },
-  navLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: UI.text.body },
+  navLabel: {flex: 1, fontSize: 15, fontWeight: '600', color: UI.text.body},
+
+  // Resource banner
+  resourceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: '#FFF8EE',
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  resourceIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resourceText: {flex: 1},
+  resourceTitle: {fontSize: 15, fontWeight: '700', marginBottom: 2},
+  resourceSubtitle: {fontSize: 12, fontWeight: '500'},
 
   // Empty state
   emptyCard: {
     alignItems: 'center',
     paddingVertical: 32,
     paddingHorizontal: 24,
-    backgroundColor: GLASS_BG,
+    backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   emptyIconWrap: {
     width: 52,
@@ -829,6 +1068,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: UI.text.body, marginBottom: 4 },
-  emptySubtitle: { fontSize: 14, color: UI.text.muted },
+  emptyTitle: {fontSize: 16, fontWeight: '700', color: UI.text.body, marginBottom: 4},
+  emptySubtitle: {fontSize: 14, color: UI.text.muted},
 });

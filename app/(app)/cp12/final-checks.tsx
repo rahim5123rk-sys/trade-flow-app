@@ -31,31 +31,34 @@ const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
 // ─── Step indicator ─────────────────────────────────────────────
 
-const StepIndicator = ({ current }: { current: number }) => (
-  <View style={s.stepRow}>
-    {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
-      const step = i + 1;
-      const isActive = step === current;
-      const isDone = step < current;
-      return (
-        <View key={label} style={s.stepItem}>
-          <View
-            style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}
-          >
-            {isDone ? (
-              <Ionicons name="checkmark" size={12} color={UI.text.white} />
-            ) : (
-              <Text style={[s.stepDotText, (isActive || isDone) && { color: UI.text.white }]}>
-                {step}
-              </Text>
-            )}
+const StepIndicator = ({ current }: { current: number }) => {
+  const { isDark, theme } = useAppTheme();
+  return (
+    <View style={[s.stepRow, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+      {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
+        const step = i + 1;
+        const isActive = step === current;
+        const isDone = step < current;
+        return (
+          <View key={label} style={s.stepItem}>
+            <View
+              style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}
+            >
+              {isDone ? (
+                <Ionicons name="checkmark" size={12} color={UI.text.white} />
+              ) : (
+                <Text style={[s.stepDotText, (isActive || isDone) && { color: UI.text.white }, isDark && !isActive && !isDone && { color: theme.text.muted }]}>
+                  {step}
+                </Text>
+              )}
+            </View>
+            <Text style={[s.stepLabel, isActive ? { color: theme.brand.primary } : isDark && { color: theme.text.muted }]}>{label}</Text>
           </View>
-          <Text style={[s.stepLabel, isActive && s.stepLabelActive]}>{label}</Text>
-        </View>
-      );
-    })}
-  </View>
-);
+        );
+      })}
+    </View>
+  );
+};
 
 // ─── Reusable Yes/No/NA chips ───────────────────────────────────
 
@@ -173,7 +176,7 @@ export default function FinalChecksScreen() {
           <StepIndicator current={3} />
 
           {/* Summary banner */}
-          <Animated.View entering={FadeInDown.delay(150).springify()} style={s.summaryBanner}>
+          <Animated.View entering={FadeInDown.delay(150).springify()} style={[s.summaryBanner, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
             <View style={s.summaryRow}>
               <Ionicons name="person" size={14} color={UI.brand.primary} />
               <Text style={s.summaryText}>
@@ -197,7 +200,7 @@ export default function FinalChecksScreen() {
           </Animated.View>
 
           {/* ── Installation Checks ── */}
-          <Animated.View entering={FadeInDown.delay(200).springify()} style={s.card}>
+          <Animated.View entering={FadeInDown.delay(200).springify()} style={[s.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
             <SectionDivider title="Installation Checks" icon="shield-checkmark" />
 
             <CheckRow
@@ -223,7 +226,7 @@ export default function FinalChecksScreen() {
           </Animated.View>
 
           {/* ── CO Alarm ── */}
-          <Animated.View entering={FadeInDown.delay(300).springify()} style={s.card}>
+          <Animated.View entering={FadeInDown.delay(300).springify()} style={[s.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
             <SectionDivider title="CO Alarm" icon="alert-circle" />
 
             <CheckRow
@@ -238,46 +241,6 @@ export default function FinalChecksScreen() {
               onChange={(v) => update('coAlarmTestSatisfactory', v as YesNoNA)}
             />
 
-            <View style={s.inputContainer}>
-              <Text style={s.inputLabel}>CO Alarm Test Date</Text>
-              <View style={s.inputWrapper}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={18}
-                  color={UI.text.muted}
-                  style={{ marginRight: 10 }}
-                />
-                <TextInput
-                  style={s.input}
-                  value={finalChecks.coAlarmTestDate}
-                  onChangeText={(v) => update('coAlarmTestDate', v)}
-                  placeholder="DD/MM/YYYY"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
-            </View>
-
-            <View style={s.inputContainer}>
-              <Text style={s.inputLabel}>CO Alarm Expiry Date</Text>
-              <View style={s.inputWrapper}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={18}
-                  color={UI.text.muted}
-                  style={{ marginRight: 10 }}
-                />
-                <TextInput
-                  style={s.input}
-                  value={finalChecks.coAlarmExpiryDate}
-                  onChangeText={(v) => update('coAlarmExpiryDate', v)}
-                  placeholder="DD/MM/YYYY"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
-            </View>
-
             <CheckRow
               label="CO Alarm Within Date"
               value={finalChecks.coAlarmInDate}
@@ -286,7 +249,7 @@ export default function FinalChecksScreen() {
           </Animated.View>
 
           {/* ── Smoke Alarm ── */}
-          <Animated.View entering={FadeInDown.delay(400).springify()} style={s.card}>
+          <Animated.View entering={FadeInDown.delay(400).springify()} style={[s.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
             <SectionDivider title="Smoke Alarm" icon="flame" />
 
             <CheckRow
@@ -302,18 +265,19 @@ export default function FinalChecksScreen() {
           </Animated.View>
 
           {/* ── Notes & Faults ── */}
-          <Animated.View entering={FadeInDown.delay(500).springify()} style={s.card}>
+          <Animated.View entering={FadeInDown.delay(500).springify()} style={[s.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
             <SectionDivider title="Notes & Observations" icon="document-text" />
 
             <View style={s.inputContainer}>
-              <Text style={s.inputLabel}>Faults Identified</Text>
-              <View style={[s.inputWrapper, s.textAreaWrapper]}>
+              <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>Faults Identified</Text>
+              <View style={[s.inputWrapper, s.textAreaWrapper, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
                 <TextInput
-                  style={[s.input, s.textArea]}
+                  style={[s.input, s.textArea, isDark && { color: theme.text.title }]}
                   value={finalChecks.faults}
                   onChangeText={(v) => update('faults', v)}
                   placeholder="Record any faults found…"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
@@ -322,14 +286,15 @@ export default function FinalChecksScreen() {
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={s.inputLabel}>Rectification Work Carried Out</Text>
-              <View style={[s.inputWrapper, s.textAreaWrapper]}>
+              <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>Rectification Work Carried Out</Text>
+              <View style={[s.inputWrapper, s.textAreaWrapper, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
                 <TextInput
-                  style={[s.input, s.textArea]}
+                  style={[s.input, s.textArea, isDark && { color: theme.text.title }]}
                   value={finalChecks.rectificationWork}
                   onChangeText={(v) => update('rectificationWork', v)}
                   placeholder="Describe any rectification work…"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
@@ -338,14 +303,15 @@ export default function FinalChecksScreen() {
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={s.inputLabel}>Details of Work Carried Out</Text>
-              <View style={[s.inputWrapper, s.textAreaWrapper]}>
+              <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>Details of Work Carried Out</Text>
+              <View style={[s.inputWrapper, s.textAreaWrapper, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
                 <TextInput
-                  style={[s.input, s.textArea]}
+                  style={[s.input, s.textArea, isDark && { color: theme.text.title }]}
                   value={finalChecks.workCarriedOut}
                   onChangeText={(v) => update('workCarriedOut', v)}
                   placeholder="Describe the work carried out…"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
@@ -358,7 +324,7 @@ export default function FinalChecksScreen() {
         {/* Bottom CTA */}
         <Animated.View
           entering={FadeIn.delay(600)}
-          style={[s.bottomBar, { bottom: TAB_BAR_HEIGHT, paddingBottom: 12 }]}
+          style={[s.bottomBar, { bottom: TAB_BAR_HEIGHT, paddingBottom: 12 }, isDark && { backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)' }]}
         >
           <TouchableOpacity
             style={s.completeBtn}
@@ -392,20 +358,21 @@ function CheckRow({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { isDark, theme } = useAppTheme();
   return (
     <View style={s.checkRow}>
-      <Text style={s.checkLabel}>{label}</Text>
+      <Text style={[s.checkLabel, isDark && { color: theme.text.bodyLight }]}>{label}</Text>
       <View style={s.chipRow}>
         {['Yes', 'No', 'N/A'].map((opt) => {
           const active = value === opt;
           return (
             <TouchableOpacity
               key={opt}
-              style={[s.chip, active && s.chipActive]}
+              style={[s.chip, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, active && s.chipActive]}
               onPress={() => onChange(opt)}
               activeOpacity={0.7}
             >
-              <Text style={[s.chipText, active && s.chipTextActive]}>{opt}</Text>
+              <Text style={[s.chipText, isDark && { color: theme.text.muted }, active && s.chipTextActive]}>{opt}</Text>
             </TouchableOpacity>
           );
         })}

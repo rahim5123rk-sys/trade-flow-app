@@ -58,8 +58,10 @@ export async function sendHtmlEmail({
   }
 
   let accessToken = session?.access_token;
+  const expiresAt = session?.expires_at; // Unix timestamp in seconds
+  const isExpiredOrExpiringSoon = !expiresAt || expiresAt <= Math.floor(Date.now() / 1000) + 60;
 
-  if (!accessToken) {
+  if (!accessToken || isExpiredOrExpiringSoon) {
     const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
     if (refreshError) {
       throw new Error(refreshError.message || 'Session expired. Please sign in again to send emails.');
@@ -160,7 +162,7 @@ export async function sendCp12CertificateEmail({
           <td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(tenantName || 'Not provided')}</td>
         </tr>
       </table>
-      <p style="margin:0;color:#475569;font-size:14px;">Thank you for using GasCertPal.</p>
+      <p style="margin:0;color:#475569;font-size:14px;">Thank you for using GasPilot.</p>
     </div>
   `;
 

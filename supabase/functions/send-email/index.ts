@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { Resend } from "npm:resend@2.0.0"
+import {serve} from "https://deno.land/std@0.168.0/http/server.ts"
+import {createClient} from "https://esm.sh/@supabase/supabase-js@2"
+import {Resend} from "npm:resend@2.0.0"
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
 
@@ -28,31 +28,28 @@ serve(async (req) => {
     })
   }
 
-  // ── JWT verification (defense-in-depth — config.toml also enforces verify_jwt) ──
-  const authHeader = req.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
+  // ── Auth verification (handles both HS256 and ES256 JWT algorithms) ──
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 401,
     })
   }
 
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } } }
+  )
+
+  let user
   try {
-    const token = authHeader.replace('Bearer ', '')
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
-    )
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
-      })
-    }
+    const { data, error: authError } = await supabase.auth.getUser()
+    if (authError || !data.user) throw new Error()
+    user = data.user
   } catch {
-    return new Response(JSON.stringify({ error: 'Authentication failed' }), {
+    return new Response(JSON.stringify({ error: 'Invalid or expired session' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 401,
     })
@@ -96,7 +93,7 @@ serve(async (req) => {
     }
 
     const data = await resend.emails.send({
-      from: 'GasCertPal <info@gascertpal.com>',
+      from: 'GasPilot <info@gascertpal.com>',
       to: recipients,
       subject: subject.trim(),
       html: html,

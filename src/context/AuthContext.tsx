@@ -6,8 +6,10 @@ import * as SecureStore from 'expo-secure-store';
 import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
 import {supabase} from '../config/supabase';
 
-const PENDING_REGISTRATION_KEY = '@tradeflow_pending_registration';
-const LAST_HANDLED_AUTH_URL_KEY = '@tradeflow_last_handled_auth_url';
+const PENDING_REGISTRATION_KEY = 'gaspilot_pending_registration';
+const LEGACY_PENDING_REGISTRATION_KEY = 'pilotlight_pending_registration';
+const LAST_HANDLED_AUTH_URL_KEY = '@gaspilot_last_handled_auth_url';
+const LEGACY_LAST_HANDLED_AUTH_URL_KEY = '@pilotlight_last_handled_auth_url';
 
 /** Simple hash to avoid storing raw auth URLs (which contain tokens) */
 function hashString(str: string): string {
@@ -111,7 +113,9 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
    */
   const completePendingRegistration = async (userId: string, accessToken: string): Promise<boolean> => {
     try {
-      const raw = await SecureStore.getItemAsync(PENDING_REGISTRATION_KEY);
+      const raw =
+        (await SecureStore.getItemAsync(PENDING_REGISTRATION_KEY)) ||
+        (await SecureStore.getItemAsync(LEGACY_PENDING_REGISTRATION_KEY));
       if (!raw) return false;
 
       const pendingData = JSON.parse(raw);
@@ -173,7 +177,10 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
       }
 
       // Only remove pending data after successful completion
-      await SecureStore.deleteItemAsync(PENDING_REGISTRATION_KEY);
+      await Promise.all([
+        SecureStore.deleteItemAsync(PENDING_REGISTRATION_KEY),
+        SecureStore.deleteItemAsync(LEGACY_PENDING_REGISTRATION_KEY),
+      ]);
       console.log('[Auth] Pending registration completed and cleaned up');
       return true;
     } catch (e) {
@@ -223,7 +230,9 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         }
 
         // Deduplicate across app restarts.
-        const lastHandledUrl = await AsyncStorage.getItem(LAST_HANDLED_AUTH_URL_KEY);
+        const lastHandledUrl =
+          (await AsyncStorage.getItem(LAST_HANDLED_AUTH_URL_KEY)) ||
+          (await AsyncStorage.getItem(LEGACY_LAST_HANDLED_AUTH_URL_KEY));
         if (lastHandledUrl === hashString(url)) {
           console.log('[Auth] Skipping already-handled URL (persisted)');
           return;

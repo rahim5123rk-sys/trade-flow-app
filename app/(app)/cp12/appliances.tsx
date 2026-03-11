@@ -49,31 +49,34 @@ const FLUE_TYPES: FlueType[] = [
 
 // ─── Step indicator (reused) ────────────────────────────────────
 
-const StepIndicator = ({ current }: { current: number }) => (
-  <View style={s.stepRow}>
-    {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
-      const step = i + 1;
-      const isActive = step === current;
-      const isDone = step < current;
-      return (
-        <View key={label} style={s.stepItem}>
-          <View
-            style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}
-          >
-            {isDone ? (
-              <Ionicons name="checkmark" size={12} color={UI.text.white} />
-            ) : (
-              <Text style={[s.stepDotText, (isActive || isDone) && { color: UI.text.white }]}>
-                {step}
-              </Text>
-            )}
+const StepIndicator = ({ current }: { current: number }) => {
+  const { isDark, theme } = useAppTheme();
+  return (
+    <View style={[s.stepRow, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+      {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
+        const step = i + 1;
+        const isActive = step === current;
+        const isDone = step < current;
+        return (
+          <View key={label} style={s.stepItem}>
+            <View
+              style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}
+            >
+              {isDone ? (
+                <Ionicons name="checkmark" size={12} color={UI.text.white} />
+              ) : (
+                <Text style={[s.stepDotText, (isActive || isDone) && { color: UI.text.white }, isDark && !isActive && !isDone && { color: theme.text.muted }]}>
+                  {step}
+                </Text>
+              )}
+            </View>
+            <Text style={[s.stepLabel, isActive ? { color: theme.brand.primary } : isDark && { color: theme.text.muted }]}>{label}</Text>
           </View>
-          <Text style={[s.stepLabel, isActive && s.stepLabelActive]}>{label}</Text>
-        </View>
-      );
-    })}
-  </View>
-);
+        );
+      })}
+    </View>
+  );
+};
 
 // ─── Reusable chips ─────────────────────────────────────────────
 
@@ -116,23 +119,25 @@ function FGARow({
   value: { co: string; co2: string; ratio: string };
   onChange: (v: { co: string; co2: string; ratio: string }) => void;
 }) {
+  const { isDark, theme } = useAppTheme();
   return (
     <View style={s.fgaSection}>
-      <Text style={s.fgaLabel}>{label}</Text>
+      <Text style={[s.fgaLabel, isDark && { color: theme.text.bodyLight }]}>{label}</Text>
       <View style={s.fgaGrid}>
         {(['co', 'co2', 'ratio'] as const).map((field) => {
           const labels = { co: 'CO', co2: 'CO₂', ratio: 'Ratio' };
           return (
             <View key={field} style={s.fgaField}>
-              <Text style={s.fgaFieldLabel}>{labels[field]}</Text>
+              <Text style={[s.fgaFieldLabel, isDark && { color: theme.text.muted }]}>{labels[field]}</Text>
               <View style={s.fgaInputRow}>
                 <TextInput
-                  style={s.fgaInput}
+                  style={[s.fgaInput, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                   value={value[field]}
                   onChangeText={(t) => onChange({ ...value, [field]: t })}
                   placeholder="–"
-                  placeholderTextColor="#CBD5E1"
+                  placeholderTextColor={isDark ? '#64748B' : '#CBD5E1'}
                   keyboardType="decimal-pad"
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                   editable={value[field] !== 'N/A'}
                 />
                 <TouchableOpacity
@@ -179,39 +184,32 @@ function DropdownSelector({
   onSelect: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { isDark, theme } = useAppTheme();
   return (
     <View style={s.inputContainer}>
-      <Text style={s.inputLabel}>{label}</Text>
+      <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>{label}</Text>
       <TouchableOpacity
-        style={s.dropdownTrigger}
+        style={[s.dropdownTrigger, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
         onPress={() => setOpen(!open)}
         activeOpacity={0.7}
       >
-        <Text style={value ? s.dropdownText : s.dropdownPlaceholder}>
+        <Text style={[value ? s.dropdownText : s.dropdownPlaceholder, isDark && { color: value ? theme.text.title : theme.text.placeholder }]}>
           {value || 'Select…'}
         </Text>
-        <Ionicons
-          name={open ? 'chevron-up' : 'chevron-down'}
-          size={18}
-          color={UI.text.muted}         />
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={isDark ? theme.text.muted : UI.text.muted} />
       </TouchableOpacity>
       {open && (
-        <Animated.View entering={FadeInUp.duration(200)} style={s.dropdownList}>
+        <Animated.View entering={FadeInUp.duration(200)} style={[s.dropdownList, isDark && { backgroundColor: theme.surface.card, borderColor: theme.surface.border }]}>
           {options.map((opt) => (
             <TouchableOpacity
               key={opt}
-              style={[s.dropdownOption, value === opt && s.dropdownOptionActive]}
+              style={[s.dropdownOption, isDark && { borderBottomColor: theme.surface.divider }, value === opt && s.dropdownOptionActive]}
               onPress={() => {
                 onSelect(opt);
                 setOpen(false);
               }}
             >
-              <Text
-                style={[
-                  s.dropdownOptionText,
-                  value === opt && s.dropdownOptionTextActive,
-                ]}
-              >
+              <Text style={[s.dropdownOptionText, isDark && { color: theme.text.body }, value === opt && s.dropdownOptionTextActive]}>
                 {opt}
               </Text>
               {value === opt && (
@@ -349,17 +347,17 @@ export default function AppliancesScreen() {
             <Animated.View
               key={a.id}
               entering={FadeInDown.delay(100 + idx * 80).springify()}
-              style={s.applianceCard}
+              style={[s.applianceCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
             >
               <View style={s.applianceHeader}>
                 <View style={s.applianceNum}>
                   <Text style={s.applianceNumText}>{idx + 1}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.applianceName} numberOfLines={1}>
+                  <Text style={[s.applianceName, isDark && { color: theme.text.title }]} numberOfLines={1}>
                     {a.make} {a.model}
                   </Text>
-                  <Text style={s.applianceLocation}>{a.location}</Text>
+                  <Text style={[s.applianceLocation, isDark && { color: theme.text.muted }]}>{a.location}</Text>
                 </View>
                 <TouchableOpacity onPress={() => handleEdit(a)} style={s.iconBtn}>
                   <Ionicons name="pencil-outline" size={18} color={UI.brand.primary} />
@@ -421,9 +419,9 @@ export default function AppliancesScreen() {
 
           {/* ── Appliance form ── */}
           {showForm && (
-            <Animated.View entering={FadeInDown.springify()} style={s.formCard}>
+            <Animated.View entering={FadeInDown.springify()} style={[s.formCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <View style={s.formHeader}>
-                <Text style={s.formTitle}>
+                <Text style={[s.formTitle, isDark && { color: theme.text.title }]}>
                   {editingId ? 'Edit Appliance' : 'New Appliance'}
                 </Text>
                 <TouchableOpacity
@@ -583,7 +581,7 @@ export default function AppliancesScreen() {
         {!showForm && (
           <Animated.View
             entering={FadeIn.delay(400)}
-            style={[s.bottomBar, { bottom: TAB_BAR_HEIGHT, paddingBottom: 12 }]}
+            style={[s.bottomBar, { bottom: TAB_BAR_HEIGHT, paddingBottom: 12 }, isDark && { backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)' }]}
           >
             <TouchableOpacity
               style={[s.nextBtn, appliances.length === 0 && { opacity: 0.5 }]}
@@ -623,17 +621,19 @@ function FormInput({
   placeholder: string;
   keyboardType?: 'default' | 'decimal-pad' | 'numeric';
 }) {
+  const { isDark, theme } = useAppTheme();
   return (
     <View style={s.inputContainer}>
-      <Text style={s.inputLabel}>{label}</Text>
-      <View style={s.inputWrapper}>
+      <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>{label}</Text>
+      <View style={[s.inputWrapper, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
         <TextInput
-          style={s.input}
+          style={[s.input, isDark && { color: theme.text.title }]}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
           keyboardType={keyboardType}
+          keyboardAppearance={isDark ? 'dark' : 'light'}
         />
       </View>
     </View>

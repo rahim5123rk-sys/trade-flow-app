@@ -3,7 +3,6 @@ import {useRouter} from 'expo-router';
 import React, {useEffect, useState} from 'react';
 import {
   FlatList,
-  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -30,6 +29,10 @@ export default function WorkersListScreen() {
     fetchWorkers();
   }, [userProfile]);
 
+  const handleAddWorker = () => {
+    router.push('/(app)/workers/add');
+  };
+
   const fetchWorkers = async () => {
     if (!userProfile?.company_id) return;
     setLoading(true);
@@ -52,13 +55,12 @@ export default function WorkersListScreen() {
     setRefreshing(false);
   };
 
-  const handleAddWorker = () => {
-    // ✅ NAVIGATE TO THE INVITE SCREEN
-    router.push('/(app)/workers/add');
-  };
-
   const renderWorker = ({item}: {item: any}) => (
-    <View style={[styles.card, {backgroundColor: theme.surface.card}, isDark && {borderWidth: 1, borderColor: theme.glass.border}, theme.shadow]}>
+    <TouchableOpacity
+      style={[styles.card, {backgroundColor: theme.surface.card}, isDark && {borderWidth: 1, borderColor: theme.glass.border}, theme.shadow]}
+      activeOpacity={0.78}
+      onPress={() => router.push({pathname: '/(app)/workers/[id]', params: {id: item.id}} as any)}
+    >
       <View style={[styles.avatar, {backgroundColor: isDark ? theme.surface.elevated : UI.surface.base}]}>
         <Text style={[styles.avatarText, {color: theme.brand.primary}]}>
           {item.display_name?.[0]?.toUpperCase() || 'W'}
@@ -73,10 +75,10 @@ export default function WorkersListScreen() {
           </View>
         )}
       </View>
-      <TouchableOpacity style={styles.actionBtn}>
-        <Ionicons name="ellipsis-vertical" size={20} color={theme.text.muted} />
-      </TouchableOpacity>
-    </View>
+      <View style={styles.actionBtn}>
+        <Ionicons name="chevron-forward" size={18} color={theme.text.muted} />
+      </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -86,7 +88,12 @@ export default function WorkersListScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text.title} />
         </TouchableOpacity>
         <Text style={[styles.screenTitle, {color: theme.text.title}]}>Team</Text>
-        <View style={{width: 40}} />
+        <TouchableOpacity
+          onPress={handleAddWorker}
+          style={[styles.headerAddBtn, {backgroundColor: theme.surface.card}, isDark && {borderWidth: 1, borderColor: theme.glass.border}]}
+        >
+          <Ionicons name="add" size={22} color={theme.text.title} />
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -107,24 +114,11 @@ export default function WorkersListScreen() {
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color={theme.text.muted} />
             <Text style={[styles.emptyText, {color: theme.text.title}]}>No workers found.</Text>
-            <Text style={[styles.emptySub, {color: theme.text.muted}]}>Tap + to invite a worker.</Text>
+            <Text style={[styles.emptySub, {color: theme.text.muted}]}>Tap the + in the top right to invite a worker.</Text>
           </View>
         }
       />
 
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          {
-            backgroundColor: theme.brand.primary,
-            shadowColor: isDark ? '#000' : Colors.primary,
-            bottom: insets.bottom + (Platform.OS === 'ios' ? 90 : 74),
-          },
-        ]}
-        onPress={handleAddWorker}
-      >
-        <Ionicons name="add" size={30} color={theme.text.inverse} />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -133,6 +127,7 @@ const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
   headerRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4},
   backBtn: {width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', ...Colors.shadow},
+  headerAddBtn: {width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', ...Colors.shadow},
   screenTitle: {fontSize: 24, fontWeight: '800', color: Colors.text},
   card: {flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, marginBottom: 12, borderRadius: 16, ...Colors.shadow},
   avatar: {width: 50, height: 50, borderRadius: 25, backgroundColor: UI.surface.base, justifyContent: 'center', alignItems: 'center', marginRight: 16},
@@ -143,7 +138,6 @@ const styles = StyleSheet.create({
   testBadge: {backgroundColor: UI.surface.elevated, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4},
   testBadgeText: {fontSize: 10, fontWeight: '700', color: UI.text.muted},
   actionBtn: {padding: 8},
-  fab: {position: 'absolute', right: 20, backgroundColor: Colors.primary, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', zIndex: 20, ...Colors.shadow},
   emptyState: {alignItems: 'center', marginTop: 80, gap: 10},
   emptyText: {fontSize: 18, fontWeight: '700', color: Colors.text},
   emptySub: {color: Colors.textLight},

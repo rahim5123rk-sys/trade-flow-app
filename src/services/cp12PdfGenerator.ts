@@ -1,17 +1,29 @@
 // ============================================
 // FILE: src/services/cp12PdfGenerator.ts
 // CP12 Gas Safety Certificate PDF generator
+//
+// Uses shared PDF infrastructure from ./pdf/shared.ts
+// Only contains the CP12-specific HTML body layout.
 // ============================================
 
-import { Asset } from 'expo-asset';
-import * as LegacyFileSystem from 'expo-file-system/legacy';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { Image, Platform } from 'react-native';
-import { supabase } from '../config/supabase';
 import { CP12Appliance, CP12FinalChecks } from '../types/cp12';
-import { escapeHtml } from '../utils/escapeHtml';
-import { getSignedUrl } from './storage';
+import { registerFormPdf } from './pdf/registry';
+import {
+    type BaseLockedPayload,
+    checkInH,
+    type CompanyInfo,
+    type EngineerInfo,
+    esc,
+    generatePdfBase64FromPayload,
+    generatePdfFromPayload,
+    generatePdfUrlFromPayload,
+    getBaseCss,
+    getCompanyAndEngineer,
+    tickH
+} from './pdf/shared';
+
+// Re-export for backwards compatibility
+export type { CompanyInfo, EngineerInfo };
 
 // ─── Data contract ──────────────────────────────────────────────
 
@@ -41,154 +53,17 @@ export interface CP12PdfData {
   // Review / sign
   inspectionDate: string;
   nextDueDate: string;
+  renewalReminderEnabled?: boolean;
   customerSignature: string; // base64
   certRef: string;
 }
 
 // ─── Fetch company + engineer info from Supabase ────────────────
 
-export interface CompanyInfo {
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  logoUrl: string;
-  signatureBase64: string;
-}
-
-export interface EngineerInfo {
-  name: string;
-  gasSafeNumber: string;
-  gasLicenceNumber: string;
-}
-
-export interface CP12LockedPayload {
+export interface CP12LockedPayload extends BaseLockedPayload<'cp12', CP12PdfData> {
   kind: 'cp12';
   version: 1;
-  savedAt: string;
-  pdfData: CP12PdfData;
-  company: CompanyInfo;
-  engineer: EngineerInfo;
 }
-
-// ─── Load Gas Safe logo as base64 ────────────────────────────────
-
-function getMimeTypeFromUri(uri: string): string {
-  const lower = uri.toLowerCase();
-  if (lower.endsWith('.png')) return 'image/png';
-  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-  if (lower.endsWith('.webp')) return 'image/webp';
-  return 'image/png';
-}
-
-async function getImageDataUriFromUri(uri: string): Promise<string> {
-  const base64 = await LegacyFileSystem.readAsStringAsync(uri, {
-    encoding: 'base64' as any,
-  });
-  return `data:${getMimeTypeFromUri(uri)};base64,${base64}`;
-}
-
-async function getGasSafeLogoBase64(): Promise<string> {
-  try {
-    const moduleRef = require('../../assets/images/gaslogo.png');
-    const asset = Asset.fromModule(moduleRef);
-    if (!asset.localUri) {
-      await asset.downloadAsync();
-    }
-    const uri = asset.localUri || Image.resolveAssetSource(moduleRef).uri;
-    if (!uri) return '';
-    return await getImageDataUriFromUri(uri);
-  } catch (err) {
-    console.warn('Failed to load Gas Safe logo:', err);
-    return ''; // Fall back to no logo if reading fails
-  }
-}
-
-async function getCompanyLogoSrc(companyLogoUrl: string): Promise<string> {
-  if (!companyLogoUrl) return '';
-  return companyLogoUrl;
-}
-
-async function getLatestCompanyLogoUrl(
-  companyId?: string,
-  fallbackLogoUrl: string = '',
-): Promise<string> {
-  if (!companyId) return fallbackLogoUrl;
-
-  try {
-    const { data } = await supabase
-      .from('companies')
-      .select('logo_url')
-      .eq('id', companyId)
-      .single();
-
-    if (!data?.logo_url) return '';
-    return await getSignedUrl(data.logo_url);
-  } catch {
-    return fallbackLogoUrl;
-  }
-}
-
-// ─── Fetch company + engineer info from Supabase ────────────────
-
-async function getCompanyAndEngineer(
-  companyId: string,
-  userId: string,
-): Promise<{ company: CompanyInfo; engineer: EngineerInfo }> {
-  const { data } = await supabase
-    .from('companies')
-    .select('*')
-    .eq('id', companyId)
-    .single();
-
-  const s = data?.settings || {};
-  const userDetails = s.userDetailsById?.[userId] || {};
-
-  // Engineer display_name from profiles
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name')
-    .eq('id', userId)
-    .single();
-
-  return {
-    company: {
-      name: data?.name || '',
-      email: data?.email || '',
-      phone: data?.phone || '',
-      address: data?.address || '',
-      logoUrl: data?.logo_url ? await getSignedUrl(data.logo_url) : '',
-      signatureBase64: s.signatureBase64 || '',
-    },
-    engineer: {
-      name: profile?.display_name || '',
-      gasSafeNumber: userDetails.gasSafeRegisterNumber || '',
-      gasLicenceNumber: userDetails.gasLicenceNumber || '',
-    },
-  };
-}
-
-// ─── Tiny helpers ───────────────────────────────────────────────
-
-/** Render ✓ or ✗ for Yes/No/Pass/Fail values in table cells */
-const tick = (val: string): string => {
-  if (!val) return '';
-  if (val === 'Yes' || val === 'Pass') return '✓';
-  if (val === 'No' || val === 'Fail') return '✗';
-  return 'N/A';
-};
-
-/** For checklist tables: place ✓ in the correct Yes/No/N/A column */
-const checkIn = (val: string, col: 'Yes' | 'No' | 'N/A'): string => {
-  if (!val) return '';
-  if (col === 'Yes' && (val === 'Yes' || val === 'Pass')) return '✓';
-  if (col === 'No' && (val === 'No' || val === 'Fail')) return '✓';
-  if (col === 'N/A' && val === 'N/A') return '✓';
-  return '';
-};
-
-/** Escape user values for safe HTML interpolation */
-const esc = (v: unknown): string => escapeHtml(v);
 
 // ─── Build HTML ─────────────────────────────────────────────────
 
@@ -230,11 +105,13 @@ function buildHtml(
     propertyAddressLine2 = propertyAddressParts[1] || '';
   }
 
+  // tickH and checkInH are imported from shared
 
   // Build 5 appliance rows (always 5, pad empties)
   const appRows = [0, 1, 2, 3, 4]
     .map((i) => {
       const a = apps[i];
+      const rowBg = i % 2 === 1 ? 'background:#f9fafb;' : 'background:#fff;';
       if (a) {
         const ph = a.operatingPressure
           ? a.operatingPressure + ' mBar'
@@ -245,28 +122,30 @@ function buildHtml(
         const lowCo2 = Number.parseFloat(a.fgaLow.co2 || '');
         const highCo = Number.parseFloat(a.fgaHigh.co || '');
         const highCo2 = Number.parseFloat(a.fgaHigh.co2 || '');
-        const lowRatio =
+        const lowRatio = (a.fgaLow.ratio || '').trim() || (
           Number.isFinite(lowCo) && Number.isFinite(lowCo2) && lowCo2 > 0
-            ? (lowCo / lowCo2).toFixed(4)
-            : '';
-        const highRatio =
+            ? (lowCo / (lowCo2 * 10000)).toFixed(4)
+            : ''
+        );
+        const highRatio = (a.fgaHigh.ratio || '').trim() || (
           Number.isFinite(highCo) && Number.isFinite(highCo2) && highCo2 > 0
-            ? (highCo / highCo2).toFixed(4)
-            : '';
+            ? (highCo / (highCo2 * 10000)).toFixed(4)
+            : ''
+        );
         return `<tr>
         <td class="rn">${i + 1}</td>
-        <td>${esc(a.location)}</td><td>${esc(a.make)}</td><td>${esc(a.model)}</td>
-        <td>${esc(a.type)}</td><td>${esc(a.serialNumber)}</td><td>${esc(a.gcNumber)}</td>
-        <td>${esc(a.flueType)}</td><td>${ph}</td>
-        <td>${tick(a.safetyDevices)}</td><td>${tick(a.spillageTest)}</td><td>${tick(a.smokePelletFlueTest)}</td>
-        <td>${esc(a.fgaLow.co)}</td><td>${esc(a.fgaLow.co2)}</td><td>${lowRatio}</td>
-        <td>${esc(a.fgaHigh.co)}</td><td>${esc(a.fgaHigh.co2)}</td><td>${highRatio}</td>
-        <td>${tick(a.satisfactoryTermination)}</td><td>${tick(a.flueVisualCondition)}</td><td>${tick(a.adequateVentilation)}</td>
-        <td>${tick(a.landlordsAppliance)}</td><td>${tick(a.inspected)}</td><td>${tick(a.applianceVisualCheck)}</td>
-        <td>${tick(a.applianceServiced)}</td><td>${tick(a.applianceSafeToUse)}</td>
+        <td style="${rowBg}">${esc(a.location)}</td><td style="${rowBg}">${esc(a.make)}</td><td style="${rowBg}">${esc(a.model)}</td>
+        <td style="${rowBg}">${esc(a.type)}</td><td style="${rowBg}">${esc(a.serialNumber)}</td><td style="${rowBg}">${esc(a.gcNumber)}</td>
+        <td style="${rowBg}">${esc(a.flueType)}</td><td style="${rowBg}">${ph}</td>
+        <td style="${rowBg}">${tickH(a.safetyDevices)}</td><td style="${rowBg}">${tickH(a.spillageTest)}</td><td style="${rowBg}">${tickH(a.smokePelletFlueTest)}</td>
+        <td style="${rowBg}">${esc(a.fgaLow.co)}</td><td style="${rowBg}">${esc(a.fgaLow.co2)}</td><td style="${rowBg}">${lowRatio}</td>
+        <td style="${rowBg}">${esc(a.fgaHigh.co)}</td><td style="${rowBg}">${esc(a.fgaHigh.co2)}</td><td style="${rowBg}">${highRatio}</td>
+        <td style="${rowBg}">${tickH(a.satisfactoryTermination)}</td><td style="${rowBg}">${tickH(a.flueVisualCondition)}</td><td style="${rowBg}">${tickH(a.adequateVentilation)}</td>
+        <td style="${rowBg}">${tickH(a.landlordsAppliance)}</td><td style="${rowBg}">${tickH(a.inspected)}</td><td style="${rowBg}">${tickH(a.applianceVisualCheck)}</td>
+        <td style="${rowBg}">${tickH(a.applianceServiced)}</td><td style="${rowBg}">${tickH(a.applianceSafeToUse)}</td>
       </tr>`;
       }
-      return `<tr class="empty"><td class="rn">${i + 1}</td>${'<td></td>'.repeat(25)}</tr>`;
+      return `<tr class="empty"><td class="rn">${i + 1}</td>${`<td style="${rowBg}"></td>`.repeat(25)}</tr>`;
     })
     .join('\n');
 
@@ -276,172 +155,11 @@ function buildHtml(
 <head>
 <meta charset="utf-8"/>
 <style>
-  @page { margin: 0; size: A4 landscape; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  
-  html, body {
-    width: 297mm;
-    height: 210mm;
-    margin: 0;
-    padding: 0;
-    overflow: hidden; /* Hard stop to prevent the empty second page */
-  }
-  
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 7pt;
-    line-height: 1.15; 
-    color: #000;
+  ${getBaseCss()}
 
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    /* zoom: 0.94; REMOVED to prevent cross-platform rendering bugs */
-  }
-
-  .page {
-    width: 100%;
-    height: 100%;
-    padding: 3mm;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between; /* This dynamically stretches the tables to fill the page length */
-    overflow: hidden;
-  }
-
-  .top-bar-cell {
-    background: #1a2e3b;
-    color: #fff;
-  }
-
-  /* ═══ GLOBAL TABLE STYLES ═══ */
-  table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
-  td, th {
-    border: 0.8px solid #9CA3AF;
-    padding: 2px 4px;
-    vertical-align: middle;
-    font-size: 6pt;
-  }
-  th {
-    background: #1a4763;
-    color: #fff;
-    font-weight: bold;
-    font-size: 6pt;
-    text-transform: uppercase;
-    text-align: left;
-  }
-  td { background: #fff; }
-
-  .label-cell {
-    background: #E8F1FE;
-    font-weight: 700;
-    width: 28%;
-  }
-  .value-cell {
-    background: #fff;
-    width: 72%;
-  }
-
-  /* ═══ SECTION HEADER BARS ═══ */
-  .shdr {
-    background: #1a4763;
-    color: #fff;
-    font-weight: bold;
-    font-size: 7pt;
-    text-align: center;
-    text-transform: uppercase;
-    padding: 2.5px 4px;
-    letter-spacing: 0.3px;
-  }
-
-  /* ═══ APPLIANCE TABLE ═══ */
-  .at { table-layout: fixed; }
-  .at th, .at td {
-    font-size: 5pt;
-    text-align: center;
-    padding: 1px 2px;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-  .at th { font-size: 4.5pt; line-height: 1.15; }
-  .at .grp {
-    background: #1a4763;
-    color: #fff;
-    font-size: 5.5pt;
-    font-weight: bold;
-  }
-  .at td { font-size: 5.5pt; background: #fff; }
-  .at tbody td { height: 16px; }
-  .at .rn {
-    background: #E8F1FE;
-    font-weight: bold;
-    width: 14px;
-  }
-  .at tr.empty td { height: 16px; }
-
-  /* ═══ CHECKLIST TABLE ═══ */
-  .cl td, .cl th { font-size: 6pt; text-align: center; }
-  .cl .lbl { text-align: left; font-weight: normal; }
-  .cl .cnum { width: 18px; text-align: center; background: #E8F1FE; font-weight: bold; }
-  .cl .yna { width: 30px; }
-  .ck { font-size: 9pt; font-weight: bold; color: #000; }
-
-  /* ═══ FAULTS TABLE ═══ */
-  .flt th { width: 18%; font-size: 5.5pt; vertical-align: top; }
-  .flt td { font-size: 6pt; background: #fff; min-height: 12px; vertical-align: top; }
-  .flt tr.tall-row th,
-  .flt tr.tall-row td {
-    height: 28px;
-  }
-
-  /* ═══ SIGNATURE FOOTER ═══ */
-  .sig-img { height: 28px; max-width: 100%; display: block; margin: 0 auto; }
-  .highlight {
-    background: #FFFFCC !important;
-    font-weight: bold;
-    font-size: 9pt;
-    text-align: center;
-    vertical-align: middle;
-    color: #900;
-  }
-  .highlight-label {
-    font-size: 5.5pt;
-    font-weight: bold;
-    text-transform: uppercase;
-    color: #333;
-    display: block;
-    margin-bottom: 2px;
-  }
-  .certbox {
-    background: #E0ECFF !important;
-    font-weight: bold;
-    font-size: 8pt;
-    text-align: center;
-    vertical-align: middle;
-  }
-  .certbox-label {
-    font-size: 5.5pt;
-    font-weight: bold;
-    text-transform: uppercase;
-    color: #333;
-    display: block;
-    margin-bottom: 2px;
-  }
-
-  /* ═══ WARNING FOOTER ═══ */
-  .warn {
-    border: 1px solid #000;
-    border-top: 2px solid #000;
-    background: #FFF3F3;
-    text-align: center;
-    font-size: 5.5pt;
-    font-weight: bold;
-    color: #900;
-    padding: 3px 6px;
-    line-height: 1.3;
-  }
-
-  /* ═══ COLLAPSE ADJACENT TABLE BORDERS ═══ */
-  .mt { margin-top: -1px; }
+  /* CP12-specific overrides */
+  html, body { max-height: 210mm; overflow: hidden; }
+  .page { max-height: 210mm; overflow: hidden; page-break-after: avoid; }
 </style>
 </head>
 <body>
@@ -452,26 +170,25 @@ function buildHtml(
      ═══════════════════════════════════════════════════════════════════ -->
 <table>
   <tr>
-    <td class="top-bar-cell" style="width:22%; padding:4px 6px; vertical-align:middle;">
-      ${companyLogoSrc ? `<img src="${companyLogoSrc}" style="max-height:28px;max-width:80px;display:block;margin-bottom:2px;"/>` : ''}
-      <div style="font-size:10pt; font-weight:bold; color:#fff;">${esc(company.name)}</div>
+    <td style="width:13%; padding:5px 8px; vertical-align:middle; background:linear-gradient(135deg,#1e293b 0%,#334155 100%);">
+      ${companyLogoSrc ? `<img src="${companyLogoSrc}" style="max-height:42px;max-width:124px;display:block;"/>` : '<div style="height:42px;"></div>'}
     </td>
-    <td class="top-bar-cell" style="text-align:center; padding:4px 6px; vertical-align:middle;">
-      <div style="font-size:10pt; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; color:#fff;">
+    <td style="text-align:center; padding:5px 8px; vertical-align:middle; background:linear-gradient(135deg,#334155 0%,#475569 100%);">
+      <div style="font-size:11pt; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; color:#fff;">
         Homeowner / Landlord Gas Safety Record
       </div>
-      <div style="font-size:5.5pt; color:#E5E7EB; line-height:1.35;">
-        Gas Safety (Installation &amp; Use) Regulations 1998 &mdash; In accordance with Regulation 36.<br/>
-        IMPORTANT: This record is required as evidence that a gas safety check has been carried out on the appliance(s) listed below.
-        A visual inspection of the flue is included where accessible, but this alone does not guarantee flue integrity.
+      <div style="font-size:5.5pt; color:#cbd5e1; line-height:1.5;">
+        This inspection is for gas safety purposes only to comply with the Gas Safety (Installation and Use) Regulations. Flues have been inspected
+        and checked for satisfactory evacuation of products of combustion. A detailed internal inspection of the flue integrity, construction and the
+        lining has NOT been carried out.
       </div>
     </td>
-    <td class="top-bar-cell" style="width:14%; text-align:center; padding:4px 6px; vertical-align:middle;">
-      ${gasSafeLogoBase64 ? `<img src="${gasSafeLogoBase64}" style="height:32px;max-width:80px;display:block;margin:0 auto 2px;"/>` : ''}
-      <div style="font-size:5.5pt; color:#E5E7EB; margin-top:2px;">Gas Cert Ref</div>
-      <div style="font-size:9pt; font-weight:bold; color:#fff;">${esc(data.certRef)}</div>
-      <div style="font-size:5.5pt; color:#E5E7EB; margin-top:4px;">No. Appliances</div>
-      <div style="font-size:8pt; font-weight:bold; color:#fff;">${apps.length}</div>
+    <td style="width:13%; text-align:center; padding:5px 8px; vertical-align:middle; background:linear-gradient(135deg,#334155 0%,#1e293b 100%);">
+      ${gasSafeLogoBase64 ? `<img src="${gasSafeLogoBase64}" style="height:46px;max-width:116px;display:block;margin:0 auto 3px;"/>` : ''}
+      <div style="font-size:5pt; color:#cbd5e1; margin-top:2px; text-transform:uppercase; letter-spacing:0.3px;">Cert Ref</div>
+      <div style="font-size:9pt; font-weight:800; color:#fff;">${esc(data.certRef)}</div>
+      <div style="font-size:5pt; color:#cbd5e1; margin-top:3px; text-transform:uppercase; letter-spacing:0.3px;">Appliances</div>
+      <div style="font-size:9pt; font-weight:800; color:#fff;">${apps.length}</div>
     </td>
   </tr>
 </table>
@@ -534,9 +251,13 @@ function buildHtml(
 </table>
 <table class="at mt">
   <thead>
-    <!-- Row 1: Parent headers -->
     <tr>
-      <th rowspan="2" style="width:14px;">#</th>
+      <th rowspan="3" style="width:14px;">#</th>
+      <th class="grp" colspan="7">Appliance Details</th>
+      <th class="grp" colspan="10">Flue Tests</th>
+      <th class="grp" colspan="8">Inspection Details</th>
+    </tr>
+    <tr>
       <th rowspan="2">Location</th>
       <th rowspan="2">Make</th>
       <th rowspan="2">Model</th>
@@ -553,9 +274,12 @@ function buildHtml(
       <th rowspan="2">Sat. Termin&shy;ation</th>
       <th rowspan="2">Flue Visual Cond.</th>
       <th rowspan="2">Adeq. Ventil&shy;ation</th>
-      <th class="grp" colspan="5">Inspection Details</th>
+      <th rowspan="2">Landlords Appliance</th>
+      <th rowspan="2">Inspec&shy;ted</th>
+      <th rowspan="2">Visual Check</th>
+      <th rowspan="2">Serv&shy;iced</th>
+      <th rowspan="2">Safe to Use</th>
     </tr>
-    <!-- Row 2: Sub-headers -->
     <tr>
       <th>CO (ppm)</th>
       <th>CO&#8322; (%)</th>
@@ -563,11 +287,6 @@ function buildHtml(
       <th>CO (ppm)</th>
       <th>CO&#8322; (%)</th>
       <th>Ratio</th>
-      <th>Land&shy;lord's</th>
-      <th>Inspec&shy;ted</th>
-      <th>Visual Check</th>
-      <th>Serv&shy;iced</th>
-      <th>Safe to Use</th>
     </tr>
   </thead>
   <tbody>
@@ -576,11 +295,11 @@ ${appRows}
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     5. VISUAL INSPECTION CHECKLISTS (Yes / No / N/A columns)
+     4. VISUAL INSPECTION CHECKLISTS
      ═══════════════════════════════════════════════════════════════════ -->
 <table class="cl mt">
   <tr>
-    <td class="shdr" colspan="5" style="width:50%;">Visual Inspection of Gas Installation</td>
+    <td class="shdr" colspan="5" style="width:50%;">Gas Installation Pipework</td>
     <td class="shdr" colspan="5" style="width:50%;">Alarm Checks</td>
   </tr>
   <tr>
@@ -598,58 +317,58 @@ ${appRows}
   <tr>
     <td class="cnum">1</td>
     <td class="lbl">Satisfactory Visual Inspection of Pipework</td>
-    <td class="ck">${checkIn(fc.visualInspection, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.visualInspection, 'No')}</td>
-    <td class="ck">${checkIn(fc.visualInspection, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.visualInspection, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.visualInspection, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.visualInspection, 'N/A')}</td>
     <td class="cnum">5</td>
     <td class="lbl">CO Alarm Fitted</td>
-    <td class="ck">${checkIn(fc.coAlarmFitted, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.coAlarmFitted, 'No')}</td>
-    <td class="ck">${checkIn(fc.coAlarmFitted, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmFitted, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmFitted, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmFitted, 'N/A')}</td>
   </tr>
   <tr>
     <td class="cnum">2</td>
     <td class="lbl">Emergency Control Valve (ECV) Accessible</td>
-    <td class="ck">${checkIn(fc.ecvAccessible, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.ecvAccessible, 'No')}</td>
-    <td class="ck">${checkIn(fc.ecvAccessible, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.ecvAccessible, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.ecvAccessible, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.ecvAccessible, 'N/A')}</td>
     <td class="cnum">6</td>
     <td class="lbl">Testing of CO Alarm Satisfactory</td>
-    <td class="ck">${checkIn(fc.coAlarmTestSatisfactory, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.coAlarmTestSatisfactory, 'No')}</td>
-    <td class="ck">${checkIn(fc.coAlarmTestSatisfactory, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmTestSatisfactory, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmTestSatisfactory, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.coAlarmTestSatisfactory, 'N/A')}</td>
   </tr>
   <tr>
     <td class="cnum">3</td>
     <td class="lbl">Satisfactory Gas Tightness Test</td>
-    <td class="ck">${checkIn(fc.tightnessTest, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.tightnessTest, 'No')}</td>
-    <td class="ck">${checkIn(fc.tightnessTest, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.tightnessTest, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.tightnessTest, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.tightnessTest, 'N/A')}</td>
     <td class="cnum">7</td>
     <td class="lbl">Smoke Alarm Fitted</td>
-    <td class="ck">${checkIn(fc.smokeAlarmFitted, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.smokeAlarmFitted, 'No')}</td>
-    <td class="ck">${checkIn(fc.smokeAlarmFitted, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmFitted, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmFitted, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmFitted, 'N/A')}</td>
   </tr>
   <tr>
     <td class="cnum">4</td>
     <td class="lbl">Equipotential Bonding Satisfactory</td>
-    <td class="ck">${checkIn(fc.equipotentialBonding, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.equipotentialBonding, 'No')}</td>
-    <td class="ck">${checkIn(fc.equipotentialBonding, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.equipotentialBonding, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.equipotentialBonding, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.equipotentialBonding, 'N/A')}</td>
     <td class="cnum">8</td>
     <td class="lbl">Smoke Alarm Tested Satisfactory</td>
-    <td class="ck">${checkIn(fc.smokeAlarmTested, 'Yes')}</td>
-    <td class="ck">${checkIn(fc.smokeAlarmTested, 'No')}</td>
-    <td class="ck">${checkIn(fc.smokeAlarmTested, 'N/A')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmTested, 'Yes')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmTested, 'No')}</td>
+    <td style="text-align:center;">${checkInH(fc.smokeAlarmTested, 'N/A')}</td>
   </tr>
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     6. FAULTS & WORKS BOX
+     5. FAULTS & WORKS BOX
      ═══════════════════════════════════════════════════════════════════ -->
-<table class="flt" style="margin-top:0; border-top:none;">
-  <tr><td class="shdr" colspan="2" style="border-top:0.8px solid #9CA3AF;">Faults Identified &amp; Remedial Work</td></tr>
+<table class="flt mt">
+  <tr><td class="shdr" colspan="2">Faults Identified &amp; Remedial Work</td></tr>
   <tr class="tall-row">
     <th>Give Details of Any Faults Identified</th>
     <td>${esc(fc.faults)}</td>
@@ -665,43 +384,41 @@ ${appRows}
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     7. SIGNATURES FOOTER
+     6. SIGNATURES FOOTER
      ═══════════════════════════════════════════════════════════════════ -->
 <table class="mt">
   <tr>
-    <th colspan="2" style="text-align:center; width:25%; background:#D0D0D0; font-size:6.5pt;">Engineer</th>
-    <th colspan="2" style="text-align:center; width:25%; background:#D0D0D0; font-size:6.5pt;">Received By (Customer / Tenant)</th>
-    <td class="shdr" style="width:25%;">Next Inspection Date</td>
-    <td class="shdr" style="width:15%;">Cert No.</td>
+    <th colspan="2" class="sig-hdr" style="text-align:center; width:33.33%;">Engineer</th>
+    <th colspan="2" class="sig-hdr" style="text-align:center; width:33.33%;">Received By (Customer / Tenant)</th>
+    <td class="shdr" style="width:33.34%;">Date &amp; Next Inspection</td>
   </tr>
   <tr>
-    <th style="width:7%;">Sign</th>
-    <td style="height:28px; text-align:center;">
+    <th class="sig-hdr" style="width:7%;">Signature</th>
+    <td style="height:38px; text-align:center;">
       ${company.signatureBase64 ? `<img src="${company.signatureBase64}" class="sig-img"/>` : ''}
     </td>
-    <th style="width:7%;">Sign</th>
-    <td style="height:28px; text-align:center;">
+    <th class="sig-hdr" style="width:7%;">Signature</th>
+    <td style="height:38px; text-align:center;">
       ${data.customerSignature ? `<img src="${data.customerSignature}" class="sig-img"/>` : ''}
     </td>
-    <td rowspan="3" class="highlight">
-      <span class="highlight-label">Next Inspection Due</span>
+    <td rowspan="3" class="next-due">
+      <span class="next-due-label">Inspection Date</span>
+      ${esc(data.inspectionDate)}
+      <br/>
+      <span class="next-due-label" style="margin-top:6px;">Next Inspection Due</span>
       ${esc(data.nextDueDate)}
-    </td>
-    <td rowspan="3" class="certbox">
-      <span class="certbox-label">Certificate No.</span>
-      ${esc(data.certRef)}
     </td>
   </tr>
   <tr>
-    <th>Print Name</th>
+    <th class="sig-hdr">Print Name</th>
     <td>${esc(engineer.name)}</td>
-    <th>Print Name</th>
+    <th class="sig-hdr">Print Name</th>
     <td>${esc(data.tenantName || data.landlordName || '')}</td>
   </tr>
   <tr>
-    <th>Date</th>
+    <th class="sig-hdr">Date</th>
     <td>${esc(data.inspectionDate)}</td>
-    <th>Date</th>
+    <th class="sig-hdr">Date</th>
     <td>${esc(data.inspectionDate)}</td>
   </tr>
 </table>
@@ -715,121 +432,32 @@ ${appRows}
 </div>
 
 </div>
-
 </body>
 </html>`;
 }
 
-async function printHtmlToPdf(html: string): Promise<string> {
-  const { uri } = await Print.printToFileAsync({
-    html,
-    base64: false,
-    width: 842, // A4 landscape width in points (297mm)
-    height: 595, // A4 landscape height in points (210mm)
-  });
-  return uri;
+// ─── Title helper ───────────────────────────────────────────────
+
+function cp12Title(payload: CP12LockedPayload): string {
+  return `CP12 - ${payload.pdfData.landlordName || 'Gas Safety Record'}`;
 }
 
-async function printHtmlToPdfBase64(html: string): Promise<string> {
-  const { base64 } = await Print.printToFileAsync({
-    html,
-    base64: true,
-    width: 842,
-    height: 595,
-  });
-
-  if (!base64) {
-    throw new Error('Failed to create CP12 PDF base64 output');
-  }
-
-  return base64;
-}
-
-async function shareHtmlAsPdf(html: string, title: string): Promise<void> {
-  if (!(await Sharing.isAvailableAsync())) {
-    throw new Error('Sharing is not available on this device');
-  }
-
-  const uri = await printHtmlToPdf(html);
-
-  const shareOptions = {
-    mimeType: 'application/pdf',
-    dialogTitle: title,
-    UTI: 'com.adobe.pdf',
-  } as const;
-
-  if (Platform.OS === 'ios') {
-    void Sharing.shareAsync(uri, shareOptions).catch((err) => {
-      console.warn('CP12 share dismissed/failed on iOS:', err);
-    });
-    return;
-  }
-
-  await Sharing.shareAsync(uri, shareOptions);
-}
+// ─── Public API (thin wrappers around shared infrastructure) ────
 
 export async function generateCP12PdfFromPayload(
   payload: CP12LockedPayload,
   mode: 'share' | 'save' | 'view' = 'share',
   companyId?: string,
 ): Promise<void> {
-  const gasSafeLogoBase64 = await getGasSafeLogoBase64();
-  const liveCompanyLogoUrl = await getLatestCompanyLogoUrl(
-    companyId,
-    payload.company.logoUrl,
-  );
-  const companyLogoSrc = await getCompanyLogoSrc(liveCompanyLogoUrl);
-  const companyForRender: CompanyInfo = {
-    ...payload.company,
-    logoUrl: liveCompanyLogoUrl,
-  };
-  const html = buildHtml(
-    payload.pdfData,
-    companyForRender,
-    payload.engineer,
-    gasSafeLogoBase64,
-    companyLogoSrc,
-  );
-  const title = `CP12 - ${payload.pdfData.landlordName || 'Gas Safety Record'}`;
-
-  if (mode === 'view') {
-    await Print.printAsync({ html });
-    return;
-  }
-
-  if (mode === 'save') {
-    await shareHtmlAsPdf(html, `${title} (Save)`);
-    return;
-  }
-
-  await shareHtmlAsPdf(html, title);
+  return generatePdfFromPayload(payload, buildHtml, cp12Title, mode, companyId);
 }
 
 export async function generateCP12PdfBase64FromPayload(
   payload: CP12LockedPayload,
   companyId?: string,
 ): Promise<string> {
-  const gasSafeLogoBase64 = await getGasSafeLogoBase64();
-  const liveCompanyLogoUrl = await getLatestCompanyLogoUrl(
-    companyId,
-    payload.company.logoUrl,
-  );
-  const companyLogoSrc = await getCompanyLogoSrc(liveCompanyLogoUrl);
-  const companyForRender: CompanyInfo = {
-    ...payload.company,
-    logoUrl: liveCompanyLogoUrl,
-  };
-  const html = buildHtml(
-    payload.pdfData,
-    companyForRender,
-    payload.engineer,
-    gasSafeLogoBase64,
-    companyLogoSrc,
-  );
-  return printHtmlToPdfBase64(html);
+  return generatePdfBase64FromPayload(payload, buildHtml, companyId);
 }
-
-// ─── Public API ─────────────────────────────────────────────────
 
 export async function buildCP12LockedPayload(
   data: CP12PdfData,
@@ -856,3 +484,23 @@ export async function generateCP12Pdf(
   const payload = await buildCP12LockedPayload(data, companyId, userId);
   await generateCP12PdfFromPayload(payload, mode, companyId);
 }
+
+export async function generateCP12PdfUrl(
+  payload: CP12LockedPayload,
+  companyId: string,
+): Promise<string> {
+  return generatePdfUrlFromPayload(payload, buildHtml, companyId, payload.pdfData.certRef);
+}
+
+// ─── Register in the polymorphic registry ───────────────────────
+
+registerFormPdf('cp12', {
+  label: 'Gas Safety Certificate',
+  shortLabel: 'Gas Safety Cert',
+  icon: 'shield-checkmark-outline',
+  color: '#1D4ED8',
+  buildHtml: (pdfData, company, engineer, gasSafeLogo, companyLogo) =>
+    buildHtml(pdfData as CP12PdfData, company, engineer, gasSafeLogo, companyLogo),
+  titleFn: (payload) =>
+    `CP12 - ${(payload.pdfData as CP12PdfData).landlordName || 'Gas Safety Record'}`,
+});

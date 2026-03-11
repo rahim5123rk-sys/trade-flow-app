@@ -1,23 +1,32 @@
 {
   "expo": {
-    "name": "trade-flow-app",
+    "name": "GasPilot",
     "slug": "trade-flow-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "tradeflowapp",
+    "scheme": "gaspilot",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.reezy95.tradeflowapp",
+      "bundleIdentifier": "com.reezy95.gaspilot",
+      "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "TradeFlow needs camera access to take photos of completed work for job records.",
-        "NSPhotoLibraryUsageDescription": "TradeFlow needs photo library access to attach existing photos to job records.",
-        "NSContactsUsageDescription": "TradeFlow can import customer details from your contacts to save you typing.",
+        "NSCameraUsageDescription": "GasPilot needs camera access to take photos of completed work for job records.",
+        "NSPhotoLibraryUsageDescription": "GasPilot needs photo library access to attach existing photos to job records.",
+        "NSContactsUsageDescription": "GasPilot can import customer details from your contacts to save you typing.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.reezy95.gaspilot",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -56,6 +65,7 @@
       "eas": {
         "projectId": "74768981-1aad-48b8-9f3b-01da345a72ab"
       }
-    }
+    },
+    "owner": "reezy95"
   }
 }

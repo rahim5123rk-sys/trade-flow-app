@@ -39,8 +39,8 @@ export const SignaturePad = ({ visible, onClose, onOK }: SignaturePadProps) => {
               ref={ref}
               onOK={onOK}
               webStyle={`.m-signature-pad--footer {display: none; margin: 0px;}`}
-              backgroundColor={isDark ? theme.surface.elevated : '#fff'}
-              penColor={isDark ? theme.text.title : Colors.text}
+              backgroundColor="#fff"
+              penColor="#000"
             />
           </View>
 
@@ -60,7 +60,7 @@ export const SignaturePad = ({ visible, onClose, onOK }: SignaturePadProps) => {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  container: { backgroundColor: '#fff', height: '70%', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
+  container: { backgroundColor: '#fff', height: '82%', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   title: { fontSize: 18, fontWeight: 'bold', color: Colors.text },
   padContainer: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, overflow: 'hidden', marginBottom: 20 },

@@ -2,29 +2,29 @@
 // FILE: app/(app)/customers/add.tsx
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
+import {Ionicons} from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import {router} from 'expo-router';
+import React, {useState} from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Colors, UI } from '../../../constants/theme';
-import { supabase } from '../../../src/config/supabase';
-import { useAuth } from '../../../src/context/AuthContext';
-import { useAppTheme } from '../../../src/context/ThemeContext';
+import {Colors, UI} from '../../../constants/theme';
+import {supabase} from '../../../src/config/supabase';
+import {useAuth} from '../../../src/context/AuthContext';
+import {useAppTheme} from '../../../src/context/ThemeContext';
 
 export default function AddCustomerScreen() {
-  const { userProfile } = useAuth();
+  const {userProfile} = useAuth();
 
   const [customerName, setCustomerName] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -36,20 +36,20 @@ export default function AddCustomerScreen() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
 
   const handleImportContact = async () => {
     // GDPR: Show disclosure before requesting contacts permission
     Alert.alert(
       'Import from Contacts',
-      'TradeFlow will access your contacts to pre-fill the customer\'s name, phone, email, and address. Only the contact you select will be used — no data is uploaded until you save.',
+      'GasPilot will access your contacts to pre-fill the customer\'s name, phone, email, and address. Only the contact you select will be used — no data is uploaded until you save.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        {text: 'Cancel', style: 'cancel'},
         {
           text: 'Continue',
           onPress: async () => {
             try {
-              const { status } = await Contacts.requestPermissionsAsync();
+              const {status} = await Contacts.requestPermissionsAsync();
 
               if (status !== 'granted') {
                 Alert.alert('Permission denied', 'Contacts permission is required to import.');
@@ -99,7 +99,7 @@ export default function AddCustomerScreen() {
         .filter(Boolean)
         .join(', ');
 
-      const { error } = await supabase.from('customers').insert({
+      const {error} = await supabase.from('customers').insert({
         company_id: userProfile?.company_id,
         name: customerName.trim(),
         company_name: companyName.trim() || null,
@@ -127,33 +127,33 @@ export default function AddCustomerScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={{flex: 1}}
     >
       <ScrollView
-        style={[styles.container, isDark && { backgroundColor: theme.surface.base }]}
-        contentContainerStyle={{ paddingBottom: 60 }}
+        style={[styles.container, isDark && {backgroundColor: theme.surface.base}]}
+        contentContainerStyle={{paddingBottom: 60}}
         showsVerticalScrollIndicator={false}
       >
         {/* Import Button */}
-        <TouchableOpacity style={[styles.importBtn, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={handleImportContact}>
+        <TouchableOpacity style={[styles.importBtn, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleImportContact}>
           <Ionicons name="cloud-download-outline" size={24} color={isDark ? theme.brand.primary : Colors.primary} />
-          <Text style={[styles.importBtnText, isDark && { color: theme.brand.primary }]}>Import from Contacts</Text>
+          <Text style={[styles.importBtnText, isDark && {color: theme.brand.primary}]}>Import from Contacts</Text>
         </TouchableOpacity>
 
         {/* Customer Details Card */}
-        <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
-          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Contact Name *</Text>
+        <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
+          <Text style={[styles.label, isDark && {color: theme.text.muted}]}>Contact Name *</Text>
           <TextInput
-            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+            style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
             value={customerName}
             onChangeText={setCustomerName}
             placeholder="e.g. Sarah Jenkins"
             placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
           />
 
-          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Company Name</Text>
+          <Text style={[styles.label, isDark && {color: theme.text.muted}]}>Company Name</Text>
           <TextInput
-            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+            style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
             value={companyName}
             onChangeText={setCompanyName}
             placeholder="e.g. Jenkins Plumbing Ltd"
@@ -162,20 +162,20 @@ export default function AddCustomerScreen() {
         </View>
 
         {/* Address Card */}
-        <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Address</Text>
-        <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
-          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Address Line 1 *</Text>
+        <Text style={[styles.sectionTitle, isDark && {color: theme.text.muted}]}>Address</Text>
+        <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
+          <Text style={[styles.label, isDark && {color: theme.text.muted}]}>Address Line 1 *</Text>
           <TextInput
-            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+            style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
             value={address1}
             onChangeText={setAddress1}
             placeholder="Street address"
             placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
           />
 
-          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Address Line 2</Text>
+          <Text style={[styles.label, isDark && {color: theme.text.muted}]}>Address Line 2</Text>
           <TextInput
-            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+            style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
             value={address2}
             onChangeText={setAddress2}
             placeholder="Apt / Suite / Unit"
@@ -183,20 +183,20 @@ export default function AddCustomerScreen() {
           />
 
           <View style={styles.row}>
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={[styles.label, isDark && { color: theme.text.muted }]}>City</Text>
+            <View style={{flex: 1, marginRight: 8}}>
+              <Text style={[styles.label, isDark && {color: theme.text.muted}]}>City</Text>
               <TextInput
-                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                 value={city}
                 onChangeText={setCity}
                 placeholder="Worcester"
                 placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
               />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Post Code *</Text>
+            <View style={{flex: 1}}>
+              <Text style={[styles.label, isDark && {color: theme.text.muted}]}>Post Code *</Text>
               <TextInput
-                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                 value={postCode}
                 onChangeText={setPostCode}
                 placeholder="WR1 1PA"
@@ -206,9 +206,9 @@ export default function AddCustomerScreen() {
             </View>
           </View>
 
-          <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Region / County</Text>
+          <Text style={[styles.label, isDark && {color: theme.text.muted}]}>Region / County</Text>
           <TextInput
-            style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+            style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
             value={region}
             onChangeText={setRegion}
             placeholder="Worcestershire"
@@ -217,13 +217,13 @@ export default function AddCustomerScreen() {
         </View>
 
         {/* Contact Info Card */}
-        <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Contact Information</Text>
-        <View style={[styles.card, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}>
+        <Text style={[styles.sectionTitle, isDark && {color: theme.text.muted}]}>Contact Information</Text>
+        <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
           <View style={styles.row}>
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Phone</Text>
+            <View style={{flex: 1, marginRight: 8}}>
+              <Text style={[styles.label, isDark && {color: theme.text.muted}]}>Phone</Text>
               <TextInput
-                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="07700..."
@@ -231,10 +231,10 @@ export default function AddCustomerScreen() {
                 keyboardType="phone-pad"
               />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Email</Text>
+            <View style={{flex: 1}}>
+              <Text style={[styles.label, isDark && {color: theme.text.muted}]}>Email</Text>
               <TextInput
-                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="email@..."
@@ -248,7 +248,7 @@ export default function AddCustomerScreen() {
 
         {/* Save Button */}
         <TouchableOpacity
-          style={[styles.btn, loading && { opacity: 0.7 }]}
+          style={[styles.btn, loading && {opacity: 0.7}]}
           onPress={handleSave}
           disabled={loading}
         >
@@ -264,7 +264,7 @@ export default function AddCustomerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, padding: 16 },
+  container: {flex: 1, backgroundColor: Colors.background, padding: 16},
 
   importBtn: {
     flexDirection: 'row',
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
   },
-  row: { flexDirection: 'row' },
+  row: {flexDirection: 'row'},
   btn: {
     backgroundColor: Colors.primary,
     padding: 20,
@@ -327,5 +327,5 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     ...Colors.shadow,
   },
-  btnText: { color: UI.text.white, fontWeight: '800', fontSize: 17 },
+  btnText: {color: UI.text.white, fontWeight: '800', fontSize: 17},
 });

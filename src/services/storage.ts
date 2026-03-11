@@ -102,3 +102,68 @@ export const getSignedUrls = async (
   if (!refs || refs.length === 0) return [];
   return Promise.all(refs.map((r) => getSignedUrl(r, expiresIn)));
 };
+
+/**
+ * Upload a base64-encoded PDF to Supabase Storage (doc-pdfs bucket).
+ * Used for invoice and quote view URLs.
+ * Returns a time-limited signed URL (default 1 hour).
+ * The caller must ensure the `doc-pdfs` bucket exists in Supabase Storage.
+ */
+export const uploadDocPdfAndGetUrl = async (
+  base64: string,
+  companyId: string,
+  docRef: string,
+  expiresIn = 3600,
+): Promise<string> => {
+  const safeName = docRef.replace(/[^a-zA-Z0-9-]/g, '_');
+  const filePath = `${companyId}/${safeName}_${Date.now()}.pdf`;
+
+  const { error } = await supabase.storage
+    .from('doc-pdfs')
+    .upload(filePath, decode(base64), {
+      contentType: 'application/pdf',
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  const { data, error: signError } = await supabase.storage
+    .from('doc-pdfs')
+    .createSignedUrl(filePath, expiresIn);
+
+  if (signError || !data?.signedUrl) throw signError || new Error('Failed to generate PDF view URL');
+
+  return data.signedUrl;
+};
+
+/**
+ * Upload a base64-encoded PDF to Supabase Storage (cp12-pdfs bucket).
+ * Returns a time-limited signed URL (default 1 hour).
+ * The caller must ensure the `cp12-pdfs` bucket exists in Supabase Storage.
+ */
+export const uploadPdfBase64AndGetUrl = async (
+  base64: string,
+  companyId: string,
+  certRef: string,
+  expiresIn = 3600,
+): Promise<string> => {
+  const safeName = certRef.replace(/[^a-zA-Z0-9-]/g, '_');
+  const filePath = `${companyId}/${safeName}_${Date.now()}.pdf`;
+
+  const { error } = await supabase.storage
+    .from('cp12-pdfs')
+    .upload(filePath, decode(base64), {
+      contentType: 'application/pdf',
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  const { data, error: signError } = await supabase.storage
+    .from('cp12-pdfs')
+    .createSignedUrl(filePath, expiresIn);
+
+  if (signError || !data?.signedUrl) throw signError || new Error('Failed to generate PDF view URL');
+
+  return data.signedUrl;
+};

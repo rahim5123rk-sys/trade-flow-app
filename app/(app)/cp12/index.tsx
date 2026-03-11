@@ -30,45 +30,50 @@ const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 const CP12_DUPLICATE_SEED_KEY = 'cp12_duplicate_seed_v1';
+const CP12_EDIT_SEED_KEY = 'cp12_edit_seed_v1';
 
 // ─── Step indicator ─────────────────────────────────────────────
 
-const StepIndicator = ({current}: {current: number}) => (
-  <View style={s.stepRow}>
-    {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
-      const step = i + 1;
-      const isActive = step === current;
-      const isDone = step < current;
-      return (
-        <View key={label} style={s.stepItem}>
-          <View
-            style={[
-              s.stepDot,
-              isActive && s.stepDotActive,
-              isDone && s.stepDotDone,
-            ]}
-          >
-            {isDone ? (
-              <Ionicons name="checkmark" size={12} color={UI.text.white} />
-            ) : (
-              <Text
-                style={[
-                  s.stepDotText,
-                  (isActive || isDone) && {color: UI.text.white},
-                ]}
-              >
-                {step}
-              </Text>
-            )}
+const StepIndicator = ({current}: {current: number}) => {
+  const {isDark, theme} = useAppTheme();
+  return (
+    <View style={[s.stepRow, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+      {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
+        const step = i + 1;
+        const isActive = step === current;
+        const isDone = step < current;
+        return (
+          <View key={label} style={s.stepItem}>
+            <View
+              style={[
+                s.stepDot,
+                isActive && s.stepDotActive,
+                isDone && s.stepDotDone,
+              ]}
+            >
+              {isDone ? (
+                <Ionicons name="checkmark" size={12} color={UI.text.white} />
+              ) : (
+                <Text
+                  style={[
+                    s.stepDotText,
+                    (isActive || isDone) && {color: UI.text.white},
+                    isDark && !isActive && !isDone && {color: theme.text.muted},
+                  ]}
+                >
+                  {step}
+                </Text>
+              )}
+            </View>
+            <Text style={[s.stepLabel, isActive ? {color: theme.brand.primary} : isDark && {color: theme.text.muted}]}>
+              {label}
+            </Text>
           </View>
-          <Text style={[s.stepLabel, isActive && s.stepLabelActive]}>
-            {label}
-          </Text>
-        </View>
-      );
-    })}
-  </View>
-);
+        );
+      })}
+    </View>
+  );
+};
 
 // ─── Input helper ───────────────────────────────────────────────
 
@@ -80,6 +85,8 @@ const FormInput = ({
   icon,
   keyboardType,
   autoCapitalize,
+  isDark,
+  theme,
 }: {
   label: string;
   value: string;
@@ -88,26 +95,29 @@ const FormInput = ({
   icon?: keyof typeof Ionicons.glyphMap;
   keyboardType?: 'default' | 'email-address' | 'phone-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words';
+  isDark?: boolean;
+  theme?: any;
 }) => (
   <View style={s.inputContainer}>
-    <Text style={s.inputLabel}>{label}</Text>
-    <View style={s.inputWrapper}>
+    <Text style={[s.inputLabel, isDark && theme && {color: theme.text.bodyLight}]}>{label}</Text>
+    <View style={[s.inputWrapper, isDark && theme && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
       {icon && (
         <Ionicons
           name={icon}
           size={18}
-          color={UI.text.muted}
+          color={isDark && theme ? theme.text.muted : UI.text.muted}
           style={{marginRight: 10}}
         />
       )}
       <TextInput
-        style={s.input}
+        style={[s.input, isDark && theme && {color: theme.text.title}]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize ?? 'sentences'}
+        keyboardAppearance={isDark ? 'dark' : 'light'}
       />
     </View>
   </View>
@@ -137,31 +147,69 @@ export default function CP12DetailsScreen() {
     setTenantPostCode,
     propertyAddress,
     hydrateFromDuplicate,
+    hydrateForEdit,
+    editingDocumentId,
   } = useCP12();
 
   useEffect(() => {
-    const loadDuplicateSeed = async () => {
+    const loadSeed = async () => {
       try {
+        // Check for edit seed first (takes priority over duplicate)
+        const editRaw = await AsyncStorage.getItem(CP12_EDIT_SEED_KEY);
+        if (editRaw) {
+          const parsed = JSON.parse(editRaw);
+          hydrateForEdit({
+            propertyAddress: parsed?.propertyAddress,
+            appliances: parsed?.appliances,
+            landlordForm: parsed?.landlordForm,
+            tenantName: parsed?.tenantName,
+            tenantEmail: parsed?.tenantEmail,
+            tenantPhone: parsed?.tenantPhone,
+            nextDueDate: parsed?.nextDueDate,
+            renewalReminderEnabled: parsed?.renewalReminderEnabled,
+            inspectionDate: parsed?.inspectionDate,
+            finalChecks: parsed?.finalChecks,
+            customerSignature: parsed?.customerSignature,
+            certRef: parsed?.certRef,
+            documentId: parsed?.documentId,
+          });
+          await AsyncStorage.removeItem(CP12_EDIT_SEED_KEY);
+          Alert.alert('Editing Certificate', 'All certificate details have been loaded. Make your changes and save on the Review page.');
+          return;
+        }
+
+        // Otherwise check for duplicate seed
         const raw = await AsyncStorage.getItem(CP12_DUPLICATE_SEED_KEY);
         if (!raw) return;
         const parsed = JSON.parse(raw);
         hydrateFromDuplicate({
           propertyAddress: parsed?.propertyAddress,
           appliances: parsed?.appliances,
+          landlordForm: parsed?.landlordForm,
+          tenantName: parsed?.tenantName,
+          tenantEmail: parsed?.tenantEmail,
+          tenantPhone: parsed?.tenantPhone,
+          nextDueDate: parsed?.nextDueDate,
+          renewalReminderEnabled: parsed?.renewalReminderEnabled,
         });
         await AsyncStorage.removeItem(CP12_DUPLICATE_SEED_KEY);
-        Alert.alert('Certificate Duplicated', 'Appliances and property address have been prefilled from the previous certificate.');
+        Alert.alert('Certificate Duplicated', 'Previous landlord, tenant and property details have been prefilled. Review and update before saving.');
       } catch {
         await AsyncStorage.removeItem(CP12_DUPLICATE_SEED_KEY);
+        await AsyncStorage.removeItem(CP12_EDIT_SEED_KEY);
       }
     };
 
-    void loadDuplicateSeed();
-  }, [hydrateFromDuplicate]);
+    void loadSeed();
+  }, [hydrateFromDuplicate, hydrateForEdit]);
 
   const handleNext = () => {
     if (!landlordForm.customerName.trim()) {
       Alert.alert('Missing Info', 'Please enter the landlord name.');
+      return;
+    }
+    if (!tenantAddressLine1.trim() || !tenantCity.trim() || !tenantPostCode.trim()) {
+      Alert.alert('Missing Info', 'Address Line 1, City and Postcode are required.');
       return;
     }
     router.push('/(app)/cp12/appliances');
@@ -239,73 +287,65 @@ export default function CP12DetailsScreen() {
             />
           </Animated.View>
 
-          {/* Tenant Details */}
+          {/* Tenant & Property Address */}
           <Animated.View entering={FadeInDown.delay(250).springify()}>
             <View style={[s.sectionHeader, {marginTop: 24}]}>
               <LinearGradient
                 colors={UI.gradients.successLight}
                 style={s.sectionIcon}
               >
-                <Ionicons name="people" size={16} color={UI.text.white} />
+                <Ionicons name="home" size={16} color={UI.text.white} />
               </LinearGradient>
-              <Text style={s.sectionTitle}>Tenant Details</Text>
-              <View style={s.optionalBadge}>
-                <Text style={s.optionalText}>Optional</Text>
-              </View>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Tenant & Property</Text>
             </View>
 
-            <View style={s.card}>
+            <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <FormInput
                 label="Tenant Name"
                 value={tenantName}
                 onChange={setTenantName}
-                placeholder="Full name"
+                placeholder="Full name (optional)"
                 icon="person-outline"
                 autoCapitalize="words"
+                isDark={isDark}
+                theme={theme}
               />
               <FormInput
                 label="Email"
                 value={tenantEmail}
                 onChange={setTenantEmail}
-                placeholder="tenant@email.com"
+                placeholder="tenant@email.com (optional)"
                 icon="mail-outline"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                isDark={isDark}
+                theme={theme}
               />
               <FormInput
                 label="Phone"
                 value={tenantPhone}
                 onChange={setTenantPhone}
-                placeholder="Phone number"
+                placeholder="Phone number (optional)"
                 icon="call-outline"
                 keyboardType="phone-pad"
+                isDark={isDark}
+                theme={theme}
               />
-            </View>
-          </Animated.View>
 
-          {/* Property / Inspection Address */}
-          <Animated.View entering={FadeInDown.delay(350).springify()}>
-            <View style={[s.sectionHeader, {marginTop: 24}]}>
-              <LinearGradient
-                colors={UI.gradients.amberLight}
-                style={s.sectionIcon}
-              >
-                <Ionicons name="home" size={16} color={UI.text.white} />
-              </LinearGradient>
-              <Text style={s.sectionTitle}>Property Address</Text>
-            </View>
+              <View style={s.sectionDivider} />
 
-            <View style={s.card}>
-              <Text style={s.hintText}>
-                Address of the property being inspected. This will appear on the certificate.
+              <Text style={[s.hintText, {color: theme.text.muted}]}>
+                Address of the property being inspected. Address Line 1, City and Postcode are required.
               </Text>
 
               <FormInput
-                label="Address Line 1"
+                label="Address Line 1 *"
                 value={tenantAddressLine1}
                 onChange={setTenantAddressLine1}
                 placeholder="Street address"
                 autoCapitalize="words"
+                isDark={isDark}
+                theme={theme}
               />
               <FormInput
                 label="Address Line 2"
@@ -313,25 +353,31 @@ export default function CP12DetailsScreen() {
                 onChange={setTenantAddressLine2}
                 placeholder="Flat, floor, building (optional)"
                 autoCapitalize="words"
+                isDark={isDark}
+                theme={theme}
               />
 
               <View style={s.row}>
                 <View style={{flex: 1}}>
                   <FormInput
-                    label="City / Town"
+                    label="City / Town *"
                     value={tenantCity}
                     onChange={setTenantCity}
                     placeholder="City"
                     autoCapitalize="words"
+                    isDark={isDark}
+                    theme={theme}
                   />
                 </View>
                 <View style={{flex: 1}}>
                   <FormInput
-                    label="Postcode"
+                    label="Postcode *"
                     value={tenantPostCode}
                     onChange={setTenantPostCode}
                     placeholder="e.g. SW1A 1AA"
                     autoCapitalize="none"
+                    isDark={isDark}
+                    theme={theme}
                   />
                 </View>
               </View>
@@ -360,7 +406,7 @@ export default function CP12DetailsScreen() {
         {/* Bottom CTA */}
         <Animated.View
           entering={FadeIn.delay(500)}
-          style={[s.bottomBar, {bottom: TAB_BAR_HEIGHT, paddingBottom: 12}]}
+          style={[s.bottomBar, {bottom: TAB_BAR_HEIGHT, paddingBottom: 12}, isDark && {backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)'}]}
         >
           <TouchableOpacity
             style={s.nextBtn}
@@ -483,6 +529,9 @@ const s = StyleSheet.create({
 
   // Row (side-by-side fields)
   row: {flexDirection: 'row', gap: 10},
+
+  // Section divider within card
+  sectionDivider: {height: 1, backgroundColor: UI.surface.divider, marginVertical: 16},
 
   // Hint text
   hintText: {

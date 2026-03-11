@@ -6,7 +6,7 @@
 
 ## 1. Application as a Conduit
 
-GasCertPal ("the App") is a software tool that assists qualified heating engineers in generating CP12 Landlord Gas Safety Records in a digital format. The App is provided solely as an administrative aid.
+GasPilot ("the App") is a software tool that assists qualified heating engineers in generating CP12 Landlord Gas Safety Records in a digital format. The App is provided solely as an administrative aid.
 
 **The App does not perform gas safety inspections, issue certifications, or confer any professional qualification upon its users.** The end-user ("the Engineer") is the sole, legally responsible issuer of every certificate generated through the App. The App developer, its directors, employees, and affiliates ("the Developer") accept no liability whatsoever for the accuracy, completeness, or lawfulness of any certificate produced.
 

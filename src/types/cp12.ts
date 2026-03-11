@@ -3,25 +3,10 @@
 // Types for CP12 Gas Safety Certificate
 // ============================================
 
-export type YesNoNA = 'Yes' | 'No' | 'N/A' | '';
-export type PassFailNA = 'Pass' | 'Fail' | 'N/A' | '';
+import { EMPTY_FGA } from './gasForms';
+import type { FGAReadings, FlueType, HeatInputUnit, PassFailNA, YesNoNA } from './gasForms';
 
-export type FlueType =
-  | ''
-  | 'Balanced Flue'
-  | 'Room Sealed'
-  | 'Open Flue'
-  | 'Flu-less'
-  | 'Conventional Flue'
-  | 'Fanned Flue';
-
-export type HeatInputUnit = 'kW/h' | 'Btu/h';
-
-export interface FGAReadings {
-  co: string;
-  co2: string;
-  ratio: string;
-}
+export type { FGAReadings, FlueType, HeatInputUnit, PassFailNA, YesNoNA };
 
 export interface CP12Appliance {
   id: string;
@@ -95,7 +80,7 @@ export interface CP12Certificate {
 
 // ─── Empty defaults ─────────────────────────────────────────────
 
-export const EMPTY_FGA: FGAReadings = { co: '', co2: '', ratio: '' };
+export { EMPTY_FGA } from './gasForms';
 
 export const EMPTY_APPLIANCE: Omit<CP12Appliance, 'id'> = {
   location: '',
