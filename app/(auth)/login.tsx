@@ -18,7 +18,8 @@ import {Colors, UI} from '../../constants/theme';
 import {supabase} from '../../src/config/supabase';
 import {useAppTheme} from '../../src/context/ThemeContext';
 
-const PENDING_REGISTRATION_KEY = 'pilotlight_pending_registration';
+const PENDING_REGISTRATION_KEY = 'gaspilot_pending_registration';
+const LEGACY_PENDING_REGISTRATION_KEY = 'pilotlight_pending_registration';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -51,7 +52,9 @@ export default function LoginScreen() {
       } else {
         // Check if there's pending registration data — if so, give AuthContext
         // a moment to complete it before navigating to the dashboard
-        const pending = await SecureStore.getItemAsync(PENDING_REGISTRATION_KEY);
+        const pending =
+          (await SecureStore.getItemAsync(PENDING_REGISTRATION_KEY)) ||
+          (await SecureStore.getItemAsync(LEGACY_PENDING_REGISTRATION_KEY));
         if (pending) {
           // AuthContext's onAuthStateChange will handle completing the registration.
           // Wait briefly so the profile is created before dashboard tries to load.
@@ -88,7 +91,7 @@ export default function LoginScreen() {
         ]}
       >
         <View style={styles.header}>
-          <Text style={[styles.brand, {color: theme.brand.primary}]}>PilotLight</Text>
+          <Text style={[styles.brand, {color: theme.brand.primary}]}>GasPilot</Text>
           <Text style={[styles.title, {color: theme.text.title}]}>Welcome Back</Text>
           <Text style={[styles.subtitle, {color: theme.text.muted}]}>Sign in to access your dashboard.</Text>
         </View>

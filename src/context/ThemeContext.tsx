@@ -8,7 +8,8 @@ import React, {createContext, useContext, useEffect, useState} from 'react';
 import {ViewStyle} from 'react-native';
 import {Colors, DarkColors, DarkUI, UI} from '../../constants/theme';
 
-const STORAGE_KEY = '@pilotlight_dark_mode';
+const STORAGE_KEY = '@gaspilot_dark_mode';
+const LEGACY_STORAGE_KEY = '@pilotlight_dark_mode';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -61,8 +62,14 @@ export function ThemeProvider({children}: {children: React.ReactNode}) {
     (async () => {
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        if (stored === 'dark' || stored === 'light') {
-          setModeState(stored);
+        const legacyStored = stored ? null : await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+        const resolved = stored || legacyStored;
+        if (resolved === 'dark' || resolved === 'light') {
+          setModeState(resolved);
+          if (!stored && legacyStored) {
+            await AsyncStorage.setItem(STORAGE_KEY, legacyStored);
+            await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+          }
         }
       } catch {
         // Fallback to light

@@ -93,7 +93,7 @@ serve(async (req) => {
     }
 
     const data = await resend.emails.send({
-      from: 'GasCertPal <info@gascertpal.com>',
+      from: 'GasPilot <info@gascertpal.com>',
       to: recipients,
       subject: subject.trim(),
       html: html,

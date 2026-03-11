@@ -42,7 +42,7 @@ export default function AddCustomerScreen() {
     // GDPR: Show disclosure before requesting contacts permission
     Alert.alert(
       'Import from Contacts',
-      'PilotLight will access your contacts to pre-fill the customer\'s name, phone, email, and address. Only the contact you select will be used — no data is uploaded until you save.',
+      'GasPilot will access your contacts to pre-fill the customer\'s name, phone, email, and address. Only the contact you select will be used — no data is uploaded until you save.',
       [
         {text: 'Cancel', style: 'cancel'},
         {

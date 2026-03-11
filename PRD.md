@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
-## PilotLight — Trade Business Management App
+## GasPilot — Trade Business Management App
 
 **Version:** 1.0.0
-**Bundle ID:** com.reezy95.pilotlight
+**Bundle ID:** com.reezy95.gaspilot
 **Platform:** iOS & Android (React Native / Expo)
 **Last Updated:** March 2026
 **Governing Law:** England & Wales
@@ -12,7 +12,7 @@
 ## 1. Product Overview
 
 ### 1.1 Purpose
-PilotLight is a mobile-first business management application built for tradespeople and their teams. It provides a unified platform to manage jobs, customers, workers, invoices, quotes, and gas safety certificates — replacing paper-based and fragmented workflows with a single tool.
+GasPilot is a mobile-first business management application built for tradespeople and their teams. It provides a unified platform to manage jobs, customers, workers, invoices, quotes, and gas safety certificates — replacing paper-based and fragmented workflows with a single tool.
 
 ### 1.2 Problem Statement
 Tradespeople (electricians, gas engineers, plumbers, etc.) typically juggle multiple tools — paper job sheets, spreadsheets, WhatsApp, and separate invoicing software. This creates:
@@ -23,7 +23,7 @@ Tradespeople (electricians, gas engineers, plumbers, etc.) typically juggle mult
 - Poor communication between admin and field workers
 
 ### 1.3 Solution
-PilotLight consolidates all trade business operations into one mobile app with:
+GasPilot consolidates all trade business operations into one mobile app with:
 - Role-based access for admin and field worker
 - Real-time job tracking and status updates
 - Professional document generation (invoices, quotes, gas certificates)
@@ -420,7 +420,7 @@ PilotLight consolidates all trade business operations into one mobile app with:
 - App does not process payments or hold financial data
 
 ### 9.3 GDPR (UK GDPR / Data Protection Act 2018)
-- Data controller: PilotLight
+- Data controller: GasPilot
 - Legal bases: Contract performance, legal obligation, legitimate interest, consent
 - Full rights implementation in settings
 - Third-party DPAs in place
@@ -471,4 +471,4 @@ PilotLight consolidates all trade business operations into one mobile app with:
 
 ---
 
-*PilotLight PRD v1.0 — Confidential*
+*GasPilot PRD v1.0 — Confidential*

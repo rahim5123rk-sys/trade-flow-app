@@ -33,7 +33,7 @@ export default function ForgotPasswordScreen() {
     try {
       // Always use the production scheme so the link works on real devices
       // and isn't broken by the Expo dev client URL format
-      const redirectTo = 'pilotlight://reset-password';
+      const redirectTo = 'gaspilot://reset-password';
       const {error} = await supabase.auth.resetPasswordForEmail(email.trim(), {redirectTo});
       if (error) {
         Alert.alert('Reset Failed', error.message);

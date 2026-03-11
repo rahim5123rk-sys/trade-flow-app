@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const TARGET_EMAIL = 'rahim.5123.rk@gmail.com';
 const DEMO_NOTE_PREFIX = 'DEMO-SEED:';
-const WORKER_PASSWORD = process.env.DEMO_WORKER_PASSWORD || 'PilotLightDemo#2026';
+const WORKER_PASSWORD = process.env.DEMO_WORKER_PASSWORD || 'GasPilotDemo#2026';
 
 const customerTemplates = [
   {
@@ -140,10 +140,10 @@ const customerTemplates = [
 ];
 
 const workerTemplates = [
-  { name: 'Kai Morgan', email: 'kai.morgan+pilotlight.demo@example.com' },
-  { name: 'Ella Robinson', email: 'ella.robinson+pilotlight.demo@example.com' },
-  { name: 'Noah Evans', email: 'noah.evans+pilotlight.demo@example.com' },
-  { name: 'Lily Ward', email: 'lily.ward+pilotlight.demo@example.com' },
+  { name: 'Kai Morgan', email: 'kai.morgan+gaspilot.demo@example.com' },
+  { name: 'Ella Robinson', email: 'ella.robinson+gaspilot.demo@example.com' },
+  { name: 'Noah Evans', email: 'noah.evans+gaspilot.demo@example.com' },
+  { name: 'Lily Ward', email: 'lily.ward+gaspilot.demo@example.com' },
 ];
 
 const quoteStatuses = ['Draft', 'Sent', 'Accepted'];
@@ -257,14 +257,14 @@ function calculateTotals(items, discountPercent = 0) {
 
 function buildSeededGasLockedPayload(type, customer, createdAt, expiry, reference, company, profile) {
   const engineer = {
-    name: profile.display_name || profile.name || 'PilotLight Engineer',
+    name: profile.display_name || profile.name || 'GasPilot Engineer',
     gasSafeNumber: profile.gas_safe_number || profile.gas_safe_license || '',
     email: profile.email || customer.email || '',
     phone: profile.phone || company.phone || '',
   };
 
   const companySnapshot = {
-    name: company.name || 'PilotLight Home Services',
+    name: company.name || 'GasPilot Home Services',
     email: company.email || profile.email || '',
     phone: company.phone || '',
     address: company.address || '',
@@ -488,9 +488,9 @@ async function updateBranding(supabase, targetProfile, company) {
   };
 
   const companyUpdate = {
-    name: 'PilotLight Home Services',
+    name: 'GasPilot Home Services',
     address: '42 Kingsway, London WC2B 6SE',
-    email: 'hello@pilotlight.app',
+    email: 'hello@gaspilot.app',
     phone: '020 7946 0958',
     trade: 'Gas Engineer',
     settings: updatedSettings,
@@ -684,7 +684,7 @@ async function seedInvoices(supabase, companyId, customers, jobs, nextInvoiceNum
       discount_percent: discountPercent,
       total: totals.total,
       notes: `${DEMO_NOTE_PREFIX} Invoice seeded for screenshots.`,
-      payment_info: 'Bank transfer: PilotLight Home Services · Sort Code 20-11-62 · Account 12345678',
+      payment_info: 'Bank transfer: GasPilot Home Services · Sort Code 20-11-62 · Account 12345678',
     };
 
     const { data, error } = await supabase.from('documents').insert(payload).select('*').single();

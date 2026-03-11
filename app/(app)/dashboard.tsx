@@ -33,7 +33,7 @@ import {Document} from '../../src/types';
 // ─── Dashboard Onboarding Tips ─────────────
 const ADMIN_TIPS: OnboardingTip[] = [
   {
-    title: 'Welcome to PilotLight 👋',
+    title: 'Welcome to GasPilot 👋',
     description: 'Your all-in-one job management app. Let\'s take a quick tour of what you can do.',
     icon: 'rocket-outline',
     arrowDirection: 'none',
@@ -78,7 +78,7 @@ const ADMIN_TIPS: OnboardingTip[] = [
 
 const WORKER_TIPS: OnboardingTip[] = [
   {
-    title: 'Welcome to PilotLight 👋',
+    title: 'Welcome to GasPilot 👋',
     description: 'Your jobs, schedule and tasks in one place. Let\'s walk through the basics.',
     icon: 'rocket-outline',
     arrowDirection: 'none',

@@ -124,7 +124,7 @@ serve(async (req) => {
       `
 
       await resend.emails.send({
-        from: Deno.env.get('RESEND_FROM_EMAIL') || 'PilotLight <info@gascertpal.com>',
+        from: Deno.env.get('RESEND_FROM_EMAIL') || 'GasPilot <info@gascertpal.com>',
         to: recipients,
         subject,
         html,

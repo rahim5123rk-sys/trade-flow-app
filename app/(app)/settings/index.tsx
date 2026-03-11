@@ -1,4 +1,5 @@
 import {Ionicons} from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import {File, Paths} from 'expo-file-system/next';
 import * as ImagePicker from 'expo-image-picker';
 import {LinearGradient} from 'expo-linear-gradient';
@@ -248,6 +249,7 @@ export default function SettingsScreen() {
   const {user, userProfile, signOut, refreshProfile} = useAuth();
   const {offlineModeEnabled, setOfflineModeEnabled} = useOfflineMode();
   const {isDark, toggleTheme, theme, colors} = useAppTheme();
+  const appVersion = Constants.expoConfig?.version || '1.0.1';
   const isAdmin = userProfile?.role === 'admin';
   const insets = useSafeAreaInsets();
   const sigWebViewRef = useRef<WebView>(null);
@@ -596,13 +598,13 @@ export default function SettingsScreen() {
               };
 
               const json = JSON.stringify(exportData, null, 2);
-              const file = new File(Paths.cache, 'pilotlight-data-export.json');
+              const file = new File(Paths.cache, 'gaspilot-data-export.json');
               file.write(json);
 
               if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(file.uri, {
                   mimeType: 'application/json',
-                  dialogTitle: 'PilotLight Data Export',
+                  dialogTitle: 'GasPilot Data Export',
                 });
               } else {
                 Alert.alert('Exported', 'Data has been saved to your device.');
@@ -1063,7 +1065,7 @@ export default function SettingsScreen() {
           <SettingRow icon="trash-outline" label="Delete My Account" isDestructive onPress={handleDeleteAccount} />
         </View>
 
-        <Text style={[styles.versionText, {color: theme.text.muted}]}>PilotLight v1.0.5</Text>
+        <Text style={[styles.versionText, {color: theme.text.muted}]}>GasPilot v{appVersion}</Text>
       </ScrollView>
 
       {/* First-run onboarding */}
