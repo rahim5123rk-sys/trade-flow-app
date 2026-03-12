@@ -375,7 +375,7 @@ export default function UserDetailsScreen() {
                   I warrant that I hold a current, valid Gas Safe registration, that I am lawfully authorised to use the Gas Safe Register name and logo on certificates in the course of my registered gas work, and I agree to the{' '}
                   <Text
                     style={styles.linkText}
-                    onPress={() => Linking.openURL('https://www.gascertpal.com/gas-safe-terms')}
+                    onPress={() => Linking.openURL('https://www.gaspilotapp.com/gas-safe-terms')}
                   >
                     Gas Safe Terms of Service
                   </Text>

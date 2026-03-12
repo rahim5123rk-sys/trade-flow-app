@@ -68,196 +68,147 @@ export const generateJobSheet = async (job: JobData) => {
 
   // 4. Construct HTML
   const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-          
-          body { 
-            font-family: 'Inter', Helvetica, sans-serif; 
-            padding: 40px; 
-            color: #1e293b; 
-            -webkit-font-smoothing: antialiased;
-            background: #fff;
-          }
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  @page { margin: 0; size: A4; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #334155; font-size: 11px; line-height: 1.3; margin: 0;
+    padding: 20mm; padding-bottom: 45mm; -webkit-print-color-adjust: exact;
+  }
+  .row { display: flex; flex-direction: row; justify-content: space-between; gap: 20px; }
+  .col { flex: 1; }
+  .text-right { text-align: right; }
+  .bold { font-weight: 700; color: #0f172a; }
 
-          /* Header */
-          .header-row { display: flex; justify-content: space-between; margin-bottom: 40px; align-items: flex-start; }
-          .logo-box { width: 100px; height: 100px; background: #f8fafc; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #e2e8f0; }
-          .logo-img { width: 100%; height: 100%; object-fit: contain; }
-          .invoice-title { text-align: right; }
-          .invoice-label { font-size: 32px; font-weight: 800; color: #0f172a; letter-spacing: -1px; margin: 0; }
-          .invoice-sub { color: #64748B; font-size: 14px; margin-top: 5px; }
-          .status-badge { 
-            display: inline-block; 
-            margin-top: 10px; 
-            padding: 6px 12px; 
-            background: ${statusColor}15; 
-            color: ${statusColor}; 
-            border-radius: 6px; 
-            font-size: 12px; 
-            font-weight: 700; 
-            letter-spacing: 0.5px;
-          }
+  /* HEADER */
+  .header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .company-logo { height: 60px; width: auto; object-fit: contain; margin-bottom: 8px; display: block; }
+  .company-title { font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; margin-bottom: 4px; }
+  .company-text { font-size: 10px; color: #475569; display: block; margin-bottom: 1px; }
 
-          /* Info Grid */
-          .info-grid { display: flex; gap: 40px; margin-bottom: 50px; }
-          .col { flex: 1; }
-          .col-label { font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
-          .info-text { font-size: 14px; line-height: 1.6; color: #334155; }
-          .info-name { font-weight: 700; color: #0f172a; font-size: 15px; margin-bottom: 4px; }
+  .doc-title { font-size: 24px; font-weight: 800; color: #cbd5e1; text-align: right; margin-bottom: 10px; letter-spacing: 2px; }
+  .meta-row { display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 3px; }
+  .meta-label { font-weight: 600; color: #64748b; font-size: 10px; }
+  .meta-val { font-weight: 700; color: #0f172a; font-size: 10px; min-width: 70px; text-align: right; }
 
-          /* Job Table */
-          .job-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-          .job-table th { text-align: left; padding: 12px 16px; background: #f8fafc; color: #64748B; font-size: 11px; text-transform: uppercase; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
-          .job-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-          .desc-cell { width: 60%; }
-          .notes-box { margin-top: 8px; font-size: 13px; color: #64748B; font-style: italic; background: #fff; }
-          .price-cell { text-align: right; font-weight: 600; font-size: 15px; color: #0f172a; }
+  /* ADDRESS GRID */
+  .address-grid { display: flex; gap: 30px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9; }
+  .addr-box { flex: 1; }
+  .addr-header { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
+  .addr-name { font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
+  .addr-text { font-size: 11px; color: #334155; display: block; margin-bottom: 1px; }
 
-          /* Totals */
-          .totals-section { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-          .totals-box { width: 250px; }
-          .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #64748B; }
-          .grand-total { border-top: 2px solid #0f172a; margin-top: 10px; padding-top: 10px; font-size: 18px; font-weight: 800; color: #0f172a; }
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 9px; text-transform: uppercase; padding: 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 10px; }
+  .col-desc { width: 45%; }
+  .col-num { text-align: right; white-space: nowrap; }
 
-          /* Photos */
-          .section-title { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 15px; }
-          .photo-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 40px; }
-          .photo-frame { width: 140px; height: 140px; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; padding: 4px; background: #fff; }
-          .photo-img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+  /* NOTES */
+  .notes-box { margin-top: 20px; padding: 10px; background: #fffbeb; border: 1px dashed #e2e8f0; border-radius: 4px; page-break-inside: avoid; }
+  .notes-title { font-size: 9px; font-weight: 700; color: #b45309; text-transform: uppercase; margin-bottom: 2px; }
+  .notes-content { font-size: 10px; color: #334155; }
 
-          /* Footer / Signatures */
-          .footer-row { display: flex; justify-content: space-between; margin-top: 60px; padding-top: 30px; border-top: 1px dashed #cbd5e1; }
-          .sig-box { width: 45%; }
-          .sig-line { margin-top: 40px; border-bottom: 1px solid #cbd5e1; }
-          .sig-img { height: 50px; object-fit: contain; margin-bottom: -10px; }
-          .footer-text { margin-top: 60px; text-align: center; font-size: 11px; color: #94a3b8; }
-        </style>
-      </head>
-      <body>
+  /* PHOTOS */
+  .photo-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+  .photo-item { width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; }
+  .photo-title { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
 
-        <div class="header-row">
-          <div class="logo-box">
-             ${logoUrl 
-               ? `<img src="${logoUrl}" class="logo-img" />` 
-               : `<span style="font-size: 30px; font-weight: bold; color: #cbd5e1;">GP</span>`
-             }
-          </div>
-          <div class="invoice-title">
-            <h1 class="invoice-label">JOB SHEET</h1>
-            <div class="invoice-sub">Ref: #${esc(job.reference)}</div>
-            <div class="status-badge">${statusText}</div>
-          </div>
-        </div>
+  /* FOOTER */
+  .footer { position: fixed; bottom: 15mm; left: 20mm; right: 20mm; height: 35mm; background: #fff; border-top: 1px solid #0f172a; padding-top: 10px; display: flex; justify-content: space-between; gap: 20px; }
+  .left-box { flex: 1; font-size: 9px; line-height: 1.4; color: #475569; }
+  .box-title { font-weight: 700; font-size: 9px; color: #0f172a; text-transform: uppercase; margin-bottom: 3px; }
 
-        <div class="info-grid">
-          <div class="col">
-            <div class="col-label">Service Provider</div>
-            <div class="info-name">${esc(companyData.name)}</div>
-            <div class="info-text">
-              ${esc(companyData.address)}<br>
-              ${esc(companyData.email)}<br>
-              ${esc(companyData.phone || '')}
-            </div>
-          </div>
-          <div class="col">
-            <div class="col-label">Client</div>
-            <div class="info-name">${esc(job.customer_snapshot?.name || 'Unknown Client')}</div>
-            <div class="info-text">
-              ${esc(job.customer_snapshot?.address || 'No Address')}<br>
-              ${esc(job.customer_snapshot?.email || '')}<br>
-              ${esc(job.customer_snapshot?.phone || '')}
-            </div>
-          </div>
-          <div class="col">
-            <div class="col-label">Job Details</div>
-            <div class="info-text">
-              <strong>Date:</strong> ${dateStr}<br>
-              <strong>Time:</strong> ${timeStr}<br>
-              <strong>Type:</strong> Standard Service
-            </div>
-          </div>
-        </div>
+  .sig-box { width: 140px; text-align: right; display: flex; flex-direction: column; justify-content: flex-end; }
+  .sig-img { height: 35px; width: auto; object-fit: contain; align-self: flex-end; margin-bottom: 2px; }
+  .sig-line { border-top: 1px solid #cbd5e1; font-size: 8px; color: #94a3b8; padding-top: 2px; text-transform: uppercase; text-align: center; }
+  .terms { position: fixed; bottom: 8mm; left: 0; right: 0; text-align: center; font-size: 8px; color: #94a3b8; }
+</style>
+</head>
+<body>
 
-        <table class="job-table">
-          <thead>
-            <tr>
-              <th class="desc-cell">Description</th>
-              <th>Status</th>
-              <th class="price-cell">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <div style="font-weight: 600; font-size: 14px; color: #0f172a;">${esc(job.title)}</div>
-                ${job.notes ? `<div class="notes-box">Note: ${esc(job.notes)}</div>` : ''}
-              </td>
-              <td style="font-size: 13px; color: #64748B; padding-top: 18px;">${statusText}</td>
-              <td class="price-cell" style="padding-top: 18px;">£${(job.price || 0).toFixed(2)}</td>
-            </tr>
-          </tbody>
-        </table>
+  <div class="header">
+    <div class="col">
+      ${logoUrl ? `<img src="${logoUrl}" class="company-logo" />` : ''}
+      <div class="company-title">${esc(companyData.name)}</div>
+      <div class="company-text">${esc((companyData.address || '').replace(/\n/g, ', '))}</div>
+      <div class="company-text">${esc(companyData.phone)}</div>
+      <div class="company-text">${esc(companyData.email)}</div>
+    </div>
+    <div class="col">
+      <div class="doc-title">JOB SHEET</div>
+      <div class="meta-row"><span class="meta-label">Reference:</span><span class="meta-val">#${esc(job.reference)}</span></div>
+      <div class="meta-row"><span class="meta-label">Scheduled Date:</span><span class="meta-val">${dateStr}</span></div>
+      <div class="meta-row"><span class="meta-label">Time:</span><span class="meta-val">${timeStr}</span></div>
+      <div class="meta-row"><span class="meta-label">Status:</span><span class="meta-val" style="color: ${statusColor};">${statusText}</span></div>
+    </div>
+  </div>
 
-        <div class="totals-section">
-          <div class="totals-box">
-            <div class="total-row">
-              <span>Subtotal</span>
-              <span>£${(job.price || 0).toFixed(2)}</span>
-            </div>
-            <div class="total-row">
-              <span>Tax (0%)</span>
-              <span>£0.00</span>
-            </div>
-            <div class="total-row grand-total">
-              <span>Total Due</span>
-              <span>£${(job.price || 0).toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
+  <div class="address-grid">
+    <div class="addr-box">
+      <div class="addr-header">Client</div>
+      <div class="addr-name">${esc(job.customer_snapshot?.name || 'Unknown Client')}</div>
+      ${job.customer_snapshot?.address ? `<div class="addr-text">${esc(job.customer_snapshot.address)}</div>` : ''}
+      ${job.customer_snapshot?.phone ? `<div class="addr-text" style="margin-top:4px;">${esc(job.customer_snapshot.phone)}</div>` : ''}
+      ${job.customer_snapshot?.email ? `<div class="addr-text">${esc(job.customer_snapshot.email)}</div>` : ''}
+    </div>
+    <div class="addr-box text-right">
+      <div class="addr-header" style="border-color:transparent;">Site Address</div>
+      <div class="addr-text">${esc(job.customer_snapshot?.address || 'No Address')}</div>
+      <div class="addr-text" style="margin-top:4px; font-weight:600;">Job Date: ${dateStr}</div>
+    </div>
+  </div>
 
-        ${photoUrls.length > 0 ? `
-          <div style="margin-top: 20px;">
-            <div class="section-title">Site Photos</div>
-            <div class="photo-grid">
-              ${photoUrls.map(url => `
-                <div class="photo-frame">
-                  <img src="${url}" class="photo-img" />
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        ` : ''}
+  <table>
+    <thead><tr><th class="col-desc">Job Details</th><th class="col-num">Status</th><th class="col-num">Estimated Amount</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="col-desc">
+          <div class="bold">${esc(job.title)}</div>
+        </td>
+        <td class="col-num">${statusText}</td>
+        <td class="col-num">£${(job.price || 0).toFixed(2)}</td>
+      </tr>
+    </tbody>
+  </table>
 
-        <div class="footer-row">
-          <div class="sig-box">
-            <div class="col-label">Client Signature</div>
-            ${job.signature 
-              ? `<img src="${job.signature}" class="sig-img" />` 
-              : '<div style="height: 40px;"></div>'
-            }
-            <div class="sig-line"></div>
-            <div style="font-size: 10px; color: #94a3b8; margin-top: 5px;">Signed by ${esc(job.customer_snapshot?.name || 'Client')}</div>
-          </div>
+  ${job.notes ? `
+    <div class="notes-box">
+      <div class="notes-title">Job Notes</div>
+      <div class="notes-content">${esc(job.notes).replace(/\n/g, '<br/>')}</div>
+    </div>
+  ` : ''}
 
-          <div class="sig-box">
-             <div class="col-label">Authorised By</div>
-             <div style="height: 40px;"></div>
-             <div class="sig-line"></div>
-             <div style="font-size: 10px; color: #94a3b8; margin-top: 5px;">${esc(companyData.name)}</div>
-          </div>
-        </div>
+  ${photoUrls.length > 0 ? `
+    <div class="photo-title">Site Photos</div>
+    <div class="photo-grid">
+      ${photoUrls.map(url => `<img src="${url}" class="photo-item" />`).join('')}
+    </div>
+  ` : ''}
 
-        <div class="footer-text">
-          Thank you for your business. Payment is due within 14 days.<br>
-          Generated by GasPilot
-        </div>
-
-      </body>
-    </html>
+  <div class="footer">
+    <div class="left-box">
+      <div class="box-title">Client Acceptance</div>
+      <div style="height:30px; border-bottom:1px dashed #cbd5e1; width:200px; margin-top:15px;"></div>
+      <div style="font-size:8px; color:#94a3b8; margin-top:4px;">Signed by ${esc(job.customer_snapshot?.name || 'Client')}</div>
+    </div>
+    <div class="sig-box">
+      ${job.signature ? `<img src="${job.signature}" class="sig-img" />` : '<div style="height:35px;"></div>'}
+      <div class="sig-line">Technician Signature</div>
+    </div>
+  </div>
+  <div class="terms">Generated by GasPilot</div>
+</body>
+</html>
   `;
 
   try {

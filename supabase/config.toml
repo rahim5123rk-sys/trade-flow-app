@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "pilotlight-app"
+project_id = "gaspilot-app"
 
 [api]
 enabled = true
@@ -151,9 +151,9 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "pilotlight://login"
+site_url = "gaspilot://login"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["pilotlight://login", "pilotlight://reset-password", "http://127.0.0.1:3000", "http://localhost:3000"]
+additional_redirect_urls = ["gaspilot://**", "https://www.gaspilotapp.com/**", "http://127.0.0.1:3000", "http://localhost:3000"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
@@ -223,13 +223,18 @@ host = "smtp.resend.com"
 port = 465
 user = "resend"
 pass = "env(RESEND_API_KEY)"
-admin_email = "no-reply@gascertpal.com"
-sender_name = "GasCertPal"
+admin_email = "no-reply@gaspilotapp.com"
+sender_name = "GasPilot"
 
 # Customize signup confirmation email template
 [auth.email.template.signup]
 subject = "Confirm your email"
 content_path = "./supabase/templates/confirm_signup.html"
+
+# Customize recovery/reset password email template
+[auth.email.template.recovery]
+subject = "Reset Your Password"
+content_path = "./supabase/templates/recovery.html"
 
 # Customize invite template
 # [auth.email.template.invite]
@@ -394,7 +399,7 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.send-email]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/send-email/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx

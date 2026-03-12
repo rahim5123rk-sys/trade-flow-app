@@ -74,6 +74,9 @@ export async function sendHtmlEmail({
   }
 
   const { error } = await supabase.functions.invoke('send-email', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
     body: {
       to: recipients,
       subject,

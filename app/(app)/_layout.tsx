@@ -93,7 +93,7 @@ export default function AppLayout() {
   const tabBarHeight = TAB_BAR_BASE_HEIGHT + bottomInset;
   const fabBottomOffset = tabBarHeight + 14;
   const isAdmin = role === 'admin';
-  const hideGlobalFab = pathname.startsWith('/(app)/settings') || pathname.startsWith('/(app)/workers');
+  const hideGlobalFab = pathname.startsWith('/settings') || pathname.startsWith('/workers') || pathname.startsWith('/notes') || pathname.startsWith('/(app)/settings') || pathname.startsWith('/(app)/workers') || pathname.startsWith('/(app)/notes');
   const [fabOpen, setFabOpen] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
   const progress = useSharedValue(0);

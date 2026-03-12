@@ -1,9 +1,9 @@
-export const LEGAL_LAST_UPDATED = '9 March 2026';
+export const LEGAL_LAST_UPDATED = '12 March 2026';
 
 export const PRIVACY_POLICY_SECTIONS = [
   {
     title: '1. Data Controller',
-    body: `GasPilot is a trade management application. When you create a company account, your company acts as the data controller for customer, job and document data processed through the app. GasPilot (the software provider) acts as a data processor on your behalf except where we process limited account, billing, support and security data for our own legitimate business purposes.`,
+    body: `GasPilot is a trade management application operated by Mohammed Khan (trading as Blue Flame Studios). When you create a company account, your company acts as the data controller for customer, job and document data processed through the app. GasPilot acts as a data processor on your behalf except where we process limited account, billing, support and security data for our own legitimate business purposes.`,
   },
   {
     title: '2. What Data We Collect',
@@ -52,11 +52,11 @@ We do not sell personal data and we do not use personal data for advertising or 
   },
   {
     title: '6. Your Rights',
-    body: `Depending on your location and applicable law, you may have rights to access, rectify, erase, export, restrict or object to certain processing of your personal data, and to withdraw consent where consent is relied upon. Company administrators are responsible for handling requests relating to customer, tenant, landlord and worker data they control. You can use the app settings where available or contact support for assistance.`,
+    body: `Depending on your location and applicable law, you may have rights to access, rectify, erase, export, restrict or object to certain processing of your personal data, and to withdraw consent where consent is relied upon. Company administrators are responsible for handling requests relating to customer, tenant, landlord and worker data they control. You can use the app settings where available or contact support for assistance. You also have the right to lodge a complaint with your local data protection authority, such as the Information Commissioner's Office (ICO) in the UK.`,
   },
   {
     title: '7. Data Security',
-    body: `We implement technical and organisational safeguards designed to protect personal data, including encrypted transport, access controls, authentication protections, company-level segregation, row-level security and controlled access to stored files. No method of transmission, storage or processing is completely secure, so we cannot guarantee absolute security. You are responsible for maintaining the confidentiality of devices, login credentials and any exported or shared documents.`,
+    body: `We implement technical and organisational safeguards designed to protect personal data, including encrypted transport, access controls, authentication protections, company-level segregation, row-level security and controlled access to stored files. No method of transmission, storage or processing is completely secure, so we cannot guarantee absolute security. You are responsible for maintaining the confidentiality of devices, login credentials and any exported or shared documents. In the event of a personal data breach affecting your account, we will notify you without undue delay as required by law.`,
   },
   {
     title: '8. International Transfers',
@@ -72,7 +72,7 @@ We do not sell personal data and we do not use personal data for advertising or 
   },
   {
     title: '11. Contact',
-    body: `If you have questions about this privacy policy or need help with data protection requests, contact us through Settings or email support@gaspilot.app.`,
+    body: `If you have questions about this privacy policy or need help with data protection requests, please contact Mohammed Khan (trading as Blue Flame Studios) through the app Settings or by emailing support@gaspilot.app.`,
   },
 ] as const;
 
@@ -105,7 +105,7 @@ export const TERMS_OF_SERVICE_SECTIONS = [
   },
   {
     title: '5. Your Data and Compliance Responsibilities',
-    body: `You are solely responsible for the legality, accuracy, completeness and retention of all data, readings, measurements, notes, photos, signatures, references, reminders, forms and documents entered into or generated through GasPilot. You must ensure that all records, notices, certificates, invoices, emails and other outputs comply with applicable law, regulation, technical standards, professional requirements and manufacturer instructions.`,
+    body: `You are solely responsible for the legality, accuracy, completeness and retention of all data, readings, measurements, notes, photos, signatures, references, reminders, forms and documents entered into or generated through GasPilot. You must ensure that all records, notices, certificates, invoices, emails and other outputs comply with applicable law, regulation, technical standards, professional requirements and manufacturer instructions. Where we act as a Data Processor of your customer data, our Privacy Policy outlines the scope, nature, and duration of processing. By accepting these terms, you instruct us to process this data on your behalf using the sub-processors listed in our Privacy Policy.`,
   },
   {
     title: '6. Forms, Certificates and Technical Records',

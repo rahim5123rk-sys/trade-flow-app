@@ -46,10 +46,12 @@ serve(async (req) => {
   let user
   try {
     const { data, error: authError } = await supabase.auth.getUser()
-    if (authError || !data.user) throw new Error()
+    if (authError || !data.user) {
+      throw new Error(authError?.message || 'No user found')
+    }
     user = data.user
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid or expired session' }), {
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: 'Auth failed', details: err.message, url: Deno.env.get('SUPABASE_URL') ? 'set' : 'missing', key: Deno.env.get('SUPABASE_ANON_KEY') ? 'set' : 'missing' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 401,
     })
@@ -93,7 +95,7 @@ serve(async (req) => {
     }
 
     const data = await resend.emails.send({
-      from: 'GasPilot <info@gascertpal.com>',
+      from: 'GasPilot <info@gaspilotapp.com>',
       to: recipients,
       subject: subject.trim(),
       html: html,

@@ -212,11 +212,6 @@ export default function JobDetailScreen() {
 
   const customerName = job.customer_snapshot?.name || 'Unknown';
   const jobAddress = job.customer_snapshot?.address || '';
-  const summaryTiles = [
-    {label: 'Customer', value: customerName, icon: 'person-outline' as const},
-    {label: 'Scheduled', value: `${formatDate(job.scheduled_date)} · ${formatTime(job.scheduled_date)}`, icon: 'calendar-outline' as const},
-    {label: 'Site', value: jobAddress || 'No address added', icon: 'location-outline' as const},
-  ];
 
   return (
     <View style={styles.root}>
@@ -240,31 +235,58 @@ export default function JobDetailScreen() {
         contentContainerStyle={{paddingHorizontal: 16, paddingBottom: insets.bottom + 40}}
         showsVerticalScrollIndicator={false}
       >
-        {/* ─── Hero card ─── */}
-        <Animated.View entering={FadeInDown.delay(50).duration(400)} style={[styles.heroCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
-          <LinearGradient colors={status.gradient} style={styles.heroStrip} />
-          <View style={styles.heroBody}>
-            <View style={styles.heroTop}>
-              <Text style={[styles.heroRef, isDark && {color: theme.text.muted}]}>{job.reference}</Text>
+        {/* ─── Details card ─── */}
+        <Animated.View entering={FadeInDown.delay(50).duration(400)}>
+          <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+            <View style={[styles.sectionHeader, {justifyContent: 'space-between'}]}>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                <View style={[styles.sectionIconWrap, {backgroundColor: 'rgba(99,102,241,0.1)'}]}>
+                  <Ionicons name="document-text" size={16} color={isDark ? theme.brand.primary : UI.brand.primary} />
+                </View>
+                <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Job Details</Text>
+              </View>
               <View style={[styles.statusPill, {backgroundColor: `${status.color}18`}]}>
                 <Ionicons name={status.icon} size={13} color={status.color} />
                 <Text style={[styles.statusText, {color: status.color}]}>{status.label}</Text>
               </View>
             </View>
-            <Text style={[styles.heroTitle, isDark && {color: theme.text.title}]} numberOfLines={2}>{job.title}</Text>
-            <Text style={[styles.heroSubtitle, isDark && {color: theme.text.muted}]}>Everything for this job in one place.</Text>
 
-            <View style={styles.heroMetaGrid}>
-              {summaryTiles.map((item) => (
-                <View key={item.label} style={[styles.heroMetricCard, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
-                  <View style={[styles.heroMetricIcon, {backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6'}]}>
-                    <Ionicons name={item.icon} size={16} color={isDark ? theme.text.bodyLight : UI.text.secondary} />
-                  </View>
-                  <Text style={[styles.heroMetricLabel, isDark && {color: theme.text.muted}]}>{item.label}</Text>
-                  <Text style={[styles.heroMetricValue, isDark && {color: theme.text.title}]} numberOfLines={item.label === 'Site' ? 2 : 1}>{item.value}</Text>
-                </View>
-              ))}
+            <Text style={[styles.heroTitle, isDark && {color: theme.text.title}, {marginBottom: 16}]} numberOfLines={2}>{job.title}</Text>
+
+            <View style={styles.detailGrid}>
+              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text>
+                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]} numberOfLines={2}>{customerName}</Text>
+              </View>
+              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Reference</Text>
+                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]} numberOfLines={1}>{job.reference}</Text>
+              </View>
+              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Scheduled</Text>
+                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]} numberOfLines={1}>{formatDate(job.scheduled_date)}</Text>
+              </View>
+              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
+                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Time</Text>
+                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]}>{formatTime(job.scheduled_date)}</Text>
+              </View>
             </View>
+
+            {job.notes ? (
+              <View style={[styles.notesBox, isDark && {backgroundColor: 'rgba(255,255,255,0.05)'}]}>
+                <Text style={[styles.notesLabel, isDark && {color: theme.text.muted}]}>Notes</Text>
+                <Text style={[styles.notesText, isDark && {color: theme.text.body}]}>{job.notes}</Text>
+              </View>
+            ) : (
+              <Text style={[styles.notesText, {color: isDark ? theme.text.muted : UI.text.muted}]}>No notes added.</Text>
+            )}
+
+            {isAdmin && job.price != null && (
+              <View style={styles.priceRow}>
+                <Text style={[styles.priceLabel, isDark && {color: theme.text.muted}]}>Price</Text>
+                <Text style={[styles.priceValue, isDark && {color: theme.brand.primary}]}>£{job.price.toFixed(2)}</Text>
+              </View>
+            )}
           </View>
         </Animated.View>
 
@@ -321,53 +343,6 @@ export default function JobDetailScreen() {
             </TouchableOpacity>
           </Animated.View>
         )}
-
-        {/* ─── Details card ─── */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-          <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIconWrap, {backgroundColor: 'rgba(99,102,241,0.1)'}]}>
-                <Ionicons name="document-text" size={16} color={isDark ? theme.brand.primary : UI.brand.primary} />
-              </View>
-              <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Details</Text>
-            </View>
-
-            <View style={styles.detailGrid}>
-              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
-                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text>
-                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]} numberOfLines={2}>{customerName}</Text>
-              </View>
-              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
-                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Scheduled</Text>
-                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]} numberOfLines={2}>{formatDate(job.scheduled_date)}</Text>
-              </View>
-              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
-                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Time</Text>
-                <Text style={[styles.detailValue, isDark && {color: theme.text.title}]}>{formatTime(job.scheduled_date)}</Text>
-              </View>
-              <View style={[styles.detailTile, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.glass.border}]}>
-                <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Status</Text>
-                <Text style={[styles.detailValue, {color: status.color}]}>{status.label}</Text>
-              </View>
-            </View>
-
-            {job.notes ? (
-              <View style={[styles.notesBox, isDark && {backgroundColor: 'rgba(255,255,255,0.05)'}]}>
-                <Text style={[styles.notesLabel, isDark && {color: theme.text.muted}]}>Notes</Text>
-                <Text style={[styles.notesText, isDark && {color: theme.text.body}]}>{job.notes}</Text>
-              </View>
-            ) : (
-              <Text style={[styles.notesText, {color: isDark ? theme.text.muted : UI.text.muted}]}>No notes added.</Text>
-            )}
-
-            {isAdmin && job.price != null && (
-              <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, isDark && {color: theme.text.muted}]}>Price</Text>
-                <Text style={[styles.priceValue, isDark && {color: theme.brand.primary}]}>£{job.price.toFixed(2)}</Text>
-              </View>
-            )}
-          </View>
-        </Animated.View>
 
         {/* ─── Parts Needed ─── */}
         <Animated.View entering={FadeInDown.delay(225).duration(400)}>

@@ -8,6 +8,7 @@ import {
   Animated,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -25,12 +26,6 @@ import {useAppTheme} from '../../src/context/ThemeContext';
 export const PENDING_REGISTRATION_KEY = 'gaspilot_pending_registration';
 
 // --- Utils ---
-
-const TRADES = [
-  'Plumber', 'Electrician', 'Gas Engineer', 'Builder', 'Carpenter',
-  'Roofer', 'Painter & Decorator', 'HVAC', 'Landscaper', 'Locksmith',
-  'Handyman', 'Other',
-];
 
 const generateInviteCode = () => {
   // Generates format: ABC-123
@@ -64,7 +59,13 @@ export default function RegisterScreen() {
 
   // Step 2 (Create): Business Info
   const [companyName, setCompanyName] = useState('');
-  const [trade, setTrade] = useState('');
+  const [gasSafeRegisterNumber, setGasSafeRegisterNumber] = useState('');
+  const [isApprentice, setIsApprentice] = useState(false);
+  const [acceptedGasSafeTerms, setAcceptedGasSafeTerms] = useState(false);
+
+  const GAS_SAFE_REGEX = /^\d{6}$/;
+  const gasSafeValid = gasSafeRegisterNumber.trim() === '' || GAS_SAFE_REGEX.test(gasSafeRegisterNumber.trim());
+  const gasSafeEntered = gasSafeRegisterNumber.trim().length > 0;
 
   // Step 2 (Join): Invite Code
   const [inviteCode, setInviteCode] = useState('');
@@ -134,7 +135,11 @@ export default function RegisterScreen() {
     if (step === 2) {
       if (mode === 'create') {
         if (!companyName.trim()) {Alert.alert('Missing Info', 'Enter business name.'); return;}
-        if (!trade) {Alert.alert('Missing Info', 'Select a trade.'); return;}
+        if (!isApprentice) {
+          if (!gasSafeEntered) {Alert.alert('Missing Info', 'Enter your Gas Safe Register Number, or check the apprentice box.'); return;}
+          if (!gasSafeValid) {Alert.alert('Invalid Info', 'Gas Safe Register Number must be exactly 6 digits.'); return;}
+          if (!acceptedGasSafeTerms) {Alert.alert('Missing Info', 'You must accept the Gas Safe Terms of Service to continue.'); return;}
+        }
       } else {
         if (!inviteCode) {Alert.alert('Missing Info', 'Enter invite code.'); return;}
         const isValid = await checkInviteCode();
@@ -272,7 +277,10 @@ export default function RegisterScreen() {
               ...(mode === 'create'
                 ? {
                   companyName: companyName.trim(),
-                  trade,
+                  trade: 'Gas Engineer',
+                  gasSafeRegisterNumber: isApprentice ? '' : gasSafeRegisterNumber.trim(),
+                  acceptedGasSafeTerms: isApprentice ? false : acceptedGasSafeTerms,
+                  isApprentice,
                   businessAddress: businessAddress.trim(),
                   businessPhone: businessPhone.trim(),
                   inviteCode: generateInviteCode(),
@@ -347,7 +355,7 @@ export default function RegisterScreen() {
               p_company_name: companyName.trim(),
               p_company_address: businessAddress.trim(),
               p_company_phone: businessPhone.trim(),
-              p_trade: trade,
+              p_trade: 'Gas Engineer',
               p_invite_code: code,
               p_role: 'admin',
               p_consent_given_at: new Date().toISOString(),
@@ -372,6 +380,27 @@ export default function RegisterScreen() {
         }
         userRole = 'admin';
         console.log('[Register] Company created:', companyId);
+
+        if (!isApprentice && gasSafeValid && acceptedGasSafeTerms) {
+          await supabase
+            .from('companies')
+            .update({
+              settings: {
+                userDetailsById: {
+                  [userId]: {
+                    gasSafeRegisterNumber: gasSafeRegisterNumber.trim(),
+                    acceptedGasSafeTerms: true,
+                  },
+                },
+              },
+            })
+            .eq('id', companyId);
+
+          await supabase
+            .from('profiles')
+            .update({ accepted_gas_safe_terms: true })
+            .eq('id', userId);
+        }
       } else {
         if (!foundCompany) throw new Error('Company not confirmed');
         console.log('[Register] Step 3: Calling join RPC via raw fetch...');
@@ -522,19 +551,60 @@ export default function RegisterScreen() {
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={[styles.label, {color: theme.text.body}]}>What's your trade?</Text>
-                  <View style={styles.tradeGrid}>
-                    {TRADES.map((t) => (
-                      <TouchableOpacity
-                        key={t}
-                        style={[styles.tradeChip, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, trade === t && styles.tradeChipActive]}
-                        onPress={() => setTrade(t)}
-                      >
-                        <Text style={[styles.tradeChipText, {color: theme.text.muted}, trade === t && styles.tradeChipTextActive]}>{t}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <Text style={[styles.label, {color: theme.text.body}]}>Gas Safe Register Number</Text>
+                  <TextInput
+                    style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}, isApprentice && {opacity: 0.5}]}
+                    value={gasSafeRegisterNumber}
+                    onChangeText={setGasSafeRegisterNumber}
+                    placeholder="e.g. 123456"
+                    placeholderTextColor={theme.text.placeholder}
+                    keyboardType="numeric"
+                    maxLength={6}
+                    editable={!isApprentice}
+                  />
+                  {gasSafeEntered && !gasSafeValid && !isApprentice && (
+                    <Text style={styles.errorHint}>Must be exactly 6 digits</Text>
+                  )}
                 </View>
+
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setIsApprentice(!isApprentice);
+                    if (!isApprentice) {
+                      setGasSafeRegisterNumber('');
+                      setAcceptedGasSafeTerms(false);
+                    }
+                  }}
+                >
+                  <View style={[styles.checkbox, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, isApprentice && styles.checkboxChecked]}>
+                    {isApprentice && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  </View>
+                  <Text style={[styles.checkboxLabel, {color: theme.text.body}]}>I am an apprentice (no Gas Safe number yet)</Text>
+                </TouchableOpacity>
+
+                {!isApprentice && gasSafeEntered && gasSafeValid && (
+                  <TouchableOpacity
+                    style={[styles.checkboxRow, {marginTop: 16}]}
+                    activeOpacity={0.7}
+                    onPress={() => setAcceptedGasSafeTerms(!acceptedGasSafeTerms)}
+                  >
+                    <View style={[styles.checkbox, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, acceptedGasSafeTerms && styles.checkboxChecked]}>
+                      {acceptedGasSafeTerms && <Ionicons name="checkmark" size={14} color="#fff" />}
+                    </View>
+                    <Text style={[styles.checkboxLabel, { color: theme.text.body }]}>
+                      I warrant that I hold a current, valid Gas Safe registration, that I am lawfully authorised to use the Gas Safe Register name and logo on certificates in the course of my registered gas work, and I agree to the{' '}
+                      <Text
+                        style={styles.linkText}
+                        onPress={() => Linking.openURL('https://www.gaspilotapp.com/gas-safe-terms')}
+                      >
+                        Gas Safe Terms of Service
+                      </Text>
+                      . I accept full legal liability for all certificates I generate and indemnify the App developer against any claims arising from my use of Gas Safe branding.
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </>
             ) : (
               <>
@@ -660,11 +730,10 @@ const styles = StyleSheet.create({
   codeInput: {textAlign: 'center', fontSize: 24, letterSpacing: 3, fontWeight: '700', textTransform: 'uppercase'},
   textArea: {minHeight: 80, textAlignVertical: 'top'},
 
-  tradeGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
-  tradeChip: {paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: UI.surface.elevated, borderWidth: 1.5, borderColor: UI.surface.elevated},
-  tradeChipActive: {backgroundColor: UI.surface.base, borderColor: Colors.primary},
-  tradeChipText: {fontSize: 14, fontWeight: '500', color: Colors.textLight},
-  tradeChipTextActive: {color: Colors.primary, fontWeight: '700'},
+  errorHint: {color: UI.brand.danger, fontSize: 12, marginTop: 6, marginLeft: 4},
+  checkboxRow: {flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 8},
+  checkboxLabel: {flex: 1, fontSize: 13, lineHeight: 20},
+  linkText: {color: UI.brand.primary, textDecorationLine: 'underline', fontWeight: '600'},
 
   nextBtn: {flexDirection: 'row', backgroundColor: Colors.primary, padding: 18, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, ...Colors.shadow},
   nextBtnText: {color: UI.text.white, fontWeight: 'bold', fontSize: 16},

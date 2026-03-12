@@ -133,6 +133,23 @@ export default function DocumentDetailScreen() {
     setLoading(false);
   };
 
+  const resolveCustomerId = async (currentId: string | null | undefined, name: string) => {
+    if (currentId) return currentId;
+    if (!name || !userProfile?.company_id) return null;
+    try {
+      const {data} = await supabase
+        .from('customers')
+        .select('id')
+        .eq('company_id', userProfile.company_id)
+        .ilike('name', name)
+        .limit(1)
+        .maybeSingle();
+      return data?.id || null;
+    } catch {
+      return null;
+    }
+  };
+
   const updateStatus = async (newStatus: string) => {
     if (!doc) return;
     if (offlineModeEnabled) {
@@ -414,6 +431,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           landlordForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.landlordName || ''),
             customerName: pdfData.landlordName || '',
             customerCompany: pdfData.landlordCompany || '',
             addressLine1: addrLine1,
@@ -465,6 +483,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           landlordForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.landlordName || ''),
             customerName: pdfData.landlordName || '',
             customerCompany: pdfData.landlordCompany || '',
             addressLine1: addrLine1,
@@ -505,6 +524,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,
@@ -540,6 +560,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,
@@ -576,6 +597,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,
@@ -610,6 +632,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,
@@ -645,6 +668,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,
@@ -679,6 +703,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,
@@ -714,6 +739,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,
@@ -748,6 +774,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,
@@ -783,6 +810,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,
@@ -818,6 +846,7 @@ export default function DocumentDetailScreen() {
           propertyAddress: pdfData.propertyAddress,
           appliances: pdfData.appliances,
           customerForm: {
+            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
             customerName: pdfData.customerName || '',
             customerCompany: pdfData.customerCompany || '',
             addressLine1: customerAddress.line1,

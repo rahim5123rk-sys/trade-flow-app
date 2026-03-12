@@ -152,6 +152,31 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           console.error('[Auth] Pending create RPC failed:', response.status, err);
           return false;
         }
+        
+        const rpcData = await response.json();
+        const companyId = rpcData.company_id;
+
+        if (companyId && !pendingData.isApprentice && pendingData.gasSafeRegisterNumber && pendingData.acceptedGasSafeTerms) {
+          await supabase
+            .from('companies')
+            .update({
+              settings: {
+                userDetailsById: {
+                  [userId]: {
+                    gasSafeRegisterNumber: pendingData.gasSafeRegisterNumber.trim(),
+                    acceptedGasSafeTerms: true,
+                  },
+                },
+              },
+            })
+            .eq('id', companyId);
+
+          await supabase
+            .from('profiles')
+            .update({ accepted_gas_safe_terms: true })
+            .eq('id', userId);
+        }
+
         console.log('[Auth] Pending create RPC succeeded');
       } else {
         // Join mode (worker)

@@ -112,8 +112,8 @@ function buildHtml(
   gasSafeLogoBase64 = '',
   companyLogoSrc = '',
 ): string {
-  const appliance = data.appliances[0];
-  const fi = data.finalInfo;
+  const appliance = data.appliances?.[0] || {} as Partial<ServiceAppliance>;
+  const fi = data.finalInfo || {} as Partial<ServiceFinalInfo>;
 
   // Parse property address parts
   const propParts = (data.propertyAddress || '').split(',').map(s => s.trim()).filter(Boolean);

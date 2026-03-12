@@ -5,7 +5,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -131,7 +133,7 @@ export default function NotesScreen() {
           data={filteredNotes}
           keyExtractor={(item) => item.id}
           renderItem={renderNote}
-          contentContainerStyle={[s.list, {paddingBottom: insets.bottom + 80}]}
+          contentContainerStyle={[s.list, {paddingBottom: insets.bottom + 120}]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={s.emptyWrap}>
@@ -144,13 +146,24 @@ export default function NotesScreen() {
       )}
 
       {/* FAB */}
-      <TouchableOpacity onPress={openNew} activeOpacity={0.85} style={[s.fab, {bottom: insets.bottom + 20}]}>
+      <TouchableOpacity
+        onPress={openNew}
+        activeOpacity={0.85}
+        style={[
+          s.fab,
+          {bottom: insets.bottom + 100, zIndex: 20, elevation: 12},
+        ]}
+        accessibilityLabel="Add note"
+      >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
       {/* Editor Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={[s.modalBackdrop]}>
+        <KeyboardAvoidingView
+          style={s.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={[s.modalCard, isDark && {backgroundColor: theme.surface.card}, {paddingBottom: insets.bottom + 16}]}>
             <View style={s.modalHeader}>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -172,7 +185,7 @@ export default function NotesScreen() {
               textAlignVertical="top"
             />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

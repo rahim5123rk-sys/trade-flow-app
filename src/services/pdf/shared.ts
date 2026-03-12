@@ -72,7 +72,10 @@ async function getImageDataUriFromUri(uri: string): Promise<string> {
   return `data:${getMimeTypeFromUri(uri)};base64,${base64}`;
 }
 
-export async function getGasSafeLogoBase64(): Promise<string> {
+export async function getGasSafeLogoBase64(engineer?: EngineerInfo): Promise<string> {
+  const hasGasSafeNumber = engineer?.gasSafeNumber && engineer.gasSafeNumber.trim().length > 0;
+  if (!hasGasSafeNumber) return '';
+
   try {
     const moduleRef = require('../../../assets/images/gaslogo.png');
     const asset = Asset.fromModule(moduleRef);
@@ -601,14 +604,15 @@ export async function resolveAndBuildHtml<P extends BaseLockedPayload>(
   titleFn: (payload: P) => string,
   companyId?: string,
 ): Promise<{ html: string; title: string }> {
-  const gasSafeLogoBase64 = await getGasSafeLogoBase64();
-  const liveCompanyLogoUrl = await getLatestCompanyLogoUrl(companyId, payload.company.logoUrl);
+  const engineerForRender = payload.engineer || {} as EngineerInfo;
+  const gasSafeLogoBase64 = await getGasSafeLogoBase64(engineerForRender);
+  const liveCompanyLogoUrl = await getLatestCompanyLogoUrl(companyId, payload?.company?.logoUrl || '');
   const companyLogoSrc = await getCompanyLogoSrc(liveCompanyLogoUrl);
-  const companyForRender: CompanyInfo = { ...payload.company, logoUrl: liveCompanyLogoUrl };
+  const companyForRender: CompanyInfo = { ...(payload?.company || {} as CompanyInfo), logoUrl: liveCompanyLogoUrl };
   const html = buildHtmlFn(
     payload.pdfData,
     companyForRender,
-    payload.engineer,
+    engineerForRender,
     gasSafeLogoBase64,
     companyLogoSrc,
   );
