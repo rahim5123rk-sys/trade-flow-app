@@ -24,9 +24,10 @@ import {useAppTheme} from '../../../src/context/ThemeContext';
 
 const JOBS_TIPS: OnboardingTip[] = [
   {
-    title: 'Your Jobs List 📋',
+    title: 'Your Jobs List',
     description: 'All your active jobs appear here, sorted by date. Swipe left on a job for quick actions.',
     icon: 'briefcase-outline',
+    position: 'center',
     arrowDirection: 'none',
     accent: '#1D4ED8',
   },
@@ -34,6 +35,7 @@ const JOBS_TIPS: OnboardingTip[] = [
     title: 'Filter Jobs',
     description: 'Use the filter tabs at the top to switch between All Jobs and My Jobs.',
     icon: 'funnel-outline',
+    position: 'top',
     arrowDirection: 'up',
     accent: '#7C3AED',
   },
@@ -41,6 +43,7 @@ const JOBS_TIPS: OnboardingTip[] = [
     title: 'Swipe Actions',
     description: 'Swipe any job left to quickly mark it In Progress, Complete, or Delete it.',
     icon: 'swap-horizontal-outline',
+    position: 'center',
     arrowDirection: 'down',
     accent: '#059669',
   },
@@ -48,6 +51,7 @@ const JOBS_TIPS: OnboardingTip[] = [
     title: 'Create New Jobs',
     description: 'Tap the + button at the bottom right to create a new job with customer details, scheduling and pricing.',
     icon: 'add-circle-outline',
+    position: 'bottom',
     arrowDirection: 'down',
     accent: '#D97706',
   },

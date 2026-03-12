@@ -1,14 +1,13 @@
 // ============================================
 // FILE: components/Onboarding.tsx
 // Reusable first-run onboarding overlay with
-// animated tip cards, arrows and dot indicators
+// positioned tooltip cards that point at real UI
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Dimensions,
     Modal,
     StyleSheet,
     Text,
@@ -18,22 +17,22 @@ import {
 import Animated, {
     FadeIn,
     FadeInDown,
+    FadeInUp,
     FadeOut,
-    SlideInDown,
-    SlideInUp
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UI } from '../constants/theme';
 import { useAppTheme } from '../src/context/ThemeContext';
-
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 // ─── Types ─────────────────────────────────
 export interface OnboardingTip {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  /** Where the arrow points: top / bottom / left / right / none */
-  arrowDirection?: 'up' | 'down' | 'left' | 'right' | 'none';
+  /** Where the card should appear on screen */
+  position?: 'top' | 'center' | 'bottom';
+  /** Where the arrow points relative to the card */
+  arrowDirection?: 'up' | 'down' | 'none';
   /** Accent colour for the icon ring */
   accent?: string;
 }
@@ -60,51 +59,49 @@ export const resetAllOnboarding = async () => {
 };
 
 // ─── Arrow Component ───────────────────────
-const Arrow = ({ direction }: { direction: string }) => {
-  const arrowMap: Record<string, keyof typeof Ionicons.glyphMap> = {
-    up: 'arrow-up',
-    down: 'arrow-down',
-    left: 'arrow-back',
-    right: 'arrow-forward',
-  };
+const Arrow = ({ direction, accent }: { direction: string; accent: string }) => {
+  if (direction === 'none' || (direction !== 'up' && direction !== 'down')) return null;
 
-  if (direction === 'none' || !arrowMap[direction]) return null;
-
-  const entering =
-    direction === 'up'
-      ? SlideInDown.delay(300).springify()
-      : direction === 'down'
-        ? SlideInUp.delay(300).springify()
-        : FadeIn.delay(300);
+  const isUp = direction === 'up';
 
   return (
-    <Animated.View entering={entering} style={[arrowStyles.container, arrowStyles[direction as keyof typeof arrowStyles]]}>
-      <View style={arrowStyles.pulse}>
-        <Ionicons name={arrowMap[direction]} size={28} color="#fff" />
-      </View>
+    <Animated.View
+      entering={isUp ? FadeInDown.delay(200).duration(300) : FadeInUp.delay(200).duration(300)}
+      style={[arrowStyles.container, isUp ? { marginBottom: 8 } : { marginTop: 8 }]}
+    >
+      <View style={[arrowStyles.arrow, isUp ? arrowStyles.arrowUp : arrowStyles.arrowDown, { borderBottomColor: accent, borderTopColor: accent }]} />
     </Animated.View>
   );
 };
 
 const arrowStyles = StyleSheet.create({
-  container: { alignItems: 'center', justifyContent: 'center' },
-  pulse: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(29, 78, 216, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  container: { alignItems: 'center' },
+  arrow: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
   },
-  up: { marginBottom: 12 },
-  down: { marginTop: 12 },
-  left: { marginRight: 12 },
-  right: { marginLeft: 12 },
+  arrowUp: {
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  arrowDown: {
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
 });
 
 // ─── Main Onboarding Component ─────────────
 export default function Onboarding({ screenKey, tips, onComplete }: OnboardingProps) {
   const { theme, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -137,79 +134,83 @@ export default function Onboarding({ screenKey, tips, onComplete }: OnboardingPr
   const isLast = step === tips.length - 1;
   const accent = tip.accent || (isDark ? theme.brand.primary : UI.brand.primary);
   const arrow = tip.arrowDirection || 'none';
+  const position = tip.position || 'center';
+
+  // Position the card on screen
+  const justifyContent =
+    position === 'top' ? 'flex-start' :
+    position === 'bottom' ? 'flex-end' :
+    'center';
+
+  const paddingTop = position === 'top' ? insets.top + 60 : 0;
+  const paddingBottom = position === 'bottom' ? insets.bottom + 70 : 0;
 
   return (
     <Modal transparent animationType="fade" visible={visible} statusBarTranslucent>
-      <View style={s.backdrop}>
+      <View style={[s.backdrop, { justifyContent, paddingTop, paddingBottom }]}>
         {/* Arrow above card */}
-        {(arrow === 'up' || arrow === 'left') && (
-          <Arrow direction={arrow} />
-        )}
+        {arrow === 'up' && <Arrow direction="up" accent={accent} />}
 
         {/* Tip Card */}
         <Animated.View
           key={step}
-          entering={FadeInDown.delay(100).springify()}
+          entering={position === 'bottom' ? FadeInUp.delay(100).springify() : FadeInDown.delay(100).springify()}
           exiting={FadeOut.duration(150)}
-          style={[s.card, isDark && { backgroundColor: theme.surface.card }]}
+          style={[s.card, isDark && { backgroundColor: theme.surface.card, borderColor: theme.surface.border }]}
         >
-          {/* Skip button */}
-          {!isLast && (
-            <TouchableOpacity onPress={skip} style={s.skipBtn} hitSlop={16}>
-              <Text style={[s.skipText, isDark && { color: theme.text.muted }]}>Skip</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Icon */}
-          <View style={[s.iconRing, { backgroundColor: accent + '18' }]}>
-            <Ionicons name={tip.icon} size={32} color={accent} />
+          {/* Header row: icon + skip */}
+          <View style={s.cardHeader}>
+            <View style={[s.iconRing, { backgroundColor: accent + '18' }]}>
+              <Ionicons name={tip.icon} size={26} color={accent} />
+            </View>
+            {!isLast && (
+              <TouchableOpacity onPress={skip} hitSlop={16}>
+                <Text style={[s.skipText, isDark && { color: theme.text.muted }]}>Skip tour</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Title */}
           <Text style={[s.title, isDark && { color: theme.text.title }]}>{tip.title}</Text>
           <Text style={[s.desc, isDark && { color: theme.text.secondary }]}>{tip.description}</Text>
 
-          {/* Dots */}
-          {tips.length > 1 && (
-            <View style={s.dots}>
-              {tips.map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    s.dot,
-                    isDark && { backgroundColor: theme.surface.border },
-                    i === step ? { backgroundColor: accent, width: 20 } : {},
-                  ]}
-                />
-              ))}
-            </View>
-          )}
+          {/* Footer: dots + button */}
+          <View style={s.footer}>
+            {/* Dots */}
+            {tips.length > 1 && (
+              <View style={s.dots}>
+                {tips.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      s.dot,
+                      isDark && { backgroundColor: theme.surface.border },
+                      i === step ? { backgroundColor: accent, width: 18 } : {},
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
 
-          {/* CTA */}
-          <TouchableOpacity
-            onPress={next}
-            style={[s.cta, { backgroundColor: accent }]}
-            activeOpacity={0.85}
-          >
-            <Text style={[s.ctaText, isDark && { color: theme.text.inverse }]}>{isLast ? 'Get Started' : 'Next'}</Text>
-            <Ionicons
-              name={isLast ? 'checkmark-circle' : 'arrow-forward'}
-              size={20}
-              color="#fff"
-              style={{ marginLeft: 6 }}
-            />
-          </TouchableOpacity>
-
-          {/* Step counter */}
-          <Text style={[s.counter, isDark && { color: theme.text.muted }]}>
-            {step + 1} of {tips.length}
-          </Text>
+            {/* CTA */}
+            <TouchableOpacity
+              onPress={next}
+              style={[s.cta, { backgroundColor: accent }]}
+              activeOpacity={0.85}
+            >
+              <Text style={s.ctaText}>{isLast ? 'Get Started' : 'Next'}</Text>
+              <Ionicons
+                name={isLast ? 'checkmark-circle' : 'arrow-forward'}
+                size={18}
+                color="#fff"
+                style={{ marginLeft: 6 }}
+              />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Arrow below card */}
-        {(arrow === 'down' || arrow === 'right') && (
-          <Arrow direction={arrow} />
-        )}
+        {arrow === 'down' && <Arrow direction="down" accent={accent} />}
       </View>
     </Modal>
   );
@@ -219,67 +220,68 @@ export default function Onboarding({ screenKey, tips, onComplete }: OnboardingPr
 const s = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: 20,
   },
   card: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 340,
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 28,
-    alignItems: 'center',
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  skipBtn: {
-    position: 'absolute',
-    top: 16,
-    right: 20,
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  iconRing: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   skipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: UI.text.muted,
   },
-  iconRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 8,
-  },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: UI.text.title,
-    textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
     letterSpacing: -0.3,
   },
   desc: {
-    fontSize: 15,
+    fontSize: 14,
     color: UI.text.secondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 20,
-    paddingHorizontal: 8,
+    lineHeight: 21,
+    marginBottom: 18,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   dots: {
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 20,
+    gap: 5,
+    flex: 1,
   },
   dot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
     backgroundColor: UI.surface.divider,
   },
@@ -287,20 +289,13 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 14,
-    width: '100%',
-    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
   },
   ctaText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#fff',
-  },
-  counter: {
-    fontSize: 12,
-    color: UI.text.muted,
-    fontWeight: '500',
   },
 });

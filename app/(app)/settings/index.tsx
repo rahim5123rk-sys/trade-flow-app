@@ -38,9 +38,10 @@ import {getSignedUrl, uploadImage} from '../../../src/services/storage';
 
 const SETTINGS_TIPS: OnboardingTip[] = [
   {
-    title: 'Settings & Profile ⚙️',
+    title: 'Settings & Profile',
     description: 'Manage your company info, signature, invoice defaults and account preferences here.',
     icon: 'settings-outline',
+    position: 'center',
     arrowDirection: 'none',
     accent: '#1D4ED8',
   },
@@ -48,6 +49,7 @@ const SETTINGS_TIPS: OnboardingTip[] = [
     title: 'Company Details',
     description: 'Add your company name, address, phone and email. These appear on your invoices and quotes.',
     icon: 'business-outline',
+    position: 'top',
     arrowDirection: 'down',
     accent: '#7C3AED',
   },
@@ -55,6 +57,7 @@ const SETTINGS_TIPS: OnboardingTip[] = [
     title: 'Your Signature',
     description: 'Draw your signature once and it will be used on all your documents automatically.',
     icon: 'create-outline',
+    position: 'center',
     arrowDirection: 'down',
     accent: '#059669',
   },
@@ -62,6 +65,7 @@ const SETTINGS_TIPS: OnboardingTip[] = [
     title: 'Invoice Defaults',
     description: 'Set your default payment terms, bank details and footer notes so every invoice is ready to send.',
     icon: 'receipt-outline',
+    position: 'center',
     arrowDirection: 'down',
     accent: '#D97706',
   },
@@ -100,7 +104,7 @@ const sigCanvasHTML = `
   c.width = c.offsetWidth * 2;
   c.height = c.offsetHeight * 2;
   ctx.scale(2, 2);
-  ctx.strokeStyle = UI.text.body;
+  ctx.strokeStyle = '${UI.text.body}';
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';

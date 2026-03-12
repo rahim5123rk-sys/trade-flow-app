@@ -22,6 +22,7 @@ import {
 import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import JobPartsSection from '../../../../components/JobPartsSection';
 import {SignaturePad} from '../../../../components/SignaturePad';
 import {Colors, UI} from '../../../../constants/theme';
 import {supabase} from '../../../../src/config/supabase';
@@ -366,6 +367,11 @@ export default function JobDetailScreen() {
               </View>
             )}
           </View>
+        </Animated.View>
+
+        {/* ─── Parts Needed ─── */}
+        <Animated.View entering={FadeInDown.delay(225).duration(400)}>
+          <JobPartsSection jobId={job.id} />
         </Animated.View>
 
         {/* ─── Proof of work ─── */}

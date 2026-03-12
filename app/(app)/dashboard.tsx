@@ -34,9 +34,10 @@ import {Document} from '../../src/types';
 // ─── Dashboard Onboarding Tips ─────────────
 const ADMIN_TIPS: OnboardingTip[] = [
   {
-    title: 'Welcome to GasPilot 👋',
+    title: 'Welcome to GasPilot',
     description: 'Your all-in-one job management app. Let\'s take a quick tour of what you can do.',
     icon: 'rocket-outline',
+    position: 'center',
     arrowDirection: 'none',
     accent: '#1D4ED8',
   },
@@ -44,34 +45,39 @@ const ADMIN_TIPS: OnboardingTip[] = [
     title: 'Your Dashboard',
     description: 'See active jobs, pending work and revenue at a glance. Pull down to refresh anytime.',
     icon: 'grid-outline',
+    position: 'top',
     arrowDirection: 'up',
     accent: '#1D4ED8',
   },
   {
     title: 'Quick Actions',
-    description: 'Tap these shortcuts to create jobs, quotes, invoices, add clients or generate landlord gas safety records.',
+    description: 'Create new jobs, fill out forms, generate gas certs, send invoices and quotes — all from here.',
     icon: 'flash-outline',
+    position: 'top',
     arrowDirection: 'down',
     accent: '#7C3AED',
   },
   {
     title: 'Today\'s Schedule',
-    description: 'Jobs scheduled for today appear here. Tap any job to view details, update status or take photos.',
+    description: 'Jobs scheduled for today appear below. Tap any job to view details, update status or add photos.',
     icon: 'calendar-outline',
+    position: 'center',
     arrowDirection: 'down',
     accent: '#059669',
   },
   {
-    title: 'Navigate Your Business',
-    description: 'Use the bottom tabs to access Calendar, Jobs, and Documents. Use the grid at the bottom to reach Customers and Team.',
+    title: 'Bottom Navigation',
+    description: 'Use the tabs at the bottom to switch between Home, Calendar, Docs and Jobs.',
     icon: 'compass-outline',
+    position: 'bottom',
     arrowDirection: 'down',
     accent: '#D97706',
   },
   {
     title: 'Settings & Profile',
-    description: 'Tap your avatar in the top right to manage company details, signature, invoice settings, and invite workers.',
+    description: 'Tap your avatar in the top right to manage company details, signature, invoice settings and invite workers.',
     icon: 'settings-outline',
+    position: 'top',
     arrowDirection: 'up',
     accent: '#64748B',
   },
@@ -79,9 +85,10 @@ const ADMIN_TIPS: OnboardingTip[] = [
 
 const WORKER_TIPS: OnboardingTip[] = [
   {
-    title: 'Welcome to GasPilot 👋',
+    title: 'Welcome to GasPilot',
     description: 'Your jobs, schedule and tasks in one place. Let\'s walk through the basics.',
     icon: 'rocket-outline',
+    position: 'center',
     arrowDirection: 'none',
     accent: '#1D4ED8',
   },
@@ -89,20 +96,23 @@ const WORKER_TIPS: OnboardingTip[] = [
     title: 'Your Dashboard',
     description: 'See your active and pending jobs at a glance. Pull down to refresh.',
     icon: 'grid-outline',
+    position: 'top',
     arrowDirection: 'up',
     accent: '#1D4ED8',
   },
   {
     title: 'Today\'s Jobs',
-    description: 'Jobs assigned to you for today appear here. Tap a job to view details, update progress or take photos.',
+    description: 'Jobs assigned to you for today appear here. Tap a job to view details, update progress or add photos.',
     icon: 'briefcase-outline',
+    position: 'center',
     arrowDirection: 'down',
     accent: '#059669',
   },
   {
-    title: 'Calendar & Schedule',
+    title: 'Bottom Navigation',
     description: 'Use the Calendar tab to see your upcoming schedule and the Jobs tab for a full list.',
     icon: 'calendar-outline',
+    position: 'bottom',
     arrowDirection: 'down',
     accent: '#D97706',
   },
@@ -726,6 +736,16 @@ export default function DashboardScreen() {
                 iconColor="#111111"
                 onPress={() => router.push('/(app)/quote' as any)}
                 delay={320}
+                isDark={isDark}
+                theme={theme}
+              />
+              <QuickAction
+                icon="create"
+                label="Notes"
+                backgroundColor="#FFFFFF"
+                iconColor="#111111"
+                onPress={() => router.push('/(app)/notes' as any)}
+                delay={360}
                 isDark={isDark}
                 theme={theme}
               />
