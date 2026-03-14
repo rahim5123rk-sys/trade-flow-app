@@ -6,13 +6,11 @@ import {ActivityIndicator, Platform, Pressable, StyleSheet, Text, TouchableOpaci
 import type {SharedValue} from 'react-native-reanimated';
 import Animated, {interpolate, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {HapticTab} from '../../components/haptic-tab';
+import LiquidGlassTabBar from '../../components/LiquidGlassNav';
 import {UI} from '../../constants/theme';
 import {useAuth} from '../../src/context/AuthContext';
 import {useOfflineMode} from '../../src/context/OfflineContext';
 import {useAppTheme} from '../../src/context/ThemeContext';
-
-const ACTIVE_PILL_BG = 'rgba(59,130,246,0.12)';
 
 const FAB_ACTIONS = [
   {
@@ -149,36 +147,15 @@ export default function AppLayout() {
       ) : null}
 
       <Tabs
+        tabBar={(props) => <LiquidGlassTabBar {...props} />}
         screenOptions={{
           headerShown: false,
-          tabBarButton: HapticTab,
-          tabBarActiveTintColor: '#3B82F6',
-          tabBarInactiveTintColor: theme.text.muted,
-          tabBarShowLabel: true,
-          tabBarLabelStyle: styles.tabLabel,
-          tabBarItemStyle: styles.tabBarItem,
-          tabBarStyle: [
-            styles.tabBar,
-            {
-              height: tabBarHeight,
-              paddingBottom: bottomInset,
-            },
-            isDark && {backgroundColor: theme.surface.card},
-          ],
-          tabBarBackground: () => (
-            <View style={[StyleSheet.absoluteFill, styles.tabBarBg, isDark && {backgroundColor: theme.surface.card}]} />
-          ),
         }}
       >
         <Tabs.Screen
           name="dashboard"
           options={{
             title: 'Home',
-            tabBarIcon: ({color, focused}) => (
-              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-                <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />
-              </View>
-            ),
           }}
         />
 
@@ -186,11 +163,6 @@ export default function AppLayout() {
           name="calendar"
           options={{
             title: 'Calendar',
-            tabBarIcon: ({color, focused}) => (
-              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-                <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
-              </View>
-            ),
           }}
         />
 
@@ -199,11 +171,6 @@ export default function AppLayout() {
           options={{
             title: 'Docs',
             href: isAdmin ? undefined : null,
-            tabBarIcon: ({color, focused}) => (
-              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-                <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={22} color={color} />
-              </View>
-            ),
           }}
         />
 
@@ -213,11 +180,6 @@ export default function AppLayout() {
             title: 'Jobs',
             href: '/(app)/jobs',
             popToTopOnBlur: true,
-            tabBarIcon: ({color, focused}) => (
-              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-                <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={22} color={color} />
-              </View>
-            ),
           }}
         />
 
@@ -295,43 +257,6 @@ export default function AppLayout() {
 const TAB_BAR_BASE_HEIGHT = Platform.OS === 'ios' ? 70 : 62;
 
 const styles = StyleSheet.create({
-  tabBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopWidth: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 8},
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    elevation: 6,
-  },
-  tabBarBg: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-  },
-  tabIconWrap: {
-    width: 48,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabIconActive: {
-    backgroundColor: ACTIVE_PILL_BG,
-  },
-  tabBarItem: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 2,
-  },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -344,13 +269,6 @@ const styles = StyleSheet.create({
     color: UI.text.white,
     fontSize: 12,
     fontWeight: '700',
-  },
-  tabLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 4,
-    marginBottom: 0,
-    textAlign: 'center',
   },
   globalFabWrap: {
     position: 'absolute',
