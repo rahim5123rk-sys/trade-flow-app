@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import ReminderSection from '../../../../components/ReminderSection';
 import {SignaturePad} from '../../../../components/SignaturePad';
 import {UI} from '../../../../constants/theme';
 import {supabase} from '../../../../src/config/supabase';
@@ -113,7 +114,9 @@ export default function ServiceRecordReviewSign() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showNextDatePicker, setShowNextDatePicker] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
+  const [oneTimeEmails, setOneTimeEmails] = useState<string[]>([]);
 
+  const savedEmails: string[] = [];
   const emailRecipients = sanitizeRecipients([customerForm.email || '']);
 
   useEffect(() => {
@@ -184,6 +187,9 @@ export default function ServiceRecordReviewSign() {
     };
 
     if (editingDocumentId) {
+      const payloadToSave = oneTimeEmails.length > 0
+        ? { ...lockedPayload, oneTimeReminderEmails: oneTimeEmails }
+        : lockedPayload;
       const {error: updateError} = await supabase
         .from('documents')
         .update({
@@ -191,7 +197,7 @@ export default function ServiceRecordReviewSign() {
           expiry_date: nextInspectionDate || null,
           customer_id: customerForm.customerId || null,
           customer_snapshot: customerSnapshot,
-          payment_info: JSON.stringify(lockedPayload),
+          payment_info: JSON.stringify(payloadToSave),
         })
         .eq('id', editingDocumentId);
       if (updateError) throw updateError;
@@ -199,6 +205,9 @@ export default function ServiceRecordReviewSign() {
     }
 
     const docNumber = Number(String(Date.now()).slice(-8));
+    const payloadToSave = oneTimeEmails.length > 0
+      ? { ...lockedPayload, oneTimeReminderEmails: oneTimeEmails }
+      : lockedPayload;
     const documentBase = {
       company_id: userProfile.company_id,
       type: 'service_record' as any,
@@ -214,7 +223,7 @@ export default function ServiceRecordReviewSign() {
       discount_percent: 0,
       total: 0,
       notes: 'Gas Service Record (locked snapshot)',
-      payment_info: JSON.stringify(lockedPayload),
+      payment_info: JSON.stringify(payloadToSave),
     };
 
     const {data: insertedRows, error: saveError} = await supabase
@@ -460,47 +469,13 @@ export default function ServiceRecordReviewSign() {
             )}
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(220).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
-            <View style={s.sectionHeader}>
-              <View style={s.sectionIconWrap}><Ionicons name="notifications-outline" size={16} color={ACCENT} /></View>
-              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Renewal Reminder</Text>
-            </View>
-
-            <View style={[s.reminderRow, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
-              <View style={s.reminderCopy}>
-                <Text style={[s.reminderTitle, {color: theme.text.title}]}>Email customer 7 days before renewal</Text>
-                <Text style={[s.reminderDescription, {color: theme.text.muted}]}>Turn this on to automatically send a reminder before the next inspection date.</Text>
-              </View>
-              <Switch
-                value={renewalReminderEnabled}
-                onValueChange={setRenewalReminderEnabled}
-                trackColor={{false: isDark ? theme.surface.divider : UI.surface.divider, true: ACCENT}}
-                thumbColor="#fff"
-              />
-            </View>
-          </Animated.View>
-
-          {/* ── Email Recipients ── */}
-          <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
-            <View style={s.sectionHeader}>
-              <View style={s.sectionIconWrap}><Ionicons name="mail-outline" size={16} color={ACCENT} /></View>
-              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Email Recipients</Text>
-            </View>
-
-            {emailRecipients.length ? (
-              <View style={s.emailList}>
-                {emailRecipients.map((email) => (
-                  <View key={email} style={[s.emailChip, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
-                    <Ionicons name="at-outline" size={14} color={ACCENT} />
-                    <Text style={[s.emailChipText, {color: ACCENT}]}>{email}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={[s.noEmailText, {color: theme.text.muted}]}>
-                No customer email found. Add one to use Save & Send.
-              </Text>
-            )}
+          <Animated.View entering={FadeInDown.delay(220).duration(400)}>
+            <ReminderSection
+              enabled={renewalReminderEnabled}
+              onToggle={setRenewalReminderEnabled}
+              savedEmails={savedEmails}
+              onOneTimeEmailsChange={setOneTimeEmails}
+            />
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
