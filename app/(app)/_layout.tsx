@@ -1,7 +1,7 @@
 import {Ionicons} from '@expo/vector-icons';
 import {BlurView} from 'expo-blur';
-import {Redirect, router, Tabs, usePathname} from 'expo-router';
-import LiquidGlassTabBar from '../../components/LiquidGlassNav';
+import {Redirect, router, usePathname} from 'expo-router';
+import {Icon, NativeTabs, Label, VectorIcon} from 'expo-router/unstable-native-tabs';
 import React, {useEffect, useState} from 'react';
 import {ActivityIndicator, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import type {SharedValue} from 'react-native-reanimated';
@@ -139,23 +139,29 @@ export default function AppLayout() {
 
   return (
     <>
-      <Tabs
-        tabBar={(props) => <LiquidGlassTabBar {...props} />}
-        screenOptions={{ headerShown: false }}
-      >
-        <Tabs.Screen name="dashboard" options={{ title: 'Home' }} />
-        <Tabs.Screen name="calendar" options={{ title: 'Calendar' }} />
-        <Tabs.Screen name="documents" options={{ title: 'Docs', href: isAdmin ? undefined : null }} />
-        <Tabs.Screen name="jobs" options={{ title: 'Jobs' }} />
-        <Tabs.Screen name="settings" options={{ href: null }} />
-        <Tabs.Screen name="customers" options={{ href: null }} />
-        <Tabs.Screen name="workers" options={{ href: null }} />
-        <Tabs.Screen name="notes" options={{ href: null }} />
-        <Tabs.Screen name="forms" options={{ href: null }} />
-        <Tabs.Screen name="cp12" options={{ href: null }} />
-        <Tabs.Screen name="jobs/create" options={{ href: null }} />
-        <Tabs.Screen name="toolbox" options={{ href: null }} />
-      </Tabs>
+      <NativeTabs>
+        <NativeTabs.Trigger name="dashboard">
+          <Label>Home</Label>
+          <Icon src={<VectorIcon family={Ionicons} name="home" />} />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="calendar">
+          <Label>Calendar</Label>
+          <Icon src={<VectorIcon family={Ionicons} name="calendar" />} />
+        </NativeTabs.Trigger>
+
+        {isAdmin ? (
+          <NativeTabs.Trigger name="documents">
+            <Label>Docs</Label>
+            <Icon src={<VectorIcon family={Ionicons} name="document-text" />} />
+          </NativeTabs.Trigger>
+        ) : null}
+
+        <NativeTabs.Trigger name="jobs">
+          <Label>Jobs</Label>
+          <Icon src={<VectorIcon family={Ionicons} name="briefcase" />} />
+        </NativeTabs.Trigger>
+      </NativeTabs>
 
       {isAdmin && !hideGlobalFab ? (
         <>
