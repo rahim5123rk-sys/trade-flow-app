@@ -22,6 +22,7 @@ import {
 import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import JobAcceptModal from '../../../../components/JobAcceptModal';
 import JobPartsSection from '../../../../components/JobPartsSection';
 import {SignaturePad} from '../../../../components/SignaturePad';
 import {Colors, UI} from '../../../../constants/theme';
@@ -40,6 +41,20 @@ const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'];
 const isValidUUID = (s: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
+function AcceptancePill({ status }: { status?: string }) {
+  const config = {
+    accepted:  { label: 'Accepted',  bg: '#1C3A2A', color: '#2ECC71' },
+    declined:  { label: 'Declined',  bg: '#3A1C1C', color: '#E74C3C' },
+    pending:   { label: 'Awaiting',  bg: '#3A2E1C', color: '#FF9500' },
+  }[status ?? 'pending'] ?? { label: 'Awaiting', bg: '#3A2E1C', color: '#FF9500' };
+
+  return (
+    <View style={{ backgroundColor: config.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 }}>
+      <Text style={{ color: config.color, fontSize: 11, fontWeight: '700' }}>{config.label}</Text>
+    </View>
+  );
+}
+
 const STATUS_CONFIG: Record<string, {label: string; color: string; icon: keyof typeof Ionicons.glyphMap; gradient: readonly [string, string]}> = {
   pending: {label: 'Pending', color: UI.status.pending, icon: 'time-outline', gradient: UI.gradients.amberLight},
   in_progress: {label: 'In Progress', color: UI.status.inProgress, icon: 'play-circle-outline', gradient: UI.gradients.blueLight},
@@ -49,7 +64,7 @@ const STATUS_CONFIG: Record<string, {label: string; color: string; icon: keyof t
 };
 
 export default function JobDetailScreen() {
-  const {id, from, workerId} = useLocalSearchParams<{id: string; from?: string; workerId?: string}>();
+  const {id, from, workerId, showAcceptModal: showAcceptParam} = useLocalSearchParams<{id: string; from?: string; workerId?: string; showAcceptModal?: string}>();
   const insets = useSafeAreaInsets();
   const {user, userProfile} = useAuth();
 
@@ -58,6 +73,9 @@ export default function JobDetailScreen() {
   const [updating, setUpdating] = useState(false);
   const [signatureModalVisible, setSignatureModalVisible] = useState(false);
   const [resolvedPhotos, setResolvedPhotos] = useState<string[]>([]);
+  const [acceptModalVisible, setAcceptModalVisible] = useState(showAcceptParam === 'true');
+  const [acceptanceStatuses, setAcceptanceStatuses] = useState<Record<string, string>>({});
+  const [workerNames, setWorkerNames] = useState<Record<string, string>>({});
   const {theme, isDark} = useAppTheme();
 
   const isAdmin = userProfile?.role === 'admin';
@@ -90,6 +108,25 @@ export default function JobDetailScreen() {
       const {data, error} = await supabase.from('jobs').select('*').eq('id', id).single();
       if (error) throw error;
       setJob(data);
+      if (userProfile?.role === 'admin' && data?.assigned_to?.length > 0) {
+        const {data: acceptances, error: acceptErr} = await supabase
+          .from('job_acceptance')
+          .select('worker_id, status')
+          .eq('job_id', id);
+        if (acceptErr) console.warn('acceptance fetch failed', acceptErr);
+        const map: Record<string, string> = {};
+        for (const row of acceptances ?? []) map[row.worker_id] = row.status;
+        setAcceptanceStatuses(map);
+
+        // Fetch worker display names
+        const {data: workerProfiles} = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', data.assigned_to);
+        const names: Record<string, string> = {};
+        for (const p of workerProfiles ?? []) names[p.id] = p.display_name ?? 'Unknown Worker';
+        setWorkerNames(names);
+      }
       // Resolve private storage refs to signed URLs for display
       if (data?.photos?.length) {
         const signed = await getSignedUrls(data.photos);
@@ -349,6 +386,26 @@ export default function JobDetailScreen() {
           <JobPartsSection jobId={job.id} />
         </Animated.View>
 
+        {/* ─── Assigned Workers (admin only) ─── */}
+        {isAdmin && job.assigned_to?.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(240).duration(400)}>
+            <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIconWrap, {backgroundColor: 'rgba(99,102,241,0.1)'}]}>
+                  <Ionicons name="people" size={16} color={isDark ? theme.brand.primary : UI.brand.primary} />
+                </View>
+                <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Assigned Workers</Text>
+              </View>
+              {(job.assigned_to as string[]).map((wId: string) => (
+                <View key={wId} style={{flexDirection: 'row', alignItems: 'center', paddingVertical: 6}}>
+                  <Text style={[styles.detailValue, isDark && {color: theme.text.body}, {flex: 1, fontSize: 14}]}>{workerNames[wId] ?? 'Worker'}</Text>
+                  <AcceptancePill status={acceptanceStatuses[wId]} />
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        )}
+
         {/* ─── Proof of work ─── */}
         {(resolvedPhotos.length > 0 || job.signature) && (
           <Animated.View entering={FadeInDown.delay(250).duration(400)}>
@@ -426,6 +483,11 @@ export default function JobDetailScreen() {
         visible={signatureModalVisible}
         onClose={() => setSignatureModalVisible(false)}
         onOK={workerFinishJob}
+      />
+      <JobAcceptModal
+        jobId={id}
+        visible={acceptModalVisible}
+        onDismiss={() => setAcceptModalVisible(false)}
       />
     </View>
   );

@@ -26,14 +26,13 @@ import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {WebView} from 'react-native-webview';
 import Onboarding, {OnboardingTip} from '../../../components/Onboarding';
+import ProPaywallModal from '../../../components/ProPaywallModal';
 import {Colors, UI} from '../../../constants/theme';
 import {supabase} from '../../../src/config/supabase';
 import {useAuth} from '../../../src/context/AuthContext';
 import {useOfflineMode} from '../../../src/context/OfflineContext';
+import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
-import type {CP12LockedPayload} from '../../../src/services/cp12PdfGenerator';
-import {sanitizeRecipients, sendHtmlEmail} from '../../../src/services/email';
-import type {ServiceRecordLockedPayload} from '../../../src/services/serviceRecordPdfGenerator';
 import {getSignedUrl, uploadImage} from '../../../src/services/storage';
 
 const SETTINGS_TIPS: OnboardingTip[] = [
@@ -73,15 +72,6 @@ const SETTINGS_TIPS: OnboardingTip[] = [
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
-
-const parseDdMmYyyy = (value?: string | null): Date | null => {
-  if (!value) return null;
-  const parts = value.split('/');
-  if (parts.length !== 3) return null;
-  const [dd, mm, yyyy] = parts.map((part) => Number(part));
-  if (!dd || !mm || !yyyy) return null;
-  return new Date(yyyy, mm - 1, dd);
-};
 
 // --- Signature Constants & HTML ---
 const SIG_HEIGHT = 160;
@@ -250,12 +240,15 @@ const InputField = ({
 // --- Main Screen ---
 
 export default function SettingsScreen() {
-  const {user, userProfile, signOut, refreshProfile} = useAuth();
+  const {user, userProfile, signOut, refreshProfile, reminderDaysBefore} = useAuth();
   const {offlineModeEnabled, setOfflineModeEnabled} = useOfflineMode();
   const {isDark, toggleTheme, theme, colors} = useAppTheme();
+  const {isPro} = useSubscription();
   const appVersion = Constants.expoConfig?.version || '1.0.1';
   const isAdmin = userProfile?.role === 'admin';
   const insets = useSafeAreaInsets();
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallFeature, setPaywallFeature] = useState({ title: '', description: '' });
   const sigWebViewRef = useRef<WebView>(null);
 
   // Loading States
@@ -283,10 +276,11 @@ export default function SettingsScreen() {
 
   // Preferences
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [cp12ReminderEnabled, setCp12ReminderEnabled] = useState(true);
-  const [cp12ReminderDays, setCp12ReminderDays] = useState('30');
-  const [cp12ReminderRecipients, setCp12ReminderRecipients] = useState<'both' | 'landlord' | 'tenant'>('both');
-  const [sendingReminders, setSendingReminders] = useState(false);
+  const [reminderDaysInput, setReminderDaysInput] = useState(String(reminderDaysBefore));
+
+  useEffect(() => {
+    setReminderDaysInput(String(reminderDaysBefore));
+  }, [reminderDaysBefore]);
 
   useEffect(() => {
     if (userProfile) {
@@ -331,11 +325,6 @@ export default function SettingsScreen() {
         if (s.invoiceTerms) setInvoiceTerms(s.invoiceTerms);
         if (s.invoiceNotes) setInvoiceNotes(s.invoiceNotes);
         if (s.signatureBase64) setSavedSignatureBase64(s.signatureBase64);
-        if (typeof s.cp12ReminderEnabled === 'boolean') setCp12ReminderEnabled(s.cp12ReminderEnabled);
-        if (s.cp12ReminderDays) setCp12ReminderDays(String(s.cp12ReminderDays));
-        if (s.cp12ReminderRecipients === 'landlord' || s.cp12ReminderRecipients === 'tenant' || s.cp12ReminderRecipients === 'both') {
-          setCp12ReminderRecipients(s.cp12ReminderRecipients);
-        }
       }
     } catch (error) {
       console.error('Failed to load company data:', error);
@@ -427,9 +416,6 @@ export default function SettingsScreen() {
               invoiceTerms,
               invoiceNotes,
               signatureBase64: savedSignatureBase64,
-              cp12ReminderEnabled,
-              cp12ReminderDays: Number(cp12ReminderDays || 30),
-              cp12ReminderRecipients,
             },
           })
           .eq('id', userProfile.company_id);
@@ -624,124 +610,17 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSendDueReminders = async () => {
-    if (!userProfile?.company_id) {
-      Alert.alert('Error', 'Company profile not found.');
-      return;
-    }
-
-    if (!cp12ReminderEnabled) {
-      Alert.alert('Reminders Disabled', 'Enable gas certificate reminders first.');
-      return;
-    }
-
-    const days = Number(cp12ReminderDays || 30);
-    if (!Number.isFinite(days) || days < 1 || days > 365) {
-      Alert.alert('Invalid Days', 'Reminder days must be between 1 and 365.');
-      return;
-    }
-
-    setSendingReminders(true);
+  const handleSaveDays = async (days: string) => {
+    const val = parseInt(days, 10);
+    if (isNaN(val) || val < 1 || val > 365) return;
+    if (!userProfile?.company_id) return;
     try {
-      const {data: docs, error} = await supabase
-        .from('documents')
-        .select('id,type,reference,expiry_date,customer_snapshot,payment_info')
-        .eq('company_id', userProfile.company_id)
-        .in('type', ['cp12', 'service_record']);
-
-      if (error) throw error;
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const cutoff = new Date(today);
-      cutoff.setDate(cutoff.getDate() + days);
-
-      let sentCount = 0;
-
-      for (const doc of docs || []) {
-        const due = parseDdMmYyyy(doc.expiry_date);
-        if (!due) continue;
-        due.setHours(0, 0, 0, 0);
-        if (due < today || due > cutoff) continue;
-
-        let propertyAddress = '';
-        let occupantName = '';
-        let fallbackEmail = '';
-        let reminderEnabled = false;
-        let reminderSentForDate = '';
-        let parsedPayload: (CP12LockedPayload | ServiceRecordLockedPayload | null) = null;
-
-        try {
-          const payload = JSON.parse(doc.payment_info || '{}') as (CP12LockedPayload & {reminderMeta?: {lastSentForDate?: string}}) | (ServiceRecordLockedPayload & {reminderMeta?: {lastSentForDate?: string}});
-          parsedPayload = payload;
-          if (payload?.kind === 'cp12') {
-            occupantName = payload.pdfData?.tenantName || payload.pdfData?.landlordName || '';
-            fallbackEmail = payload.pdfData?.tenantEmail || payload.pdfData?.landlordEmail || '';
-            propertyAddress = payload.pdfData?.propertyAddress || '';
-            reminderEnabled = !!payload.pdfData?.renewalReminderEnabled;
-            reminderSentForDate = payload.reminderMeta?.lastSentForDate || '';
-          } else if (payload?.kind === 'service_record') {
-            occupantName = payload.pdfData?.customerName || '';
-            fallbackEmail = payload.pdfData?.customerEmail || '';
-            propertyAddress = payload.pdfData?.propertyAddress || '';
-            reminderEnabled = !!payload.pdfData?.renewalReminderEnabled;
-            reminderSentForDate = payload.reminderMeta?.lastSentForDate || '';
-          }
-        } catch {
-          // ignore malformed payload
-        }
-
-        if (!reminderEnabled) continue;
-        if (reminderSentForDate && reminderSentForDate === doc.expiry_date) continue;
-
-        const customerEmail = doc.customer_snapshot?.email || fallbackEmail;
-        const recipients = sanitizeRecipients([customerEmail]);
-
-        if (!recipients.length) continue;
-
-        const docLabel = doc.type === 'service_record' ? 'Service Record' : 'Gas Safety Certificate';
-        const subject = `${docLabel} Reminder: ${doc.reference || 'Document'} expires on ${doc.expiry_date}`;
-        const html = `
-          <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#0f172a;line-height:1.5;">
-            <h2 style="margin:0 0 12px;">Renewal Reminder</h2>
-            <p style="margin:0 0 12px;">Your ${docLabel.toLowerCase()} is due to expire soon.</p>
-            <table style="width:100%;border-collapse:collapse;margin:12px 0 20px;">
-              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Document</td><td style="padding:8px;border:1px solid #e2e8f0;">${docLabel}</td></tr>
-              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Reference</td><td style="padding:8px;border:1px solid #e2e8f0;">${doc.reference || 'N/A'}</td></tr>
-              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Property</td><td style="padding:8px;border:1px solid #e2e8f0;">${propertyAddress || 'N/A'}</td></tr>
-              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Customer</td><td style="padding:8px;border:1px solid #e2e8f0;">${occupantName || doc.customer_snapshot?.name || 'N/A'}</td></tr>
-              <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Expiry Date</td><td style="padding:8px;border:1px solid #e2e8f0;">${doc.expiry_date || 'N/A'}</td></tr>
-            </table>
-            <p style="margin:0;color:#475569;font-size:14px;">Please arrange an inspection to stay compliant.</p>
-          </div>
-        `;
-
-        await sendHtmlEmail({to: recipients, subject, html});
-
-        if (parsedPayload) {
-          const nextPayload = {
-            ...parsedPayload,
-            reminderMeta: {
-              ...((parsedPayload as any).reminderMeta || {}),
-              lastSentAt: new Date().toISOString(),
-              lastSentForDate: doc.expiry_date || '',
-            },
-          };
-
-          await supabase
-            .from('documents')
-            .update({payment_info: JSON.stringify(nextPayload)})
-            .eq('id', doc.id);
-        }
-
-        sentCount += 1;
-      }
-
-      Alert.alert('Reminders Sent', sentCount > 0 ? `Sent ${sentCount} reminder email(s).` : 'No enabled gas certificates or service records are due in your reminder window.');
+      await supabase
+        .from('companies')
+        .update({ reminder_days_before: val })
+        .eq('id', userProfile.company_id);
     } catch (error: any) {
-      Alert.alert('Reminder Error', error?.message || 'Failed to send renewal reminders.');
-    } finally {
-      setSendingReminders(false);
+      Alert.alert('Error', 'Failed to save reminder days: ' + (error?.message || 'unknown error'));
     }
   };
 
@@ -771,6 +650,12 @@ export default function SettingsScreen() {
       style={{flex: 1}}
       {...swipeResponder.panHandlers}
     >
+      <ProPaywallModal
+        visible={showPaywall}
+        onDismiss={() => setShowPaywall(false)}
+        featureTitle={paywallFeature.title}
+        featureDescription={paywallFeature.description}
+      />
       <LinearGradient
         colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground}
         start={{x: 0, y: 0}}
@@ -828,21 +713,44 @@ export default function SettingsScreen() {
         {isAdmin && (
           <>
             <SectionHeader title="Branding" />
-            <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
-              <View style={styles.logoSection}>
-                <View style={[styles.logoPreview, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
-                  {isUploading ? <ActivityIndicator size="small" /> : logoUrl ? <Image source={{uri: logoUrl}} style={styles.logoImg} /> : <Ionicons name="image-outline" size={32} color={theme.surface.border} />}
-                </View>
-                <View style={{flex: 1}}>
-                  <Text style={[styles.logoLabel, {color: theme.text.title}]}>Company Logo</Text>
-                  <Text style={[styles.logoSub, {color: theme.text.muted}]}>Used on invoices and job sheets.</Text>
-                  <TouchableOpacity style={[styles.uploadButton, isDark && {backgroundColor: theme.surface.elevated}]} onPress={handleLogoUpload}>
-                    <Ionicons name="cloud-upload-outline" size={14} color={isDark ? theme.text.title : '#111111'} />
-                    <Text style={[styles.uploadButtonText, {color: isDark ? theme.text.title : '#111111'}]}>Upload New Image</Text>
-                  </TouchableOpacity>
+            {isPro ? (
+              <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+                <View style={styles.logoSection}>
+                  <View style={[styles.logoPreview, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
+                    {isUploading ? <ActivityIndicator size="small" /> : logoUrl ? <Image source={{uri: logoUrl}} style={styles.logoImg} /> : <Ionicons name="image-outline" size={32} color={theme.surface.border} />}
+                  </View>
+                  <View style={{flex: 1}}>
+                    <Text style={[styles.logoLabel, {color: theme.text.title}]}>Company Logo</Text>
+                    <Text style={[styles.logoSub, {color: theme.text.muted}]}>Used on invoices and job sheets.</Text>
+                    <TouchableOpacity style={[styles.uploadButton, isDark && {backgroundColor: theme.surface.elevated}]} onPress={handleLogoUpload}>
+                      <Ionicons name="cloud-upload-outline" size={14} color={isDark ? theme.text.title : '#111111'} />
+                      <Text style={[styles.uploadButtonText, {color: isDark ? theme.text.title : '#111111'}]}>Upload New Image</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-            </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
+                onPress={() => { setPaywallFeature({ title: 'Custom Logo', description: 'Add your company logo to invoices, quotes, and job sheets for a professional look.' }); setShowPaywall(true); }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.logoSection}>
+                  <View style={[styles.logoPreview, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
+                    <Ionicons name="lock-closed" size={24} color={theme.text.muted} />
+                  </View>
+                  <View style={{flex: 1}}>
+                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                      <Text style={[styles.logoLabel, {color: theme.text.title}]}>Company Logo</Text>
+                      <View style={{backgroundColor: UI.brand.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10}}>
+                        <Text style={{color: '#fff', fontSize: 10, fontWeight: '700'}}>PRO</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.logoSub, {color: theme.text.muted}]}>Upgrade to add your logo to documents.</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
           </>
         )}
 
@@ -976,61 +884,66 @@ export default function SettingsScreen() {
         {isAdmin && (
           <>
             <SectionHeader title="Gas Cert Reminders" />
+            {isPro ? (
+              <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+                <Text style={[styles.inputLabel, {color: theme.text.body, marginBottom: 4}]}>Renewal Reminders</Text>
+                <Text style={{fontSize: 13, color: theme.text.muted, marginBottom: 12}}>
+                  Set how many days before expiry customers receive a reminder email.
+                </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                  <Text style={[styles.inputLabel, {color: theme.text.body}]}>Days before expiry</Text>
+                  <TextInput
+                    style={[{fontSize: 16, fontWeight: '700', color: theme.text.title, textAlign: 'right', minWidth: 50, borderBottomWidth: 1, borderBottomColor: theme.surface.divider, paddingBottom: 2}]}
+                    value={reminderDaysInput}
+                    onChangeText={setReminderDaysInput}
+                    onBlur={() => handleSaveDays(reminderDaysInput)}
+                    keyboardType="numeric"
+                    placeholder="30"
+                    placeholderTextColor={theme.text.muted}
+                    maxLength={3}
+                  />
+                </View>
+                <Text style={{fontSize: 12, color: theme.text.muted, marginTop: 10}}>
+                  Reminders are sent automatically each day. Toggle per-document from the form or document details.
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}, {padding: 20}]}
+                onPress={() => { setPaywallFeature({ title: 'Renewal Reminders', description: 'Automatically email landlords and tenants before their gas certificates expire. Never miss a renewal.' }); setShowPaywall(true); }}
+                activeOpacity={0.7}
+              >
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
+                  <View style={{width: 40, height: 40, borderRadius: 12, backgroundColor: isDark ? theme.surface.elevated : '#F1F5F9', alignItems: 'center', justifyContent: 'center'}}>
+                    <Ionicons name="lock-closed" size={20} color={theme.text.muted} />
+                  </View>
+                  <View style={{flex: 1}}>
+                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                      <Text style={{fontSize: 15, fontWeight: '700', color: theme.text.title}}>Gas Cert Reminders</Text>
+                      <View style={{backgroundColor: UI.brand.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10}}>
+                        <Text style={{color: '#fff', fontSize: 10, fontWeight: '700'}}>PRO</Text>
+                      </View>
+                    </View>
+                    <Text style={{fontSize: 13, color: theme.text.muted, marginTop: 2}}>Auto-email customers before certs expire</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={theme.text.muted} />
+                </View>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
+        {/* --- Subscription (Admin only) --- */}
+        {isAdmin && (
+          <>
+            <SectionHeader title="Subscription" />
             <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <SettingRow
-                icon="alarm-outline"
-                label="Enable Email Reminders"
-                value="Notify landlord/tenant before expiry"
-                hasToggle
-                toggleValue={cp12ReminderEnabled}
-                onToggle={setCp12ReminderEnabled}
+                icon="diamond-outline"
+                label="Manage Subscription"
+                value="View plan, upgrade or restore purchases"
+                onPress={() => router.push('/(app)/settings/subscription')}
               />
-              <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
-              <InputField
-                label="Send reminders this many days before expiry"
-                value={cp12ReminderDays}
-                onChange={setCp12ReminderDays}
-                placeholder="30"
-                icon="calendar-outline"
-                keyboardType="numeric"
-              />
-
-              <Text style={[styles.inputLabel, {color: theme.text.body}]}>Recipients</Text>
-              <View style={styles.reminderRecipientRow}>
-                <TouchableOpacity
-                  style={[styles.recipientChip, isDark && {borderColor: theme.surface.border, backgroundColor: theme.surface.elevated}, cp12ReminderRecipients === 'both' && styles.recipientChipActive]}
-                  onPress={() => setCp12ReminderRecipients('both')}
-                >
-                  <Text style={[styles.recipientChipText, {color: theme.text.body}, cp12ReminderRecipients === 'both' && styles.recipientChipTextActive]}>Landlord + Tenant</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.recipientChip, isDark && {borderColor: theme.surface.border, backgroundColor: theme.surface.elevated}, cp12ReminderRecipients === 'landlord' && styles.recipientChipActive]}
-                  onPress={() => setCp12ReminderRecipients('landlord')}
-                >
-                  <Text style={[styles.recipientChipText, {color: theme.text.body}, cp12ReminderRecipients === 'landlord' && styles.recipientChipTextActive]}>Landlord only</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.recipientChip, isDark && {borderColor: theme.surface.border, backgroundColor: theme.surface.elevated}, cp12ReminderRecipients === 'tenant' && styles.recipientChipActive]}
-                  onPress={() => setCp12ReminderRecipients('tenant')}
-                >
-                  <Text style={[styles.recipientChipText, {color: theme.text.body}, cp12ReminderRecipients === 'tenant' && styles.recipientChipTextActive]}>Tenant only</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.reminderSendBtn, sendingReminders && {opacity: 0.7}]}
-                onPress={handleSendDueReminders}
-                disabled={sendingReminders}
-              >
-                {sendingReminders ? (
-                  <ActivityIndicator color={UI.text.white} size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="mail-outline" size={16} color={UI.text.white} />
-                    <Text style={styles.reminderSendBtnText}>Send Due Reminders Now</Text>
-                  </>
-                )}
-              </TouchableOpacity>
             </View>
           </>
         )}

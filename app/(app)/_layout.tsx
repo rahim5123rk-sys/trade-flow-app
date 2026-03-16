@@ -1,16 +1,17 @@
 import {Ionicons} from '@expo/vector-icons';
 import {BlurView} from 'expo-blur';
-import {Redirect, Tabs, router, usePathname} from 'expo-router';
+import {Redirect, router, usePathname} from 'expo-router';
+import {Icon, NativeTabs, Label, VectorIcon} from 'expo-router/unstable-native-tabs';
 import React, {useEffect, useState} from 'react';
 import {ActivityIndicator, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import type {SharedValue} from 'react-native-reanimated';
 import Animated, {interpolate, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import LiquidGlassTabBar from '../../components/LiquidGlassNav';
 import {UI} from '../../constants/theme';
 import {useAuth} from '../../src/context/AuthContext';
 import {useOfflineMode} from '../../src/context/OfflineContext';
 import {useAppTheme} from '../../src/context/ThemeContext';
+import {setupNotificationListeners} from '../../src/services/notifications';
 
 const FAB_ACTIONS = [
   {
@@ -18,32 +19,24 @@ const FAB_ACTIONS = [
     label: 'New Job',
     icon: 'briefcase-outline' as const,
     route: '/(app)/jobs/create',
-    offsetX: -150,
-    offsetY: -8,
   },
   {
     key: 'form',
     label: 'New Form',
     icon: 'document-text-outline' as const,
     route: '/(app)/forms',
-    offsetX: -128,
-    offsetY: -82,
   },
   {
     key: 'customer',
     label: 'New Customer',
     icon: 'person-add-outline' as const,
     route: '/(app)/customers/add',
-    offsetX: -76,
-    offsetY: -138,
   },
   {
     key: 'tools',
     label: 'Tools',
     icon: 'hammer-outline' as const,
     route: '/(app)/toolbox',
-    offsetX: -12,
-    offsetY: -160,
   },
 ];
 
@@ -87,9 +80,7 @@ export default function AppLayout() {
   const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 12 : 8);
-  const tabBarHeight = TAB_BAR_BASE_HEIGHT + bottomInset;
-  const fabBottomOffset = tabBarHeight + 14;
+  const fabBottomOffset = insets.bottom + NATIVE_TAB_BAR_HEIGHT + 14;
   const isAdmin = role === 'admin';
   const hideGlobalFab = pathname.startsWith('/settings') || pathname.startsWith('/workers') || pathname.startsWith('/notes') || pathname.startsWith('/(app)/settings') || pathname.startsWith('/(app)/workers') || pathname.startsWith('/(app)/notes');
   const [fabOpen, setFabOpen] = useState(false);
@@ -101,6 +92,15 @@ export default function AppLayout() {
       progress.value = withTiming(fabOpen ? 1 : 0, {duration: fabOpen ? 220 : 180});
     }
   }, [fabOpen, overlayVisible, progress]);
+
+  useEffect(() => {
+    const cleanup = setupNotificationListeners((data: Record<string, any>) => {
+      if (data.type === 'job_assigned' && data.jobId) {
+        router.push(`/(app)/jobs/${data.jobId}?showAcceptModal=true` as any);
+      }
+    });
+    return cleanup;
+  }, []);
 
   const toggleFab = () => {
     if (fabOpen) {
@@ -138,66 +138,30 @@ export default function AppLayout() {
   }
 
   return (
-    <View style={{flex: 1, backgroundColor: isDark ? theme.surface.base : '#F8F9FA'}}>
-      {offlineModeEnabled ? (
-        <View style={[styles.offlineBanner, isDark && {backgroundColor: theme.text.muted}]}>
-          <Ionicons name="cloud-offline-outline" size={14} color={theme.text.white} />
-          <Text style={[styles.offlineBannerText, {color: theme.text.white}]}>Offline Mode Enabled</Text>
-        </View>
-      ) : null}
+    <>
+      <NativeTabs>
+        <NativeTabs.Trigger name="dashboard">
+          <Label>Home</Label>
+          <Icon src={<VectorIcon family={Ionicons} name="home" />} />
+        </NativeTabs.Trigger>
 
-      <Tabs
-        tabBar={(props) => <LiquidGlassTabBar {...props} />}
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Tabs.Screen
-          name="dashboard"
-          options={{
-            title: 'Home',
-          }}
-        />
+        <NativeTabs.Trigger name="calendar">
+          <Label>Calendar</Label>
+          <Icon src={<VectorIcon family={Ionicons} name="calendar" />} />
+        </NativeTabs.Trigger>
 
-        <Tabs.Screen
-          name="calendar"
-          options={{
-            title: 'Calendar',
-          }}
-        />
+        {isAdmin ? (
+          <NativeTabs.Trigger name="documents">
+            <Label>Docs</Label>
+            <Icon src={<VectorIcon family={Ionicons} name="document-text" />} />
+          </NativeTabs.Trigger>
+        ) : null}
 
-        <Tabs.Screen
-          name="documents"
-          options={{
-            title: 'Docs',
-            href: isAdmin ? undefined : null,
-          }}
-        />
-
-        <Tabs.Screen
-          name="jobs"
-          options={{
-            title: 'Jobs',
-            href: '/(app)/jobs',
-            popToTopOnBlur: true,
-          }}
-        />
-
-        {/* ─── HIDDEN SCREENS ─── */}
-        <Tabs.Screen name="customers" options={{href: null}} />
-        <Tabs.Screen name="workers" options={{href: null}} />
-        <Tabs.Screen name="invoice" options={{href: null}} />
-        <Tabs.Screen name="quote" options={{href: null}} />
-        <Tabs.Screen name="settings/index" options={{href: null}} />
-        <Tabs.Screen name="settings/user-details" options={{href: null}} />
-        <Tabs.Screen name="settings/company-details" options={{href: null}} />
-        <Tabs.Screen name="settings/privacy-policy" options={{href: null}} />
-        <Tabs.Screen name="settings/terms-of-service" options={{href: null}} />
-        <Tabs.Screen name="notes" options={{href: null}} />
-        <Tabs.Screen name="cp12" options={{href: null}} />
-        <Tabs.Screen name="forms" options={{href: null}} />
-        <Tabs.Screen name="toolbox/index" options={{href: null}} />
-      </Tabs>
+        <NativeTabs.Trigger name="jobs">
+          <Label>Jobs</Label>
+          <Icon src={<VectorIcon family={Ionicons} name="briefcase" />} />
+        </NativeTabs.Trigger>
+      </NativeTabs>
 
       {isAdmin && !hideGlobalFab ? (
         <>
@@ -250,11 +214,18 @@ export default function AppLayout() {
           </View>
         </>
       ) : null}
-    </View>
+
+      {offlineModeEnabled ? (
+        <View pointerEvents="none" style={[styles.offlineBanner, {position: 'absolute', top: insets.top, left: 0, right: 0}, isDark && {backgroundColor: theme.text.muted}]}>
+          <Ionicons name="cloud-offline-outline" size={14} color={theme.text.white} />
+          <Text style={[styles.offlineBannerText, {color: theme.text.white}]}>Offline Mode Enabled</Text>
+        </View>
+      ) : null}
+    </>
   );
 }
 
-const TAB_BAR_BASE_HEIGHT = Platform.OS === 'ios' ? 70 : 62;
+const NATIVE_TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 : 56;
 
 const styles = StyleSheet.create({
   offlineBanner: {

@@ -35,6 +35,7 @@ interface AuthState {
   userProfile: UserProfile | null;
   isLoading: boolean;
   role: UserRole | null;
+  reminderDaysBefore: number;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<UserProfile | null>;
   setRegistering: (value: boolean) => void;
@@ -46,6 +47,7 @@ const AuthContext = createContext<AuthState>({
   userProfile: null,
   isLoading: true,
   role: null,
+  reminderDaysBefore: 30,
   signOut: async () => { },
   refreshProfile: async () => null,
   setRegistering: () => { },
@@ -57,6 +59,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [reminderDaysBefore, setReminderDaysBefore] = useState<number>(30);
   const isRegistering = useRef(false);
   const handledUrls = useRef<Set<string>>(new Set());
   const isRecoveryFlow = useRef(false);
@@ -99,6 +102,15 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     if (rows && rows.length > 0) {
       console.log('Profile loaded successfully');
       setUserProfile(rows[0]);
+      // Fetch company reminder days
+      if (rows[0].company_id) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('reminder_days_before')
+          .eq('id', rows[0].company_id)
+          .single();
+        setReminderDaysBefore(companyData?.reminder_days_before ?? 30);
+      }
       return rows[0];
     }
 
@@ -448,6 +460,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         userProfile,
         isLoading,
         role: userProfile?.role ?? null,
+        reminderDaysBefore,
         signOut,
         refreshProfile,
         setRegistering,

@@ -19,13 +19,13 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import ReminderSection from '../../../components/ReminderSection';
 import {SignaturePad} from '../../../components/SignaturePad';
 import {UI} from '../../../constants/theme';
 import {supabase} from '../../../src/config/supabase';
@@ -129,7 +129,9 @@ export default function ReviewSign() {
 
   // Signature modal
   const [showSigPad, setShowSigPad] = useState(false);
+  const [oneTimeEmails, setOneTimeEmails] = useState<string[]>([]);
   const emailRecipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '']);
+  const savedEmails = [tenantEmail].filter(Boolean) as string[];
 
   useEffect(() => {
     const preloadNextReference = async () => {
@@ -227,6 +229,10 @@ export default function ReviewSign() {
 
     // ── EDIT MODE: Update existing document ──
     if (editingDocumentId) {
+      const payloadToSave = oneTimeEmails.length > 0
+        ? { ...lockedPayload, oneTimeReminderEmails: oneTimeEmails }
+        : lockedPayload;
+
       const {error: updateError} = await supabase
         .from('documents')
         .update({
@@ -234,7 +240,7 @@ export default function ReviewSign() {
           expiry_date: nextDueDate || null,
           customer_id: landlordForm.customerId || null,
           customer_snapshot: customerSnapshot,
-          payment_info: JSON.stringify(lockedPayload),
+          payment_info: JSON.stringify(payloadToSave),
         })
         .eq('id', editingDocumentId);
 
@@ -248,6 +254,10 @@ export default function ReviewSign() {
 
     // ── NEW MODE: Insert new document ──
     const cp12Number = Number(String(Date.now()).slice(-8));
+
+    const insertPayloadToSave = oneTimeEmails.length > 0
+      ? { ...lockedPayload, oneTimeReminderEmails: oneTimeEmails }
+      : lockedPayload;
 
     const documentBase = {
       company_id: userProfile.company_id,
@@ -264,7 +274,7 @@ export default function ReviewSign() {
       discount_percent: 0,
       total: 0,
       notes: 'Gas Safety Certificate (locked snapshot)',
-      payment_info: JSON.stringify(lockedPayload),
+      payment_info: JSON.stringify(insertPayloadToSave),
     };
 
     const {data: insertedRows, error: saveError} = await supabase
@@ -549,50 +559,13 @@ export default function ReviewSign() {
             )}
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(260).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
-            <View style={s.sectionHeader}>
-              <View style={s.sectionIconWrap}>
-                <Ionicons name="notifications-outline" size={16} color={theme.brand.primary} />
-              </View>
-              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Renewal Reminder</Text>
-            </View>
-
-            <View style={[s.reminderRow, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
-              <View style={s.reminderCopy}>
-                <Text style={[s.reminderTitle, {color: theme.text.title}]}>Email customer 7 days before renewal</Text>
-                <Text style={[s.reminderDescription, {color: theme.text.muted}]}>Turn this on to automatically send a renewal reminder before the due date.</Text>
-              </View>
-              <Switch
-                value={renewalReminderEnabled}
-                onValueChange={setRenewalReminderEnabled}
-                trackColor={{false: isDark ? theme.surface.divider : UI.surface.divider, true: theme.brand.primary}}
-                thumbColor="#fff"
-              />
-            </View>
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(280).duration(400)} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
-            <View style={s.sectionHeader}>
-              <View style={s.sectionIconWrap}>
-                <Ionicons name="mail-outline" size={16} color={theme.brand.primary} />
-              </View>
-              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Email Recipients</Text>
-            </View>
-
-            {emailRecipients.length ? (
-              <View style={s.emailList}>
-                {emailRecipients.map((email) => (
-                  <View key={email} style={[s.emailChip, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
-                    <Ionicons name="at-outline" size={14} color={theme.brand.primary} />
-                    <Text style={[s.emailChipText, {color: theme.brand.primary}]}>{email}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={[s.noEmailText, {color: theme.text.muted}]}>
-                No landlord or tenant email found yet. Add one to use Save & Send Email.
-              </Text>
-            )}
+          <Animated.View entering={FadeInDown.delay(260).duration(400)}>
+            <ReminderSection
+              enabled={renewalReminderEnabled}
+              onToggle={setRenewalReminderEnabled}
+              savedEmails={savedEmails}
+              onOneTimeEmailsChange={setOneTimeEmails}
+            />
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>

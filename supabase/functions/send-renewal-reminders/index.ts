@@ -3,7 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { Resend } from "npm:resend@2.0.0"
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
-const REMINDER_DAYS_BEFORE = 7
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const jsonHeaders = {
@@ -64,7 +63,7 @@ serve(async (req) => {
 
   const {data: docs, error} = await supabase
     .from('documents')
-    .select('id,type,reference,expiry_date,customer_snapshot,payment_info')
+    .select('id,type,reference,expiry_date,company_id,customer_snapshot,payment_info')
     .in('type', ['cp12', 'service_record'])
     .not('expiry_date', 'is', null)
 
@@ -75,6 +74,22 @@ serve(async (req) => {
     })
   }
 
+  // Build company reminder days map
+  const companyIds = [...new Set((docs ?? []).map((d: any) => d.company_id).filter(Boolean))]
+  let companiesData: Array<{ id: string; reminder_days_before: number }> = []
+  if (companyIds.length > 0) {
+    const { data } = await supabase
+      .from('companies')
+      .select('id, reminder_days_before')
+      .in('id', companyIds)
+    companiesData = data ?? []
+  }
+
+  const reminderDaysMap: Record<string, number> = {}
+  for (const c of companiesData) {
+    reminderDaysMap[c.id] = c.reminder_days_before ?? 30
+  }
+
   let sent = 0
   let skipped = 0
   const failures: Array<{id: string; reason: string}> = []
@@ -82,7 +97,13 @@ serve(async (req) => {
   for (const doc of docs ?? []) {
     try {
       const dueDate = parseDdMmYyyy(doc.expiry_date)
-      if (!dueDate || dayDiff(today, dueDate) !== REMINDER_DAYS_BEFORE) {
+      if (!dueDate) {
+        skipped += 1
+        continue
+      }
+      const reminderDays = reminderDaysMap[doc.company_id] ?? 30
+      const days = dayDiff(today, dueDate)
+      if (days > reminderDays || days < 0) {
         skipped += 1
         continue
       }
@@ -100,7 +121,9 @@ serve(async (req) => {
       const customerName = pdfData.customerName || pdfData.landlordName || pdfData.tenantName || doc.customer_snapshot?.name || 'Customer'
       const propertyAddress = pdfData.propertyAddress || doc.customer_snapshot?.address || 'Not provided'
       const fallbackEmail = pdfData.customerEmail || pdfData.landlordEmail || pdfData.tenantEmail || ''
-      const recipients = sanitizeRecipients([doc.customer_snapshot?.email || fallbackEmail])
+      const baseRecipients = [doc.customer_snapshot?.email || fallbackEmail]
+      const oneTimeEmails: string[] = Array.isArray(payload?.oneTimeReminderEmails) ? payload.oneTimeReminderEmails : []
+      const recipients = sanitizeRecipients([...baseRecipients, ...oneTimeEmails])
 
       if (!recipients.length) {
         skipped += 1
@@ -112,7 +135,7 @@ serve(async (req) => {
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#0f172a;line-height:1.5;">
           <h2 style="margin:0 0 12px;">Renewal Reminder</h2>
-          <p style="margin:0 0 12px;">Hi ${customerName}, your ${docLabel.toLowerCase()} is due to expire in ${REMINDER_DAYS_BEFORE} days.</p>
+          <p style="margin:0 0 12px;">Hi ${customerName}, your ${docLabel.toLowerCase()} is due to expire in ${days} days.</p>
           <table style="width:100%;border-collapse:collapse;margin:12px 0 20px;">
             <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Document</td><td style="padding:8px;border:1px solid #e2e8f0;">${docLabel}</td></tr>
             <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">Reference</td><td style="padding:8px;border:1px solid #e2e8f0;">${doc.reference || 'N/A'}</td></tr>
@@ -130,8 +153,9 @@ serve(async (req) => {
         html,
       })
 
+      const { oneTimeReminderEmails: _removed, ...payloadWithoutOneTime } = payload
       const nextPayload = {
-        ...payload,
+        ...payloadWithoutOneTime,
         reminderMeta: {
           ...(payload?.reminderMeta || {}),
           lastSentAt: new Date().toISOString(),
@@ -158,7 +182,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({sent, skipped, failures, reminderDaysBefore: REMINDER_DAYS_BEFORE}), {
+  return new Response(JSON.stringify({sent, skipped, failures}), {
     status: 200,
     headers: jsonHeaders,
   })

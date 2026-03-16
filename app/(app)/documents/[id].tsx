@@ -46,6 +46,7 @@ import {
 import type {ServiceRecordLockedPayload} from '../../../src/services/serviceRecordPdfGenerator';
 import type {WarningNoticeLockedPayload} from '../../../src/services/warningNoticePdfGenerator';
 import {Document} from '../../../src/types';
+import ReminderSection from '../../../components/ReminderSection';
 
 const INVOICE_STATUSES = ['Draft', 'Sent', 'Unpaid', 'Paid', 'Overdue'];
 const QUOTE_STATUSES = ['Draft', 'Sent', 'Accepted', 'Declined'];
@@ -114,6 +115,8 @@ export default function DocumentDetailScreen() {
   const [viewing, setViewing] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [savingReminder, setSavingReminder] = useState(false);
+  const [oneTimeEmails, setOneTimeEmails] = useState<string[]>([]);
+  const [hasUnsavedEmails, setHasUnsavedEmails] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const {theme, isDark} = useAppTheme();
@@ -121,6 +124,16 @@ export default function DocumentDetailScreen() {
   useEffect(() => {
     if (id) fetchDocument();
   }, [id]);
+
+  useEffect(() => {
+    const payload = parseLockedPayload(doc?.payment_info);
+    const existing = (payload as any)?.oneTimeReminderEmails;
+    if (Array.isArray(existing) && existing.length > 0) {
+      setOneTimeEmails(existing);
+    } else {
+      setOneTimeEmails([]);
+    }
+  }, [doc?.id]);
 
   const fetchDocument = async () => {
     const {data, error} = await supabase
@@ -285,6 +298,28 @@ export default function DocumentDetailScreen() {
       Alert.alert('Reminder Error', error?.message || 'Could not update renewal reminder.');
     } finally {
       setSavingReminder(false);
+    }
+  };
+
+  const handleSaveOneTimeEmails = async () => {
+    if (!doc) return;
+    const currentPayload = parseLockedPayload(doc.payment_info) as Record<string, unknown> | null;
+    if (!currentPayload) return;
+
+    const updated = oneTimeEmails.length > 0
+      ? { ...currentPayload, oneTimeReminderEmails: oneTimeEmails }
+      : (() => { const p = { ...currentPayload }; delete p.oneTimeReminderEmails; return p; })();
+
+    const { error } = await supabase
+      .from('documents')
+      .update({ payment_info: JSON.stringify(updated) })
+      .eq('id', doc.id);
+
+    if (!error) {
+      setDoc({ ...doc, payment_info: JSON.stringify(updated) });
+      setHasUnsavedEmails(false);
+    } else {
+      Alert.alert('Error', 'Could not save emails.');
     }
   };
 
@@ -910,6 +945,11 @@ export default function DocumentDetailScreen() {
       },
     } as ServiceRecordLockedPayload
     : null;
+  const savedEmails = [
+    cp12Payload?.pdfData?.landlordEmail,
+    cp12Payload?.pdfData?.tenantEmail,
+    srPayload?.pdfData?.customerEmail,
+  ].filter(Boolean) as string[];
   const commissioningPayload = lockedPayload?.kind === 'commissioning'
     ? {
       ...(lockedPayload as CommissioningLockedPayload),
@@ -1143,24 +1183,24 @@ export default function DocumentDetailScreen() {
 
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Renewal Reminder</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.reminderRow}>
-                <View style={styles.reminderTextWrap}>
-                  <Text style={[styles.reminderTitle, isDark && {color: theme.text.title}]}>Email reminder 7 days before expiry</Text>
-                  <Text style={[styles.reminderText, isDark && {color: theme.text.muted}]}>This document will send a renewal reminder from its details page setting.</Text>
-                </View>
-                {savingReminder ? (
-                  <ActivityIndicator color={UI.brand.primary} size="small" />
-                ) : (
-                  <Switch
-                    value={!!cp12Payload.pdfData.renewalReminderEnabled}
-                    onValueChange={handleReminderToggle}
-                    trackColor={{false: isDark ? theme.surface.divider : UI.surface.divider, true: UI.brand.primary}}
-                    thumbColor="#fff"
-                  />
-                )}
-              </View>
-            </View>
+            <ReminderSection
+              enabled={!!cp12Payload.pdfData.renewalReminderEnabled}
+              onToggle={handleReminderToggle}
+              savedEmails={savedEmails}
+              initialOneTimeEmails={(lockedPayload as any)?.oneTimeReminderEmails ?? []}
+              onOneTimeEmailsChange={(emails) => {
+                setOneTimeEmails(emails);
+                setHasUnsavedEmails(true);
+              }}
+            />
+            {hasUnsavedEmails && (
+              <TouchableOpacity
+                style={{backgroundColor: UI.brand.primary, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: -8, marginBottom: 8}}
+                onPress={handleSaveOneTimeEmails}
+              >
+                <Text style={{color: '#fff', fontWeight: '700', fontSize: 14}}>Save One-Time Emails</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </Animated.View>
       ) : isSR && srPayload ? (
@@ -1263,24 +1303,24 @@ export default function DocumentDetailScreen() {
 
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Renewal Reminder</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.reminderRow}>
-                <View style={styles.reminderTextWrap}>
-                  <Text style={[styles.reminderTitle, isDark && {color: theme.text.title}]}>Email reminder 7 days before expiry</Text>
-                  <Text style={[styles.reminderText, isDark && {color: theme.text.muted}]}>This service record can send an automatic renewal reminder from here.</Text>
-                </View>
-                {savingReminder ? (
-                  <ActivityIndicator color="#059669" size="small" />
-                ) : (
-                  <Switch
-                    value={!!srPayload.pdfData.renewalReminderEnabled}
-                    onValueChange={handleReminderToggle}
-                    trackColor={{false: isDark ? theme.surface.divider : UI.surface.divider, true: '#059669'}}
-                    thumbColor="#fff"
-                  />
-                )}
-              </View>
-            </View>
+            <ReminderSection
+              enabled={!!srPayload.pdfData.renewalReminderEnabled}
+              onToggle={handleReminderToggle}
+              savedEmails={savedEmails}
+              initialOneTimeEmails={(lockedPayload as any)?.oneTimeReminderEmails ?? []}
+              onOneTimeEmailsChange={(emails) => {
+                setOneTimeEmails(emails);
+                setHasUnsavedEmails(true);
+              }}
+            />
+            {hasUnsavedEmails && (
+              <TouchableOpacity
+                style={{backgroundColor: UI.brand.primary, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: -8, marginBottom: 8}}
+                onPress={handleSaveOneTimeEmails}
+              >
+                <Text style={{color: '#fff', fontWeight: '700', fontSize: 14}}>Save One-Time Emails</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </Animated.View>
       ) : isCommissioning && commissioningPayload ? (
