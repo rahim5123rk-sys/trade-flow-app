@@ -24,10 +24,12 @@ import Animated, {
   SlideInRight,
 } from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import JobAcceptModal from '../../components/JobAcceptModal';
 import Onboarding, {OnboardingTip} from '../../components/Onboarding';
 import {Colors, UI} from '../../constants/theme';
 import {supabase} from '../../src/config/supabase';
 import {useAuth} from '../../src/context/AuthContext';
+import {useSubscription} from '../../src/context/SubscriptionContext';
 import {ThemeTokens, useAppTheme} from '../../src/context/ThemeContext';
 import {Document} from '../../src/types';
 
@@ -522,11 +524,14 @@ const NavButton = ({
 export default function DashboardScreen() {
   const {userProfile, user} = useAuth();
   const {theme, colors, isDark} = useAppTheme();
+  const {isPro} = useSubscription();
   const insets = useSafeAreaInsets();
   const [allJobs, setAllJobs] = useState<DashboardJob[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingJobs, setPendingJobs] = useState<{jobId: string; jobTitle: string; address: string}[]>([]);
+  const [acceptJobId, setAcceptJobId] = useState<string | null>(null);
 
   const isAdmin = userProfile?.role === 'admin';
 
@@ -577,6 +582,57 @@ export default function DashboardScreen() {
 
     if (jobsData) setAllJobs(jobsData as any);
     if (documentsData) setDocuments(documentsData as Document[]);
+
+    // Pending jobs for workers
+    if (userProfile?.role === 'worker' && user?.id) {
+      const workerId = user.id;
+
+      const {data: pendingRows} = await supabase
+        .from('job_acceptance')
+        .select('job_id, jobs(id, title, customer_snapshot)')
+        .eq('worker_id', workerId)
+        .eq('status', 'pending');
+
+      let resolvedPending: {jobId: string; jobTitle: string; address: string}[] = (pendingRows ?? []).map((row: any) => ({
+        jobId: row.job_id,
+        jobTitle: row.jobs?.title ?? 'Job',
+        address: (row.jobs?.customer_snapshot as any)?.address_line_1 ?? '',
+      }));
+
+      // Reconciliation: find jobs assigned to this worker with no acceptance row at all
+      const {data: allAcceptances} = await supabase
+        .from('job_acceptance')
+        .select('job_id')
+        .eq('worker_id', workerId);
+
+      const allAcceptedJobIds = new Set((allAcceptances ?? []).map((r: any) => r.job_id));
+
+      const {data: assignedJobs} = await supabase
+        .from('jobs')
+        .select('id, title, customer_snapshot')
+        .contains('assigned_to', [workerId]);
+
+      const gaps = (assignedJobs ?? []).filter((j: any) => !allAcceptedJobIds.has(j.id));
+
+      if (gaps.length > 0) {
+        await supabase.from('job_acceptance').upsert(
+          gaps.map((j: any) => ({job_id: j.id, worker_id: workerId, status: 'pending'})),
+          {onConflict: 'job_id,worker_id', ignoreDuplicates: true}
+        );
+        for (const j of gaps) {
+          resolvedPending.push({
+            jobId: j.id,
+            jobTitle: j.title,
+            address: (j.customer_snapshot as any)?.address_line_1 ?? '',
+          });
+        }
+      }
+
+      setPendingJobs(resolvedPending);
+    } else {
+      setPendingJobs([]);
+    }
+
     setLoading(false);
     setRefreshing(false);
   };
@@ -645,6 +701,11 @@ export default function DashboardScreen() {
             <View style={s.brandRow}>
               <Image source={require('../../assets/images/iconlogo.png')} style={s.brandIcon} resizeMode="contain" />
               <Text style={[s.brandTitle, {color: theme.text.title}]}>GasPilot</Text>
+              {isPro && (
+                <View style={s.proBadge}>
+                  <Text style={s.proBadgeText}>PRO</Text>
+                </View>
+              )}
             </View>
             <Text style={[s.headerGreeting, {color: theme.text.secondary}]}>
               {getGreeting()}
@@ -799,6 +860,42 @@ export default function DashboardScreen() {
           </Animated.View>
         )}
 
+        {/* Needs Your Response (workers) */}
+        {userProfile?.role === 'worker' && pendingJobs.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(280).duration(400)} style={{marginBottom: 20}}>
+            <View style={s.sectionHeaderRow}>
+              <Text style={[s.sectionLabel, {color: theme.text.title, marginBottom: 0}]}>Needs Your Response</Text>
+              <View style={{backgroundColor: '#FF9500' + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2}}>
+                <Text style={{color: '#FF9500', fontSize: 12, fontWeight: '800'}}>{pendingJobs.length}</Text>
+              </View>
+            </View>
+            {pendingJobs.map((item) => (
+              <TouchableOpacity
+                key={item.jobId}
+                onPress={() => setAcceptJobId(item.jobId)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderRadius: 12,
+                  padding: 14,
+                  marginBottom: 8,
+                  borderColor: '#FF9500',
+                  backgroundColor: isDark ? 'rgba(255,149,0,0.1)' : '#FFF7ED',
+                }}
+              >
+                <View style={{flex: 1}}>
+                  <Text style={{fontSize: 15, fontWeight: '700', color: theme.text.title, marginBottom: 2}}>{item.jobTitle}</Text>
+                  {item.address ? <Text style={{fontSize: 12, color: theme.text.muted}}>{item.address}</Text> : null}
+                </View>
+                <View style={{backgroundColor: '#FF9500', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6}}>
+                  <Text style={{color: '#000', fontSize: 12, fontWeight: '800'}}>Respond</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        )}
+
         {/* Today's Schedule */}
         <Animated.View entering={FadeInDown.delay(320).springify()}>
           <View style={s.sectionHeaderRow}>
@@ -822,6 +919,53 @@ export default function DashboardScreen() {
             ))
           )}
         </Animated.View>
+
+        {/* Admin Quick Action Buttons */}
+        {isAdmin && (
+          <Animated.View entering={FadeInDown.delay(420).duration(400)} style={{flexDirection: 'row', gap: 12, marginBottom: 24}}>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                borderWidth: 1,
+                borderRadius: 16,
+                padding: 16,
+                alignItems: 'flex-start',
+                gap: 8,
+                backgroundColor: isDark ? (theme.glass?.bg ?? 'rgba(255,255,255,0.05)') : '#FFFFFF',
+                borderColor: isDark ? (theme.glass?.border ?? 'rgba(255,255,255,0.1)') : 'rgba(0,0,0,0.06)',
+              }}
+              onPress={() => router.push('/(app)/cp12' as any)}
+              activeOpacity={0.85}
+            >
+              <View style={{width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: (theme.brand?.primary ?? '#0066FF') + '18', marginBottom: 4}}>
+                <Ionicons name="document-text-outline" size={26} color={theme.brand?.primary ?? '#0066FF'} />
+              </View>
+              <Text style={{fontSize: 15, fontWeight: '800', lineHeight: 20, color: theme.text.title}}>{'New Gas\nCertificate'}</Text>
+              <Text style={{fontSize: 11, color: theme.text.muted}}>CP12</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                borderWidth: 1,
+                borderRadius: 16,
+                padding: 16,
+                alignItems: 'flex-start',
+                gap: 8,
+                backgroundColor: isDark ? (theme.glass?.bg ?? 'rgba(255,255,255,0.05)') : '#FFFFFF',
+                borderColor: isDark ? (theme.glass?.border ?? 'rgba(255,255,255,0.1)') : 'rgba(0,0,0,0.06)',
+              }}
+              onPress={() => router.push('/(app)/jobs/create' as any)}
+              activeOpacity={0.85}
+            >
+              <View style={{width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: (theme.brand?.primary ?? '#0066FF') + '18', marginBottom: 4}}>
+                <Ionicons name="briefcase-outline" size={26} color={theme.brand?.primary ?? '#0066FF'} />
+              </View>
+              <Text style={{fontSize: 15, fontWeight: '800', lineHeight: 20, color: theme.text.title}}>{'Create\nNew Job'}</Text>
+              <Text style={{fontSize: 11, color: theme.text.muted}}>Track & assign</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {stats.upcomingRenewals.length > 0 && (
           <Animated.View entering={FadeInDown.delay(420).springify()}>
@@ -860,6 +1004,12 @@ export default function DashboardScreen() {
         screenKey="dashboard"
         tips={isAdmin ? ADMIN_TIPS : WORKER_TIPS}
       />
+
+      <JobAcceptModal
+        jobId={acceptJobId}
+        visible={!!acceptJobId}
+        onDismiss={() => setAcceptJobId(null)}
+      />
     </View>
   );
 }
@@ -883,6 +1033,8 @@ const s = StyleSheet.create({
   brandRow: {flexDirection: 'row', alignItems: 'center', gap: 0, marginBottom: 4},
   brandIcon: {width: 30, height: 30, marginTop: -4},
   brandTitle: {fontSize: 28, fontFamily: 'ClashDisplay-Semibold', letterSpacing: -0.5},
+  proBadge: {backgroundColor: UI.brand.primary, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8},
+  proBadgeText: {color: '#fff', fontSize: 11, fontWeight: '800'},
   headerGreeting: {fontSize: 28, fontWeight: '500', color: UI.text.secondary, letterSpacing: -0.4},
   headerNameInline: {fontSize: 30, fontWeight: '800', color: UI.text.title, letterSpacing: -0.6},
   headerDate: {fontSize: 14, color: UI.text.muted, marginTop: 4, fontWeight: '500'},
