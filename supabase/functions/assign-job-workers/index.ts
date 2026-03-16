@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       profile.push_token,
       'Job Assigned',
       `${title} — ${address}`,
-      { type: 'job_assigned', jobId }
+      { type: 'job_assigned', jobId, title, address }
     );
     notified++;
   }
