@@ -205,7 +205,7 @@ export default function ServiceRecordReviewSign() {
     }
 
     const docNumber = Number(String(Date.now()).slice(-8));
-    const payloadToSave = oneTimeEmails.length > 0
+    const insertPayloadToSave = oneTimeEmails.length > 0
       ? { ...lockedPayload, oneTimeReminderEmails: oneTimeEmails }
       : lockedPayload;
     const documentBase = {
@@ -223,7 +223,7 @@ export default function ServiceRecordReviewSign() {
       discount_percent: 0,
       total: 0,
       notes: 'Gas Service Record (locked snapshot)',
-      payment_info: JSON.stringify(payloadToSave),
+      payment_info: JSON.stringify(insertPayloadToSave),
     };
 
     const {data: insertedRows, error: saveError} = await supabase
