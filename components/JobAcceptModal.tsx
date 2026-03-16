@@ -26,7 +26,7 @@ interface Props {
 interface JobDetail {
   id: string;
   title: string;
-  scheduled_date: number;
+  scheduled_date: number | string;
   estimated_duration?: string;
   notes?: string;
   customer_snapshot: {
@@ -45,10 +45,14 @@ export default function JobAcceptModal({ jobId, visible, onDismiss }: Props) {
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState<'accept' | 'decline' | null>(null);
+  const [acceptanceStatus, setAcceptanceStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible && jobId) fetchJob();
-    else setJob(null);
+    else {
+      setJob(null);
+      setAcceptanceStatus(null);
+    }
   }, [visible, jobId]);
 
   const fetchJob = async () => {
@@ -60,6 +64,13 @@ export default function JobAcceptModal({ jobId, visible, onDismiss }: Props) {
       .eq('id', jobId)
       .single();
     setJob(data as JobDetail);
+    const { data: acceptance } = await supabase
+      .from('job_acceptance')
+      .select('status')
+      .eq('job_id', jobId!)
+      .eq('worker_id', userProfile?.id ?? '')
+      .maybeSingle();
+    setAcceptanceStatus(acceptance?.status ?? null);
     setLoading(false);
   };
 
@@ -86,11 +97,17 @@ export default function JobAcceptModal({ jobId, visible, onDismiss }: Props) {
         onPress: async () => {
           setActing('decline');
           // Update acceptance row
-          await supabase
+          const { error: declineError } = await supabase
             .from('job_acceptance')
             .update({ status: 'declined', updated_at: new Date().toISOString() })
             .eq('job_id', jobId)
             .eq('worker_id', userProfile.id);
+
+          if (declineError) {
+            setActing(null);
+            Alert.alert('Error', 'Could not decline job. Try again.');
+            return;
+          }
 
           // Notify admin (best-effort — don't block UI on failure)
           try {
@@ -115,13 +132,14 @@ export default function JobAcceptModal({ jobId, visible, onDismiss }: Props) {
     ]);
   };
 
-  const formatDate = (ms: number) => {
-    const d = new Date(ms);
+  const formatDate = (val: number | string) => {
+    const d = typeof val === 'number' ? new Date(val) : new Date(val);
     return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
-  const formatTime = (ms: number) => {
-    return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (val: number | string) => {
+    const d = typeof val === 'number' ? new Date(val) : new Date(val);
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   };
 
   const address = job
@@ -179,36 +197,48 @@ export default function JobAcceptModal({ jobId, visible, onDismiss }: Props) {
                 </View>
               ) : null}
 
-              {/* Actions */}
-              <TouchableOpacity
-                style={[styles.acceptBtn, acting === 'accept' && { opacity: 0.6 }]}
-                onPress={handleAccept}
-                disabled={!!acting}
-              >
-                {acting === 'accept' ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                    <Text style={styles.acceptBtnText}>Accept Job</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {acceptanceStatus && acceptanceStatus !== 'pending' ? (
+                <View style={{ padding: 16, borderRadius: 12, backgroundColor: acceptanceStatus === 'accepted' ? '#1C3A2A' : '#3A1C1C', marginBottom: 16 }}>
+                  <Text style={{ color: acceptanceStatus === 'accepted' ? '#2ECC71' : '#E74C3C', fontWeight: '700', textAlign: 'center' }}>
+                    You have already {acceptanceStatus} this job
+                  </Text>
+                </View>
+              ) : null}
 
-              <TouchableOpacity
-                style={[styles.declineBtn, { borderColor: isDark ? theme.surface.border : '#E5E5E5' }, acting === 'decline' && { opacity: 0.6 }]}
-                onPress={handleDecline}
-                disabled={!!acting}
-              >
-                {acting === 'decline' ? (
-                  <ActivityIndicator color="#E74C3C" />
-                ) : (
-                  <>
-                    <Ionicons name="close-circle-outline" size={20} color="#E74C3C" />
-                    <Text style={styles.declineBtnText}>Decline Job</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {/* Actions */}
+              {(!acceptanceStatus || acceptanceStatus === 'pending') && (
+                <>
+                  <TouchableOpacity
+                    style={[styles.acceptBtn, acting === 'accept' && { opacity: 0.6 }]}
+                    onPress={handleAccept}
+                    disabled={!!acting}
+                  >
+                    {acting === 'accept' ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                        <Text style={styles.acceptBtnText}>Accept Job</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.declineBtn, { borderColor: isDark ? theme.surface.border : '#E5E5E5' }, acting === 'decline' && { opacity: 0.6 }]}
+                    onPress={handleDecline}
+                    disabled={!!acting}
+                  >
+                    {acting === 'decline' ? (
+                      <ActivityIndicator color="#E74C3C" />
+                    ) : (
+                      <>
+                        <Ionicons name="close-circle-outline" size={20} color="#E74C3C" />
+                        <Text style={styles.declineBtnText}>Decline Job</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
             </ScrollView>
           )}
         </Animated.View>
