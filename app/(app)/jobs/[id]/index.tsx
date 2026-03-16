@@ -75,6 +75,7 @@ export default function JobDetailScreen() {
   const [resolvedPhotos, setResolvedPhotos] = useState<string[]>([]);
   const [acceptModalVisible, setAcceptModalVisible] = useState(showAcceptParam === 'true');
   const [acceptanceStatuses, setAcceptanceStatuses] = useState<Record<string, string>>({});
+  const [workerNames, setWorkerNames] = useState<Record<string, string>>({});
   const {theme, isDark} = useAppTheme();
 
   const isAdmin = userProfile?.role === 'admin';
@@ -108,13 +109,23 @@ export default function JobDetailScreen() {
       if (error) throw error;
       setJob(data);
       if (userProfile?.role === 'admin' && data?.assigned_to?.length > 0) {
-        const {data: acceptances} = await supabase
+        const {data: acceptances, error: acceptErr} = await supabase
           .from('job_acceptance')
           .select('worker_id, status')
           .eq('job_id', id);
+        if (acceptErr) console.warn('acceptance fetch failed', acceptErr);
         const map: Record<string, string> = {};
         for (const row of acceptances ?? []) map[row.worker_id] = row.status;
         setAcceptanceStatuses(map);
+
+        // Fetch worker display names
+        const {data: workerProfiles} = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', data.assigned_to);
+        const names: Record<string, string> = {};
+        for (const p of workerProfiles ?? []) names[p.id] = p.display_name ?? 'Unknown Worker';
+        setWorkerNames(names);
       }
       // Resolve private storage refs to signed URLs for display
       if (data?.photos?.length) {
@@ -387,7 +398,7 @@ export default function JobDetailScreen() {
               </View>
               {(job.assigned_to as string[]).map((wId: string) => (
                 <View key={wId} style={{flexDirection: 'row', alignItems: 'center', paddingVertical: 6}}>
-                  <Text style={[styles.detailValue, isDark && {color: theme.text.body}, {flex: 1, fontSize: 14}]}>{wId}</Text>
+                  <Text style={[styles.detailValue, isDark && {color: theme.text.body}, {flex: 1, fontSize: 14}]}>{workerNames[wId] ?? 'Worker'}</Text>
                   <AcceptancePill status={acceptanceStatuses[wId]} />
                 </View>
               ))}
