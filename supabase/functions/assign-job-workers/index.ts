@@ -19,11 +19,23 @@ async function sendPush(token: string, title: string, body: string, data: Record
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
-  const { jobId, oldAssignedTo, newAssignedTo } = await req.json() as {
-    jobId: string;
-    oldAssignedTo: string[];
-    newAssignedTo: string[];
-  };
+  const authHeader = req.headers.get('Authorization');
+  const expectedToken = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  let body: { jobId: string; oldAssignedTo: string[]; newAssignedTo: string[] };
+  try {
+    body = await req.json();
+  } catch {
+    return new Response('Bad Request: invalid JSON', { status: 400 });
+  }
+  const { jobId, oldAssignedTo, newAssignedTo } = body;
+
+  if (!jobId || typeof jobId !== 'string') {
+    return new Response('Bad Request: jobId required', { status: 400 });
+  }
 
   const old = oldAssignedTo ?? [];
   const next = newAssignedTo ?? [];
@@ -40,7 +52,9 @@ Deno.serve(async (req) => {
 
   // Workers newly added
   const added = next.filter((id) => !old.includes(id));
-  if (added.length === 0) return new Response(JSON.stringify({ notified: 0, skipped: 0 }));
+  if (added.length === 0) return new Response(JSON.stringify({ notified: 0, skipped: 0 }), {
+    headers: { 'Content-Type': 'application/json' },
+  });
 
   // Fetch job details for notification text
   const { data: job } = await supabaseAdmin
@@ -57,10 +71,11 @@ Deno.serve(async (req) => {
 
   for (const workerId of added) {
     // Upsert acceptance row — reset to pending on re-assignment
-    await supabaseAdmin.from('job_acceptance').upsert(
+    const { error: upsertError } = await supabaseAdmin.from('job_acceptance').upsert(
       { job_id: jobId, worker_id: workerId, status: 'pending', updated_at: new Date().toISOString() },
       { onConflict: 'job_id,worker_id' }
     );
+    if (upsertError) { skipped++; continue; }
 
     // Fetch worker push token
     const { data: profile } = await supabaseAdmin
