@@ -4,7 +4,6 @@
 // ============================================
 
 import {Ionicons} from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router, useLocalSearchParams} from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -16,8 +15,6 @@ import {
   Modal,
   Platform,
   ScrollView,
-  StyleSheet,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -33,7 +30,6 @@ import {useAppTheme} from '../../../../src/context/ThemeContext';
 import {generateDocument, generateDocumentUrl} from '../../../../src/services/DocumentGenerator';
 import type {CP12LockedPayload} from '../../../../src/services/cp12PdfGenerator';
 import {sanitizeRecipients, sendCp12CertificateEmail} from '../../../../src/services/email';
-// Importing the barrel registers all PDF generators in the registry
 import type {BreakdownReportLockedPayload} from '../../../../src/services/breakdownReportPdfGenerator';
 import type {CommissioningLockedPayload} from '../../../../src/services/commissioningPdfGenerator';
 import type {DecommissioningLockedPayload} from '../../../../src/services/decommissioningPdfGenerator';
@@ -47,23 +43,13 @@ import {
 import type {ServiceRecordLockedPayload} from '../../../../src/services/serviceRecordPdfGenerator';
 import type {WarningNoticeLockedPayload} from '../../../../src/services/warningNoticePdfGenerator';
 import {Document} from '../../../../src/types';
-import ReminderSection from '../../../../components/ReminderSection';
 import EmailRecipientsList from '../../../../components/EmailRecipientsList';
+import GasFormDetails from '../../../../components/documents/GasFormDetails';
+import {styles} from '../../../../components/documents/DocumentDetailStyles';
+import {formatDisplayDate, duplicateDocument, editDocument} from '../../../../src/services/documentActions';
 
 const INVOICE_STATUSES = ['Draft', 'Sent', 'Unpaid', 'Paid', 'Overdue'];
 const QUOTE_STATUSES = ['Draft', 'Sent', 'Accepted', 'Declined'];
-const CP12_DUPLICATE_SEED_KEY = 'cp12_duplicate_seed_v1';
-const CP12_EDIT_SEED_KEY = 'cp12_edit_seed_v1';
-const COMMISSIONING_DUPLICATE_SEED_KEY = 'commissioning_duplicate_seed_v1';
-const COMMISSIONING_EDIT_SEED_KEY = 'commissioning_edit_seed_v1';
-const DECOMMISSIONING_DUPLICATE_SEED_KEY = 'decommissioning_duplicate_seed_v1';
-const DECOMMISSIONING_EDIT_SEED_KEY = 'decommissioning_edit_seed_v1';
-const WARNING_NOTICE_DUPLICATE_SEED_KEY = 'warning_notice_duplicate_seed_v1';
-const WARNING_NOTICE_EDIT_SEED_KEY = 'warning_notice_edit_seed_v1';
-const BREAKDOWN_REPORT_DUPLICATE_SEED_KEY = 'breakdown_report_duplicate_seed_v1';
-const BREAKDOWN_REPORT_EDIT_SEED_KEY = 'breakdown_report_edit_seed_v1';
-const INSTALLATION_CERT_DUPLICATE_SEED_KEY = 'installation_cert_duplicate_seed_v1';
-const INSTALLATION_CERT_EDIT_SEED_KEY = 'installation_cert_edit_seed_v1';
 
 const STATUS_COLORS: Record<string, {color: string; bg: string}> = {
   Draft: {color: UI.text.muted, bg: UI.surface.elevated},
@@ -74,35 +60,6 @@ const STATUS_COLORS: Record<string, {color: string; bg: string}> = {
   Paid: {color: '#047857', bg: '#f0fdf4'},
   Overdue: {color: UI.brand.danger, bg: '#fef2f2'},
 };
-
-const splitAddress = (address?: string) => {
-  const parts = (address || '').split(',').map((part) => part.trim()).filter(Boolean);
-  return {
-    line1: parts[0] || '',
-    line2: parts.length > 3 ? parts.slice(1, -2).join(', ') : parts[1] || '',
-    city: parts.length > 2 ? parts[parts.length - 2] || '' : '',
-    postCode: parts.length > 1 ? parts[parts.length - 1] || '' : '',
-  };
-};
-
-const incrementDdMmYyyyByYear = (value?: string) => {
-  const [dd, mm, yyyy] = (value || '').split('/');
-  return yyyy ? `${dd}/${mm}/${String(Number(yyyy) + 1)}` : '';
-};
-
-const combineNotes = (...parts: Array<string | null | undefined>) => parts.map((part) => part?.trim()).filter(Boolean).join('\n\n');
-
-const formatDisplayDate = (value?: string | null) => {
-  if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-};
-
 
 export default function DocumentDetailScreen() {
   const {id} = useLocalSearchParams<{id: string}>();
@@ -451,478 +408,21 @@ export default function DocumentDetailScreen() {
     );
   };
 
-  const handleDuplicateCp12 = async () => {
-    if (!cp12Payload) return;
+  const handleDuplicate = async (payload: any) => {
+    if (!doc) return;
     setDuplicating(true);
     try {
-      const {pdfData} = cp12Payload;
-      const snap = doc?.customer_snapshot;
-
-      // Increment nextDueDate by 1 year (dd/mm/yyyy format)
-      const [dd, mm, yyyy] = (pdfData.nextDueDate || '').split('/');
-      const incrementedDueDate = yyyy ? `${dd}/${mm}/${String(Number(yyyy) + 1)}` : '';
-
-      // Parse landlord address parts back into form fields
-      const addrParts = (pdfData.landlordAddress || snap?.address || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      // Remove the postcode from the end if it matches landlordPostcode
-      const postCode = pdfData.landlordPostcode || snap?.postal_code || '';
-      const partsWithoutPostcode =
-        postCode && addrParts[addrParts.length - 1] === postCode
-          ? addrParts.slice(0, -1)
-          : addrParts;
-      const addrLine1 = partsWithoutPostcode[0] || snap?.address_line_1 || '';
-      const addrCity = partsWithoutPostcode.length > 1 ? partsWithoutPostcode[partsWithoutPostcode.length - 1] : snap?.city || '';
-      const addrLine2 = partsWithoutPostcode.length > 2 ? partsWithoutPostcode.slice(1, -1).join(', ') : snap?.address_line_2 || '';
-
-      await AsyncStorage.setItem(
-        CP12_DUPLICATE_SEED_KEY,
-        JSON.stringify({
-          propertyAddress: pdfData.propertyAddress,
-          appliances: pdfData.appliances,
-          landlordForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.landlordName || snap?.name || ''),
-            customerName: pdfData.landlordName || snap?.name || '',
-            customerCompany: pdfData.landlordCompany || snap?.company_name || '',
-            addressLine1: addrLine1,
-            addressLine2: addrLine2,
-            city: addrCity,
-            postCode,
-            email: pdfData.landlordEmail || snap?.email || '',
-            phone: pdfData.landlordPhone || snap?.phone || '',
-          },
-          tenantName: pdfData.tenantName || '',
-          tenantEmail: pdfData.tenantEmail || '',
-          tenantPhone: pdfData.tenantPhone || '',
-          nextDueDate: incrementedDueDate,
-          renewalReminderEnabled: !!pdfData.renewalReminderEnabled,
-        }),
-      );
-      router.push('/(app)/cp12' as any);
-    } catch {
-      Alert.alert('Error', 'Could not duplicate this gas certificate.');
+      await duplicateDocument(doc, payload, resolveCustomerId);
     } finally {
       setDuplicating(false);
     }
   };
 
-  const handleEditCp12 = async () => {
-    if (!cp12Payload || !doc) return;
+  const handleEdit = async (payload: any) => {
+    if (!doc) return;
     setDuplicating(true);
     try {
-      const {pdfData} = cp12Payload;
-
-      // Parse landlord address parts back into form fields
-      const addrParts = (pdfData.landlordAddress || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const postCode = pdfData.landlordPostcode || '';
-      const partsWithoutPostcode =
-        postCode && addrParts[addrParts.length - 1] === postCode
-          ? addrParts.slice(0, -1)
-          : addrParts;
-      const addrLine1 = partsWithoutPostcode[0] || '';
-      const addrCity = partsWithoutPostcode.length > 1 ? partsWithoutPostcode[partsWithoutPostcode.length - 1] : '';
-      const addrLine2 = partsWithoutPostcode.length > 2 ? partsWithoutPostcode.slice(1, -1).join(', ') : '';
-
-      await AsyncStorage.setItem(
-        CP12_EDIT_SEED_KEY,
-        JSON.stringify({
-          documentId: doc.id,
-          propertyAddress: pdfData.propertyAddress,
-          appliances: pdfData.appliances,
-          landlordForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.landlordName || ''),
-            customerName: pdfData.landlordName || '',
-            customerCompany: pdfData.landlordCompany || '',
-            addressLine1: addrLine1,
-            addressLine2: addrLine2,
-            city: addrCity,
-            postCode,
-            email: pdfData.landlordEmail || '',
-            phone: pdfData.landlordPhone || '',
-          },
-          tenantName: pdfData.tenantName || '',
-          tenantEmail: pdfData.tenantEmail || '',
-          tenantPhone: pdfData.tenantPhone || '',
-          nextDueDate: pdfData.nextDueDate || '',
-          renewalReminderEnabled: !!pdfData.renewalReminderEnabled,
-          inspectionDate: pdfData.inspectionDate || '',
-          finalChecks: pdfData.finalChecks,
-          customerSignature: pdfData.customerSignature || '',
-          certRef: pdfData.certRef || doc.reference || '',
-        }),
-      );
-      router.push('/(app)/cp12' as any);
-    } catch {
-      Alert.alert('Error', 'Could not open certificate for editing.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleDuplicateCommissioning = async () => {
-    if (!commissioningPayload) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = commissioningPayload;
-      const snap = doc?.customer_snapshot;
-      const customerAddress = splitAddress(pdfData.customerAddress || snap?.address);
-      await AsyncStorage.setItem(
-        COMMISSIONING_DUPLICATE_SEED_KEY,
-        JSON.stringify({
-          propertyAddress: pdfData.propertyAddress || snap?.address || '',
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || snap?.name || ''),
-            customerName: pdfData.customerName || snap?.name || '',
-            customerCompany: pdfData.customerCompany || snap?.company_name || '',
-            addressLine1: customerAddress.line1 || snap?.address_line_1 || '',
-            addressLine2: customerAddress.line2 || snap?.address_line_2 || '',
-            city: customerAddress.city || snap?.city || '',
-            postCode: customerAddress.postCode || snap?.postal_code || '',
-            email: pdfData.customerEmail || snap?.email || '',
-            phone: pdfData.customerPhone || snap?.phone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          commissioningDate: pdfData.commissioningDate,
-          nextServiceDate: incrementDdMmYyyyByYear(pdfData.nextServiceDate),
-        }),
-      );
-      router.push('/(app)/forms/commissioning' as any);
-    } catch {
-      Alert.alert('Error', 'Could not duplicate this commissioning certificate.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleEditCommissioning = async () => {
-    if (!commissioningPayload || !doc) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = commissioningPayload;
-      const customerAddress = splitAddress(pdfData.customerAddress);
-      await AsyncStorage.setItem(
-        COMMISSIONING_EDIT_SEED_KEY,
-        JSON.stringify({
-          documentId: doc.id,
-          propertyAddress: pdfData.propertyAddress,
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
-            customerName: pdfData.customerName || '',
-            customerCompany: pdfData.customerCompany || '',
-            addressLine1: customerAddress.line1,
-            addressLine2: customerAddress.line2,
-            city: customerAddress.city,
-            postCode: customerAddress.postCode,
-            email: pdfData.customerEmail || '',
-            phone: pdfData.customerPhone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          commissioningDate: pdfData.commissioningDate,
-          nextServiceDate: pdfData.nextServiceDate,
-          customerSignature: pdfData.customerSignature || '',
-          certRef: pdfData.certRef || doc.reference || '',
-        }),
-      );
-      router.push('/(app)/forms/commissioning' as any);
-    } catch {
-      Alert.alert('Error', 'Could not open commissioning certificate for editing.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleDuplicateDecommissioning = async () => {
-    if (!decommissioningPayload) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = decommissioningPayload;
-      const snap = doc?.customer_snapshot;
-      const customerAddress = splitAddress(pdfData.customerAddress || snap?.address);
-      await AsyncStorage.setItem(
-        DECOMMISSIONING_DUPLICATE_SEED_KEY,
-        JSON.stringify({
-          propertyAddress: pdfData.propertyAddress || snap?.address || '',
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || snap?.name || ''),
-            customerName: pdfData.customerName || snap?.name || '',
-            customerCompany: pdfData.customerCompany || snap?.company_name || '',
-            addressLine1: customerAddress.line1 || snap?.address_line_1 || '',
-            addressLine2: customerAddress.line2 || snap?.address_line_2 || '',
-            city: customerAddress.city || snap?.city || '',
-            postCode: customerAddress.postCode || snap?.postal_code || '',
-            email: pdfData.customerEmail || snap?.email || '',
-            phone: pdfData.customerPhone || snap?.phone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          decommissionDate: pdfData.decommissionDate,
-        }),
-      );
-      router.push('/(app)/forms/decommissioning' as any);
-    } catch {
-      Alert.alert('Error', 'Could not duplicate this decommissioning certificate.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleEditDecommissioning = async () => {
-    if (!decommissioningPayload || !doc) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = decommissioningPayload;
-      const customerAddress = splitAddress(pdfData.customerAddress);
-      await AsyncStorage.setItem(
-        DECOMMISSIONING_EDIT_SEED_KEY,
-        JSON.stringify({
-          documentId: doc.id,
-          propertyAddress: pdfData.propertyAddress,
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
-            customerName: pdfData.customerName || '',
-            customerCompany: pdfData.customerCompany || '',
-            addressLine1: customerAddress.line1,
-            addressLine2: customerAddress.line2,
-            city: customerAddress.city,
-            postCode: customerAddress.postCode,
-            email: pdfData.customerEmail || '',
-            phone: pdfData.customerPhone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          decommissionDate: pdfData.decommissionDate,
-          customerSignature: pdfData.customerSignature || '',
-          certRef: pdfData.certRef || doc.reference || '',
-        }),
-      );
-      router.push('/(app)/forms/decommissioning' as any);
-    } catch {
-      Alert.alert('Error', 'Could not open decommissioning certificate for editing.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleDuplicateWarningNotice = async () => {
-    if (!warningNoticePayload) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = warningNoticePayload;
-      const snap = doc?.customer_snapshot;
-      const customerAddress = splitAddress(pdfData.customerAddress || snap?.address);
-      await AsyncStorage.setItem(
-        WARNING_NOTICE_DUPLICATE_SEED_KEY,
-        JSON.stringify({
-          propertyAddress: pdfData.propertyAddress || snap?.address || '',
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || snap?.name || ''),
-            customerName: pdfData.customerName || snap?.name || '',
-            customerCompany: pdfData.customerCompany || snap?.company_name || '',
-            addressLine1: customerAddress.line1 || snap?.address_line_1 || '',
-            addressLine2: customerAddress.line2 || snap?.address_line_2 || '',
-            city: customerAddress.city || snap?.city || '',
-            postCode: customerAddress.postCode || snap?.postal_code || '',
-            email: pdfData.customerEmail || snap?.email || '',
-            phone: pdfData.customerPhone || snap?.phone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          issueDate: pdfData.issueDate,
-        }),
-      );
-      router.push('/(app)/forms/warning-notice' as any);
-    } catch {
-      Alert.alert('Error', 'Could not duplicate this warning notice.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleEditWarningNotice = async () => {
-    if (!warningNoticePayload || !doc) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = warningNoticePayload;
-      const customerAddress = splitAddress(pdfData.customerAddress);
-      await AsyncStorage.setItem(
-        WARNING_NOTICE_EDIT_SEED_KEY,
-        JSON.stringify({
-          documentId: doc.id,
-          propertyAddress: pdfData.propertyAddress,
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
-            customerName: pdfData.customerName || '',
-            customerCompany: pdfData.customerCompany || '',
-            addressLine1: customerAddress.line1,
-            addressLine2: customerAddress.line2,
-            city: customerAddress.city,
-            postCode: customerAddress.postCode,
-            email: pdfData.customerEmail || '',
-            phone: pdfData.customerPhone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          issueDate: pdfData.issueDate,
-          customerSignature: pdfData.customerSignature || '',
-          certRef: pdfData.certRef || doc.reference || '',
-        }),
-      );
-      router.push('/(app)/forms/warning-notice' as any);
-    } catch {
-      Alert.alert('Error', 'Could not open warning notice for editing.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleDuplicateBreakdown = async () => {
-    if (!breakdownPayload) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = breakdownPayload;
-      const snap = doc?.customer_snapshot;
-      const customerAddress = splitAddress(pdfData.customerAddress || snap?.address);
-      await AsyncStorage.setItem(
-        BREAKDOWN_REPORT_DUPLICATE_SEED_KEY,
-        JSON.stringify({
-          propertyAddress: pdfData.propertyAddress || snap?.address || '',
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || snap?.name || ''),
-            customerName: pdfData.customerName || snap?.name || '',
-            customerCompany: pdfData.customerCompany || snap?.company_name || '',
-            addressLine1: customerAddress.line1 || snap?.address_line_1 || '',
-            addressLine2: customerAddress.line2 || snap?.address_line_2 || '',
-            city: customerAddress.city || snap?.city || '',
-            postCode: customerAddress.postCode || snap?.postal_code || '',
-            email: pdfData.customerEmail || snap?.email || '',
-            phone: pdfData.customerPhone || snap?.phone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          reportDate: pdfData.reportDate,
-        }),
-      );
-      router.push('/(app)/forms/breakdown' as any);
-    } catch {
-      Alert.alert('Error', 'Could not duplicate this breakdown report.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleEditBreakdown = async () => {
-    if (!breakdownPayload || !doc) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = breakdownPayload;
-      const customerAddress = splitAddress(pdfData.customerAddress);
-      await AsyncStorage.setItem(
-        BREAKDOWN_REPORT_EDIT_SEED_KEY,
-        JSON.stringify({
-          documentId: doc.id,
-          propertyAddress: pdfData.propertyAddress,
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
-            customerName: pdfData.customerName || '',
-            customerCompany: pdfData.customerCompany || '',
-            addressLine1: customerAddress.line1,
-            addressLine2: customerAddress.line2,
-            city: customerAddress.city,
-            postCode: customerAddress.postCode,
-            email: pdfData.customerEmail || '',
-            phone: pdfData.customerPhone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          reportDate: pdfData.reportDate,
-          customerSignature: pdfData.customerSignature || '',
-          certRef: pdfData.certRef || doc.reference || '',
-        }),
-      );
-      router.push('/(app)/forms/breakdown' as any);
-    } catch {
-      Alert.alert('Error', 'Could not open breakdown report for editing.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleDuplicateInstallation = async () => {
-    if (!installationPayload) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = installationPayload;
-      const snap = doc?.customer_snapshot;
-      const customerAddress = splitAddress(pdfData.customerAddress || snap?.address);
-      await AsyncStorage.setItem(
-        INSTALLATION_CERT_DUPLICATE_SEED_KEY,
-        JSON.stringify({
-          propertyAddress: pdfData.propertyAddress || snap?.address || '',
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || snap?.name || ''),
-            customerName: pdfData.customerName || snap?.name || '',
-            customerCompany: pdfData.customerCompany || snap?.company_name || '',
-            addressLine1: customerAddress.line1 || snap?.address_line_1 || '',
-            addressLine2: customerAddress.line2 || snap?.address_line_2 || '',
-            city: customerAddress.city || snap?.city || '',
-            postCode: customerAddress.postCode || snap?.postal_code || '',
-            email: pdfData.customerEmail || snap?.email || '',
-            phone: pdfData.customerPhone || snap?.phone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          installationDate: pdfData.installationDate,
-          nextServiceDate: incrementDdMmYyyyByYear(pdfData.nextServiceDate),
-        }),
-      );
-      router.push('/(app)/forms/installation' as any);
-    } catch {
-      Alert.alert('Error', 'Could not duplicate this installation certificate.');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
-  const handleEditInstallation = async () => {
-    if (!installationPayload || !doc) return;
-    setDuplicating(true);
-    try {
-      const {pdfData} = installationPayload;
-      const customerAddress = splitAddress(pdfData.customerAddress);
-      await AsyncStorage.setItem(
-        INSTALLATION_CERT_EDIT_SEED_KEY,
-        JSON.stringify({
-          documentId: doc.id,
-          propertyAddress: pdfData.propertyAddress,
-          appliances: pdfData.appliances,
-          customerForm: {
-            customerId: await resolveCustomerId(doc?.customer_id, pdfData.customerName || ''),
-            customerName: pdfData.customerName || '',
-            customerCompany: pdfData.customerCompany || '',
-            addressLine1: customerAddress.line1,
-            addressLine2: customerAddress.line2,
-            city: customerAddress.city,
-            postCode: customerAddress.postCode,
-            email: pdfData.customerEmail || '',
-            phone: pdfData.customerPhone || '',
-          },
-          finalInfo: pdfData.finalInfo,
-          installationDate: pdfData.installationDate,
-          nextServiceDate: pdfData.nextServiceDate,
-          customerSignature: pdfData.customerSignature || '',
-          certRef: pdfData.certRef || doc.reference || '',
-        }),
-      );
-      router.push('/(app)/forms/installation' as any);
-    } catch {
-      Alert.alert('Error', 'Could not open installation certificate for editing.');
+      await editDocument(doc, payload, resolveCustomerId);
     } finally {
       setDuplicating(false);
     }
@@ -1100,433 +600,37 @@ export default function DocumentDetailScreen() {
         </View>
       </Animated.View>
 
-      {/* CP12 Details */}
-      {isCp12 && cp12Payload ? (
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          {/* Engineer info */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Engineer</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={16} color={UI.brand.primary} />
-                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{cp12Payload.engineer.name || 'Not specified'}</Text>
-              </View>
-              {cp12Payload.engineer.gasSafeNumber ? (
-                <View style={styles.detailRow}>
-                  <Ionicons name="shield-outline" size={16} color={UI.status.complete} />
-                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>Gas Safe: {cp12Payload.engineer.gasSafeNumber}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Property & People */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Property & People</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.detailRow}>
-                <Ionicons name="home-outline" size={16} color={UI.status.inProgress} />
-                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{cp12Payload.pdfData.propertyAddress || 'No address'}</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.detailRow}>
-                <Ionicons name="business-outline" size={16} color={UI.status.pending} />
-                <View>
-                  <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Landlord</Text>
-                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{cp12Payload.pdfData.landlordName || '—'}</Text>
-                </View>
-              </View>
-              <View style={styles.detailRow}>
-                <Ionicons name="people-outline" size={16} color={UI.status.paid} />
-                <View>
-                  <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Tenant</Text>
-                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{cp12Payload.pdfData.tenantName || '—'}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Appliances summary */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Appliances ({cp12Payload.pdfData.appliances.length})</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              {cp12Payload.pdfData.appliances.map((app, i) => (
-                <View key={i} style={[styles.applianceRow, i > 0 && {borderTopWidth: 1, borderTopColor: isDark ? theme.surface.divider : UI.surface.elevated, paddingTop: 10}]}>
-                  <View style={styles.applianceNum}>
-                    <Text style={styles.applianceNumText}>{i + 1}</Text>
-                  </View>
-                  <View style={{flex: 1}}>
-                    <Text style={[styles.applianceName, isDark && {color: theme.text.title}]}>{app.make} {app.model}</Text>
-                    <Text style={[styles.applianceLocation, isDark && {color: theme.text.muted}]}>{app.location} • {app.type}</Text>
-                  </View>
-                  <View style={[
-                    styles.safetyBadge,
-                    {backgroundColor: app.applianceSafeToUse === 'Yes' ? '#F0FDF4' : app.applianceSafeToUse === 'No' ? '#FEF2F2' : UI.surface.elevated}
-                  ]}>
-                    <Ionicons
-                      name={app.applianceSafeToUse === 'Yes' ? 'checkmark-circle' : app.applianceSafeToUse === 'No' ? 'close-circle' : 'help-circle'}
-                      size={14}
-                      color={app.applianceSafeToUse === 'Yes' ? '#15803d' : app.applianceSafeToUse === 'No' ? UI.brand.danger : UI.text.muted}
-                    />
-                    <Text style={[
-                      styles.safetyText,
-                      {color: app.applianceSafeToUse === 'Yes' ? '#15803d' : app.applianceSafeToUse === 'No' ? UI.brand.danger : UI.text.muted}
-                    ]}>
-                      {app.applianceSafeToUse === 'Yes' ? 'Safe' : app.applianceSafeToUse === 'No' ? 'Unsafe' : 'N/A'}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Inspection dates */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Inspection</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.dateRow}>
-                <View style={styles.dateItem}>
-                  <Ionicons name="calendar" size={18} color={UI.brand.primary} />
-                  <View>
-                    <Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Inspected</Text>
-                    <Text style={[styles.dateValue, isDark && {color: theme.text.title}]}>{cp12Payload.pdfData.inspectionDate}</Text>
-                  </View>
-                </View>
-                <View style={styles.dateItem}>
-                  <Ionicons name="alarm" size={18} color={UI.status.pending} />
-                  <View>
-                    <Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Next Due</Text>
-                    <Text style={[styles.dateValue, {color: UI.status.pending}]}>{cp12Payload.pdfData.nextDueDate}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Renewal Reminder</Text>
-            <ReminderSection
-              enabled={!!cp12Payload.pdfData.renewalReminderEnabled}
-              onToggle={handleReminderToggle}
-              savedEmails={savedEmails}
-              initialOneTimeEmails={(lockedPayload as any)?.oneTimeReminderEmails ?? []}
-              onOneTimeEmailsChange={(emails) => {
-                setOneTimeEmails(emails);
-                setHasUnsavedEmails(true);
-              }}
-            />
-            {hasUnsavedEmails && (
-              <TouchableOpacity
-                style={{backgroundColor: UI.brand.primary, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: -8, marginBottom: 8}}
-                onPress={handleSaveOneTimeEmails}
-              >
-                <Text style={{color: '#fff', fontWeight: '700', fontSize: 14}}>Save One-Time Emails</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </Animated.View>
-      ) : isSR && srPayload ? (
-        /* Service Record details */
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          {/* Engineer info */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Engineer</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={16} color="#059669" />
-                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{srPayload.engineer.name || 'Not specified'}</Text>
-              </View>
-              {srPayload.engineer.gasSafeNumber ? (
-                <View style={styles.detailRow}>
-                  <Ionicons name="shield-outline" size={16} color={UI.status.complete} />
-                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>Gas Safe: {srPayload.engineer.gasSafeNumber}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Customer & Property */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Customer & Property</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={16} color={UI.status.pending} />
-                <View>
-                  <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text>
-                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{srPayload.pdfData.customerName || '—'}</Text>
-                </View>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.detailRow}>
-                <Ionicons name="home-outline" size={16} color={UI.status.inProgress} />
-                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{srPayload.pdfData.propertyAddress || 'No address'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Appliance summary */}
-          {srPayload.pdfData.appliances.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Appliance</Text>
-              <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-                {srPayload.pdfData.appliances.map((app, i) => (
-                  <View key={i} style={[styles.applianceRow, i > 0 && {borderTopWidth: 1, borderTopColor: isDark ? theme.surface.divider : UI.surface.elevated, paddingTop: 10}]}>
-                    <View style={styles.applianceNum}>
-                      <Text style={styles.applianceNumText}>{i + 1}</Text>
-                    </View>
-                    <View style={{flex: 1}}>
-                      <Text style={[styles.applianceName, isDark && {color: theme.text.title}]}>{app.make} {app.model}</Text>
-                      <Text style={[styles.applianceLocation, isDark && {color: theme.text.muted}]}>{app.location} • {app.category}</Text>
-                    </View>
-                    <View style={[
-                      styles.safetyBadge,
-                      {backgroundColor: app.applianceCondition === 'Safe' ? '#F0FDF4' : app.applianceCondition === 'Unsafe' ? '#FEF2F2' : UI.surface.elevated}
-                    ]}>
-                      <Ionicons
-                        name={app.applianceCondition === 'Safe' ? 'checkmark-circle' : app.applianceCondition === 'Unsafe' ? 'close-circle' : 'help-circle'}
-                        size={14}
-                        color={app.applianceCondition === 'Safe' ? '#15803d' : app.applianceCondition === 'Unsafe' ? UI.brand.danger : UI.text.muted}
-                      />
-                      <Text style={[
-                        styles.safetyText,
-                        {color: app.applianceCondition === 'Safe' ? '#15803d' : app.applianceCondition === 'Unsafe' ? UI.brand.danger : UI.text.muted}
-                      ]}>
-                        {app.applianceCondition || 'N/A'}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Service dates */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Service Dates</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.dateRow}>
-                <View style={styles.dateItem}>
-                  <Ionicons name="calendar" size={18} color="#059669" />
-                  <View>
-                    <Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Service Date</Text>
-                    <Text style={[styles.dateValue, isDark && {color: theme.text.title}]}>{srPayload.pdfData.serviceDate}</Text>
-                  </View>
-                </View>
-                <View style={styles.dateItem}>
-                  <Ionicons name="alarm" size={18} color={UI.status.pending} />
-                  <View>
-                    <Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Next Inspection</Text>
-                    <Text style={[styles.dateValue, {color: UI.status.pending}]}>{srPayload.pdfData.nextInspectionDate || '—'}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Renewal Reminder</Text>
-            <ReminderSection
-              enabled={!!srPayload.pdfData.renewalReminderEnabled}
-              onToggle={handleReminderToggle}
-              savedEmails={savedEmails}
-              initialOneTimeEmails={(lockedPayload as any)?.oneTimeReminderEmails ?? []}
-              onOneTimeEmailsChange={(emails) => {
-                setOneTimeEmails(emails);
-                setHasUnsavedEmails(true);
-              }}
-            />
-            {hasUnsavedEmails && (
-              <TouchableOpacity
-                style={{backgroundColor: UI.brand.primary, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: -8, marginBottom: 8}}
-                onPress={handleSaveOneTimeEmails}
-              >
-                <Text style={{color: '#fff', fontWeight: '700', fontSize: 14}}>Save One-Time Emails</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </Animated.View>
-      ) : isCommissioning && commissioningPayload ? (
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Engineer</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={16} color="#7C3AED" />
-                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{commissioningPayload.engineer.name || 'Not specified'}</Text>
-              </View>
-              {commissioningPayload.engineer.gasSafeNumber ? (
-                <View style={styles.detailRow}>
-                  <Ionicons name="shield-outline" size={16} color={UI.status.complete} />
-                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>Gas Safe: {commissioningPayload.engineer.gasSafeNumber}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Customer & Property</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={16} color={UI.status.pending} />
-                <View>
-                  <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text>
-                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{commissioningPayload.pdfData.customerName || '—'}</Text>
-                </View>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.detailRow}>
-                <Ionicons name="home-outline" size={16} color={UI.status.inProgress} />
-                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{commissioningPayload.pdfData.propertyAddress || 'No address'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {commissioningPayload.pdfData.appliances.length > 0 ? (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Appliance</Text>
-              <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-                {commissioningPayload.pdfData.appliances.map((app, i) => (
-                  <View key={i} style={[styles.applianceRow, i > 0 && {borderTopWidth: 1, borderTopColor: isDark ? theme.surface.divider : UI.surface.elevated, paddingTop: 10}]}>
-                    <View style={[styles.applianceNum, {backgroundColor: '#F5F3FF'}]}>
-                      <Text style={[styles.applianceNumText, {color: '#7C3AED'}]}>{i + 1}</Text>
-                    </View>
-                    <View style={{flex: 1}}>
-                      <Text style={[styles.applianceName, isDark && {color: theme.text.title}]}>{app.make} {app.model}</Text>
-                      <Text style={[styles.applianceLocation, isDark && {color: theme.text.muted}]}>{app.location} • {app.category}</Text>
-                    </View>
-                    <View style={[styles.safetyBadge, {backgroundColor: app.applianceCondition === 'Safe' ? '#F0FDF4' : app.applianceCondition === 'Unsafe' ? '#FEF2F2' : UI.surface.elevated}]}>
-                      <Text style={[styles.safetyText, {color: app.applianceCondition === 'Safe' ? '#15803d' : app.applianceCondition === 'Unsafe' ? UI.brand.danger : UI.text.muted}]}>{app.applianceCondition || 'N/A'}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Commissioning</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.dateRow}>
-                <View style={styles.dateItem}>
-                  <Ionicons name="calendar" size={18} color="#7C3AED" />
-                  <View>
-                    <Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Commissioned</Text>
-                    <Text style={[styles.dateValue, isDark && {color: theme.text.title}]}>{commissioningPayload.pdfData.commissioningDate}</Text>
-                  </View>
-                </View>
-                <View style={styles.dateItem}>
-                  <Ionicons name="alarm" size={18} color={UI.status.pending} />
-                  <View>
-                    <Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Next Service</Text>
-                    <Text style={[styles.dateValue, {color: UI.status.pending}]}>{commissioningPayload.pdfData.nextServiceDate || '—'}</Text>
-                  </View>
-                </View>
-              </View>
-              <View style={styles.divider} />
-              <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Outcome</Text>
-              <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{combineNotes(commissioningPayload.pdfData.finalInfo.commissioningOutcome, commissioningPayload.pdfData.finalInfo.additionalWorkRequired ? `Further work required:\n${commissioningPayload.pdfData.finalInfo.additionalWorkRequired}` : '') || '—'}</Text>
-            </View>
-          </View>
-        </Animated.View>
-      ) : isDecommissioning && decommissioningPayload ? (
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Engineer</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={16} color="#64748B" />
-                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{decommissioningPayload.engineer.name || 'Not specified'}</Text>
-              </View>
-              {decommissioningPayload.engineer.gasSafeNumber ? (
-                <View style={styles.detailRow}>
-                  <Ionicons name="shield-outline" size={16} color={UI.status.complete} />
-                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>Gas Safe: {decommissioningPayload.engineer.gasSafeNumber}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Customer & Property</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={16} color={UI.status.pending} />
-                <View>
-                  <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text>
-                  <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{decommissioningPayload.pdfData.customerName || '—'}</Text>
-                </View>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.detailRow}>
-                <Ionicons name="home-outline" size={16} color={UI.status.inProgress} />
-                <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{decommissioningPayload.pdfData.propertyAddress || 'No address'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {decommissioningPayload.pdfData.appliances.length > 0 ? (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Appliance</Text>
-              <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-                {decommissioningPayload.pdfData.appliances.map((app, i) => (
-                  <View key={i} style={[styles.applianceRow, i > 0 && {borderTopWidth: 1, borderTopColor: isDark ? theme.surface.divider : UI.surface.elevated, paddingTop: 10}]}>
-                    <View style={[styles.applianceNum, {backgroundColor: '#F8FAFC'}]}>
-                      <Text style={[styles.applianceNumText, {color: '#64748B'}]}>{i + 1}</Text>
-                    </View>
-                    <View style={{flex: 1}}>
-                      <Text style={[styles.applianceName, isDark && {color: theme.text.title}]}>{app.make} {app.model}</Text>
-                      <Text style={[styles.applianceLocation, isDark && {color: theme.text.muted}]}>{app.location} • {app.category}</Text>
-                    </View>
-                    <View style={[styles.safetyBadge, {backgroundColor: app.applianceCondition === 'Safe' ? '#F0FDF4' : app.applianceCondition === 'Unsafe' ? '#FEF2F2' : UI.surface.elevated}]}>
-                      <Text style={[styles.safetyText, {color: app.applianceCondition === 'Safe' ? '#15803d' : app.applianceCondition === 'Unsafe' ? UI.brand.danger : UI.text.muted}]}>{app.applianceCondition || 'N/A'}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Decommissioning</Text>
-            <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}>
-              <View style={styles.dateRow}>
-                <View style={styles.dateItem}>
-                  <Ionicons name="calendar" size={18} color="#64748B" />
-                  <View>
-                    <Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Date</Text>
-                    <Text style={[styles.dateValue, isDark && {color: theme.text.title}]}>{decommissioningPayload.pdfData.decommissionDate}</Text>
-                  </View>
-                </View>
-              </View>
-              <View style={styles.divider} />
-              <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Reason</Text>
-              <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{decommissioningPayload.pdfData.appliances[0]?.decommissionReason || '—'}</Text>
-              <View style={styles.divider} />
-              <Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Completion notes</Text>
-              <Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{combineNotes(decommissioningPayload.pdfData.finalInfo.certificateNotes, decommissioningPayload.pdfData.finalInfo.furtherWorkRequired ? `Further work required:\n${decommissioningPayload.pdfData.finalInfo.furtherWorkRequired}` : '') || '—'}</Text>
-            </View>
-          </View>
-        </Animated.View>
-      ) : isWarningNotice && warningNoticePayload ? (
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <View style={styles.section}><Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Engineer</Text><View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}><View style={styles.detailRow}><Ionicons name="person-outline" size={16} color="#DC2626" /><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{warningNoticePayload.engineer.name || 'Not specified'}</Text></View>{warningNoticePayload.engineer.gasSafeNumber ? <View style={styles.detailRow}><Ionicons name="shield-outline" size={16} color={UI.status.complete} /><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>Gas Safe: {warningNoticePayload.engineer.gasSafeNumber}</Text></View> : null}</View></View>
-          <View style={styles.section}><Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Customer & Property</Text><View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}><View style={styles.detailRow}><Ionicons name="person-outline" size={16} color={UI.status.pending} /><View><Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{warningNoticePayload.pdfData.customerName || '—'}</Text></View></View><View style={styles.divider} /><View style={styles.detailRow}><Ionicons name="home-outline" size={16} color={UI.status.inProgress} /><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{warningNoticePayload.pdfData.propertyAddress || 'No address'}</Text></View></View></View>
-          <View style={styles.section}><Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Hazard</Text><View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}><Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Classification</Text><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{warningNoticePayload.pdfData.appliances[0]?.warningClassification || '—'}</Text><View style={styles.divider} /><Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Unsafe Situation</Text><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{warningNoticePayload.pdfData.appliances[0]?.unsafeSituation || '—'}</Text><View style={styles.divider} /><Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Actions Taken</Text><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{warningNoticePayload.pdfData.appliances[0]?.actionsTaken || '—'}</Text><View style={styles.divider} /><Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Outcome / advice notes</Text><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{combineNotes(warningNoticePayload.pdfData.finalInfo.engineerOpinion, warningNoticePayload.pdfData.finalInfo.furtherActionRequired ? `Further action required:\n${warningNoticePayload.pdfData.finalInfo.furtherActionRequired}` : '', warningNoticePayload.pdfData.appliances[0]?.engineerNotes ? `Engineer notes:\n${warningNoticePayload.pdfData.appliances[0].engineerNotes}` : '') || '—'}</Text></View></View>
-        </Animated.View>
-      ) : isBreakdown && breakdownPayload ? (
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <View style={styles.section}><Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Engineer</Text><View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}><View style={styles.detailRow}><Ionicons name="person-outline" size={16} color="#D97706" /><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{breakdownPayload.engineer.name || 'Not specified'}</Text></View>{breakdownPayload.engineer.gasSafeNumber ? <View style={styles.detailRow}><Ionicons name="shield-outline" size={16} color={UI.status.complete} /><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>Gas Safe: {breakdownPayload.engineer.gasSafeNumber}</Text></View> : null}</View></View>
-          <View style={styles.section}><Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Customer & Property</Text><View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}><View style={styles.detailRow}><Ionicons name="person-outline" size={16} color={UI.status.pending} /><View><Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{breakdownPayload.pdfData.customerName || '—'}</Text></View></View><View style={styles.divider} /><View style={styles.detailRow}><Ionicons name="home-outline" size={16} color={UI.status.inProgress} /><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{breakdownPayload.pdfData.propertyAddress || 'No address'}</Text></View></View></View>
-          <View style={styles.section}><Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Breakdown</Text><View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}><Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Diagnosis / outcome</Text><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{combineNotes(breakdownPayload.pdfData.finalInfo.repairOutcome, breakdownPayload.pdfData.finalInfo.faultFound ? `Fault found:\n${breakdownPayload.pdfData.finalInfo.faultFound}` : '', breakdownPayload.pdfData.finalInfo.furtherWorkRequired ? `Further work required:\n${breakdownPayload.pdfData.finalInfo.furtherWorkRequired}` : '') || '—'}</Text></View></View>
-        </Animated.View>
-      ) : isInstallation && installationPayload ? (
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <View style={styles.section}><Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Engineer</Text><View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}><View style={styles.detailRow}><Ionicons name="person-outline" size={16} color="#0284C7" /><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{installationPayload.engineer.name || 'Not specified'}</Text></View>{installationPayload.engineer.gasSafeNumber ? <View style={styles.detailRow}><Ionicons name="shield-outline" size={16} color={UI.status.complete} /><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>Gas Safe: {installationPayload.engineer.gasSafeNumber}</Text></View> : null}</View></View>
-          <View style={styles.section}><Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Customer & Property</Text><View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}><View style={styles.detailRow}><Ionicons name="person-outline" size={16} color={UI.status.pending} /><View><Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Customer</Text><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{installationPayload.pdfData.customerName || '—'}</Text></View></View><View style={styles.divider} /><View style={styles.detailRow}><Ionicons name="home-outline" size={16} color={UI.status.inProgress} /><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{installationPayload.pdfData.propertyAddress || 'No address'}</Text></View></View></View>
-          <View style={styles.section}><Text style={[styles.sectionLabel, isDark && {color: theme.text.muted}]}>Installation</Text><View style={[styles.card, isDark && {backgroundColor: theme.surface.card, shadowColor: 'transparent'}]}><View style={styles.dateRow}><View style={styles.dateItem}><Ionicons name="calendar" size={18} color="#0284C7" /><View><Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Installed</Text><Text style={[styles.dateValue, isDark && {color: theme.text.title}]}>{installationPayload.pdfData.installationDate}</Text></View></View><View style={styles.dateItem}><Ionicons name="alarm" size={18} color={UI.status.pending} /><View><Text style={[styles.dateLabel, isDark && {color: theme.text.muted}]}>Next Service</Text><Text style={[styles.dateValue, {color: UI.status.pending}]}>{installationPayload.pdfData.nextServiceDate || '—'}</Text></View></View></View><View style={styles.divider} /><Text style={[styles.detailLabel, isDark && {color: theme.text.muted}]}>Outcome</Text><Text style={[styles.detailText, isDark && {color: theme.text.title}]}>{combineNotes(installationPayload.pdfData.finalInfo.installationOutcome, installationPayload.pdfData.finalInfo.furtherWorkRequired ? `Further work required:\n${installationPayload.pdfData.finalInfo.furtherWorkRequired}` : '') || '—'}</Text></View></View>
-        </Animated.View>
+      {/* Gas Form Details */}
+      {isGasForm ? (
+        <GasFormDetails
+          isCp12={!!isCp12}
+          isSR={!!isSR}
+          isCommissioning={isCommissioning}
+          isDecommissioning={isDecommissioning}
+          isWarningNotice={isWarningNotice}
+          isBreakdown={isBreakdown}
+          isInstallation={isInstallation}
+          cp12Payload={cp12Payload}
+          srPayload={srPayload}
+          commissioningPayload={commissioningPayload}
+          decommissioningPayload={decommissioningPayload}
+          warningNoticePayload={warningNoticePayload}
+          breakdownPayload={breakdownPayload}
+          installationPayload={installationPayload}
+          lockedPayload={lockedPayload}
+          savedEmails={savedEmails}
+          hasUnsavedEmails={hasUnsavedEmails}
+          isDark={isDark}
+          theme={theme}
+          onReminderToggle={handleReminderToggle}
+          onOneTimeEmailsChange={(emails) => {
+            setOneTimeEmails(emails);
+            setHasUnsavedEmails(true);
+          }}
+          onSaveOneTimeEmails={handleSaveOneTimeEmails}
+        />
       ) : (
-        /* Non-CP12 document sections */
+        /* Non-gas-form document sections (invoice/quote) */
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           {/* Customer */}
           <View style={styles.section}>
@@ -1658,7 +762,7 @@ export default function DocumentDetailScreen() {
 
         {/* CP12-specific: edit + duplicate */}
         {isCp12 ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleEditCp12} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(cp12Payload)} disabled={isBusy}>
             {duplicating ? (
               <ActivityIndicator color={UI.brand.primary} size="small" />
             ) : (
@@ -1671,7 +775,7 @@ export default function DocumentDetailScreen() {
         ) : null}
 
         {isCp12 ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleDuplicateCp12} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(cp12Payload)} disabled={isBusy}>
             {duplicating ? (
               <ActivityIndicator color={UI.brand.primary} size="small" />
             ) : (
@@ -1684,7 +788,7 @@ export default function DocumentDetailScreen() {
         ) : null}
 
         {isCommissioning ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleEditCommissioning} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(commissioningPayload)} disabled={isBusy}>
             {duplicating ? (
               <ActivityIndicator color={UI.brand.primary} size="small" />
             ) : (
@@ -1697,7 +801,7 @@ export default function DocumentDetailScreen() {
         ) : null}
 
         {isCommissioning ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleDuplicateCommissioning} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(commissioningPayload)} disabled={isBusy}>
             {duplicating ? (
               <ActivityIndicator color={UI.brand.primary} size="small" />
             ) : (
@@ -1710,7 +814,7 @@ export default function DocumentDetailScreen() {
         ) : null}
 
         {isDecommissioning ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleEditDecommissioning} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(decommissioningPayload)} disabled={isBusy}>
             {duplicating ? (
               <ActivityIndicator color={UI.brand.primary} size="small" />
             ) : (
@@ -1723,7 +827,7 @@ export default function DocumentDetailScreen() {
         ) : null}
 
         {isDecommissioning ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleDuplicateDecommissioning} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(decommissioningPayload)} disabled={isBusy}>
             {duplicating ? (
               <ActivityIndicator color={UI.brand.primary} size="small" />
             ) : (
@@ -1736,37 +840,37 @@ export default function DocumentDetailScreen() {
         ) : null}
 
         {isWarningNotice ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleEditWarningNotice} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(warningNoticePayload)} disabled={isBusy}>
             {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="create-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Edit Notice</Text></>}
           </TouchableOpacity>
         ) : null}
 
         {isWarningNotice ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleDuplicateWarningNotice} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(warningNoticePayload)} disabled={isBusy}>
             {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="copy-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Duplicate Notice</Text></>}
           </TouchableOpacity>
         ) : null}
 
         {isBreakdown ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleEditBreakdown} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(breakdownPayload)} disabled={isBusy}>
             {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="create-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Edit Report</Text></>}
           </TouchableOpacity>
         ) : null}
 
         {isBreakdown ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleDuplicateBreakdown} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(breakdownPayload)} disabled={isBusy}>
             {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="copy-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Duplicate Report</Text></>}
           </TouchableOpacity>
         ) : null}
 
         {isInstallation ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleEditInstallation} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(installationPayload)} disabled={isBusy}>
             {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="create-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Edit Certificate</Text></>}
           </TouchableOpacity>
         ) : null}
 
         {isInstallation ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleDuplicateInstallation} disabled={isBusy}>
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(installationPayload)} disabled={isBusy}>
             {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="copy-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Duplicate for Next Service</Text></>}
           </TouchableOpacity>
         ) : null}
@@ -1818,7 +922,7 @@ export default function DocumentDetailScreen() {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={[styles.modalCard, isDark && {backgroundColor: theme.surface.card}]}>
               <Text style={[styles.modalTitle, isDark && {color: theme.text.title}]}>Send Document Email</Text>
-              
+
               <Text style={[styles.modalLabel, isDark && {color: theme.text.body}]}>Subject</Text>
               <TextInput
                 style={[styles.modalInput, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}, {marginBottom: 16}]}
@@ -1831,7 +935,7 @@ export default function DocumentDetailScreen() {
 
               <EmailRecipientsList
                 defaultEmails={sanitizeRecipients(
-                  parseLockedPayload(doc?.payment_info)?.kind === 'cp12' 
+                  parseLockedPayload(doc?.payment_info)?.kind === 'cp12'
                     ? [(parseLockedPayload(doc?.payment_info) as CP12LockedPayload).pdfData.landlordEmail || '', (parseLockedPayload(doc?.payment_info) as CP12LockedPayload).pdfData.tenantEmail || '', doc?.customer_snapshot?.email || '']
                     : [doc?.customer_snapshot?.email || '']
                 )}
@@ -1867,240 +971,3 @@ export default function DocumentDetailScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: Colors.background, padding: 16},
-  center: {flex: 1, justifyContent: 'center', alignItems: 'center'},
-  backBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
-    backgroundColor: '#fff', borderWidth: 1, borderColor: UI.surface.divider,
-    marginBottom: 12,
-  },
-  backBtnText: {fontSize: 14, fontWeight: '600', color: UI.text.title},
-
-  // Header card
-  headerCard: {backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, ...Colors.shadow},
-  headerTop: {flexDirection: 'row', alignItems: 'center', gap: 14},
-  typeIcon: {width: 52, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center'},
-  docType: {fontSize: 11, fontWeight: '700', color: Colors.textLight, textTransform: 'uppercase', letterSpacing: 1},
-  docNumber: {fontSize: 22, fontWeight: '800', color: Colors.text},
-  statusBadgeLg: {paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8},
-  statusTextLg: {fontSize: 12, fontWeight: '700'},
-  headerMeta: {flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: UI.surface.elevated},
-  metaItem: {flexDirection: 'row', alignItems: 'center', gap: 4},
-  metaText: {fontSize: 13, color: Colors.textLight},
-
-  // Sections
-  section: {marginBottom: 16},
-  sectionLabel: {fontSize: 12, fontWeight: '700', color: Colors.textLight, textTransform: 'uppercase', marginBottom: 8, marginLeft: 4},
-  card: {backgroundColor: '#fff', padding: 16, borderRadius: 12, ...Colors.shadow},
-
-  // Detail rows (CP12)
-  detailRow: {flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8},
-  detailLabel: {fontSize: 11, fontWeight: '600', color: UI.text.muted, textTransform: 'uppercase'},
-  detailText: {fontSize: 14, fontWeight: '500', color: Colors.text},
-  divider: {height: 1, backgroundColor: UI.surface.elevated, marginVertical: 8},
-
-  // Appliance rows (CP12)
-  applianceRow: {flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8},
-  applianceNum: {
-    width: 28, height: 28, borderRadius: 8,
-    backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center',
-  },
-  applianceNumText: {fontSize: 12, fontWeight: '700', color: UI.brand.primary},
-  applianceName: {fontSize: 14, fontWeight: '600', color: Colors.text},
-  applianceLocation: {fontSize: 12, color: UI.text.muted, marginTop: 1},
-  safetyBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
-  },
-  safetyText: {fontSize: 11, fontWeight: '700'},
-
-  // Date row (CP12)
-  dateRow: {flexDirection: 'row', gap: 16},
-  dateItem: {flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10},
-  dateLabel: {fontSize: 11, fontWeight: '600', color: UI.text.muted, textTransform: 'uppercase'},
-  dateValue: {fontSize: 15, fontWeight: '700', color: Colors.text},
-  reminderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  reminderTextWrap: {
-    flex: 1,
-  },
-  reminderTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  reminderText: {
-    marginTop: 4,
-    fontSize: 12,
-    lineHeight: 17,
-    color: UI.text.muted,
-  },
-
-  // Customer
-  customerName: {fontSize: 16, fontWeight: '700', color: Colors.text},
-  customerDetail: {fontSize: 14, color: UI.text.muted, marginTop: 2},
-
-  // Line items
-  itemRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10},
-  itemDesc: {fontSize: 14, fontWeight: '600', color: Colors.text},
-  itemMeta: {fontSize: 12, color: Colors.textLight, marginTop: 2},
-  itemTotal: {fontSize: 14, fontWeight: '700', color: Colors.text},
-  totalsDivider: {height: 2, backgroundColor: UI.text.title, marginVertical: 12},
-  totalRow: {flexDirection: 'row', justifyContent: 'space-between'},
-  totalLabel: {fontSize: 16, fontWeight: '700', color: Colors.text},
-  totalValue: {fontSize: 20, fontWeight: '800', color: Colors.primary},
-
-  notesText: {fontSize: 14, color: UI.text.bodyLight, lineHeight: 20},
-
-  // Status
-  statusGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
-  statusChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: UI.surface.elevated,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  statusChipText: {fontSize: 13, fontWeight: '500', color: UI.text.muted},
-
-  // Actions
-  actionsSection: {gap: 12, marginTop: 8, marginBottom: 20},
-  shareAction: {borderRadius: 14, overflow: 'hidden'},
-  shareGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 16,
-  },
-  shareActionText: {color: UI.text.white, fontWeight: '700', fontSize: 15},
-  duplicateAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: UI.surface.primaryLight,
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
-  },
-  duplicateActionText: {
-    color: UI.brand.primary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  cp12ExtraActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  secondaryAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
-  },
-  secondaryActionText: {
-    color: UI.brand.primary,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  deleteAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  deleteActionText: {color: Colors.danger, fontWeight: '600', fontSize: 14},
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.45)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    ...Colors.shadow,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  modalSubtitle: {
-    marginTop: 4,
-    fontSize: 13,
-    color: UI.text.muted,
-  },
-  modalLabel: {
-    marginTop: 14,
-    marginBottom: 6,
-    fontSize: 12,
-    fontWeight: '700',
-    color: UI.text.body,
-    textTransform: 'uppercase',
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: UI.surface.divider,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-    fontSize: 15,
-    color: Colors.text,
-    backgroundColor: UI.surface.base,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 14,
-  },
-  modalCancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: UI.surface.elevated,
-  },
-  modalCancelText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: UI.text.body,
-  },
-  modalSendBtn: {
-    minWidth: 88,
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: UI.brand.primary,
-  },
-  modalSendText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: UI.text.white,
-  },
-});
