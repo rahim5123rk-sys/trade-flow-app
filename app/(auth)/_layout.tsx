@@ -7,7 +7,8 @@ export default function AuthLayout() {
   return (
     <Stack
       screenOptions={{
-        headerShown: false, // We will build our own headers or use safe areas
+        headerShown: false,
+        gestureEnabled: false, // Prevent back-swipe gesture from interfering with touch handling
         animation: 'slide_from_right',
         headerStyle: { backgroundColor: theme.surface.base },
         headerTitleStyle: { color: theme.text.title },

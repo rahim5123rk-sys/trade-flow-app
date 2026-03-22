@@ -72,9 +72,9 @@ export default function InstallationLayout() {
   return (
     <InstallationCertProvider>
       <InstallationAutoSave>
-        <Stack screenOptions={{headerShown: false, contentStyle: {backgroundColor: theme.surface.base}}}>
+        <Stack screenOptions={{headerShown: false, gestureEnabled: false, contentStyle: {backgroundColor: theme.surface.base}}}>
           <Stack.Screen name="index" />
-          <Stack.Screen name="installation" />
+          <Stack.Screen name="details" />
           <Stack.Screen name="review-sign" />
         </Stack>
       </InstallationAutoSave>

@@ -61,7 +61,7 @@ export default function LoginScreen() {
           // Wait briefly so the profile is created before dashboard tries to load.
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
-        router.replace('/(app)/dashboard');
+        router.replace('/(app)/dashboard' as any);
       }
     } catch (error: any) {
       Alert.alert('Error', error.message);

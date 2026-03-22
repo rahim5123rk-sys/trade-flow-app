@@ -65,6 +65,23 @@ export interface Customer {
   company_id: string;
 }
 
+// ─── Site Address (property + tenant details for reuse) ─────────
+
+export interface SiteAddress {
+  id: string;
+  company_id: string;
+  address_line_1: string;
+  address_line_2?: string;
+  city?: string;
+  post_code: string;
+  tenant_title?: string;
+  tenant_name?: string;
+  tenant_email?: string;
+  tenant_phone?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── NEW: Document type for quotes & invoices ───────────────────
 
 export type DocumentType =
@@ -97,6 +114,7 @@ export interface DocumentLineItem {
 export interface Document {
   id: string;
   company_id: string;
+  user_id?: string;
   type: DocumentType;
   number: number;
   reference?: string;

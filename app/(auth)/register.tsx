@@ -100,19 +100,43 @@ export default function RegisterScreen() {
   const checkInviteCode = async () => {
     setLoading(true);
     try {
+      // 1. Find company by invite code
       const {data, error} = await supabase
         .from('companies')
-        .select('id, name')
+        .select('id, name, worker_seat_limit')
         .eq('invite_code', inviteCode.trim().toUpperCase())
         .single();
 
-      setLoading(false);
-
       if (error || !data) {
+        setLoading(false);
         Alert.alert('Invalid Code', 'No company found with this invite code.');
         return false;
       }
-      setFoundCompany(data);
+
+      // 2. Check company admin is Pro (using RPC to bypass RLS)
+      const {data: isPro, error: proError} = await supabase
+        .rpc('check_company_pro_status', {p_company_id: data.id});
+
+      if (proError || !isPro) {
+        setLoading(false);
+        Alert.alert('Team Not Available', 'This company does not have an active Pro subscription. Ask the company admin to upgrade to Pro before inviting team members.');
+        return false;
+      }
+
+      // 3. Check seat availability (using RPC to bypass RLS)
+      const {data: currentWorkers, error: countError} = await supabase
+        .rpc('get_company_worker_count', {p_company_id: data.id});
+
+      const seatLimit = data.worker_seat_limit ?? 0;
+
+      if (countError || (currentWorkers ?? 0) >= seatLimit) {
+        setLoading(false);
+        Alert.alert('No Seats Available', 'This company has used all its worker seats. Ask the company admin to purchase additional seats before you can join.');
+        return false;
+      }
+
+      setLoading(false);
+      setFoundCompany({id: data.id, name: data.name});
       return true;
     } catch (e) {
       setLoading(false);
@@ -446,7 +470,7 @@ export default function RegisterScreen() {
       if (!refreshResult) {
         console.warn('[Register] refreshProfile timed out or returned null');
       }
-      router.replace('/(app)/dashboard');
+      router.replace('/(app)/dashboard' as any);
 
     } catch (error: any) {
       const msg = error?.message || 'An unknown error occurred';

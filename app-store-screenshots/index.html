@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GasPilot — App Store Screenshots</title>
+  <style>
+    /* ─── Reset & base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0f;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      color: #fff;
+      padding: 40px 20px 80px;
+    }
+
+    h1.page-title {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .page-subtitle {
+      text-align: center;
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 48px;
+    }
+
+    /* ─── Grid of screenshots ─── */
+    .screenshots-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 40px;
+      justify-content: center;
+    }
+
+    /* ─── Each screenshot card (1290×2796 ratio → display at 310×672) ─── */
+    .screenshot-card {
+      width: 310px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .screenshot-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* ─── Outer phone frame ─── */
+    .phone-frame {
+      width: 310px;
+      height: 672px;
+      border-radius: 48px;
+      background: #1a1a2e;
+      border: 2.5px solid #2d3748;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.06) inset,
+        0 30px 80px rgba(0,0,0,0.8),
+        0 0 40px rgba(29,78,216,0.15);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Dynamic island */
+    .phone-frame::before {
+      content: '';
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 88px;
+      height: 24px;
+      background: #000;
+      border-radius: 12px;
+      z-index: 100;
+    }
+
+    /* ─── Screen area inside phone ─── */
+    .screen {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ─── Status bar ─── */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px 0;
+      font-size: 11px;
+      font-weight: 600;
+      position: relative;
+      z-index: 10;
+    }
+    .status-time { letter-spacing: -0.3px; }
+    .status-icons { display: flex; gap: 5px; align-items: center; }
+    .signal-bar { width: 3px; height: 6px; background: currentColor; border-radius: 1px; }
+    .signal-bar:nth-child(1) { height: 4px; opacity: .5; }
+    .signal-bar:nth-child(2) { height: 6px; opacity: .7; }
+    .signal-bar:nth-child(3) { height: 8px; }
+    .wifi-icon { font-size: 10px; }
+    .battery-icon { font-size: 10px; }
+
+    /* ─── Shared gradient bg ─── */
+    .bg-gradient { background: linear-gradient(160deg, #1e3a8a 0%, #1d4ed8 30%, #312e81 70%, #0f172a 100%); }
+    .bg-dark { background: #0f172a; }
+    .bg-slate { background: linear-gradient(160deg, #0f172a 0%, #1e293b 100%); }
+
+    /* ────────────────────────────────────────────────
+       SCREEN 1 — Dashboard
+    ──────────────────────────────────────────────── */
+    .screen-dashboard {
+      background: linear-gradient(160deg, #1e3a8a 0%, #1d4ed8 25%, #312e81 60%, #0f172a 100%);
+    }
+    .dash-header {
+      padding: 8px 18px 12px;
+      position: relative;
+      z-index: 5;
+    }
+    .dash-greeting {
+      font-size: 11px;
+      color: rgba(255,255,255,.6);
+      font-weight: 500;
+    }
+    .dash-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 1px;
+      letter-spacing: -0.5px;
+    }
+    .dash-date {
+      font-size: 10px;
+      color: rgba(255,255,255,.5);
+      margin-top: 1px;
+    }
+    .dash-avatar {
+      position: absolute;
+      right: 18px;
+      top: 8px;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .quick-actions {
+      padding: 0 12px;
+      display: flex;
+      gap: 6px;
+      overflow: hidden;
+      flex-wrap: wrap;
+    }
+    .qa-pill {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 20px;
+      padding: 5px 10px;
+      font-size: 9px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+    .qa-pill .icon { font-size: 10px; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,.9);
+      padding: 10px 18px 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .job-card {
+      margin: 0 12px 6px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 10px 12px;
+      backdrop-filter: blur(12px);
+    }
+    .job-card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .job-name { font-size: 10px; font-weight: 700; color: #fff; }
+    .job-addr { font-size: 9px; color: rgba(255,255,255,.5); margin-top: 1px; }
+    .job-time { font-size: 9px; color: rgba(255,255,255,.5); }
+    .status-badge {
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 8px;
+      font-weight: 700;
+      margin-top: 6px;
+      display: inline-block;
+    }
+    .badge-pending { background: rgba(245,158,11,.2); color: #fbbf24; }
+    .badge-inprog { background: rgba(59,130,246,.2); color: #60a5fa; }
+    .badge-complete { background: rgba(16,185,129,.2); color: #34d399; }
+
+    .stat-cards {
+      display: flex;
+      gap: 6px;
+      padding: 6px 12px;
+    }
+    .stat-card {
+      flex: 1;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 8px 10px;
+      backdrop-filter: blur(12px);
+    }
+    .stat-val { font-size: 18px; font-weight: 800; color: #fff; }
+    .stat-lbl { font-size: 8px; color: rgba(255,255,255,.5); margin-top: 1px; font-weight: 500; }
+
+    .renewal-card {
+      margin: 0 12px;
+      background: linear-gradient(135deg, rgba(220,38,38,.3), rgba(239,68,68,.15));
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .renewal-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .renewal-dot { width: 6px; height: 6px; border-radius: 50%; background: #ef4444; }
+    .renewal-title { font-size: 9px; font-weight: 700; color: #fca5a5; }
+    .renewal-body { font-size: 8px; color: rgba(255,255,255,.6); }
+
+    /* ────────────────────────────────────────────────
+       SCREEN 2 — Gas Certificates
+    ──────────────────────────────────────────────── */
+    .screen-certs {
+      background: linear-gradient(160deg, #064e3b 0%, #059669 25%, #065f46 60%, #0f172a 100%);
+    }
+    .cert-header {
+      padding: 8px 18px 14px;
+      position: relative;
+    }
+    .cert-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    .cert-sub { font-size: 10px; color: rgba(255,255,255,.5); margin-top: 1px; }
+    .cert-back-btn {
+      position: absolute;
+      left: 12px;
+      top: 8px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+
+    .cert-type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 0 12px;
+    }
+    .cert-type-card {
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .cert-cp12 { background: linear-gradient(135deg, #0ea5e9, #1d4ed8); }
+    .cert-service { background: linear-gradient(135deg, #059669, #047857); }
+    .cert-warning { background: linear-gradient(135deg, #d97706, #b45309); }
+    .cert-install { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+    .cert-commission { background: linear-gradient(135deg, #0891b2, #0e7490); }
+    .cert-breakdown { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+
+    .cert-icon { font-size: 20px; }
+    .cert-name { font-size: 9px; font-weight: 700; color: #fff; line-height: 1.2; }
+    .cert-count { font-size: 8px; color: rgba(255,255,255,.6); }
+
+    .recent-cert {
+      margin: 10px 12px 0;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .recent-cert-row { display: flex; justify-content: space-between; align-items: center; }
+    .recent-cert-name { font-size: 9px; font-weight: 700; color: #fff; }
+    .recent-cert-date { font-size: 8px; color: rgba(255,255,255,.4); }
+    .cert-status-valid {
+      font-size: 8px; font-weight: 700;
+      color: #34d399;
+      background: rgba(16,185,129,.15);
+      padding: 2px 7px;
+      border-radius: 8px;
+    }
+    .cert-status-expiring {
+      font-size: 8px; font-weight: 700;
+      color: #fbbf24;
+      background: rgba(245,158,11,.15);
+      padding: 2px 7px;
+      border-radius: 8px;
+    }
+
+    /* ────────────────────────────────────────────────
+       SCREEN 3 — Job Management
+    ──────────────────────────────────────────────── */
+    .screen-jobs {
+      background: linear-gradient(160deg, #1e1b4b 0%, #3730a3 25%, #1e3a8a 60%, #0f172a 100%);
+    }
+    .jobs-header {
+      padding: 8px 18px 12px;
+      position: relative;
+    }
+    .jobs-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    .jobs-sub { font-size: 10px; color: rgba(255,255,255,.5); margin-top: 1px; }
+    .jobs-add-btn {
+      position: absolute; right: 14px; top: 10px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 9px; font-weight: 700; color: #fff;
+    }
+
+    .filter-tabs {
+      display: flex; gap: 6px; padding: 0 12px 10px;
+    }
+    .filter-tab {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 9px; font-weight: 600;
+    }
+    .filter-tab.active {
+      background: rgba(59,130,246,1); color: #fff;
+    }
+    .filter-tab.inactive {
+      background: rgba(255,255,255,0.1); color: rgba(255,255,255,.5);
+    }
+
+    .job-item {
+      margin: 0 12px 6px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .job-item-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .job-item-name { font-size: 10px; font-weight: 700; color: #fff; }
+    .job-item-type { font-size: 8px; color: rgba(255,255,255,.5); margin-top: 2px; }
+    .job-item-addr { font-size: 8.5px; color: rgba(255,255,255,.4); margin-top: 3px; }
+    .job-item-bottom { display: flex; justify-content: space-between; margin-top: 6px; align-items: center; }
+    .job-item-date { font-size: 8px; color: rgba(255,255,255,.4); }
+
+    /* ────────────────────────────────────────────────
+       SCREEN 4 — Invoice
+    ──────────────────────────────────────────────── */
+    .screen-invoice {
+      background: linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f172a 100%);
+    }
+    .invoice-header {
+      padding: 8px 18px 12px;
+      position: relative;
+    }
+    .invoice-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    .invoice-sub { font-size: 10px; color: rgba(255,255,255,.5); margin-top: 1px; }
+
+    .invoice-card {
+      margin: 0 12px 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .invoice-card-header {
+      background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+      padding: 12px 14px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    .invoice-no { font-size: 9px; color: rgba(255,255,255,.7); font-weight: 500; }
+    .invoice-name { font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px; }
+    .invoice-amount { font-size: 20px; font-weight: 800; color: #fff; }
+    .invoice-amt-lbl { font-size: 8px; color: rgba(255,255,255,.6); }
+
+    .invoice-body { padding: 12px 14px; }
+    .invoice-line {
+      display: flex; justify-content: space-between; padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      font-size: 9px;
+    }
+    .invoice-line-name { color: rgba(255,255,255,.7); }
+    .invoice-line-amt { color: #fff; font-weight: 600; }
+    .invoice-total-row {
+      display: flex; justify-content: space-between;
+      padding: 8px 0 0;
+      font-size: 10px; font-weight: 700;
+    }
+    .invoice-total-lbl { color: rgba(255,255,255,.8); }
+    .invoice-total-amt { color: #60a5fa; }
+
+    .invoice-footer-row {
+      display: flex; gap: 6px; padding: 0 12px;
+    }
+    .inv-btn {
+      flex: 1; padding: 9px 0;
+      border-radius: 12px; text-align: center;
+      font-size: 9px; font-weight: 700;
+    }
+    .inv-btn-primary { background: linear-gradient(135deg, #1d4ed8, #7c3aed); color: #fff; }
+    .inv-btn-secondary { background: rgba(255,255,255,0.1); color: rgba(255,255,255,.8); border: 1px solid rgba(255,255,255,.15); }
+
+    .inv-meta { padding: 8px 12px 0; display: flex; gap: 6px; }
+    .inv-meta-item {
+      flex: 1;
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 7px 10px;
+    }
+    .inv-meta-label { font-size: 7.5px; color: rgba(255,255,255,.4); font-weight: 500; }
+    .inv-meta-val { font-size: 9px; font-weight: 600; color: #fff; margin-top: 1px; }
+
+    /* ────────────────────────────────────────────────
+       SCREEN 5 — Team
+    ──────────────────────────────────────────────── */
+    .screen-team {
+      background: linear-gradient(160deg, #2d1b69 0%, #5b21b6 25%, #4c1d95 60%, #0f172a 100%);
+    }
+    .team-header {
+      padding: 8px 18px 12px; position: relative;
+    }
+    .team-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    .team-sub { font-size: 10px; color: rgba(255,255,255,.5); margin-top: 1px; }
+    .team-invite-btn {
+      position: absolute; right: 14px; top: 10px;
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 9px; font-weight: 700; color: #fff;
+    }
+
+    .team-stats-row {
+      display: flex; gap: 8px; padding: 0 12px 10px;
+    }
+    .team-stat {
+      flex: 1;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 8px;
+      text-align: center;
+    }
+    .team-stat-val { font-size: 18px; font-weight: 800; color: #fff; }
+    .team-stat-lbl { font-size: 7.5px; color: rgba(255,255,255,.5); }
+
+    .worker-card {
+      margin: 0 12px 6px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .worker-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .worker-info { flex: 1; }
+    .worker-name { font-size: 10px; font-weight: 700; color: #fff; }
+    .worker-role { font-size: 8px; color: rgba(255,255,255,.5); margin-top: 1px; }
+    .worker-jobs { font-size: 8px; color: #a78bfa; margin-top: 2px; }
+    .worker-badge {
+      font-size: 8px; font-weight: 700;
+      padding: 3px 8px; border-radius: 10px;
+    }
+    .badge-admin { background: rgba(124,58,237,.25); color: #a78bfa; }
+    .badge-worker { background: rgba(59,130,246,.2); color: #93c5fd; }
+    .badge-active { background: rgba(16,185,129,.2); color: #6ee7b7; }
+
+    /* ────────────────────────────────────────────────
+       SCREEN 6 — Renewals / Calendar
+    ──────────────────────────────────────────────── */
+    .screen-calendar {
+      background: linear-gradient(160deg, #1c1917 0%, #292524 30%, #0f172a 100%);
+    }
+    .cal-header {
+      padding: 8px 18px 12px;
+    }
+    .cal-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    .cal-sub { font-size: 10px; color: rgba(255,255,255,.5); margin-top: 1px; }
+
+    .mini-cal {
+      margin: 0 12px 10px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 10px;
+    }
+    .mini-cal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px;
+    }
+    .mini-cal-month { font-size: 10px; font-weight: 700; color: #fff; }
+    .mini-cal-nav { display: flex; gap: 8px; }
+    .mini-cal-nav span { font-size: 12px; color: rgba(255,255,255,.5); cursor: pointer; }
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 1px;
+    }
+    .cal-day-hdr { font-size: 7.5px; color: rgba(255,255,255,.4); text-align: center; padding: 2px 0; font-weight: 600; }
+    .cal-day {
+      font-size: 8.5px; text-align: center;
+      padding: 3px 2px; border-radius: 6px;
+      color: rgba(255,255,255,.7); position: relative;
+    }
+    .cal-day.today {
+      background: #1d4ed8; color: #fff; font-weight: 700;
+    }
+    .cal-day.has-job::after {
+      content: '';
+      display: block;
+      width: 4px; height: 4px;
+      background: #f59e0b;
+      border-radius: 50%;
+      margin: 1px auto 0;
+    }
+    .cal-day.has-job2::after { background: #3b82f6; }
+    .cal-day.empty { color: rgba(255,255,255,.2); }
+
+    .upcoming-job {
+      margin: 0 12px 5px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-left: 3px solid;
+      border-radius: 12px;
+      padding: 8px 10px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .upcoming-job-time {
+      font-size: 8px; font-weight: 700; color: rgba(255,255,255,.5);
+      min-width: 30px; text-align: center;
+    }
+    .upcoming-job-info { flex: 1; }
+    .upcoming-job-name { font-size: 9.5px; font-weight: 700; color: #fff; }
+    .upcoming-job-type { font-size: 8px; color: rgba(255,255,255,.4); margin-top: 1px; }
+
+    /* ─── Marketing overlay for each screenshot ─── */
+    .marketing-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+      padding: 24px 18px 22px;
+      z-index: 50;
+    }
+    .marketing-headline {
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.2;
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+    }
+    .marketing-sub {
+      font-size: 10px;
+      color: rgba(255,255,255,.7);
+      line-height: 1.4;
+    }
+
+    /* ─── Print/export hint ─── */
+    .export-hint {
+      text-align: center;
+      color: #475569;
+      font-size: 12px;
+      margin-top: 48px;
+      line-height: 1.6;
+    }
+    .export-hint code {
+      background: rgba(255,255,255,.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: #94a3b8;
+    }
+
+    /* ─── Individual export classes ─── */
+    @media print {
+      body { background: white; padding: 0; }
+      .screenshots-grid { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1 class="page-title">GasPilot — App Store Screenshots</h1>
+  <p class="page-subtitle">iPhone 6.9" · 1320×2868px · 6 Frames</p>
+
+  <div class="screenshots-grid">
+
+    <!-- ══════════════════════════════════════
+         SCREENSHOT 1 — Dashboard
+    ══════════════════════════════════════ -->
+    <div class="screenshot-card">
+      <div class="phone-frame">
+        <div class="screen screen-dashboard">
+
+          <div class="status-bar" style="color:#fff;">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <div class="signal-bar"></div>
+              <div class="signal-bar"></div>
+              <div class="signal-bar"></div>
+              <span class="wifi-icon">📶</span>
+              <span class="battery-icon">🔋</span>
+            </div>
+          </div>
+
+          <div class="dash-header">
+            <div class="dash-greeting">Good morning</div>
+            <div class="dash-name">James 👋</div>
+            <div class="dash-date">Monday, 15 March</div>
+            <div class="dash-avatar">JB</div>
+          </div>
+
+          <div class="section-title">Quick Actions</div>
+          <div class="quick-actions">
+            <div class="qa-pill"><span class="icon">🔧</span> New Job</div>
+            <div class="qa-pill"><span class="icon">📋</span> Gas Cert</div>
+            <div class="qa-pill"><span class="icon">💷</span> Invoice</div>
+            <div class="qa-pill"><span class="icon">👤</span> Client</div>
+            <div class="qa-pill"><span class="icon">🗒️</span> Quote</div>
+          </div>
+
+          <div class="stat-cards">
+            <div class="stat-card">
+              <div class="stat-val">12</div>
+              <div class="stat-lbl">Active Jobs</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val">5</div>
+              <div class="stat-lbl">Today</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val">£3,840</div>
+              <div class="stat-lbl">This Month</div>
+            </div>
+          </div>
+
+          <div class="section-title">Today's Schedule</div>
+
+          <div class="job-card">
+            <div class="job-card-row">
+              <div>
+                <div class="job-name">Mrs. Patricia Hall</div>
+                <div class="job-addr">14 Maple Drive, Leeds</div>
+              </div>
+              <div class="job-time">08:30</div>
+            </div>
+            <span class="status-badge badge-inprog">In Progress</span>
+          </div>
+
+          <div class="job-card">
+            <div class="job-card-row">
+              <div>
+                <div class="job-name">David & Sarah Collins</div>
+                <div class="job-addr">78 Elm Street, Sheffield</div>
+              </div>
+              <div class="job-time">11:00</div>
+            </div>
+            <span class="status-badge badge-pending">Pending</span>
+          </div>
+
+          <div class="section-title" style="color:#fca5a5;">⚠ Upcoming Renewals</div>
+          <div class="renewal-card">
+            <div class="renewal-top">
+              <div class="renewal-dot"></div>
+              <div class="renewal-title">CP12 Expiring in 12 days</div>
+            </div>
+            <div class="renewal-body">22 Oak Avenue, Manchester · Mrs. T. Roberts</div>
+          </div>
+
+          <div class="marketing-overlay">
+            <div class="marketing-headline">Your Business,<br>At a Glance</div>
+            <div class="marketing-sub">Jobs, certs, revenue & renewals — all on one screen</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="screenshot-label">01 — Dashboard</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SCREENSHOT 2 — Gas Certificates
+    ══════════════════════════════════════ -->
+    <div class="screenshot-card">
+      <div class="phone-frame">
+        <div class="screen screen-certs">
+
+          <div class="status-bar" style="color:#fff;">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <div class="signal-bar"></div><div class="signal-bar"></div><div class="signal-bar"></div>
+              <span class="wifi-icon">📶</span><span class="battery-icon">🔋</span>
+            </div>
+          </div>
+
+          <div class="cert-header">
+            <div class="cert-back-btn">‹</div>
+            <div style="text-align:center;">
+              <div class="cert-title" style="text-align:center;">Gas Documents</div>
+              <div class="cert-sub">7 documents issued this month</div>
+            </div>
+          </div>
+
+          <div class="section-title">Create New Certificate</div>
+          <div class="cert-type-grid">
+            <div class="cert-type-card cert-cp12">
+              <div class="cert-icon">🛡️</div>
+              <div class="cert-name">CP12 Landlord Safety Record</div>
+              <div class="cert-count">34 issued</div>
+            </div>
+            <div class="cert-type-card cert-service">
+              <div class="cert-icon">🔩</div>
+              <div class="cert-name">Annual Service Record</div>
+              <div class="cert-count">21 issued</div>
+            </div>
+            <div class="cert-type-card cert-warning">
+              <div class="cert-icon">⚠️</div>
+              <div class="cert-name">Warning Notice</div>
+              <div class="cert-count">3 issued</div>
+            </div>
+            <div class="cert-type-card cert-install">
+              <div class="cert-icon">📋</div>
+              <div class="cert-name">Installation Certificate</div>
+              <div class="cert-count">8 issued</div>
+            </div>
+            <div class="cert-type-card cert-commission">
+              <div class="cert-icon">✅</div>
+              <div class="cert-name">Commissioning Record</div>
+              <div class="cert-count">5 issued</div>
+            </div>
+            <div class="cert-type-card cert-breakdown">
+              <div class="cert-icon">🔧</div>
+              <div class="cert-name">Breakdown Report</div>
+              <div class="cert-count">6 issued</div>
+            </div>
+          </div>
+
+          <div class="section-title" style="margin-top:6px;">Recent Certificates</div>
+          <div class="recent-cert">
+            <div class="recent-cert-row">
+              <div>
+                <div class="recent-cert-name">CP12 · Mrs. Patricia Hall</div>
+                <div class="recent-cert-date">14 Maple Drive, Leeds · 10 Mar 2026</div>
+              </div>
+              <div class="cert-status-valid">Valid</div>
+            </div>
+          </div>
+          <div class="recent-cert" style="margin-top:5px;">
+            <div class="recent-cert-row">
+              <div>
+                <div class="recent-cert-name">Service Record · R. Ahmed</div>
+                <div class="recent-cert-date">8 Canal St, Manchester · 08 Mar 2026</div>
+              </div>
+              <div class="cert-status-expiring">Expiring</div>
+            </div>
+          </div>
+
+          <div class="marketing-overlay">
+            <div class="marketing-headline">Digital Gas Certs,<br>Done Right</div>
+            <div class="marketing-sub">CP12s, service records & more — sign, store, and send as PDF in minutes</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="screenshot-label">02 — Gas Certificates</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SCREENSHOT 3 — Job Management
+    ══════════════════════════════════════ -->
+    <div class="screenshot-card">
+      <div class="phone-frame">
+        <div class="screen screen-jobs">
+
+          <div class="status-bar" style="color:#fff;">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <div class="signal-bar"></div><div class="signal-bar"></div><div class="signal-bar"></div>
+              <span class="wifi-icon">📶</span><span class="battery-icon">🔋</span>
+            </div>
+          </div>
+
+          <div class="jobs-header">
+            <div class="jobs-title">Jobs</div>
+            <div class="jobs-sub">12 active · 3 completed today</div>
+            <div class="jobs-add-btn">+ New Job</div>
+          </div>
+
+          <div class="filter-tabs">
+            <div class="filter-tab active">All Jobs</div>
+            <div class="filter-tab inactive">Active</div>
+            <div class="filter-tab inactive">Completed</div>
+          </div>
+
+          <div class="job-item">
+            <div class="job-item-top">
+              <div>
+                <div class="job-item-name">Boiler Service & CP12</div>
+                <div class="job-item-type">Annual Service · Mrs. Patricia Hall</div>
+              </div>
+              <span class="status-badge badge-inprog">In Progress</span>
+            </div>
+            <div class="job-item-addr">📍 14 Maple Drive, Leeds, LS1 4AB</div>
+            <div class="job-item-bottom">
+              <div class="job-item-date">📅 Today 08:30</div>
+              <div style="font-size:8px;color:#60a5fa;font-weight:600;">→ Swipe to update</div>
+            </div>
+          </div>
+
+          <div class="job-item">
+            <div class="job-item-top">
+              <div>
+                <div class="job-item-name">Boiler Breakdown Repair</div>
+                <div class="job-item-type">Emergency · David Collins</div>
+              </div>
+              <span class="status-badge badge-pending">Pending</span>
+            </div>
+            <div class="job-item-addr">📍 78 Elm Street, Sheffield, S1 2BB</div>
+            <div class="job-item-bottom">
+              <div class="job-item-date">📅 Today 11:00</div>
+            </div>
+          </div>
+
+          <div class="job-item">
+            <div class="job-item-top">
+              <div>
+                <div class="job-item-name">New Boiler Installation</div>
+                <div class="job-item-type">Installation · Ahmed & Family</div>
+              </div>
+              <span class="status-badge badge-complete">Complete</span>
+            </div>
+            <div class="job-item-addr">📍 22 Oak Avenue, Manchester</div>
+            <div class="job-item-bottom">
+              <div class="job-item-date">📅 Yesterday</div>
+            </div>
+          </div>
+
+          <div class="job-item">
+            <div class="job-item-top">
+              <div>
+                <div class="job-item-name">Gas Hob Installation</div>
+                <div class="job-item-type">Installation · Ms. K. Thompson</div>
+              </div>
+              <span class="status-badge badge-pending">Pending</span>
+            </div>
+            <div class="job-item-addr">📍 5 Bridge Road, Leeds, LS2 7EF</div>
+            <div class="job-item-bottom">
+              <div class="job-item-date">📅 Tomorrow 14:00</div>
+            </div>
+          </div>
+
+          <div class="job-item">
+            <div class="job-item-top">
+              <div>
+                <div class="job-item-name">Landlord CP12 Inspection</div>
+                <div class="job-item-type">Safety Check · Mr. G. Williams</div>
+              </div>
+              <span class="status-badge" style="background:rgba(139,92,246,.2);color:#c4b5fd;">Paid</span>
+            </div>
+            <div class="job-item-addr">📍 33 Park Lane, Bradford</div>
+            <div class="job-item-bottom">
+              <div class="job-item-date">📅 12 Mar 2026</div>
+            </div>
+          </div>
+
+          <div class="marketing-overlay">
+            <div class="marketing-headline">Track Every Job,<br>Every Step</div>
+            <div class="marketing-sub">Pending, in progress, complete, paid — swipe to update job status instantly</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="screenshot-label">03 — Job Management</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SCREENSHOT 4 — Invoicing
+    ══════════════════════════════════════ -->
+    <div class="screenshot-card">
+      <div class="phone-frame">
+        <div class="screen screen-invoice">
+
+          <div class="status-bar" style="color:#fff;">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <div class="signal-bar"></div><div class="signal-bar"></div><div class="signal-bar"></div>
+              <span class="wifi-icon">📶</span><span class="battery-icon">🔋</span>
+            </div>
+          </div>
+
+          <div class="invoice-header">
+            <div class="invoice-title">Invoices</div>
+            <div class="invoice-sub">£3,840 outstanding · 4 sent this week</div>
+          </div>
+
+          <div class="invoice-card">
+            <div class="invoice-card-header">
+              <div>
+                <div class="invoice-no">INVOICE #INV-0041</div>
+                <div class="invoice-name">Mrs. Patricia Hall</div>
+                <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px;">14 Maple Drive, Leeds</div>
+              </div>
+              <div style="text-align:right;">
+                <div class="invoice-amount">£240</div>
+                <div class="invoice-amt-lbl">Total due</div>
+              </div>
+            </div>
+            <div class="invoice-body">
+              <div class="invoice-line">
+                <span class="invoice-line-name">Annual Boiler Service</span>
+                <span class="invoice-line-amt">£120.00</span>
+              </div>
+              <div class="invoice-line">
+                <span class="invoice-line-name">CP12 Landlord Certificate</span>
+                <span class="invoice-line-amt">£85.00</span>
+              </div>
+              <div class="invoice-line">
+                <span class="invoice-line-name">Parts (Thermocouple)</span>
+                <span class="invoice-line-amt">£18.00</span>
+              </div>
+              <div class="invoice-line">
+                <span class="invoice-line-name">VAT (20%)</span>
+                <span class="invoice-line-amt">£44.60</span>
+              </div>
+              <div class="invoice-total-row">
+                <span class="invoice-total-lbl">Total (inc. VAT)</span>
+                <span class="invoice-total-amt">£267.60</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="inv-meta">
+            <div class="inv-meta-item">
+              <div class="inv-meta-label">Issued</div>
+              <div class="inv-meta-val">15 Mar 2026</div>
+            </div>
+            <div class="inv-meta-item">
+              <div class="inv-meta-label">Due</div>
+              <div class="inv-meta-val" style="color:#fbbf24;">29 Mar 2026</div>
+            </div>
+            <div class="inv-meta-item">
+              <div class="inv-meta-label">Status</div>
+              <div class="inv-meta-val" style="color:#fb923c;">Pending</div>
+            </div>
+          </div>
+
+          <div class="invoice-footer-row" style="margin-top:10px;">
+            <div class="inv-btn inv-btn-primary">📤 Send by Email</div>
+            <div class="inv-btn inv-btn-secondary">📄 Download PDF</div>
+          </div>
+
+          <div class="section-title" style="margin-top:10px;">Recent Invoices</div>
+          <div style="margin:0 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:9.5px;font-weight:700;color:#fff;">David Collins · #INV-0040</div>
+              <div style="font-size:8px;color:rgba(255,255,255,.4);margin-top:1px;">Emergency Repair · 14 Mar</div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:#fff;">£185</div>
+              <div style="font-size:7.5px;color:#34d399;text-align:right;">Paid ✓</div>
+            </div>
+          </div>
+
+          <div class="marketing-overlay">
+            <div class="marketing-headline">Professional Invoices<br>in Seconds</div>
+            <div class="marketing-sub">Send branded PDF invoices by email — straight from your phone</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="screenshot-label">04 — Invoicing</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SCREENSHOT 5 — Team Management
+    ══════════════════════════════════════ -->
+    <div class="screenshot-card">
+      <div class="phone-frame">
+        <div class="screen screen-team">
+
+          <div class="status-bar" style="color:#fff;">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <div class="signal-bar"></div><div class="signal-bar"></div><div class="signal-bar"></div>
+              <span class="wifi-icon">📶</span><span class="battery-icon">🔋</span>
+            </div>
+          </div>
+
+          <div class="team-header">
+            <div class="team-title">Team</div>
+            <div class="team-sub">4 engineers · 2 on jobs today</div>
+            <div class="team-invite-btn">+ Invite</div>
+          </div>
+
+          <div class="team-stats-row">
+            <div class="team-stat">
+              <div class="team-stat-val">4</div>
+              <div class="team-stat-lbl">Engineers</div>
+            </div>
+            <div class="team-stat">
+              <div class="team-stat-val">12</div>
+              <div class="team-stat-lbl">Open Jobs</div>
+            </div>
+            <div class="team-stat">
+              <div class="team-stat-val">2</div>
+              <div class="team-stat-lbl">On-site Now</div>
+            </div>
+          </div>
+
+          <div class="section-title">Engineers</div>
+
+          <div class="worker-card">
+            <div class="worker-avatar" style="background:linear-gradient(135deg,#7c3aed,#4f46e5)">JB</div>
+            <div class="worker-info">
+              <div class="worker-name">James Brooks (You)</div>
+              <div class="worker-role">Admin · GasPilot Pro</div>
+              <div class="worker-jobs">5 jobs assigned this week</div>
+            </div>
+            <div class="worker-badge badge-admin">Admin</div>
+          </div>
+
+          <div class="worker-card">
+            <div class="worker-avatar" style="background:linear-gradient(135deg,#0ea5e9,#1d4ed8)">MR</div>
+            <div class="worker-info">
+              <div class="worker-name">Mike Reynolds</div>
+              <div class="worker-role">Gas Engineer · Grade ACS</div>
+              <div class="worker-jobs">3 jobs assigned · 1 in progress</div>
+            </div>
+            <div class="worker-badge badge-active">Active</div>
+          </div>
+
+          <div class="worker-card">
+            <div class="worker-avatar" style="background:linear-gradient(135deg,#059669,#047857)">SA</div>
+            <div class="worker-info">
+              <div class="worker-name">Sam Ahmed</div>
+              <div class="worker-role">Gas Engineer · Grade ACS</div>
+              <div class="worker-jobs">2 jobs assigned today</div>
+            </div>
+            <div class="worker-badge badge-active">Active</div>
+          </div>
+
+          <div class="worker-card">
+            <div class="worker-avatar" style="background:linear-gradient(135deg,#d97706,#b45309)">LP</div>
+            <div class="worker-info">
+              <div class="worker-name">Lee Patterson</div>
+              <div class="worker-role">Gas Engineer · Trainee</div>
+              <div class="worker-jobs">1 job assigned this week</div>
+            </div>
+            <div class="worker-badge badge-worker">Worker</div>
+          </div>
+
+          <div class="worker-card">
+            <div class="worker-avatar" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">KC</div>
+            <div class="worker-info">
+              <div class="worker-name">Karen Clarke</div>
+              <div class="worker-role">Office Manager · Admin</div>
+              <div class="worker-jobs">Invoice & scheduling access</div>
+            </div>
+            <div class="worker-badge badge-admin">Admin</div>
+          </div>
+
+          <div class="marketing-overlay">
+            <div class="marketing-headline">Manage Your<br>Whole Team</div>
+            <div class="marketing-sub">Assign jobs, track engineers, and control access — all from your phone</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="screenshot-label">05 — Team Management</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SCREENSHOT 6 — Calendar / Renewals
+    ══════════════════════════════════════ -->
+    <div class="screenshot-card">
+      <div class="phone-frame">
+        <div class="screen screen-calendar">
+
+          <div class="status-bar" style="color:#fff;">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <div class="signal-bar"></div><div class="signal-bar"></div><div class="signal-bar"></div>
+              <span class="wifi-icon">📶</span><span class="battery-icon">🔋</span>
+            </div>
+          </div>
+
+          <div class="cal-header">
+            <div class="cal-title">Schedule</div>
+            <div class="cal-sub">5 jobs this week</div>
+          </div>
+
+          <div class="mini-cal">
+            <div class="mini-cal-header">
+              <div class="mini-cal-month">March 2026</div>
+              <div class="mini-cal-nav"><span>‹</span><span>›</span></div>
+            </div>
+            <div class="cal-grid">
+              <div class="cal-day-hdr">M</div>
+              <div class="cal-day-hdr">T</div>
+              <div class="cal-day-hdr">W</div>
+              <div class="cal-day-hdr">T</div>
+              <div class="cal-day-hdr">F</div>
+              <div class="cal-day-hdr">S</div>
+              <div class="cal-day-hdr">S</div>
+
+              <div class="cal-day empty"></div>
+              <div class="cal-day empty"></div>
+              <div class="cal-day empty"></div>
+              <div class="cal-day empty"></div>
+              <div class="cal-day empty"></div>
+              <div class="cal-day">1</div>
+              <div class="cal-day">2</div>
+
+              <div class="cal-day has-job">3</div>
+              <div class="cal-day">4</div>
+              <div class="cal-day has-job2">5</div>
+              <div class="cal-day has-job">6</div>
+              <div class="cal-day has-job2">7</div>
+              <div class="cal-day">8</div>
+              <div class="cal-day">9</div>
+
+              <div class="cal-day has-job">10</div>
+              <div class="cal-day has-job">11</div>
+              <div class="cal-day has-job2">12</div>
+              <div class="cal-day">13</div>
+              <div class="cal-day has-job">14</div>
+              <div class="cal-day">15</div>
+              <div class="cal-day">16</div>
+
+              <div class="cal-day">17</div>
+              <div class="cal-day">18</div>
+              <div class="cal-day has-job">19</div>
+              <div class="cal-day has-job2">20</div>
+              <div class="cal-day today">21</div>
+              <div class="cal-day">22</div>
+              <div class="cal-day">23</div>
+
+              <div class="cal-day">24</div>
+              <div class="cal-day has-job">25</div>
+              <div class="cal-day">26</div>
+              <div class="cal-day">27</div>
+              <div class="cal-day has-job">28</div>
+              <div class="cal-day">29</div>
+              <div class="cal-day">30</div>
+              <div class="cal-day">31</div>
+            </div>
+          </div>
+
+          <div class="section-title">Today · 15 March</div>
+
+          <div class="upcoming-job" style="border-left-color:#3b82f6;">
+            <div class="upcoming-job-time">08:30</div>
+            <div class="upcoming-job-info">
+              <div class="upcoming-job-name">Mrs. Patricia Hall</div>
+              <div class="upcoming-job-type">Annual Service + CP12 · Leeds</div>
+            </div>
+            <span class="status-badge badge-inprog">On Site</span>
+          </div>
+
+          <div class="upcoming-job" style="border-left-color:#f59e0b;">
+            <div class="upcoming-job-time">11:00</div>
+            <div class="upcoming-job-info">
+              <div class="upcoming-job-name">David Collins</div>
+              <div class="upcoming-job-type">Boiler Breakdown · Sheffield</div>
+            </div>
+            <span class="status-badge badge-pending">Upcoming</span>
+          </div>
+
+          <div class="upcoming-job" style="border-left-color:#8b5cf6;">
+            <div class="upcoming-job-time">14:30</div>
+            <div class="upcoming-job-info">
+              <div class="upcoming-job-name">Ms. K. Thompson</div>
+              <div class="upcoming-job-type">Gas Hob Install · Leeds</div>
+            </div>
+            <span class="status-badge badge-pending">Upcoming</span>
+          </div>
+
+          <div class="upcoming-job" style="border-left-color:#10b981;">
+            <div class="upcoming-job-time">16:00</div>
+            <div class="upcoming-job-info">
+              <div class="upcoming-job-name">Mr. G. Williams</div>
+              <div class="upcoming-job-type">Landlord CP12 · Bradford</div>
+            </div>
+            <span class="status-badge badge-complete">Confirmed</span>
+          </div>
+
+          <div class="marketing-overlay">
+            <div class="marketing-headline">Never Miss a Job<br>or Renewal</div>
+            <div class="marketing-sub">Full calendar view with renewal alerts — stay ahead of your schedule</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="screenshot-label">06 — Calendar &amp; Schedule</div>
+    </div>
+
+  </div><!-- /screenshots-grid -->
+
+  <div class="export-hint">
+    To export individual screenshots, open in Chrome → <code>Ctrl/Cmd+Shift+I</code> → Device toolbar → set to <strong>430×932</strong> →
+    right-click each phone frame → <em>"Capture node screenshot"</em>
+    <br><br>
+    Or use <strong>puppeteer</strong> / <strong>playwright</strong> to automate export at 1320×2868px (3× pixel ratio).
+    <br><br>
+    App Store Connect requires: <strong>6.9″ iPhone</strong> (1320×2868), <strong>6.5″ iPhone</strong> (1284×2778), <strong>12.9″ iPad</strong> (2048×2732)
+  </div>
+
+</body>
+</html>

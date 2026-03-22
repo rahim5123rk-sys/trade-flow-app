@@ -116,7 +116,7 @@ export default function DecommissioningLayout() {
   return (
     <DecommissioningProvider>
       <DecommissioningAutoSave>
-        <Stack screenOptions={{headerShown: false, contentStyle: {backgroundColor: theme.surface.base}}}>
+        <Stack screenOptions={{headerShown: false, gestureEnabled: false, contentStyle: {backgroundColor: theme.surface.base}}}>
           <Stack.Screen name="index" />
           <Stack.Screen name="decommission" />
           <Stack.Screen name="review-sign" />

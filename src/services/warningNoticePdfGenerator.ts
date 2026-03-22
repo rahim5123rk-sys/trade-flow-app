@@ -1,6 +1,6 @@
 import { WarningNoticeAppliance, WarningNoticeFinalInfo } from '../types/warningNotice';
 import { registerFormPdf } from './pdf/registry';
-import { type BaseLockedPayload, generatePdfBase64FromPayload, generatePdfFromPayload, generatePdfUrlFromPayload, getCompanyAndEngineer } from './pdf/shared';
+import { type BaseLockedPayload, combineNotes, generatePdfBase64FromPayload, generatePdfFromPayload, generatePdfUrlFromPayload, getCompanyAndEngineer } from './pdf/shared';
 import { buildSingleApplianceFormHtml } from './pdf/singleApplianceFormTemplate';
 
 export interface WarningNoticePdfData {
@@ -19,7 +19,6 @@ export interface WarningNoticePdfData {
 
 export interface WarningNoticeLockedPayload extends BaseLockedPayload<'warning_notice', WarningNoticePdfData> { kind: 'warning_notice'; version: 1; }
 
-const combineNotes = (...parts: Array<string | null | undefined>) => parts.map((part) => part?.trim()).filter(Boolean).join('\n\n');
 
 function buildHtml(pdfData: WarningNoticePdfData, company: any, engineer: any, gasSafeLogo = '', companyLogo = '') {
   const appliance = pdfData.appliances?.[0] || {} as Partial<WarningNoticeAppliance>;

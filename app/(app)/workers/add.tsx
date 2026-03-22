@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Platform,
     ScrollView,
@@ -11,19 +13,48 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import ProPaywallModal from '../../../components/ProPaywallModal';
 import { Colors, UI } from '../../../constants/theme';
 import { supabase } from '../../../src/config/supabase';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useSubscription } from '../../../src/context/SubscriptionContext';
 import { useAppTheme } from '../../../src/context/ThemeContext';
 
 export default function AddWorkerScreen() {
   const { userProfile } = useAuth();
   const { theme, isDark } = useAppTheme();
+  const { isPro, purchaseWorkerSeat } = useSubscription();
+  const [showSeatLimit, setShowSeatLimit] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [seatInfo, setSeatInfo] = useState<{ current: number; limit: number } | null>(null);
+  const [buyingSeat, setBuyingSeat] = useState(false);
 
   useEffect(() => {
     fetchInviteCode();
+    checkSeatLimit();
   }, [userProfile]);
+
+  const checkSeatLimit = async () => {
+    if (!userProfile?.company_id || !isPro) return;
+    // Get seat limit
+    const { data: company } = await supabase
+      .from('companies')
+      .select('worker_seat_limit')
+      .eq('id', userProfile.company_id)
+      .single();
+    // Get current worker count (non-admin profiles in company)
+    const { count } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', userProfile.company_id)
+      .neq('role', 'admin');
+    const limit = company?.worker_seat_limit ?? 0;
+    const current = count ?? 0;
+    setSeatInfo({ current, limit });
+    if (current >= limit) {
+      setShowSeatLimit(true);
+    }
+  };
 
   const fetchInviteCode = async () => {
     if (!userProfile?.company_id) return;
@@ -39,6 +70,26 @@ export default function AddWorkerScreen() {
     if (inviteCode) {
       await Clipboard.setStringAsync(inviteCode);
       Alert.alert('Copied!', 'Invite code copied to clipboard.');
+    }
+  };
+
+  const handleBuySeat = async () => {
+    setBuyingSeat(true);
+    try {
+      await purchaseWorkerSeat();
+      Alert.alert('Seat Added!', 'You now have an additional worker seat.');
+      await checkSeatLimit();
+      setShowSeatLimit(false);
+    } catch (e: any) {
+      if (e?.userCancelled) {
+        // User tapped cancel — do nothing
+      } else if (e?.message === 'Not available' || e?.message === 'Worker seat package not found') {
+        Alert.alert('Unavailable', 'Worker seat purchase is not available right now. Please try again later.');
+      } else {
+        Alert.alert('Purchase Failed', 'Something went wrong. Please try again.');
+      }
+    } finally {
+      setBuyingSeat(false);
     }
   };
 
@@ -73,6 +124,12 @@ export default function AddWorkerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
+      <ProPaywallModal
+        visible={!isPro}
+        onDismiss={() => router.back()}
+        featureTitle="Team Management"
+        featureDescription="Invite workers, assign jobs, and manage your team all from one place."
+      />
       <LinearGradient
         colors={theme.gradients.appBackground}
         start={{ x: 0, y: 0 }}
@@ -85,6 +142,13 @@ export default function AddWorkerScreen() {
           <Text style={[styles.subtitle, { color: theme.text.muted }] }>
             Workers can join your company by entering this code during registration.
           </Text>
+          {showSeatLimit && (
+            <View style={{ backgroundColor: isDark ? theme.surface.elevated : '#FEF3C7', padding: 12, borderRadius: 10, marginBottom: 16 }}>
+              <Text style={{ color: isDark ? theme.text.body : '#92400E', fontSize: 13, lineHeight: 18, fontWeight: '600' }}>
+                No seats available — new workers cannot join until you purchase more seats below.
+              </Text>
+            </View>
+          )}
 
           <View style={[styles.codeBox, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }] }>
             <Text style={[styles.codeLabel, { color: theme.text.muted }]}>INVITE CODE</Text>
@@ -99,26 +163,59 @@ export default function AddWorkerScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.regenBtn} onPress={handleRegenerateCode}>
-              <Text style={styles.regenText}>Regenerate Code</Text>
+              <Text style={[styles.regenText, { color: theme.brand.danger }]}>Regenerate Code</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Seat usage info */}
+        {isPro && seatInfo && (
+          <View style={[styles.card, { marginTop: 16 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <Ionicons name="people" size={20} color={theme.brand.primary} />
+              <Text style={[styles.title, { color: theme.text.title, fontSize: 16, marginBottom: 0 }]}>Worker Seats</Text>
+            </View>
+            <Text style={[styles.subtitle, { color: theme.text.muted, marginBottom: 12 }]}>
+              {seatInfo.current} of {seatInfo.limit} seats used
+            </Text>
+            {showSeatLimit && (
+              <View style={{ backgroundColor: isDark ? theme.surface.elevated : '#FEF3C7', padding: 12, borderRadius: 10, marginBottom: 12 }}>
+                <Text style={{ color: isDark ? theme.text.body : '#92400E', fontSize: 13, lineHeight: 18 }}>
+                  All worker seats are in use. Purchase additional seats (£15/month each) to invite more workers.
+                </Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.brand.primary }, buyingSeat && { opacity: 0.6 }]}
+              onPress={handleBuySeat}
+              disabled={buyingSeat}
+            >
+              {buyingSeat ? (
+                <ActivityIndicator color={theme.text.inverse} />
+              ) : (
+                <Text style={[styles.primaryBtnText, { color: theme.text.inverse }]}>
+                  {showSeatLimit ? 'Purchase Worker Seat — £15/mo' : 'Add Worker Seat — £15/mo'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: Colors.background },
+  container: { flex: 1, padding: 20 },
   card: { backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(255,255,255,0.80)', padding: 20, borderRadius: 12, ...Colors.shadow },
-  title: { fontSize: 20, fontWeight: '800', color: Colors.text, marginBottom: 4 },
-  subtitle: { color: Colors.textLight, marginBottom: 20, fontSize: 14, lineHeight: 20 },
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
+  subtitle: { marginBottom: 20, fontSize: 14, lineHeight: 20 },
   codeBox: { backgroundColor: UI.surface.base, padding: 16, borderRadius: 8, borderWidth: 1, borderColor: UI.surface.divider, marginBottom: 20 },
-  codeLabel: { fontSize: 10, fontWeight: '700', color: Colors.textLight, marginBottom: 4, letterSpacing: 1 },
+  codeLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4, letterSpacing: 1 },
   codeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  code: { fontSize: 28, fontWeight: 'bold', color: Colors.text, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', letterSpacing: 2 },
+  code: { fontSize: 28, fontWeight: 'bold', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', letterSpacing: 2 },
   button: { padding: 16, borderRadius: 10, alignItems: 'center' },
-  primaryBtn: { backgroundColor: Colors.primary, ...Colors.shadow },
-  primaryBtnText: { color: UI.text.white, fontWeight: 'bold', fontSize: 16 },
+  primaryBtn: { ...Colors.shadow },
+  primaryBtnText: { fontWeight: 'bold', fontSize: 16 },
   regenBtn: { alignItems: 'center', marginTop: 16 },
-  regenText: { color: Colors.danger, fontWeight: '600', fontSize: 14 },
+  regenText: { fontWeight: '600', fontSize: 14 },
 });

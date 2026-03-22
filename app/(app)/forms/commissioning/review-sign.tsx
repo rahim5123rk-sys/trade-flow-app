@@ -9,22 +9,20 @@ import {SignaturePad} from '../../../../components/SignaturePad';
 import {FormHeader} from '../../../../components/forms/FormHeader';
 import {FormStepIndicator} from '../../../../components/forms/FormStepIndicator';
 import {Button} from '../../../../components/ui/Button';
+import EmailRecipientsList from '../../../../components/EmailRecipientsList';
+import {upsertSiteAddress} from '../../../../components/forms/SiteAddressPicker';
 import {useAuth} from '../../../../src/context/AuthContext';
 import {useCommissioning} from '../../../../src/context/CommissioningContext';
 import {useOfflineMode} from '../../../../src/context/OfflineContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
+import {sanitizeRecipients} from '../../../../src/services/email';
 import {CommissioningPdfData} from '../../../../src/services/commissioningPdfGenerator';
-import {completeFormAction, getNextCertReference} from '../../../../src/services/formDocumentService';
+import {buildCustomerAddress, buildCustomerSnapshot, completeFormAction, getNextCertReference} from '../../../../src/services/formDocumentService';
+import {parseGBDate, formatGBDate} from '../../../../src/utils/dates';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 const STEPS = ['Details', 'Commissioning', 'Review'];
 
-const parseDate = (ddmmyyyy: string) => {
-  const [dd, mm, yyyy] = ddmmyyyy.split('/');
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-};
-
-const formatDate = (date: Date) => date.toLocaleDateString('en-GB');
 
 export default function CommissioningReviewSignScreen() {
   const insets = useSafeAreaInsets();
@@ -34,6 +32,10 @@ export default function CommissioningReviewSignScreen() {
   const {
     customerForm,
     propertyAddress,
+    propertyAddressLine1,
+    propertyAddressLine2,
+    propertyCity,
+    propertyPostCode,
     appliances,
     finalInfo,
     commissioningDate,
@@ -51,12 +53,13 @@ export default function CommissioningReviewSignScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showNextDatePicker, setShowNextDatePicker] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
+  const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
 
   useEffect(() => {
     const preload = async () => {
       if (certRef || editingDocumentId) return;
       try {
-        const nextRef = await getNextCertReference(false);
+        const nextRef = await getNextCertReference(false, userProfile?.company_id);
         setCertRef(nextRef);
       } catch {
         // ignore preload errors
@@ -71,7 +74,7 @@ export default function CommissioningReviewSignScreen() {
   const pdfData: CommissioningPdfData = {
     customerName: customerForm.customerName || '',
     customerCompany: customerForm.customerCompany || '',
-    customerAddress: [customerForm.addressLine1, customerForm.addressLine2, customerForm.city, customerForm.postCode].filter(Boolean).join(', '),
+    customerAddress: buildCustomerAddress(customerForm),
     customerEmail: customerForm.email || '',
     customerPhone: customerForm.phone || '',
     propertyAddress,
@@ -83,17 +86,7 @@ export default function CommissioningReviewSignScreen() {
     certRef,
   };
 
-  const customerSnapshot = {
-    name: customerForm.customerName || 'Customer',
-    company_name: customerForm.customerCompany || null,
-    address_line_1: customerForm.addressLine1 || null,
-    address_line_2: customerForm.addressLine2 || null,
-    city: customerForm.city || null,
-    postal_code: customerForm.postCode || null,
-    phone: customerForm.phone || null,
-    email: customerForm.email || null,
-    address: [customerForm.addressLine1, customerForm.addressLine2, customerForm.city, customerForm.postCode].filter(Boolean).join(', '),
-  };
+  const customerSnapshot = buildCustomerSnapshot(customerForm);
 
   const handleComplete = async (action: 'save' | 'email' | 'view') => {
     if (!userProfile?.company_id) {
@@ -125,8 +118,8 @@ export default function CommissioningReviewSignScreen() {
         customerSnapshot,
         customerId: customerForm.customerId || null,
         editingDocumentId,
-        expiryDate: nextServiceDate || null,
-        emailRecipients: [customerForm.email || ''],
+        expiryDate: nextServiceDate,
+        emailRecipients: sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]),
         emailContext: {
           propertyAddress,
           inspectionDate: commissioningDate,
@@ -136,6 +129,13 @@ export default function CommissioningReviewSignScreen() {
         },
         onReset: resetCommissioning,
         setCertRef,
+      });
+
+      void upsertSiteAddress(userProfile.company_id, {
+        addressLine1: propertyAddressLine1,
+        addressLine2: propertyAddressLine2,
+        city: propertyCity,
+        postCode: propertyPostCode,
       });
 
       const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
@@ -187,13 +187,21 @@ export default function CommissioningReviewSignScreen() {
               <Ionicons name="calendar-outline" size={18} color={theme.brand.primary} />
               <Text style={[styles.dateText, {color: theme.text.title}]}>{commissioningDate}</Text>
             </TouchableOpacity>
-            {showDatePicker ? <DateTimePicker value={parseDate(commissioningDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_event: DateTimePickerEvent, date?: Date) => {setShowDatePicker(Platform.OS === 'ios'); if (date) setCommissioningDate(formatDate(date));}} /> : null}
+            {showDatePicker ? <DateTimePicker value={parseGBDate(commissioningDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_event: DateTimePickerEvent, date?: Date) => {setShowDatePicker(Platform.OS === 'ios'); if (date) setCommissioningDate(formatGBDate(date));}} /> : null}
 
             <TouchableOpacity style={[styles.dateButton, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => setShowNextDatePicker(true)}>
               <Ionicons name="alarm-outline" size={18} color={theme.brand.primary} />
               <Text style={[styles.dateText, {color: theme.text.title}]}>{nextServiceDate || 'Set next service date'}</Text>
             </TouchableOpacity>
-            {showNextDatePicker ? <DateTimePicker value={parseDate(nextServiceDate || commissioningDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_event: DateTimePickerEvent, date?: Date) => {setShowNextDatePicker(Platform.OS === 'ios'); if (date) setNextServiceDate(formatDate(date));}} /> : null}
+            {showNextDatePicker ? <DateTimePicker value={parseGBDate(nextServiceDate || commissioningDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_event: DateTimePickerEvent, date?: Date) => {setShowNextDatePicker(Platform.OS === 'ios'); if (date) setNextServiceDate(formatGBDate(date));}} /> : null}
+          </View>
+
+          <View style={{marginBottom: 16}}>
+            <EmailRecipientsList
+              defaultEmails={sanitizeRecipients([customerForm.email || ''])}
+              additionalEmails={additionalSendEmails}
+              onAdditionalEmailsChange={setAdditionalSendEmails}
+            />
           </View>
 
           <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}>

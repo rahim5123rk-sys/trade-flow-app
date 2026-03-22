@@ -41,6 +41,37 @@ export interface CustomerSnapshot {
   address: string;
 }
 
+export interface CustomerFormFields {
+  customerName: string;
+  customerCompany?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  postCode?: string;
+  phone?: string;
+  email?: string;
+}
+
+/** Build the address string shared between pdfData and customerSnapshot. */
+export function buildCustomerAddress(fields: Pick<CustomerFormFields, 'addressLine1' | 'addressLine2' | 'city' | 'postCode'>): string {
+  return [fields.addressLine1, fields.addressLine2, fields.city, fields.postCode].filter(Boolean).join(', ');
+}
+
+/** Build the CustomerSnapshot object for document creation. */
+export function buildCustomerSnapshot(customerForm: CustomerFormFields): CustomerSnapshot {
+  return {
+    name: customerForm.customerName || 'Customer',
+    company_name: customerForm.customerCompany || null,
+    address_line_1: customerForm.addressLine1 || null,
+    address_line_2: customerForm.addressLine2 || null,
+    city: customerForm.city || null,
+    postal_code: customerForm.postCode || null,
+    phone: customerForm.phone || null,
+    email: customerForm.email || null,
+    address: buildCustomerAddress(customerForm),
+  };
+}
+
 export interface SaveDocumentParams {
   config: FormDocumentConfig;
   companyId: string;
@@ -119,6 +150,7 @@ export async function saveFormDocument(
   const docNumber = Number(String(Date.now()).slice(-8));
   const documentBase = {
     company_id: companyId,
+    user_id: userId,
     type: config.documentType as any,
     number: docNumber,
     reference: certRef,
@@ -161,10 +193,35 @@ export async function saveFormDocument(
 
 // ─── Get next cert reference ────────────────────────────────────
 
-export async function getNextCertReference(reserve: boolean): Promise<string> {
-  const { data, error } = await supabase.rpc('get_next_gas_cert_reference', { reserve });
+export async function getNextCertReference(reserve: boolean, companyId?: string): Promise<string> {
+  const { data, error } = await supabase.rpc('get_next_gas_cert_reference', {
+    reserve,
+    p_company_id: companyId || null,
+  });
   if (error || typeof data !== 'string') {
     throw new Error(error?.message || 'Failed to generate certificate reference.');
+  }
+  return data;
+}
+
+export async function getNextInvoiceReference(reserve: boolean, companyId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('get_next_invoice_reference', {
+    reserve,
+    p_company_id: companyId,
+  });
+  if (error || typeof data !== 'string') {
+    throw new Error(error?.message || 'Failed to generate invoice reference.');
+  }
+  return data;
+}
+
+export async function getNextQuoteReference(reserve: boolean, companyId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('get_next_quote_reference', {
+    reserve,
+    p_company_id: companyId,
+  });
+  if (error || typeof data !== 'string') {
+    throw new Error(error?.message || 'Failed to generate quote reference.');
   }
   return data;
 }
@@ -222,7 +279,7 @@ export async function completeFormAction(
   // Resolve cert reference
   let certRef = params.certRef;
   if (!editingDocumentId || !certRef) {
-    certRef = await getNextCertReference(true);
+    certRef = await getNextCertReference(true, companyId);
     setCertRef?.(certRef);
   }
 
@@ -270,6 +327,7 @@ export async function completeFormAction(
     landlordName: emailContext?.landlordName || '',
     tenantName: emailContext?.tenantName || '',
     pdfBase64,
+    formLabel: config.label,
   });
 
   // Also trigger share sheet so engineer has a local copy

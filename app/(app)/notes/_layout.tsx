@@ -9,6 +9,7 @@ export default function NotesLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        gestureEnabled: false,
         contentStyle: {backgroundColor: theme.surface.base},
       }}
     >

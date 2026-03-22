@@ -24,6 +24,8 @@ import {
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import EmailRecipientsList from '../../../../components/EmailRecipientsList';
+import {upsertSiteAddress} from '../../../../components/forms/SiteAddressPicker';
 import ReminderSection from '../../../../components/ReminderSection';
 import {SignaturePad} from '../../../../components/SignaturePad';
 import {UI} from '../../../../constants/theme';
@@ -104,6 +106,10 @@ export default function ServiceRecordReviewSign() {
     setCertRef,
     customerForm,
     propertyAddress,
+    propertyAddressLine1,
+    propertyAddressLine2,
+    propertyCity,
+    propertyPostCode,
     appliances,
     finalInfo,
     resetServiceRecord,
@@ -115,21 +121,22 @@ export default function ServiceRecordReviewSign() {
   const [showNextDatePicker, setShowNextDatePicker] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
   const [oneTimeEmails, setOneTimeEmails] = useState<string[]>([]);
+  const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
 
   const savedEmails: string[] = [];
-  const emailRecipients = sanitizeRecipients([customerForm.email || '']);
+  const emailRecipients = sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]);
 
   useEffect(() => {
     const preloadNextReference = async () => {
       if (certRef) return;
       if (editingDocumentId) return;
       try {
-        const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {reserve: false});
+        const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {reserve: false, p_company_id: userProfile?.company_id || null});
         if (!error && typeof data === 'string') setCertRef(data);
       } catch { }
     };
     void preloadNextReference();
-  }, [certRef, setCertRef, editingDocumentId]);
+  }, [certRef, setCertRef, editingDocumentId, userProfile?.company_id]);
 
   const onDateChange = (_e: DateTimePickerEvent, date?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -147,7 +154,7 @@ export default function ServiceRecordReviewSign() {
   };
 
   const getNextReference = async () => {
-    const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {reserve: true});
+    const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {reserve: true, p_company_id: userProfile?.company_id || null});
     if (error || typeof data !== 'string') throw new Error(error?.message || 'Failed to generate reference.');
     setCertRef(data);
     return data;
@@ -266,6 +273,14 @@ export default function ServiceRecordReviewSign() {
       const {lockedPayload, documentId} = await createDocument(reference);
       if (!documentId) throw new Error('Failed to create service record.');
 
+      // Auto-save site address for future reuse
+      void upsertSiteAddress(userProfile.company_id, {
+        addressLine1: propertyAddressLine1,
+        addressLine2: propertyAddressLine2,
+        city: propertyCity,
+        postCode: propertyPostCode,
+      });
+
       const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
 
       if (action === 'save') {
@@ -284,7 +299,7 @@ export default function ServiceRecordReviewSign() {
       }
 
       // Email
-      const recipients = sanitizeRecipients([customerForm.email || '']);
+      const recipients = sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]);
       if (!recipients.length) {
         Alert.alert('No Email Found', 'Add a customer email before using Save & Send.');
         return;
@@ -301,6 +316,7 @@ export default function ServiceRecordReviewSign() {
         landlordName: customerForm.customerName,
         tenantName: '',
         pdfBase64,
+        formLabel: 'Service Record',
       });
 
       await generateServiceRecordPdfFromPayload(lockedPayload, 'share', userProfile.company_id);
@@ -467,6 +483,14 @@ export default function ServiceRecordReviewSign() {
                 </View>
               </TouchableOpacity>
             )}
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(210).duration(400)}>
+            <EmailRecipientsList
+              defaultEmails={sanitizeRecipients([customerForm.email || ''])}
+              additionalEmails={additionalSendEmails}
+              onAdditionalEmailsChange={setAdditionalSendEmails}
+            />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(220).duration(400)}>

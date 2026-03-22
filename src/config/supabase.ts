@@ -23,6 +23,7 @@ const STORE_TIMEOUT = 5000; // 5 seconds max per SecureStore operation
 const SecureStoreAdapter = {
   getItem: async (key: string): Promise<string | null> => {
     if (Platform.OS === 'web') {
+      if (typeof localStorage === 'undefined') return null;
       return localStorage.getItem(key);
     }
     try {
@@ -50,7 +51,7 @@ const SecureStoreAdapter = {
 
   setItem: async (key: string, value: string): Promise<void> => {
     if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
+      if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
       return;
     }
     try {
@@ -82,7 +83,7 @@ const SecureStoreAdapter = {
 
   removeItem: async (key: string): Promise<void> => {
     if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
+      if (typeof localStorage !== 'undefined') localStorage.removeItem(key);
       return;
     }
     try {

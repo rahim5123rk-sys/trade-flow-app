@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/context/AuthContext';
 import { OfflineProvider } from '../src/context/OfflineContext';
+import { SubscriptionProvider } from '../src/context/SubscriptionContext';
 import { ThemeProvider } from '../src/context/ThemeContext';
 
 SplashScreen.preventAutoHideAsync();
@@ -28,8 +29,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
+            <SubscriptionProvider>
             <OfflineProvider>
-              <Stack screenOptions={{ headerShown: false }}>
+              <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
                 {/* Entry point (redirect logic) */}
                 <Stack.Screen name="index" />
 
@@ -40,6 +42,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(app)" />
               </Stack>
             </OfflineProvider>
+            </SubscriptionProvider>
           </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>

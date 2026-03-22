@@ -77,6 +77,8 @@ export default function CustomerDetailScreen() {
         jobPostCode: '',
         siteContactName: '',
         siteContactEmail: '',
+        siteContactPhone: '',
+        siteContactTitle: '',
       });
     }
 
@@ -184,27 +186,53 @@ export default function CustomerDetailScreen() {
     }
   };
 
+  const getDocLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      invoice: 'Invoice',
+      quote: 'Quote',
+      cp12: 'Gas Certificate',
+      service_record: 'Service Record',
+      commissioning: 'Commissioning',
+      decommissioning: 'Decommissioning',
+      warning_notice: 'Warning Notice',
+      breakdown_report: 'Breakdown Report',
+      installation_cert: 'Installation Certificate',
+    };
+    return labels[type] || type;
+  };
+
+  const isGasForm = (type: string) => ['cp12', 'service_record', 'commissioning', 'decommissioning', 'warning_notice', 'breakdown_report', 'installation_cert'].includes(type);
+
   const renderHistoryItem = ({ item }: { item: any }) => {
     const isJob = item.activityType === 'job';
     const date = new Date(isJob ? item.scheduled_date : item.created_at);
     const displayDate = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const gasForm = !isJob && isGasForm(item.type);
+    const isInvoice = !isJob && item.type === 'invoice';
+
+    const iconBg = isJob
+      ? (isDark ? theme.surface.elevated : UI.surface.base)
+      : isInvoice
+        ? (isDark ? 'rgba(194,65,12,0.15)' : '#FFF7ED')
+        : gasForm
+          ? (isDark ? 'rgba(34,197,94,0.15)' : '#F0FDF4')
+          : (isDark ? 'rgba(139,92,246,0.15)' : '#F5F3FF');
+
+    const iconName = isJob ? 'briefcase' : isInvoice ? 'receipt' : gasForm ? 'shield-checkmark' : 'document-text';
+    const iconColor = isJob ? Colors.primary : isInvoice ? '#C2410C' : gasForm ? '#16A34A' : UI.brand.secondary;
 
     return (
-      <TouchableOpacity 
-        style={[styles.historyCard, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]} 
+      <TouchableOpacity
+        style={[styles.historyCard, isDark && { backgroundColor: theme.surface.card, shadowColor: 'transparent' }]}
         onPress={() => router.push(isJob ? `/(app)/jobs/${item.id}` : `/(app)/documents/${item.id}` as any)}
       >
         <View style={styles.historyLeft}>
-          <View style={[styles.iconCircle, { backgroundColor: isJob ? (isDark ? theme.surface.elevated : UI.surface.base) : (item.type === 'invoice' ? (isDark ? 'rgba(194,65,12,0.15)' : '#FFF7ED') : (isDark ? 'rgba(139,92,246,0.15)' : '#F5F3FF')) }]}>
-            <Ionicons 
-              name={isJob ? 'briefcase' : (item.type === 'invoice' ? 'receipt' : 'document-text')} 
-              size={18} 
-              color={isJob ? Colors.primary : (item.type === 'invoice' ? '#C2410C' : UI.brand.secondary)} 
-            />
+          <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
+            <Ionicons name={iconName} size={18} color={iconColor} />
           </View>
           <View>
-            <Text style={[styles.historyTitle, isDark && { color: theme.text.title }]}>{isJob ? item.title : `${item.type.toUpperCase()} #${String(item.number).padStart(4, '0')}`}</Text>
-            <Text style={[styles.historyDate, isDark && { color: theme.text.muted }]}>{displayDate} • {isJob ? 'Job' : item.type}</Text>
+            <Text style={[styles.historyTitle, isDark && { color: theme.text.title }]}>{isJob ? item.title : `${getDocLabel(item.type)} #${String(item.number).padStart(4, '0')}`}</Text>
+            <Text style={[styles.historyDate, isDark && { color: theme.text.muted }]}>{displayDate} • {isJob ? 'Job' : getDocLabel(item.type)}</Text>
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>

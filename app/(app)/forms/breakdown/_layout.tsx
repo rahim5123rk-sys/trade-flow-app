@@ -72,9 +72,9 @@ export default function BreakdownLayout() {
   return (
     <BreakdownReportProvider>
       <BreakdownAutoSave>
-        <Stack screenOptions={{headerShown: false, contentStyle: {backgroundColor: theme.surface.base}}}>
+        <Stack screenOptions={{headerShown: false, gestureEnabled: false, contentStyle: {backgroundColor: theme.surface.base}}}>
           <Stack.Screen name="index" />
-          <Stack.Screen name="breakdown" />
+          <Stack.Screen name="details" />
           <Stack.Screen name="review-sign" />
         </Stack>
       </BreakdownAutoSave>

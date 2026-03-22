@@ -12,6 +12,7 @@ export const PRIVACY_POLICY_SECTIONS = [
 • Account Data: Name, email address, password (hashed), company name, trading address, phone number, trade type and account settings.
 • Professional & Compliance Data: Gas Safe Register number, gas licence number, OFTEC number, engineer ID details and related competency information that you choose to enter.
 • Customer, Tenant & Landlord Data: Names, company names, service addresses, postcodes, email addresses, telephone numbers and occupancy details.
+• Site Address Data: Site/property addresses and associated tenant contact details (name, email, phone) are saved for reuse across future forms.
 • Job & Scheduling Data: Job descriptions, notes, appointments, status history, assigned workers, calendar entries, site notes and photos.
 • Property & Appliance Data: Appliance make/model details, flue and ventilation details, commissioning values, service readings, combustion/FGA readings, warning notices, defect notes, breakdown details and installation information.
 • Document Data: Quotes, invoices, CP12 / Landlord Gas Safety Records, service records, warning notices, commissioning records, decommissioning records, breakdown reports, installation certificates, supporting forms, document references, renewal dates and related snapshots.
@@ -45,6 +46,7 @@ We do not sell personal data and we do not use personal data for advertising or 
     title: '5. Data Retention',
     body: `• Account data is retained for as long as your account remains active and for a reasonable period afterwards where needed for security, dispute handling or legal compliance.
 • Customer, job, scheduling and worker records are retained until deleted by your company or removed as part of account deletion, subject to any legal retention requirement.
+• Site address and tenant records are retained until manually deleted by the company administrator, or until the company account is deleted.
 • Gas safety and related compliance records are retained for at least the minimum period required by applicable law where such retention obligations apply.
 • Reminder logs, email delivery records and audit events may be retained for evidential, fraud-prevention and support purposes.
 • Generated PDFs and document snapshots stored in cloud storage follow the retention period of the underlying record unless deleted earlier where permitted.

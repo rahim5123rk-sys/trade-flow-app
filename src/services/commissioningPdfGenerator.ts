@@ -8,6 +8,7 @@ import {
     generatePdfBase64FromPayload,
     generatePdfFromPayload,
     generatePdfUrlFromPayload,
+    combineNotes,
     getCompanyAndEngineer,
 } from './pdf/shared';
 import { buildSingleApplianceFormHtml } from './pdf/singleApplianceFormTemplate';
@@ -31,8 +32,6 @@ export interface CommissioningLockedPayload extends BaseLockedPayload<'commissio
   kind: 'commissioning';
   version: 1;
 }
-
-const combineNotes = (...parts: Array<string | null | undefined>) => parts.map((part) => part?.trim()).filter(Boolean).join('\n\n');
 
 function buildHtml(pdfData: CommissioningPdfData, company: any, engineer: any, gasSafeLogo = '', companyLogo = '') {
   const appliance = pdfData.appliances?.[0] || {} as Partial<CommissioningAppliance>;

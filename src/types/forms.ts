@@ -3,8 +3,6 @@
 // Shared base types for all gas form types
 // ============================================
 
-import { CustomerFormData } from '../../components/CustomerSelector';
-
 // ─── Form Registry ──────────────────────────────────────────────
 
 export type FormType =
@@ -127,24 +125,3 @@ export const FORM_REGISTRY: FormDefinition[] = [
     available: true,
   },
 ];
-
-// ─── Shared base for all form contexts ──────────────────────────
-
-export interface BaseFormCustomerData {
-  landlordForm: CustomerFormData;
-  tenantName: string;
-  tenantEmail: string;
-  tenantPhone: string;
-  tenantAddressLine1: string;
-  tenantAddressLine2: string;
-  tenantCity: string;
-  tenantPostCode: string;
-  propertyAddress: string;
-}
-
-export interface BaseFormReviewData {
-  inspectionDate: string;
-  customerSignature: string;
-  certRef: string;
-  editingDocumentId: string | null;
-}

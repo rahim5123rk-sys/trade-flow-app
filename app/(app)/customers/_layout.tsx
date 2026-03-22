@@ -9,6 +9,7 @@ export default function CustomersLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
+        gestureEnabled: false,
         headerTintColor: theme.brand.primary,
         headerBackTitle: 'Back',
         headerStyle: { backgroundColor: theme.surface.base },

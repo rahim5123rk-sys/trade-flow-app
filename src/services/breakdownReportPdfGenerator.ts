@@ -1,6 +1,6 @@
 import { BreakdownReportAppliance, BreakdownReportFinalInfo } from '../types/breakdownReport';
 import { registerFormPdf } from './pdf/registry';
-import { type BaseLockedPayload, generatePdfBase64FromPayload, generatePdfFromPayload, generatePdfUrlFromPayload, getCompanyAndEngineer } from './pdf/shared';
+import { type BaseLockedPayload, combineNotes, generatePdfBase64FromPayload, generatePdfFromPayload, generatePdfUrlFromPayload, getCompanyAndEngineer } from './pdf/shared';
 import { buildSingleApplianceFormHtml } from './pdf/singleApplianceFormTemplate';
 
 export interface BreakdownReportPdfData {
@@ -19,7 +19,6 @@ export interface BreakdownReportPdfData {
 
 export interface BreakdownReportLockedPayload extends BaseLockedPayload<'breakdown_report', BreakdownReportPdfData> { kind: 'breakdown_report'; version: 1; }
 
-const combineNotes = (...parts: Array<string | null | undefined>) => parts.map((part) => part?.trim()).filter(Boolean).join('\n\n');
 
 function buildHtml(pdfData: BreakdownReportPdfData, company: any, engineer: any, gasSafeLogo = '', companyLogo = '') {
   const appliance = pdfData.appliances?.[0] || {} as Partial<BreakdownReportAppliance>;

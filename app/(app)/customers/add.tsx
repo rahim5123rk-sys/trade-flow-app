@@ -18,13 +18,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import ProPaywallModal from '../../../components/ProPaywallModal';
 import {Colors, UI} from '../../../constants/theme';
 import {supabase} from '../../../src/config/supabase';
 import {useAuth} from '../../../src/context/AuthContext';
+import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 
 export default function AddCustomerScreen() {
   const {userProfile} = useAuth();
+  const {isPro} = useSubscription();
 
   const [customerName, setCustomerName] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -36,6 +39,7 @@ export default function AddCustomerScreen() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const {theme, isDark} = useAppTheme();
 
   const handleImportContact = async () => {
@@ -92,6 +96,18 @@ export default function AddCustomerScreen() {
       return;
     }
 
+    // Starter plan: max 10 customers
+    if (!isPro && userProfile?.company_id) {
+      const { count } = await supabase
+        .from('customers')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', userProfile.company_id);
+      if (count !== null && count >= 10) {
+        setShowPaywall(true);
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -129,6 +145,12 @@ export default function AddCustomerScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{flex: 1}}
     >
+      <ProPaywallModal
+        visible={showPaywall}
+        onDismiss={() => setShowPaywall(false)}
+        featureTitle="Unlimited Customers"
+        featureDescription="Your Starter plan allows up to 10 customers. Upgrade to Pro for unlimited customers."
+      />
       <ScrollView
         style={[styles.container, isDark && {backgroundColor: theme.surface.base}]}
         contentContainerStyle={{paddingBottom: 60}}

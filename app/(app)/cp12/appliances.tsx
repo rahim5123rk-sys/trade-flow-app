@@ -23,6 +23,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UI } from '../../../constants/theme';
 import { useCP12 } from '../../../src/context/CP12Context';
 import { useAppTheme } from '../../../src/context/ThemeContext';
+import {AutocompleteSuggestions} from '../../../components/forms/AutocompleteInput';
+import {APPLIANCE_TYPES, getBrandsForCategory} from '../../../src/data/applianceBrands';
 import {
     CP12Appliance,
     EMPTY_APPLIANCE,
@@ -241,6 +243,8 @@ export default function AppliancesScreen() {
   const { appliances, addAppliance, updateAppliance, removeAppliance } = useCP12();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showMakeSuggestions, setShowMakeSuggestions] = useState(false);
+  const [showTypeSuggestions, setShowTypeSuggestions] = useState(false);
   const [form, setForm] = useState<Omit<CP12Appliance, 'id'>>({ ...EMPTY_APPLIANCE });
 
   const canAddMore = appliances.length < MAX_APPLIANCES;
@@ -438,9 +442,11 @@ export default function AppliancesScreen() {
               <SectionDivider title="Appliance Details" />
 
               <FormInput label="Location" value={form.location} onChange={(v) => updateField('location', v)} placeholder="e.g. Kitchen" />
-              <FormInput label="Make" value={form.make} onChange={(v) => updateField('make', v)} placeholder="e.g. Worcester" />
+              <FormInput label="Make" value={form.make} onChange={(v) => { updateField('make', v); setShowMakeSuggestions(true); }} placeholder="e.g. Worcester" />
+              <AutocompleteSuggestions value={form.make} suggestions={getBrandsForCategory(form.type)} visible={showMakeSuggestions} onSelect={(v) => { updateField('make', v); setShowMakeSuggestions(false); }} />
               <FormInput label="Model" value={form.model} onChange={(v) => updateField('model', v)} placeholder="e.g. Greenstar 30i" />
-              <FormInput label="Type" value={form.type} onChange={(v) => updateField('type', v)} placeholder="e.g. Boiler" />
+              <FormInput label="Type" value={form.type} onChange={(v) => { updateField('type', v); setShowTypeSuggestions(true); }} placeholder="e.g. Boiler" />
+              <AutocompleteSuggestions value={form.type} suggestions={[...APPLIANCE_TYPES]} visible={showTypeSuggestions} onSelect={(v) => { updateField('type', v); setShowTypeSuggestions(false); }} />
               <FormInput label="Serial Number" value={form.serialNumber} onChange={(v) => updateField('serialNumber', v)} placeholder="Serial number" />
               <FormInput label="GC Number" value={form.gcNumber} onChange={(v) => updateField('gcNumber', v)} placeholder="GC number" />
 

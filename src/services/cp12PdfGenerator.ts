@@ -259,8 +259,8 @@ function buildHtml(
     </tr>
     <tr>
       <th rowspan="2">Location</th>
-      <th rowspan="2">Make</th>
-      <th rowspan="2">Model</th>
+      <th rowspan="2" style="width:5.5%;">Make</th>
+      <th rowspan="2" style="width:7%;">Model</th>
       <th rowspan="2">Type</th>
       <th rowspan="2">Serial No.</th>
       <th rowspan="2">GC No.</th>

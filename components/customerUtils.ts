@@ -22,6 +22,8 @@ export interface CustomerFormData {
   jobPostCode: string;
   siteContactName: string;
   siteContactEmail: string;
+  siteContactPhone: string;
+  siteContactTitle: string;
 }
 
 export const EMPTY_CUSTOMER_FORM: CustomerFormData = {
@@ -42,6 +44,8 @@ export const EMPTY_CUSTOMER_FORM: CustomerFormData = {
   jobPostCode: '',
   siteContactName: '',
   siteContactEmail: '',
+  siteContactPhone: '',
+  siteContactTitle: '',
 };
 
 export function buildCustomerSnapshot(form: CustomerFormData) {
@@ -140,6 +144,8 @@ export function prefillFromJob(job: any): CustomerFormData {
     jobPostCode: snap.postal_code || '',
     siteContactName: snap.site_contact_name || '',
     siteContactEmail: snap.site_contact_email || '',
+    siteContactPhone: '',
+    siteContactTitle: '',
   };
 }
 

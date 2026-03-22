@@ -48,15 +48,15 @@ export default function JobAcceptModal({ jobId, visible, onDismiss }: Props) {
   const [acceptanceStatus, setAcceptanceStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    if (visible && jobId) fetchJob();
-    else {
+    if (visible && jobId && userProfile?.id) fetchJob();
+    else if (!visible) {
       setJob(null);
       setAcceptanceStatus(null);
     }
-  }, [visible, jobId]);
+  }, [visible, jobId, userProfile?.id]);
 
   const fetchJob = async () => {
-    if (!jobId) return;
+    if (!jobId || !userProfile?.id) return;
     setLoading(true);
     const { data } = await supabase
       .from('jobs')
@@ -64,26 +64,49 @@ export default function JobAcceptModal({ jobId, visible, onDismiss }: Props) {
       .eq('id', jobId)
       .single();
     setJob(data as JobDetail);
+
+    // Check for existing acceptance row
     const { data: acceptance } = await supabase
       .from('job_acceptance')
       .select('status')
-      .eq('job_id', jobId!)
-      .eq('worker_id', userProfile?.id ?? '')
+      .eq('job_id', jobId)
+      .eq('worker_id', userProfile.id)
       .maybeSingle();
-    setAcceptanceStatus(acceptance?.status ?? null);
+
+    if (!acceptance) {
+      // No row exists — create one so accept/decline can work
+      const { error: upsertError } = await supabase
+        .from('job_acceptance')
+        .upsert(
+          { job_id: jobId, worker_id: userProfile.id, status: 'pending' },
+          { onConflict: 'job_id,worker_id' }
+        );
+      if (upsertError) {
+        console.warn('[JobAcceptModal] Could not create acceptance row:', upsertError.message);
+      }
+      setAcceptanceStatus('pending');
+    } else {
+      setAcceptanceStatus(acceptance.status);
+    }
     setLoading(false);
   };
 
   const handleAccept = async () => {
     if (!jobId || !userProfile) return;
     setActing('accept');
-    const { error } = await supabase
+    const { error, data: rows } = await supabase
       .from('job_acceptance')
       .update({ status: 'accepted', updated_at: new Date().toISOString() })
       .eq('job_id', jobId)
-      .eq('worker_id', userProfile.id);
+      .eq('worker_id', userProfile.id)
+      .select();
     setActing(null);
-    if (error) { Alert.alert('Error', 'Could not accept job. Try again.'); return; }
+    if (error || !rows?.length) {
+      console.error('[JobAcceptModal] Accept failed:', error?.message ?? 'No rows returned');
+      Alert.alert('Error', error?.message ?? 'Could not accept job. Try again.');
+      return;
+    }
+    setAcceptanceStatus('accepted');
     onDismiss();
   };
 
@@ -97,15 +120,17 @@ export default function JobAcceptModal({ jobId, visible, onDismiss }: Props) {
         onPress: async () => {
           setActing('decline');
           // Update acceptance row
-          const { error: declineError } = await supabase
+          const { error: declineError, data: declineRows } = await supabase
             .from('job_acceptance')
             .update({ status: 'declined', updated_at: new Date().toISOString() })
             .eq('job_id', jobId)
-            .eq('worker_id', userProfile.id);
+            .eq('worker_id', userProfile.id)
+            .select();
 
-          if (declineError) {
+          if (declineError || !declineRows?.length) {
+            console.error('[JobAcceptModal] Decline failed:', declineError?.message ?? 'No rows returned');
             setActing(null);
-            Alert.alert('Error', 'Could not decline job. Try again.');
+            Alert.alert('Error', declineError?.message ?? 'Could not decline job. Try again.');
             return;
           }
 

@@ -14,6 +14,7 @@ import {
 
 interface CP12State {
   landlordForm: CustomerFormData;
+  tenantTitle: string;
   tenantName: string;
   tenantEmail: string;
   tenantPhone: string;
@@ -32,6 +33,7 @@ interface CP12State {
 
 interface CP12ContextValue extends CP12State {
   setLandlordForm: (f: CustomerFormData) => void;
+  setTenantTitle: (v: string) => void;
   setTenantName: (v: string) => void;
   setTenantEmail: (v: string) => void;
   setTenantPhone: (v: string) => void;
@@ -55,6 +57,7 @@ interface CP12ContextValue extends CP12State {
     propertyAddress?: string;
     appliances?: CP12Appliance[];
     landlordForm?: Partial<CustomerFormData>;
+    tenantTitle?: string;
     tenantName?: string;
     tenantEmail?: string;
     tenantPhone?: string;
@@ -65,6 +68,7 @@ interface CP12ContextValue extends CP12State {
     propertyAddress?: string;
     appliances?: CP12Appliance[];
     landlordForm?: Partial<CustomerFormData>;
+    tenantTitle?: string;
     tenantName?: string;
     tenantEmail?: string;
     tenantPhone?: string;
@@ -83,6 +87,7 @@ const CP12Context = createContext<CP12ContextValue | null>(null);
 
 export function CP12Provider({children}: {children: React.ReactNode}) {
   const [landlordForm, setLandlordForm] = useState<CustomerFormData>(EMPTY_CUSTOMER_FORM);
+  const [tenantTitle, setTenantTitle] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [tenantEmail, setTenantEmail] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
@@ -125,6 +130,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     propertyAddress?: string;
     appliances?: CP12Appliance[];
     landlordForm?: Partial<CustomerFormData>;
+    tenantTitle?: string;
     tenantName?: string;
     tenantEmail?: string;
     tenantPhone?: string;
@@ -152,6 +158,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     if (seed.landlordForm) {
       setLandlordForm({...EMPTY_CUSTOMER_FORM, ...seed.landlordForm});
     }
+    if (seed.tenantTitle !== undefined) setTenantTitle(seed.tenantTitle);
     if (seed.tenantName !== undefined) setTenantName(seed.tenantName);
     if (seed.tenantEmail !== undefined) setTenantEmail(seed.tenantEmail);
     if (seed.tenantPhone !== undefined) setTenantPhone(seed.tenantPhone);
@@ -163,6 +170,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     propertyAddress?: string;
     appliances?: CP12Appliance[];
     landlordForm?: Partial<CustomerFormData>;
+    tenantTitle?: string;
     tenantName?: string;
     tenantEmail?: string;
     tenantPhone?: string;
@@ -196,6 +204,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     if (seed.landlordForm) {
       setLandlordForm({...EMPTY_CUSTOMER_FORM, ...seed.landlordForm});
     }
+    if (seed.tenantTitle !== undefined) setTenantTitle(seed.tenantTitle);
     if (seed.tenantName !== undefined) setTenantName(seed.tenantName);
     if (seed.tenantEmail !== undefined) setTenantEmail(seed.tenantEmail);
     if (seed.tenantPhone !== undefined) setTenantPhone(seed.tenantPhone);
@@ -212,6 +221,7 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
 
   const resetCP12 = useCallback(() => {
     setLandlordForm(EMPTY_CUSTOMER_FORM);
+    setTenantTitle('');
     setTenantName('');
     setTenantEmail('');
     setTenantPhone('');
@@ -221,8 +231,11 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
     setTenantPostCode('');
     setAppliances([]);
     setFinalChecks(EMPTY_FINAL_CHECKS);
-    setInspectionDate(todayStr);
-    setNextDueDate(nextYear.toLocaleDateString('en-GB'));
+    const today = new Date();
+    setInspectionDate(today.toLocaleDateString('en-GB'));
+    const ny = new Date();
+    ny.setFullYear(ny.getFullYear() + 1);
+    setNextDueDate(ny.toLocaleDateString('en-GB'));
     setRenewalReminderEnabled(false);
     setCustomerSignature('');
     setCertRef('');
@@ -236,6 +249,8 @@ export function CP12Provider({children}: {children: React.ReactNode}) {
       value={{
         landlordForm,
         setLandlordForm,
+        tenantTitle,
+        setTenantTitle,
         tenantName,
         setTenantName,
         tenantEmail,

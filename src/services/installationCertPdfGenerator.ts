@@ -1,6 +1,6 @@
 import { InstallationCertAppliance, InstallationCertFinalInfo } from '../types/installationCert';
 import { registerFormPdf } from './pdf/registry';
-import { type BaseLockedPayload, generatePdfBase64FromPayload, generatePdfFromPayload, generatePdfUrlFromPayload, getCompanyAndEngineer } from './pdf/shared';
+import { type BaseLockedPayload, combineNotes, generatePdfBase64FromPayload, generatePdfFromPayload, generatePdfUrlFromPayload, getCompanyAndEngineer } from './pdf/shared';
 import { buildSingleApplianceFormHtml } from './pdf/singleApplianceFormTemplate';
 
 export interface InstallationCertPdfData {
@@ -20,7 +20,6 @@ export interface InstallationCertPdfData {
 
 export interface InstallationCertLockedPayload extends BaseLockedPayload<'installation_cert', InstallationCertPdfData> { kind: 'installation_cert'; version: 1; }
 
-const combineNotes = (...parts: Array<string | null | undefined>) => parts.map((part) => part?.trim()).filter(Boolean).join('\n\n');
 
 function buildHtml(pdfData: InstallationCertPdfData, company: any, engineer: any, gasSafeLogo = '', companyLogo = '') {
   const appliance = pdfData.appliances?.[0] || {} as Partial<InstallationCertAppliance>;

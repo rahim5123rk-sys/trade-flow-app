@@ -8,6 +8,7 @@ export default function WorkersLayout() {
   return (
     <Stack
       screenOptions={{
+        gestureEnabled: false,
         headerTintColor: theme.brand.primary,
         headerBackTitle: 'Back',
         headerStyle: {backgroundColor: theme.surface.base},
@@ -28,6 +29,7 @@ export default function WorkersLayout() {
         options={{
           title: 'Add Worker',
           presentation: 'modal',
+          gestureEnabled: true,
           headerShadowVisible: !isDark,
         }}
       />

@@ -1,19 +1,19 @@
 import {Ionicons} from '@expo/vector-icons';
 import {BlurView} from 'expo-blur';
-import {Redirect, router, usePathname} from 'expo-router';
-import {Icon, NativeTabs, Label, VectorIcon} from 'expo-router/unstable-native-tabs';
+import {Redirect, Stack, router, usePathname} from 'expo-router';
 import React, {useEffect, useState} from 'react';
 import {ActivityIndicator, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import type {SharedValue} from 'react-native-reanimated';
 import Animated, {interpolate, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {UI} from '../../constants/theme';
+import {useCalendarSync} from '../../hooks/useCalendarSync';
 import {useAuth} from '../../src/context/AuthContext';
 import {useOfflineMode} from '../../src/context/OfflineContext';
 import {useAppTheme} from '../../src/context/ThemeContext';
 import {setupNotificationListeners} from '../../src/services/notifications';
 
-const FAB_ACTIONS = [
+const ADMIN_FAB_ACTIONS = [
   {
     key: 'job',
     label: 'New Job',
@@ -40,6 +40,27 @@ const FAB_ACTIONS = [
   },
 ];
 
+const WORKER_FAB_ACTIONS = [
+  {
+    key: 'form',
+    label: 'New Form',
+    icon: 'document-text-outline' as const,
+    route: '/(app)/forms',
+  },
+  {
+    key: 'cp12',
+    label: 'Gas Cert',
+    icon: 'flame-outline' as const,
+    route: '/(app)/cp12',
+  },
+  {
+    key: 'tools',
+    label: 'Tools',
+    icon: 'hammer-outline' as const,
+    route: '/(app)/toolbox',
+  },
+];
+
 function FabMenuItem({
   action,
   index,
@@ -47,7 +68,7 @@ function FabMenuItem({
   progress,
   cardColor,
 }: {
-  action: typeof FAB_ACTIONS[number];
+  action: {key: string; label: string; icon: keyof typeof Ionicons.glyphMap; route: string};
   index: number;
   onPress: () => void;
   progress: SharedValue<number>;
@@ -82,7 +103,9 @@ export default function AppLayout() {
   const pathname = usePathname();
   const fabBottomOffset = insets.bottom + NATIVE_TAB_BAR_HEIGHT + 14;
   const isAdmin = role === 'admin';
-  const hideGlobalFab = pathname.startsWith('/settings') || pathname.startsWith('/workers') || pathname.startsWith('/notes') || pathname.startsWith('/(app)/settings') || pathname.startsWith('/(app)/workers') || pathname.startsWith('/(app)/notes');
+  const isOnTabs = pathname === '/dashboard' || pathname === '/calendar' || pathname === '/documents' || pathname === '/jobs' || pathname === '/' || pathname.startsWith('/jobs/');
+  const hideGlobalFab = !isOnTabs || pathname.startsWith('/settings') || pathname.startsWith('/workers') || pathname.startsWith('/notes');
+  useCalendarSync();
   const [fabOpen, setFabOpen] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
   const progress = useSharedValue(0);
@@ -139,31 +162,23 @@ export default function AppLayout() {
 
   return (
     <>
-      <NativeTabs>
-        <NativeTabs.Trigger name="dashboard">
-          <Label>Home</Label>
-          <Icon src={<VectorIcon family={Ionicons} name="home" />} />
-        </NativeTabs.Trigger>
+      <Stack screenOptions={{headerShown: false, gestureEnabled: false}}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="workers" />
+        <Stack.Screen name="customers" />
+        <Stack.Screen name="forms" />
+        <Stack.Screen name="cp12" />
+        <Stack.Screen name="toolbox" />
+        <Stack.Screen name="notes" />
+        <Stack.Screen name="invoice" options={{presentation: 'modal', gestureEnabled: true}} />
+        <Stack.Screen name="quote" options={{presentation: 'modal', gestureEnabled: true}} />
+      </Stack>
 
-        <NativeTabs.Trigger name="calendar">
-          <Label>Calendar</Label>
-          <Icon src={<VectorIcon family={Ionicons} name="calendar" />} />
-        </NativeTabs.Trigger>
-
-        {isAdmin ? (
-          <NativeTabs.Trigger name="documents">
-            <Label>Docs</Label>
-            <Icon src={<VectorIcon family={Ionicons} name="document-text" />} />
-          </NativeTabs.Trigger>
-        ) : null}
-
-        <NativeTabs.Trigger name="jobs">
-          <Label>Jobs</Label>
-          <Icon src={<VectorIcon family={Ionicons} name="briefcase" />} />
-        </NativeTabs.Trigger>
-      </NativeTabs>
-
-      {isAdmin && !hideGlobalFab ? (
+      {!hideGlobalFab ? (() => {
+        const fabActions = isAdmin ? ADMIN_FAB_ACTIONS : WORKER_FAB_ACTIONS;
+        const overlayHeight = fabActions.length * 72 + 20;
+        return (
         <>
           {overlayVisible ? (
             <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
@@ -179,10 +194,10 @@ export default function AppLayout() {
                 pointerEvents="box-none"
                 style={[
                   styles.fabOverlay,
-                  {bottom: fabBottomOffset},
+                  {bottom: fabBottomOffset, height: overlayHeight},
                 ]}
               >
-                {FAB_ACTIONS.map((action, index) => (
+                {fabActions.map((action, index) => (
                   <FabMenuItem
                     key={action.key}
                     action={action}
@@ -213,7 +228,8 @@ export default function AppLayout() {
             </Animated.View>
           </View>
         </>
-      ) : null}
+      );
+      })() : null}
 
       {offlineModeEnabled ? (
         <View pointerEvents="none" style={[styles.offlineBanner, {position: 'absolute', top: insets.top, left: 0, right: 0}, isDark && {backgroundColor: theme.text.muted}]}>
@@ -262,7 +278,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
     width: 240,
-    height: 372,
   },
   fabMenuItemWrap: {
     position: 'absolute',

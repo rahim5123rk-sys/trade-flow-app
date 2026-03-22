@@ -20,11 +20,8 @@ import '../warningNoticePdfGenerator';
 
 // Core shared utilities, types, and HTML builders
 export {
-
-    // HTML builders
-    buildHeaderHtml,
-    buildSignatureFooterHtml,
-    buildWarningFooterHtml, checkInH,
+    checkInH,
+    combineNotes,
     // Helpers
     esc, generatePdfBase64FromPayload, generatePdfFromPayload, generatePdfUrlFromPayload,
     // CSS
@@ -38,8 +35,7 @@ export {
     resolveAndBuildHtml, shareHtmlAsPdf, tickH, type BaseLockedPayload,
     // Types
     type CompanyInfo,
-    type EngineerInfo, type PdfHeaderData,
-    type PdfSignatureFooterData
+    type EngineerInfo
 } from './shared';
 
 // Polymorphic registry

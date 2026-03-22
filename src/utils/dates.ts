@@ -116,6 +116,23 @@ export function toDateString(timestamp: number): string {
 }
 
 /**
+ * Parse a DD/MM/YYYY string into a Date object.
+ * Used by form review-sign screens for DateTimePicker.
+ */
+export function parseGBDate(ddmmyyyy: string): Date {
+  const [dd, mm, yyyy] = ddmmyyyy.split('/');
+  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+}
+
+/**
+ * Format a Date into a DD/MM/YYYY string (en-GB locale).
+ * Used by form review-sign screens after DateTimePicker selection.
+ */
+export function formatGBDate(date: Date): string {
+  return date.toLocaleDateString('en-GB');
+}
+
+/**
  * Get "X days ago" / "in X days" / "today" relative label.
  */
 export function relativeDay(timestamp: number): string {

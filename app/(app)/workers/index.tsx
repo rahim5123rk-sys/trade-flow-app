@@ -1,6 +1,6 @@
 import {Ionicons} from '@expo/vector-icons';
-import {useRouter} from 'expo-router';
-import React, {useEffect, useState} from 'react';
+import {useFocusEffect, useRouter} from 'expo-router';
+import React, {useCallback, useEffect, useState} from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -10,16 +10,26 @@ import {
   View,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import ProPaywallModal from '../../../components/ProPaywallModal';
 import {Colors, UI} from '../../../constants/theme';
 import {supabase} from '../../../src/config/supabase';
 import {useAuth} from '../../../src/context/AuthContext';
+import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 
 export default function WorkersListScreen() {
   const {userProfile, user} = useAuth();
   const {theme, isDark} = useAppTheme();
+  const {isPro} = useSubscription();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isPro) setShowPaywall(true);
+    }, [isPro])
+  );
 
   const [workers, setWorkers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +93,12 @@ export default function WorkersListScreen() {
 
   return (
     <View style={[styles.container, {paddingTop: insets.top, backgroundColor: theme.surface.base}]}>
+      <ProPaywallModal
+        visible={showPaywall && !isPro}
+        onDismiss={() => { setShowPaywall(false); router.replace('/(app)/dashboard' as any); }}
+        featureTitle="Team Management"
+        featureDescription="Invite workers, assign jobs, and manage your team all from one place."
+      />
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, {backgroundColor: theme.surface.card}, isDark && {borderWidth: 1, borderColor: theme.glass.border}]}>
           <Ionicons name="arrow-back" size={24} color={theme.text.title} />

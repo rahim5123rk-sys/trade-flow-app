@@ -15,16 +15,23 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useState} from 'react';
 import {CustomerSelector} from '../../../components/CustomerSelector';
+import {SiteAddressSelector, SiteAddressData} from '../../../components/forms/SiteAddressSelector';
+import ProPaywallModal from '../../../components/ProPaywallModal';
 import {Colors, UI} from '../../../constants/theme';
+import {supabase} from '../../../src/config/supabase';
+import {useAuth} from '../../../src/context/AuthContext';
 import {useCP12} from '../../../src/context/CP12Context';
+import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
+
+const STARTER_MONTHLY_CP12_LIMIT = 10;
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -75,62 +82,38 @@ const StepIndicator = ({current}: {current: number}) => {
   );
 };
 
-// ─── Input helper ───────────────────────────────────────────────
-
-const FormInput = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  icon,
-  keyboardType,
-  autoCapitalize,
-  isDark,
-  theme,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  icon?: keyof typeof Ionicons.glyphMap;
-  keyboardType?: 'default' | 'email-address' | 'phone-pad';
-  autoCapitalize?: 'none' | 'sentences' | 'words';
-  isDark?: boolean;
-  theme?: any;
-}) => (
-  <View style={s.inputContainer}>
-    <Text style={[s.inputLabel, isDark && theme && {color: theme.text.bodyLight}]}>{label}</Text>
-    <View style={[s.inputWrapper, isDark && theme && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
-      {icon && (
-        <Ionicons
-          name={icon}
-          size={18}
-          color={isDark && theme ? theme.text.muted : UI.text.muted}
-          style={{marginRight: 10}}
-        />
-      )}
-      <TextInput
-        style={[s.input, isDark && theme && {color: theme.text.title}]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize ?? 'sentences'}
-        keyboardAppearance={isDark ? 'dark' : 'light'}
-      />
-    </View>
-  </View>
-);
-
 // ─── Main screen ────────────────────────────────────────────────
 
 export default function CP12DetailsScreen() {
   const {theme, isDark} = useAppTheme();
+  const {isPro} = useSubscription();
+  const {userProfile} = useAuth();
   const insets = useSafeAreaInsets();
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  // Check monthly CP12 count for Starter users on mount
+  useEffect(() => {
+    if (isPro || !userProfile?.company_id) return;
+    const checkLimit = async () => {
+      const now = new Date();
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count } = await supabase
+        .from('documents')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', userProfile.company_id)
+        .eq('type', 'cp12')
+        .gte('created_at', firstOfMonth);
+      if (count !== null && count >= STARTER_MONTHLY_CP12_LIMIT) {
+        setShowPaywall(true);
+      }
+    };
+    checkLimit();
+  }, [isPro, userProfile?.company_id]);
   const {
     landlordForm,
     setLandlordForm,
+    tenantTitle,
+    setTenantTitle,
     tenantName,
     setTenantName,
     tenantEmail,
@@ -150,6 +133,23 @@ export default function CP12DetailsScreen() {
     hydrateForEdit,
     editingDocumentId,
   } = useCP12();
+
+  const siteAddress: SiteAddressData = {
+    tenantTitle, tenantName, tenantEmail, tenantPhone,
+    addressLine1: tenantAddressLine1, addressLine2: tenantAddressLine2,
+    city: tenantCity, postCode: tenantPostCode,
+  };
+
+  const handleSiteAddressChange = (data: SiteAddressData) => {
+    setTenantTitle(data.tenantTitle);
+    setTenantName(data.tenantName);
+    setTenantEmail(data.tenantEmail);
+    setTenantPhone(data.tenantPhone);
+    setTenantAddressLine1(data.addressLine1);
+    setTenantAddressLine2(data.addressLine2);
+    setTenantCity(data.city);
+    setTenantPostCode(data.postCode);
+  };
 
   useEffect(() => {
     const loadSeed = async () => {
@@ -215,20 +215,14 @@ export default function CP12DetailsScreen() {
     router.push('/(app)/cp12/appliances');
   };
 
-  const autofillFromLandlord = () => {
-    const hasAddr = landlordForm.addressLine1 || landlordForm.city || landlordForm.postCode;
-    if (!hasAddr) {
-      Alert.alert('No Address', 'Enter a landlord address first.');
-      return;
-    }
-    setTenantAddressLine1(landlordForm.addressLine1);
-    setTenantAddressLine2(landlordForm.addressLine2);
-    setTenantCity(landlordForm.city);
-    setTenantPostCode(landlordForm.postCode);
-  };
-
   return (
     <View style={s.root}>
+      <ProPaywallModal
+        visible={showPaywall}
+        onDismiss={() => { setShowPaywall(false); router.back(); }}
+        featureTitle="Unlimited Gas Certificates"
+        featureDescription="You've reached your monthly limit of 10 gas safety certificates on the Starter plan. Upgrade to Pro for unlimited."
+      />
       <LinearGradient
         colors={theme.gradients.appBackground}
         start={{x: 0, y: 0}}
@@ -298,107 +292,16 @@ export default function CP12DetailsScreen() {
               <Text style={[s.sectionTitle, {color: theme.text.title}]}>Tenant & Property</Text>
             </View>
 
-            <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
-              <FormInput
-                label="Tenant Name"
-                value={tenantName}
-                onChange={setTenantName}
-                placeholder="Full name (optional)"
-                icon="person-outline"
-                autoCapitalize="words"
-                isDark={isDark}
-                theme={theme}
-              />
-              <FormInput
-                label="Email"
-                value={tenantEmail}
-                onChange={setTenantEmail}
-                placeholder="tenant@email.com (optional)"
-                icon="mail-outline"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                isDark={isDark}
-                theme={theme}
-              />
-              <FormInput
-                label="Phone"
-                value={tenantPhone}
-                onChange={setTenantPhone}
-                placeholder="Phone number (optional)"
-                icon="call-outline"
-                keyboardType="phone-pad"
-                isDark={isDark}
-                theme={theme}
-              />
-
-              <View style={s.sectionDivider} />
-
-              <Text style={[s.hintText, {color: theme.text.muted}]}>
-                Address of the property being inspected. Address Line 1, City and Postcode are required.
-              </Text>
-
-              <FormInput
-                label="Address Line 1 *"
-                value={tenantAddressLine1}
-                onChange={setTenantAddressLine1}
-                placeholder="Street address"
-                autoCapitalize="words"
-                isDark={isDark}
-                theme={theme}
-              />
-              <FormInput
-                label="Address Line 2"
-                value={tenantAddressLine2}
-                onChange={setTenantAddressLine2}
-                placeholder="Flat, floor, building (optional)"
-                autoCapitalize="words"
-                isDark={isDark}
-                theme={theme}
-              />
-
-              <View style={s.row}>
-                <View style={{flex: 1}}>
-                  <FormInput
-                    label="City / Town *"
-                    value={tenantCity}
-                    onChange={setTenantCity}
-                    placeholder="City"
-                    autoCapitalize="words"
-                    isDark={isDark}
-                    theme={theme}
-                  />
-                </View>
-                <View style={{flex: 1}}>
-                  <FormInput
-                    label="Postcode *"
-                    value={tenantPostCode}
-                    onChange={setTenantPostCode}
-                    placeholder="e.g. SW1A 1AA"
-                    autoCapitalize="none"
-                    isDark={isDark}
-                    theme={theme}
-                  />
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={s.autofillBtn}
-                onPress={autofillFromLandlord}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="copy-outline" size={14} color={Colors.primary} />
-                <Text style={s.autofillText}>Use landlord address</Text>
-              </TouchableOpacity>
-
-              {propertyAddress ? (
-                <View style={s.previewRow}>
-                  <Ionicons name="location" size={14} color={UI.status.complete} />
-                  <Text style={s.previewText} numberOfLines={2}>
-                    {propertyAddress}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
+            <SiteAddressSelector
+              value={siteAddress}
+              onChange={handleSiteAddressChange}
+              customerAddress={{
+                addressLine1: landlordForm.addressLine1,
+                addressLine2: landlordForm.addressLine2,
+                city: landlordForm.city,
+                postCode: landlordForm.postCode,
+              }}
+            />
           </Animated.View>
         </ScrollView>
 
@@ -486,86 +389,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {fontSize: 17, fontWeight: '700', color: UI.text.title},
-
-  // Optional badge
-  optionalBadge: {
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginLeft: 'auto',
-  },
-  optionalText: {fontSize: 10, fontWeight: '700', color: UI.status.complete, textTransform: 'uppercase', letterSpacing: 0.5},
-
-  // Card
-  card: {
-    backgroundColor: GLASS_BG,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    padding: 16,
-    shadowColor: UI.text.muted,
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-
-  // Inputs
-  inputContainer: {marginBottom: 14},
-  inputLabel: {fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6},
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: UI.surface.base,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: UI.surface.divider,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
-  },
-  input: {flex: 1, fontSize: 15, color: UI.text.title, padding: 0},
-
-  // Row (side-by-side fields)
-  row: {flexDirection: 'row', gap: 10},
-
-  // Section divider within card
-  sectionDivider: {height: 1, backgroundColor: UI.surface.divider, marginVertical: 16},
-
-  // Hint text
-  hintText: {
-    fontSize: 12,
-    color: UI.text.muted,
-    fontWeight: '500',
-    marginBottom: 14,
-    lineHeight: 18,
-  },
-
-  // Auto-fill button
-  autofillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: UI.surface.primaryLight,
-    marginTop: 2,
-  },
-  autofillText: {fontSize: 12, fontWeight: '600', color: Colors.primary},
-
-  // Address preview
-  previewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: UI.surface.elevated,
-  },
-  previewText: {fontSize: 13, color: UI.text.bodyLight, fontWeight: '500', flex: 1},
 
   // Bottom bar
   bottomBar: {

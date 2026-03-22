@@ -6,7 +6,7 @@
 import {Ionicons} from '@expo/vector-icons';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router} from 'expo-router';
-import React from 'react';
+import React, {useState} from 'react';
 import {
   Platform,
   ScrollView,
@@ -17,9 +17,13 @@ import {
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import ProPaywallModal from '../../../components/ProPaywallModal';
 import {UI} from '../../../constants/theme';
+import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 import {FORM_REGISTRY, FormDefinition} from '../../../src/types/forms';
+
+const FREE_FORM_TYPES = ['cp12'];
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
@@ -30,16 +34,23 @@ function FormCard({
   index,
   isDark,
   theme,
+  isLocked,
+  onLockedPress,
 }: {
   form: FormDefinition;
   index: number;
   isDark: boolean;
   theme: any;
+  isLocked: boolean;
+  onLockedPress: () => void;
 }) {
   const handlePress = () => {
     if (!form.available) return;
+    if (isLocked) { onLockedPress(); return; }
     router.push(form.route as any);
   };
+
+  const dimmed = !form.available || isLocked;
 
   return (
     <Animated.View entering={FadeInDown.delay(80 + index * 60).springify()}>
@@ -57,13 +68,13 @@ function FormCard({
             colors={form.gradient as [string, string]}
             start={{x: 0, y: 0}}
             end={{x: 1, y: 1}}
-            style={[styles.iconCircle, !form.available && {opacity: 0.4}]}
+            style={[styles.iconCircle, dimmed && {opacity: 0.4}]}
           >
-            <Ionicons
-              name={form.icon as any}
-              size={24}
-              color="#fff"
-            />
+            {isLocked ? (
+              <Ionicons name="lock-closed" size={22} color="#fff" />
+            ) : (
+              <Ionicons name={form.icon as any} size={24} color="#fff" />
+            )}
           </LinearGradient>
 
           <View style={styles.cardContent}>
@@ -72,7 +83,7 @@ function FormCard({
                 style={[
                   styles.cardTitle,
                   isDark && {color: theme.text.title},
-                  !form.available && {opacity: 0.5},
+                  dimmed && {opacity: 0.5},
                 ]}
                 numberOfLines={1}
               >
@@ -83,12 +94,17 @@ function FormCard({
                   <Text style={styles.comingSoonText}>Coming Soon</Text>
                 </View>
               )}
+              {isLocked && form.available && (
+                <View style={styles.proBadge}>
+                  <Text style={styles.proBadgeText}>PRO</Text>
+                </View>
+              )}
             </View>
             <Text
               style={[
                 styles.cardDescription,
                 isDark && {color: theme.text.muted},
-                !form.available && {opacity: 0.5},
+                dimmed && {opacity: 0.5},
               ]}
               numberOfLines={2}
             >
@@ -96,19 +112,26 @@ function FormCard({
             </Text>
             <View style={styles.cardMeta}>
               <View style={styles.metaChip}>
-                <Ionicons name="layers-outline" size={12} color={form.available ? form.color : UI.text.muted} />
-                <Text style={[styles.metaText, form.available && {color: form.color}]}>
+                <Ionicons name="layers-outline" size={12} color={form.available && !isLocked ? form.color : UI.text.muted} />
+                <Text style={[styles.metaText, form.available && !isLocked && {color: form.color}]}>
                   {form.stepsCount} steps
                 </Text>
               </View>
             </View>
           </View>
 
-          {form.available && (
+          {form.available && !isLocked && (
             <Ionicons
               name="chevron-forward"
               size={20}
               color={isDark ? theme.text.muted : UI.text.muted}
+            />
+          )}
+          {isLocked && (
+            <Ionicons
+              name="diamond"
+              size={18}
+              color={UI.brand.primary}
             />
           )}
         </View>
@@ -121,13 +144,21 @@ function FormCard({
 
 export default function FormsHubScreen() {
   const {theme, isDark} = useAppTheme();
+  const {isPro} = useSubscription();
   const insets = useSafeAreaInsets();
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const availableForms = FORM_REGISTRY.filter((f) => f.available);
   const comingSoonForms = FORM_REGISTRY.filter((f) => !f.available);
 
   return (
     <View style={[styles.root, {paddingTop: insets.top}]}>
+      <ProPaywallModal
+        visible={showPaywall}
+        onDismiss={() => setShowPaywall(false)}
+        featureTitle="All Gas Forms"
+        featureDescription="Starter plan includes Gas Safety Certificates only. Upgrade to Pro for all 7 form types, unlimited."
+      />
       <LinearGradient
         colors={theme.gradients.appBackground}
         style={StyleSheet.absoluteFill}
@@ -165,7 +196,15 @@ export default function FormsHubScreen() {
               Available
             </Text>
             {availableForms.map((form, i) => (
-              <FormCard key={form.type} form={form} index={i} isDark={isDark} theme={theme} />
+              <FormCard
+                key={form.type}
+                form={form}
+                index={i}
+                isDark={isDark}
+                theme={theme}
+                isLocked={!isPro && !FREE_FORM_TYPES.includes(form.type)}
+                onLockedPress={() => setShowPaywall(true)}
+              />
             ))}
           </View>
         )}
@@ -183,6 +222,8 @@ export default function FormsHubScreen() {
                 index={availableForms.length + i}
                 isDark={isDark}
                 theme={theme}
+                isLocked={false}
+                onLockedPress={() => {}}
               />
             ))}
           </View>
@@ -288,6 +329,17 @@ const styles = StyleSheet.create({
     color: UI.text.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
+  },
+  proBadge: {
+    backgroundColor: UI.brand.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  proBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   cardDescription: {
     fontSize: 12,

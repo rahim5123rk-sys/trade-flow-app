@@ -31,15 +31,19 @@ import {
     getJobAddress,
     prefillFromJob,
 } from '../../components/CustomerSelector';
+import { upsertSiteAddress } from '../../components/forms';
+import ProPaywallModal from '../../components/ProPaywallModal';
 import { UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
+import { useSubscription } from '../../src/context/SubscriptionContext';
 import { useAppTheme } from '../../src/context/ThemeContext';
 import {
     DocumentData,
     generateDocument,
     LineItem,
 } from '../../src/services/DocumentGenerator';
+import { getNextInvoiceReference } from '../../src/services/formDocumentService';
 
 // ─── Design tokens ──────────────────────────────────────────────────
 const GLASS_BG =
@@ -50,8 +54,9 @@ const fmtCurrency = (n: number) =>
   `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 export default function CreateInvoiceScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, editId } = useLocalSearchParams<{ id?: string; editId?: string }>();
   const { userProfile } = useAuth();
+  const { isPro } = useSubscription();
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
@@ -64,7 +69,7 @@ export default function CreateInvoiceScreen() {
   const [prefilled, setPrefilled] = useState(false);
 
   // ─── Invoice Meta ─────────────────────────────────────────────
-  const [invoiceNumber, setInvoiceNumber] = useState('1');
+  const [invoiceNumber, setInvoiceNumber] = useState('INV-0001');
   const [invoiceRef, setInvoiceRef] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [items, setItems] = useState<LineItem[]>([
@@ -76,16 +81,77 @@ export default function CreateInvoiceScreen() {
 
   // ─── Job link (if coming from a job) ──────────────────────────
   const [jobId, setJobId] = useState<string | null>(null);
+  // ─── Edit mode (editing existing document) ────────────────────
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [originalStatus, setOriginalStatus] = useState<string | null>(null);
   const { theme, isDark } = useAppTheme();
 
   useEffect(() => {
     loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile, id]);
+  }, [userProfile, id, editId]);
 
   const loadInitialData = async () => {
     if (!userProfile?.company_id) return;
 
+    // ─── Edit mode: load existing document ─────────────────────
+    if (editId) {
+      const { data: existingDoc } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', editId)
+        .single();
+
+      if (existingDoc) {
+        setEditingDocId(existingDoc.id);
+        setOriginalStatus(existingDoc.status);
+        // New format stores INV-0001 in reference; old format stored job ref there
+        const ref = existingDoc.reference || '';
+        if (ref.startsWith('INV-')) {
+          setInvoiceNumber(ref);
+        } else {
+          setInvoiceNumber(String(existingDoc.number || 1));
+          if (ref) setInvoiceRef(ref);
+        }
+        setDueDate(existingDoc.expiry_date || '');
+        setItems(existingDoc.items?.length ? existingDoc.items : [{ description: '', quantity: 1, unitPrice: 0, vatPercent: 0 }]);
+        setDiscountPercent(String(existingDoc.discount_percent || 0));
+        setNotes(existingDoc.notes || '');
+        setPaymentInfo(existingDoc.payment_info || '');
+        setJobId(existingDoc.job_id || null);
+
+        const snap = existingDoc.customer_snapshot;
+        const jobAddr = existingDoc.job_address;
+        if (snap) {
+          setCustomerForm({
+            customerId: existingDoc.customer_id || null,
+            customerName: snap.name || '',
+            customerCompany: snap.company_name || '',
+            addressLine1: snap.address_line_1 || '',
+            addressLine2: snap.address_line_2 || '',
+            city: snap.city || '',
+            region: '',
+            postCode: snap.postal_code || '',
+            phone: snap.phone || '',
+            email: snap.email || '',
+            sameAsBilling: true,
+            jobAddressLine1: jobAddr?.address_line_1 || '',
+            jobAddressLine2: jobAddr?.address_line_2 || '',
+            jobCity: jobAddr?.city || '',
+            jobPostCode: jobAddr?.postcode || '',
+            siteContactName: '',
+            siteContactEmail: '',
+            siteContactPhone: '',
+            siteContactTitle: '',
+          });
+          setPrefilled(true);
+        }
+      }
+      setLoading(false);
+      return;
+    }
+
+    // ─── New invoice mode ──────────────────────────────────────
     const { data: companyData } = await supabase
       .from('companies')
       .select('settings')
@@ -95,7 +161,14 @@ export default function CreateInvoiceScreen() {
     if (companyData?.settings) {
       const s = companyData.settings;
       if (s.invoiceNotes) setPaymentInfo(s.invoiceNotes);
-      if (s.nextInvoiceNumber) setInvoiceNumber(String(s.nextInvoiceNumber));
+    }
+
+    // Get next invoice reference (per-company, e.g. INV-0001)
+    try {
+      const nextRef = await getNextInvoiceReference(false, userProfile.company_id);
+      setInvoiceNumber(nextRef);
+    } catch {
+      // fallback handled by default state
     }
 
     const due = new Date();
@@ -194,11 +267,13 @@ export default function CreateInvoiceScreen() {
     return { snapshot, jobAddr, today };
   };
 
-  // ─── Save Draft ───────────────────────────────────────────────
-  const handleSaveDraft = async () => {
+  // ─── Save (shared for draft & generate) ──────────────────────
+  const saveDocument = async (status: string) => {
     if (!userProfile?.company_id) return;
     if (!validate()) return;
-    setSaving(true);
+
+    const isSavingDraft = status === 'Draft';
+    if (isSavingDraft) setSaving(true); else setGenerating(true);
 
     try {
       const { snapshot, jobAddr } = buildDocData();
@@ -218,14 +293,24 @@ export default function CreateInvoiceScreen() {
         finalCustomerId = newCust.id;
       }
 
-      const { error } = await supabase.from('documents').insert({
+      // Reserve the invoice reference atomically for new invoices
+      let finalInvoiceRef = invoiceNumber;
+      if (!editingDocId) {
+        try {
+          finalInvoiceRef = await getNextInvoiceReference(true, userProfile.company_id);
+        } catch {
+          // Fall back to the previewed reference
+        }
+      }
+
+      const docPayload = {
         company_id: userProfile.company_id,
-        type: 'invoice',
-        number: parseInt(invoiceNumber) || 1,
-        reference: invoiceRef || null,
-        date: new Date().toISOString(),
+        user_id: userProfile.id,
+        type: 'invoice' as const,
+        number: parseInt(finalInvoiceRef.replace(/\D/g, '')) || 1,
+        reference: finalInvoiceRef,
         expiry_date: dueDate || null,
-        status: 'Draft',
+        status: editingDocId ? (originalStatus || status) : status,
         customer_id: finalCustomerId,
         customer_snapshot: snapshot,
         job_id: jobId || null,
@@ -241,116 +326,66 @@ export default function CreateInvoiceScreen() {
         total,
         notes: notes || null,
         payment_info: paymentInfo || null,
-      });
+      };
 
-      if (error) throw error;
+      if (editingDocId) {
+        // Update existing document
+        const { error } = await supabase
+          .from('documents')
+          .update(docPayload)
+          .eq('id', editingDocId);
+        if (error) throw error;
+      } else {
+        // Insert new document
+        const { error } = await supabase.from('documents').insert({
+          ...docPayload,
+          date: new Date().toISOString(),
+        });
+        if (error) throw error;
+      }
 
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('settings')
-        .eq('id', userProfile.company_id)
-        .single();
+      // Save site/job address for future reuse
+      if (jobAddr.jobAddress1 && jobAddr.jobPostcode) {
+        void upsertSiteAddress(userProfile.company_id, {
+          addressLine1: jobAddr.jobAddress1,
+          addressLine2: jobAddr.jobAddress2 || '',
+          city: jobAddr.jobCity || '',
+          postCode: jobAddr.jobPostcode,
+          tenantName: customerForm.siteContactName || '',
+          tenantEmail: customerForm.siteContactEmail || '',
+        });
+      }
 
-      const currentSettings = companyData?.settings || {};
-      await supabase
-        .from('companies')
-        .update({
-          settings: {
-            ...currentSettings,
-            nextInvoiceNumber: (parseInt(invoiceNumber) || 1) + 1,
-          },
-        })
-        .eq('id', userProfile.company_id);
-
-      Alert.alert('Saved', 'Invoice saved as draft.', [
+      const msg = editingDocId ? 'Invoice updated.' : (isSavingDraft ? 'Invoice saved as draft.' : 'Invoice saved.');
+      Alert.alert('Saved', msg, [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to save invoice.');
     } finally {
       setSaving(false);
+      setGenerating(false);
     }
   };
 
+  // ─── Save Draft ───────────────────────────────────────────────
+  const handleSaveDraft = () => saveDocument('Draft');
+
   // ─── Save & Generate PDF ──────────────────────────────────────
   const handleSaveAndGenerate = async () => {
-    if (!userProfile?.company_id) return;
-    if (!validate()) return;
-    setGenerating(true);
+    await saveDocument('Unpaid');
 
+    // Generate PDF after save
     try {
-      const { snapshot, jobAddr, today } = buildDocData();
-
-      let finalCustomerId = customerForm.customerId;
-      if (!finalCustomerId) {
-        const insertData = buildCustomerInsert(
-          customerForm,
-          userProfile.company_id,
-        );
-        const { data: newCust, error: custErr } = await supabase
-          .from('customers')
-          .insert(insertData)
-          .select('id')
-          .single();
-        if (custErr) throw new Error('Failed to create new customer.');
-        finalCustomerId = newCust.id;
-      }
-
-      const { error: insertError } = await supabase
-        .from('documents')
-        .insert({
-          company_id: userProfile.company_id,
-          type: 'invoice',
-          number: parseInt(invoiceNumber) || 1,
-          reference: invoiceRef || null,
-          date: new Date().toISOString(),
-          expiry_date: dueDate || null,
-          status: 'Unpaid',
-          customer_id: finalCustomerId,
-          customer_snapshot: snapshot,
-          job_id: jobId || null,
-          job_address: {
-            address_line_1: jobAddr.jobAddress1,
-            address_line_2: jobAddr.jobAddress2 || null,
-            city: jobAddr.jobCity,
-            postcode: jobAddr.jobPostcode,
-          },
-          items,
-          subtotal,
-          discount_percent: parseFloat(discountPercent) || 0,
-          total,
-          notes: notes || null,
-          payment_info: paymentInfo || null,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('settings')
-        .eq('id', userProfile.company_id)
-        .single();
-
-      const currentSettings = companyData?.settings || {};
-      await supabase
-        .from('companies')
-        .update({
-          settings: {
-            ...currentSettings,
-            nextInvoiceNumber: (parseInt(invoiceNumber) || 1) + 1,
-          },
-        })
-        .eq('id', userProfile.company_id);
-
+      if (!userProfile?.company_id) return;
+      const { jobAddr, today } = buildDocData();
       const docData: DocumentData = {
         type: 'invoice',
-        number: parseInt(invoiceNumber) || 1,
-        reference: invoiceRef || undefined,
+        number: parseInt(invoiceNumber.replace(/\D/g, '')) || 1,
+        reference: invoiceNumber || undefined,
         date: today,
         expiryDate: dueDate || today,
-        status: 'Unpaid',
+        status: editingDocId ? (originalStatus || 'Unpaid') : 'Unpaid',
         customerName: customerForm.customerName,
         customerCompany: customerForm.customerCompany || undefined,
         customerAddress1: customerForm.addressLine1,
@@ -369,12 +404,9 @@ export default function CreateInvoiceScreen() {
         notes: notes || undefined,
         paymentInfo: paymentInfo || undefined,
       };
-
       await generateDocument(docData, userProfile.company_id);
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to generate invoice.');
-    } finally {
-      setGenerating(false);
+    } catch {
+      // PDF generation is optional - save already succeeded
     }
   };
 
@@ -394,6 +426,12 @@ export default function CreateInvoiceScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
+      <ProPaywallModal
+        visible={!isPro}
+        onDismiss={() => router.back()}
+        featureTitle="Invoices & Quotes"
+        featureDescription="Create professional invoices and quotes, track payments, and send them directly to your customers."
+      />
       <LinearGradient
         colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground}
         style={{ flex: 1 }}
@@ -418,9 +456,9 @@ export default function CreateInvoiceScreen() {
               <Ionicons name="arrow-back" size={22} color={isDark ? theme.text.body : UI.text.bodyLight} />
             </TouchableOpacity>
             <View style={st.headerCenter}>
-              <Text style={[st.screenTitle, isDark && { color: theme.text.title }]}>New Invoice</Text>
+              <Text style={[st.screenTitle, isDark && { color: theme.text.title }]}>{editingDocId ? 'Edit Invoice' : 'New Invoice'}</Text>
               <Text style={[st.screenSubtitle, isDark && { color: theme.text.muted }]}>
-                Create and send a professional invoice
+                {editingDocId ? 'Update invoice details' : 'Create and send a professional invoice'}
               </Text>
             </View>
             <View style={{ width: 42 }} />
@@ -444,8 +482,7 @@ export default function CreateInvoiceScreen() {
                 <TextInput
                   style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
                   value={invoiceNumber}
-                  onChangeText={setInvoiceNumber}
-                  keyboardType="number-pad"
+                  editable={false}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -702,7 +739,7 @@ export default function CreateInvoiceScreen() {
               ) : (
                 <>
                   <Ionicons name="document-outline" size={18} color={UI.text.muted} />
-                  <Text style={st.draftBtnText}>Save as Draft</Text>
+                  <Text style={st.draftBtnText}>{editingDocId ? 'Save Changes' : 'Save as Draft'}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -729,7 +766,7 @@ export default function CreateInvoiceScreen() {
                       color={UI.text.white}
                     />
                     <Text style={st.generateBtnText}>
-                      Save & Generate PDF
+                      {editingDocId ? 'Save & View PDF' : 'Save & Generate PDF'}
                     </Text>
                   </>
                 )}

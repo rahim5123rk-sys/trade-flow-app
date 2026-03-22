@@ -9,33 +9,37 @@ import {SignaturePad} from '../../../../components/SignaturePad';
 import {FormHeader} from '../../../../components/forms/FormHeader';
 import {FormStepIndicator} from '../../../../components/forms/FormStepIndicator';
 import {Button} from '../../../../components/ui/Button';
+import EmailRecipientsList from '../../../../components/EmailRecipientsList';
+import {upsertSiteAddress} from '../../../../components/forms/SiteAddressPicker';
 import {useAuth} from '../../../../src/context/AuthContext';
 import {useInstallationCert} from '../../../../src/context/InstallationCertContext';
 import {useOfflineMode} from '../../../../src/context/OfflineContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
-import {completeFormAction, getNextCertReference} from '../../../../src/services/formDocumentService';
+import {sanitizeRecipients} from '../../../../src/services/email';
+import {buildCustomerAddress, buildCustomerSnapshot, completeFormAction, getNextCertReference} from '../../../../src/services/formDocumentService';
+import {parseGBDate, formatGBDate} from '../../../../src/utils/dates';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 const STEPS = ['Details', 'Installation', 'Review'];
-const parseDate = (ddmmyyyy: string) => {const [dd, mm, yyyy] = ddmmyyyy.split('/'); return new Date(Number(yyyy), Number(mm) - 1, Number(dd));};
-const formatDate = (date: Date) => date.toLocaleDateString('en-GB');
 
 export default function InstallationReviewSignScreen() {
   const insets = useSafeAreaInsets();
   const {theme, isDark} = useAppTheme();
   const {userProfile} = useAuth();
   const {offlineModeEnabled} = useOfflineMode();
-  const {customerForm, propertyAddress, appliances, finalInfo, installationDate, setInstallationDate, nextServiceDate, setNextServiceDate, customerSignature, setCustomerSignature, certRef, setCertRef, resetInstallationCert, editingDocumentId} = useInstallationCert();
+  const {customerForm, propertyAddress, propertyAddressLine1, propertyAddressLine2, propertyCity, propertyPostCode, appliances, finalInfo, installationDate, setInstallationDate, nextServiceDate, setNextServiceDate, customerSignature, setCustomerSignature, certRef, setCertRef, resetInstallationCert, editingDocumentId} = useInstallationCert();
   const [processingAction, setProcessingAction] = useState<null | 'save' | 'email' | 'view'>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showNextDatePicker, setShowNextDatePicker] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
+  const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
 
-  useEffect(() => {const preload = async () => {if (certRef || editingDocumentId) return; try {setCertRef(await getNextCertReference(false));} catch { } }; void preload();}, [certRef, editingDocumentId, setCertRef]);
+  useEffect(() => {const preload = async () => {if (certRef || editingDocumentId) return; try {setCertRef(await getNextCertReference(false, userProfile?.company_id));} catch { } }; void preload();}, [certRef, editingDocumentId, setCertRef, userProfile?.company_id]);
   const appliance = appliances[0];
   const canSubmit = useMemo(() => !!appliance && !!customerForm.customerName.trim(), [appliance, customerForm.customerName]);
-  const pdfData = {customerName: customerForm.customerName || '', customerCompany: customerForm.customerCompany || '', customerAddress: [customerForm.addressLine1, customerForm.addressLine2, customerForm.city, customerForm.postCode].filter(Boolean).join(', '), customerEmail: customerForm.email || '', customerPhone: customerForm.phone || '', propertyAddress, appliances, finalInfo, installationDate, nextServiceDate, customerSignature, certRef};
-  const customerSnapshot = {name: customerForm.customerName || 'Customer', company_name: customerForm.customerCompany || null, address_line_1: customerForm.addressLine1 || null, address_line_2: customerForm.addressLine2 || null, city: customerForm.city || null, postal_code: customerForm.postCode || null, phone: customerForm.phone || null, email: customerForm.email || null, address: [customerForm.addressLine1, customerForm.addressLine2, customerForm.city, customerForm.postCode].filter(Boolean).join(', ')};
+  const customerAddress = buildCustomerAddress(customerForm);
+  const pdfData = {customerName: customerForm.customerName || '', customerCompany: customerForm.customerCompany || '', customerAddress, customerEmail: customerForm.email || '', customerPhone: customerForm.phone || '', propertyAddress, appliances, finalInfo, installationDate, nextServiceDate, customerSignature, certRef};
+  const customerSnapshot = buildCustomerSnapshot(customerForm);
 
   const handleComplete = async (action: 'save' | 'email' | 'view') => {
     if (!userProfile?.company_id) return Alert.alert('Error', 'Company profile not found.');
@@ -43,15 +47,23 @@ export default function InstallationReviewSignScreen() {
     if (!canSubmit) return Alert.alert('Missing Details', 'Complete the appliance details before continuing.');
     setProcessingAction(action);
     try {
-      const documentId = await completeFormAction({action, config: {kind: 'installation_cert', documentType: 'installation_cert', label: 'Installation Certificate'}, companyId: userProfile.company_id, userId: userProfile.id, certRef, pdfData, customerSnapshot, customerId: customerForm.customerId || null, editingDocumentId, expiryDate: nextServiceDate || null, emailRecipients: [customerForm.email || ''], emailContext: {propertyAddress, inspectionDate: installationDate, nextDueDate: nextServiceDate, landlordName: customerForm.customerName, tenantName: ''}, onReset: resetInstallationCert, setCertRef});
+      const documentId = await completeFormAction({action, config: {kind: 'installation_cert', documentType: 'installation_cert', label: 'Installation Certificate'}, companyId: userProfile.company_id, userId: userProfile.id, certRef, pdfData, customerSnapshot, customerId: customerForm.customerId || null, editingDocumentId, emailRecipients: sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]), emailContext: {propertyAddress, inspectionDate: installationDate, nextDueDate: nextServiceDate, landlordName: customerForm.customerName, tenantName: ''}, onReset: resetInstallationCert, setCertRef});
+      void upsertSiteAddress(userProfile.company_id, {addressLine1: propertyAddressLine1, addressLine2: propertyAddressLine2, city: propertyCity, postCode: propertyPostCode});
       Alert.alert(editingDocumentId ? 'Updated' : 'Saved', action === 'email' ? `Installation certificate ${certRef || 'record'} was ${editingDocumentId ? 'updated' : 'saved'} and emailed.` : `Installation certificate ${certRef || 'record'} was ${editingDocumentId ? 'updated' : 'saved'}.`, [{text: 'Done', onPress: () => {resetInstallationCert(); router.replace(`/(app)/documents/${documentId}` as any);}}]);
     } catch (error: any) {Alert.alert('Error', error?.message || 'Failed to save installation certificate.');} finally {setProcessingAction(null);}
   };
 
   return <View style={styles.root}><LinearGradient colors={theme.gradients.appBackground} style={StyleSheet.absoluteFill} /><KeyboardAvoidingView style={{flex: 1}} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={{paddingTop: insets.top + 8, paddingHorizontal: 20, paddingBottom: TAB_BAR_HEIGHT + 140}} showsVerticalScrollIndicator={false}><FormHeader title={editingDocumentId ? 'Edit Installation Certificate' : 'Review & Sign'} subtitle={editingDocumentId ? 'Update the saved certificate' : 'Step 3 of 3'} /><FormStepIndicator steps={STEPS} current={3} />
     <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}><Text style={[styles.cardTitle, {color: theme.text.title}]}>Summary</Text><View style={styles.summaryRow}><Ionicons name="person-outline" size={16} color="#0284C7" /><Text style={[styles.summaryText, {color: theme.text.body}]}>{customerForm.customerName || 'Customer'}</Text></View><View style={styles.summaryRow}><Ionicons name="home-outline" size={16} color="#0284C7" /><Text style={[styles.summaryText, {color: theme.text.body}]}>{propertyAddress || 'No property address'}</Text></View><View style={styles.summaryRow}><Ionicons name="construct-outline" size={16} color="#0284C7" /><Text style={[styles.summaryText, {color: theme.text.body}]}>{appliance ? `${appliance.installationType} • ${appliance.make} ${appliance.model}` : 'No appliance saved'}</Text></View><View style={styles.summaryRow}><Ionicons name="bookmark-outline" size={16} color="#0284C7" /><Text style={[styles.summaryText, {color: theme.text.body}]}>{certRef || 'Reference will be generated'}</Text></View></View>
-    <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}><Text style={[styles.cardTitle, {color: theme.text.title}]}>Dates</Text><TouchableOpacity style={[styles.dateButton, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => setShowDatePicker(true)}><Ionicons name="calendar-outline" size={18} color="#0284C7" /><Text style={[styles.dateText, {color: theme.text.title}]}>{installationDate}</Text></TouchableOpacity>{showDatePicker ? <DateTimePicker value={parseDate(installationDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_e: DateTimePickerEvent, date?: Date) => {setShowDatePicker(Platform.OS === 'ios'); if (date) setInstallationDate(formatDate(date));}} /> : null}
-      <TouchableOpacity style={[styles.dateButton, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => setShowNextDatePicker(true)}><Ionicons name="alarm-outline" size={18} color="#0284C7" /><Text style={[styles.dateText, {color: theme.text.title}]}>{nextServiceDate || 'Set next service date'}</Text></TouchableOpacity>{showNextDatePicker ? <DateTimePicker value={parseDate(nextServiceDate || installationDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_e: DateTimePickerEvent, date?: Date) => {setShowNextDatePicker(Platform.OS === 'ios'); if (date) setNextServiceDate(formatDate(date));}} /> : null}</View>
+    <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}><Text style={[styles.cardTitle, {color: theme.text.title}]}>Dates</Text><TouchableOpacity style={[styles.dateButton, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => setShowDatePicker(true)}><Ionicons name="calendar-outline" size={18} color="#0284C7" /><Text style={[styles.dateText, {color: theme.text.title}]}>{installationDate}</Text></TouchableOpacity>{showDatePicker ? <DateTimePicker value={parseGBDate(installationDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_e: DateTimePickerEvent, date?: Date) => {setShowDatePicker(Platform.OS === 'ios'); if (date) setInstallationDate(formatGBDate(date));}} /> : null}
+      <TouchableOpacity style={[styles.dateButton, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => setShowNextDatePicker(true)}><Ionicons name="alarm-outline" size={18} color="#0284C7" /><Text style={[styles.dateText, {color: theme.text.title}]}>{nextServiceDate || 'Set next service date'}</Text></TouchableOpacity>{showNextDatePicker ? <DateTimePicker value={parseGBDate(nextServiceDate || installationDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_e: DateTimePickerEvent, date?: Date) => {setShowNextDatePicker(Platform.OS === 'ios'); if (date) setNextServiceDate(formatGBDate(date));}} /> : null}</View>
+    <View style={{marginBottom: 16}}>
+      <EmailRecipientsList
+        defaultEmails={sanitizeRecipients([customerForm.email || ''])}
+        additionalEmails={additionalSendEmails}
+        onAdditionalEmailsChange={setAdditionalSendEmails}
+      />
+    </View>
     <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}><Text style={[styles.cardTitle, {color: theme.text.title}]}>Customer Signature</Text>{customerSignature ? <Image source={{uri: customerSignature}} style={styles.signaturePreview} resizeMode="contain" /> : <Text style={[styles.helperText, {color: theme.text.muted}]}>Capture the customer signature before saving.</Text>}<Button title={customerSignature ? 'Retake Signature' : 'Capture Signature'} onPress={() => setShowSigPad(true)} variant="secondary" icon="create-outline" /></View>
   </ScrollView><View style={[styles.bottomBar, isDark && {backgroundColor: theme.surface.base, borderTopColor: theme.surface.border}]}><View style={styles.actionsRow}><Button title="Save" onPress={() => handleComplete('save')} loading={processingAction === 'save'} disabled={!canSubmit} style={{flex: 1}} /><Button title="View" onPress={() => handleComplete('view')} variant="secondary" loading={processingAction === 'view'} disabled={!canSubmit} style={{flex: 1}} /></View><Button title="Save & Send" onPress={() => handleComplete('email')} variant="success" loading={processingAction === 'email'} disabled={!canSubmit} icon="mail-outline" /></View></KeyboardAvoidingView>{showSigPad ? <SignaturePad visible={showSigPad} onClose={() => setShowSigPad(false)} onOK={(base64) => {setCustomerSignature(base64); setShowSigPad(false);}} /> : null}{processingAction ? <View style={styles.loadingOverlay}><ActivityIndicator size="large" color="#FFFFFF" /></View> : null}</View>;
 }

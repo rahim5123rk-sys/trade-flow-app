@@ -26,6 +26,7 @@ import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
 import { useAppTheme } from '../src/context/ThemeContext';
 import { Customer } from '../src/types';
+import { SiteAddressSelector, SiteAddressData } from './forms/SiteAddressSelector';
 
 // ─── Design tokens ──────────────────────────────────────────────────
 
@@ -53,6 +54,8 @@ export interface CustomerFormData {
   jobPostCode: string;
   siteContactName: string;
   siteContactEmail: string;
+  siteContactPhone: string;
+  siteContactTitle: string;
 }
 
 export const EMPTY_CUSTOMER_FORM: CustomerFormData = {
@@ -73,6 +76,8 @@ export const EMPTY_CUSTOMER_FORM: CustomerFormData = {
   jobPostCode: '',
   siteContactName: '',
   siteContactEmail: '',
+  siteContactPhone: '',
+  siteContactTitle: '',
 };
 
 interface CustomerSelectorProps {
@@ -131,6 +136,10 @@ export function CustomerSelector({
   const [showPicker, setShowPicker] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [isQuick, setIsQuick] = useState(quickEntry);
+
+  useEffect(() => {
+    setIsQuick(quickEntry);
+  }, [quickEntry]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [originalData, setOriginalData] = useState<CustomerFormData | null>(
@@ -686,29 +695,37 @@ export function CustomerSelector({
             </View>
             {!value.sameAsBilling && (
               <Animated.View entering={FadeInDown.duration(250)}>
-                {renderInput('Site Address Line 1', value.jobAddressLine1, 'jobAddressLine1')}
-                {renderInput('Site Address Line 2', value.jobAddressLine2, 'jobAddressLine2')}
-                <View style={s.row}>
-                  <View style={{ flex: 1, marginRight: 5 }}>
-                    {renderInput('City', value.jobCity, 'jobCity')}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    {renderInput('Postcode', value.jobPostCode, 'jobPostCode', {
-                      autoCapitalize: 'characters',
-                    })}
-                  </View>
-                </View>
-                <View style={s.row}>
-                  <View style={{ flex: 1, marginRight: 5 }}>
-                    {renderInput('Site Contact Name (optional)', value.siteContactName, 'siteContactName')}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    {renderInput('Site Contact Email (optional)', value.siteContactEmail, 'siteContactEmail', {
-                      keyboard: 'email-address',
-                      autoCapitalize: 'none',
-                    })}
-                  </View>
-                </View>
+                <SiteAddressSelector
+                  value={{
+                    tenantTitle: value.siteContactTitle,
+                    tenantName: value.siteContactName,
+                    tenantEmail: value.siteContactEmail,
+                    tenantPhone: value.siteContactPhone,
+                    addressLine1: value.jobAddressLine1,
+                    addressLine2: value.jobAddressLine2,
+                    city: value.jobCity,
+                    postCode: value.jobPostCode,
+                  }}
+                  onChange={(data: SiteAddressData) => {
+                    onChange({
+                      ...value,
+                      jobAddressLine1: data.addressLine1,
+                      jobAddressLine2: data.addressLine2,
+                      jobCity: data.city,
+                      jobPostCode: data.postCode,
+                      siteContactName: data.tenantName,
+                      siteContactEmail: data.tenantEmail,
+                      siteContactPhone: data.tenantPhone,
+                      siteContactTitle: data.tenantTitle,
+                    });
+                  }}
+                  customerAddress={{
+                    addressLine1: value.addressLine1,
+                    addressLine2: value.addressLine2,
+                    city: value.city,
+                    postCode: value.postCode,
+                  }}
+                />
               </Animated.View>
             )}
           </View>
@@ -928,6 +945,8 @@ export function prefillFromJob(job: any): CustomerFormData {
     jobPostCode: snap.postal_code || '',
     siteContactName: snap.site_contact_name || '',
     siteContactEmail: snap.site_contact_email || '',
+    siteContactPhone: '',
+    siteContactTitle: '',
   };
 }
 

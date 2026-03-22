@@ -6,7 +6,7 @@
 import {Ionicons} from '@expo/vector-icons';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router} from 'expo-router';
-import React from 'react';
+import React, {useState} from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -14,13 +14,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {CustomerSelector} from '../../../../components/CustomerSelector';
+import {SiteAddressSelector, SiteAddressData} from '../../../../components/forms/SiteAddressSelector';
 import {Colors, UI} from '../../../../constants/theme';
 import {useServiceRecord} from '../../../../src/context/ServiceRecordContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
@@ -66,54 +66,6 @@ const StepIndicator = ({current}: {current: number}) => {
   );
 };
 
-// ─── Input helper ───────────────────────────────────────────────
-
-const FormInput = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  icon,
-  keyboardType,
-  autoCapitalize,
-  isDark,
-  theme,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  icon?: keyof typeof Ionicons.glyphMap;
-  keyboardType?: 'default' | 'email-address' | 'phone-pad';
-  autoCapitalize?: 'none' | 'sentences' | 'words';
-  isDark?: boolean;
-  theme?: any;
-}) => (
-  <View style={s.inputContainer}>
-    <Text style={[s.inputLabel, isDark && theme && {color: theme.text.bodyLight}]}>{label}</Text>
-    <View style={[s.inputWrapper, isDark && theme && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
-      {icon && (
-        <Ionicons
-          name={icon}
-          size={18}
-          color={isDark && theme ? theme.text.muted : UI.text.muted}
-          style={{marginRight: 10}}
-        />
-      )}
-      <TextInput
-        style={[s.input, isDark && theme && {color: theme.text.title}]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize ?? 'sentences'}
-        keyboardAppearance={isDark ? 'dark' : 'light'}
-      />
-    </View>
-  </View>
-);
-
 // ─── Main screen ────────────────────────────────────────────────
 
 export default function ServiceRecordDetailsScreen() {
@@ -133,6 +85,28 @@ export default function ServiceRecordDetailsScreen() {
     propertyAddress,
   } = useServiceRecord();
 
+  const [tenantTitle, setTenantTitle] = useState('');
+  const [tenantName, setTenantName] = useState('');
+  const [tenantEmail, setTenantEmail] = useState('');
+  const [tenantPhone, setTenantPhone] = useState('');
+
+  const siteAddress: SiteAddressData = {
+    tenantTitle, tenantName, tenantEmail, tenantPhone,
+    addressLine1: propertyAddressLine1, addressLine2: propertyAddressLine2,
+    city: propertyCity, postCode: propertyPostCode,
+  };
+
+  const handleSiteAddressChange = (data: SiteAddressData) => {
+    setPropertyAddressLine1(data.addressLine1);
+    setPropertyAddressLine2(data.addressLine2);
+    setPropertyCity(data.city);
+    setPropertyPostCode(data.postCode);
+    setTenantTitle(data.tenantTitle);
+    setTenantName(data.tenantName);
+    setTenantEmail(data.tenantEmail);
+    setTenantPhone(data.tenantPhone);
+  };
+
   const handleNext = () => {
     if (!customerForm.customerName.trim()) {
       Alert.alert('Missing Info', 'Please enter the customer name.');
@@ -143,18 +117,6 @@ export default function ServiceRecordDetailsScreen() {
       return;
     }
     router.push('/(app)/forms/service-record/service' as any);
-  };
-
-  const autofillFromCustomer = () => {
-    const hasAddr = customerForm.addressLine1 || customerForm.city || customerForm.postCode;
-    if (!hasAddr) {
-      Alert.alert('No Address', 'Enter a customer address first.');
-      return;
-    }
-    setPropertyAddressLine1(customerForm.addressLine1);
-    setPropertyAddressLine2(customerForm.addressLine2);
-    setPropertyCity(customerForm.city);
-    setPropertyPostCode(customerForm.postCode);
   };
 
   return (
@@ -214,82 +176,25 @@ export default function ServiceRecordDetailsScreen() {
             />
           </Animated.View>
 
-          {/* Property Address */}
+          {/* Site Address & Tenant */}
           <Animated.View entering={FadeInDown.delay(250).springify()}>
             <View style={[s.sectionHeader, {marginTop: 24}]}>
               <LinearGradient colors={['#059669', '#10B981']} style={s.sectionIcon}>
                 <Ionicons name="home" size={16} color={UI.text.white} />
               </LinearGradient>
-              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Property Address</Text>
+              <Text style={[s.sectionTitle, {color: theme.text.title}]}>Site Address & Tenant</Text>
             </View>
 
-            <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
-              <Text style={[s.hintText, {color: theme.text.muted}]}>
-                Address of the property where the service was carried out. Address Line 1, City and Postcode are required.
-              </Text>
-
-              <FormInput
-                label="Address Line 1 *"
-                value={propertyAddressLine1}
-                onChange={setPropertyAddressLine1}
-                placeholder="Street address"
-                autoCapitalize="words"
-                isDark={isDark}
-                theme={theme}
-              />
-              <FormInput
-                label="Address Line 2"
-                value={propertyAddressLine2}
-                onChange={setPropertyAddressLine2}
-                placeholder="Flat, floor, building (optional)"
-                autoCapitalize="words"
-                isDark={isDark}
-                theme={theme}
-              />
-
-              <View style={s.row}>
-                <View style={{flex: 1}}>
-                  <FormInput
-                    label="City / Town *"
-                    value={propertyCity}
-                    onChange={setPropertyCity}
-                    placeholder="City"
-                    autoCapitalize="words"
-                    isDark={isDark}
-                    theme={theme}
-                  />
-                </View>
-                <View style={{flex: 1}}>
-                  <FormInput
-                    label="Postcode *"
-                    value={propertyPostCode}
-                    onChange={setPropertyPostCode}
-                    placeholder="e.g. SW1A 1AA"
-                    autoCapitalize="none"
-                    isDark={isDark}
-                    theme={theme}
-                  />
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={s.autofillBtn}
-                onPress={autofillFromCustomer}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="copy-outline" size={14} color={Colors.primary} />
-                <Text style={s.autofillText}>Use customer address</Text>
-              </TouchableOpacity>
-
-              {propertyAddress ? (
-                <View style={s.previewRow}>
-                  <Ionicons name="location" size={14} color={UI.status.complete} />
-                  <Text style={s.previewText} numberOfLines={2}>
-                    {propertyAddress}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
+            <SiteAddressSelector
+              value={siteAddress}
+              onChange={handleSiteAddressChange}
+              customerAddress={{
+                addressLine1: customerForm.addressLine1,
+                addressLine2: customerForm.addressLine2,
+                city: customerForm.city,
+                postCode: customerForm.postCode,
+              }}
+            />
           </Animated.View>
         </ScrollView>
 
@@ -351,40 +256,6 @@ const s = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   sectionTitle: {fontSize: 17, fontWeight: '700', color: UI.text.title},
-
-  card: {
-    backgroundColor: GLASS_BG, borderRadius: 18, borderWidth: 1, borderColor: GLASS_BORDER,
-    padding: 16, shadowColor: UI.text.muted,
-    shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
-  },
-
-  inputContainer: {marginBottom: 14},
-  inputLabel: {fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6},
-  inputWrapper: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: UI.surface.base, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
-    paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 10,
-  },
-  input: {flex: 1, fontSize: 15, color: UI.text.title, padding: 0},
-  row: {flexDirection: 'row', gap: 10},
-
-  hintText: {
-    fontSize: 12, color: UI.text.muted, fontWeight: '500', marginBottom: 14, lineHeight: 18,
-  },
-
-  autofillBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 12,
-    borderRadius: 10, backgroundColor: UI.surface.primaryLight, marginTop: 2,
-  },
-  autofillText: {fontSize: 12, fontWeight: '600', color: Colors.primary},
-
-  previewRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginTop: 12, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: UI.surface.elevated,
-  },
-  previewText: {fontSize: 13, color: UI.text.bodyLight, fontWeight: '500', flex: 1},
 
   bottomBar: {
     position: 'absolute', left: 0, right: 0,

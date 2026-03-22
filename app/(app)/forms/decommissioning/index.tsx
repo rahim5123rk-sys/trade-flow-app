@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {router} from 'expo-router';
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Alert} from 'react-native';
 import {CustomerPropertyDetailsStep} from '../../../../components/forms/CustomerPropertyDetailsStep';
+import {SiteAddressData} from '../../../../components/forms/SiteAddressSelector';
 import {useDecommissioning} from '../../../../src/context/DecommissioningContext';
 
 const DECOMMISSIONING_DUPLICATE_SEED_KEY = 'decommissioning_duplicate_seed_v1';
@@ -24,6 +25,11 @@ export default function DecommissioningIndex() {
     hydrateFromDuplicate,
     hydrateForEdit,
   } = useDecommissioning();
+
+  const [tenantTitle, setTenantTitle] = useState('');
+  const [tenantName, setTenantName] = useState('');
+  const [tenantEmail, setTenantEmail] = useState('');
+  const [tenantPhone, setTenantPhone] = useState('');
 
   useEffect(() => {
     const loadSeed = async () => {
@@ -79,15 +85,21 @@ export default function DecommissioningIndex() {
     router.push('/(app)/forms/decommissioning/decommission' as any);
   };
 
-  const handleUseCustomerAddress = () => {
-    if (!customerForm.addressLine1 && !customerForm.city && !customerForm.postCode) {
-      Alert.alert('No Address', 'Enter a customer address first.');
-      return;
-    }
-    setPropertyAddressLine1(customerForm.addressLine1);
-    setPropertyAddressLine2(customerForm.addressLine2);
-    setPropertyCity(customerForm.city);
-    setPropertyPostCode(customerForm.postCode);
+  const siteAddress: SiteAddressData = {
+    tenantTitle, tenantName, tenantEmail, tenantPhone,
+    addressLine1: propertyAddressLine1, addressLine2: propertyAddressLine2,
+    city: propertyCity, postCode: propertyPostCode,
+  };
+
+  const handleSiteAddressChange = (data: SiteAddressData) => {
+    setPropertyAddressLine1(data.addressLine1);
+    setPropertyAddressLine2(data.addressLine2);
+    setPropertyCity(data.city);
+    setPropertyPostCode(data.postCode);
+    setTenantTitle(data.tenantTitle);
+    setTenantName(data.tenantName);
+    setTenantEmail(data.tenantEmail);
+    setTenantPhone(data.tenantPhone);
   };
 
   return (
@@ -98,16 +110,8 @@ export default function DecommissioningIndex() {
       nextButtonLabel="Next: Decommission Details"
       customerForm={customerForm}
       onCustomerFormChange={setCustomerForm}
-      propertyAddressLine1={propertyAddressLine1}
-      onPropertyAddressLine1Change={setPropertyAddressLine1}
-      propertyAddressLine2={propertyAddressLine2}
-      onPropertyAddressLine2Change={setPropertyAddressLine2}
-      propertyCity={propertyCity}
-      onPropertyCityChange={setPropertyCity}
-      propertyPostCode={propertyPostCode}
-      onPropertyPostCodeChange={setPropertyPostCode}
-      propertyAddress={propertyAddress}
-      onUseCustomerAddress={handleUseCustomerAddress}
+      siteAddress={siteAddress}
+      onSiteAddressChange={handleSiteAddressChange}
       onNext={handleNext}
     />
   );

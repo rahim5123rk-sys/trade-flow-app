@@ -24,6 +24,8 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {UI} from '../../../../constants/theme';
 import {useServiceRecord} from '../../../../src/context/ServiceRecordContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
+import {AutocompleteSuggestions} from '../../../../components/forms/AutocompleteInput';
+import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {
   ApplianceCategory,
   BoilerType,
@@ -280,6 +282,7 @@ export default function ServiceScreen() {
   const insets = useSafeAreaInsets();
   const {appliances, addAppliance, updateAppliance, finalInfo, setFinalInfo} = useServiceRecord();
   const [form, setForm] = useState<Omit<ServiceAppliance, 'id'>>({...EMPTY_SERVICE_APPLIANCE, fgaLow: {...EMPTY_FGA}, fgaHigh: {...EMPTY_FGA}});
+  const [showMakeSuggestions, setShowMakeSuggestions] = useState(false);
 
   // If editing an existing record, load the saved appliance into form state
   useEffect(() => {
@@ -367,7 +370,8 @@ export default function ServiceScreen() {
             />
 
             <FormInput label="Location *" value={form.location} onChange={(v) => updateField('location', v)} placeholder="e.g. Kitchen" />
-            <FormInput label="Make" value={form.make} onChange={(v) => updateField('make', v)} placeholder="e.g. Worcester" />
+            <FormInput label="Make" value={form.make} onChange={(v) => { updateField('make', v); setShowMakeSuggestions(true); }} placeholder="e.g. Worcester" />
+            <AutocompleteSuggestions value={form.make} suggestions={getBrandsForCategory(form.category)} visible={showMakeSuggestions} onSelect={(v) => { updateField('make', v); setShowMakeSuggestions(false); }} />
             <FormInput label="Model" value={form.model} onChange={(v) => updateField('model', v)} placeholder="e.g. Greenstar 30i" />
             <FormInput label="Serial Number" value={form.serialNumber} onChange={(v) => updateField('serialNumber', v)} placeholder="Serial number" />
             <FormInput label="GC Number" value={form.gcNumber} onChange={(v) => updateField('gcNumber', v)} placeholder="GC number" />

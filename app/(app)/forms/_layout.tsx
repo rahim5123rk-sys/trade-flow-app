@@ -14,6 +14,7 @@ export default function FormsLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        gestureEnabled: false,
         contentStyle: {backgroundColor: theme.surface.base},
       }}
     >

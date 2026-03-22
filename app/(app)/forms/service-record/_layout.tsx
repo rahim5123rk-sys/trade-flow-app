@@ -16,6 +16,7 @@ export default function ServiceRecordLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
+          gestureEnabled: false,
           contentStyle: {backgroundColor: theme.surface.base},
           animation: 'slide_from_right',
         }}

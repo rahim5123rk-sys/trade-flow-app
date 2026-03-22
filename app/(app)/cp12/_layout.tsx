@@ -20,6 +20,7 @@ const CP12_DRAFT_KEY = 'cp12_draft_v1';
 function CP12AutoSave({children}: {children: React.ReactNode}) {
   const {
     landlordForm,
+    tenantTitle,
     tenantName,
     tenantEmail,
     tenantPhone,
@@ -75,6 +76,7 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
         email: landlordForm.email || '',
         phone: landlordForm.phone || '',
       },
+      tenantTitle,
       tenantName,
       tenantEmail,
       tenantPhone,
@@ -90,7 +92,7 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
 
     await AsyncStorage.setItem(CP12_DRAFT_KEY, JSON.stringify(draft));
   }, [
-    landlordForm, tenantName, tenantEmail, tenantPhone,
+    landlordForm, tenantTitle, tenantName, tenantEmail, tenantPhone,
     tenantAddressLine1, tenantAddressLine2, tenantCity, tenantPostCode,
     appliances, finalChecks, inspectionDate, nextDueDate, renewalReminderEnabled,
     customerSignature, certRef, editingDocumentId,
@@ -139,6 +141,7 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
                     propertyAddress: draft.propertyAddress,
                     appliances: draft.appliances,
                     landlordForm: draft.landlordForm,
+                    tenantTitle: draft.tenantTitle,
                     tenantName: draft.tenantName,
                     tenantEmail: draft.tenantEmail,
                     tenantPhone: draft.tenantPhone,
@@ -155,6 +158,7 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
                     propertyAddress: draft.propertyAddress,
                     appliances: draft.appliances,
                     landlordForm: draft.landlordForm,
+                    tenantTitle: draft.tenantTitle,
                     tenantName: draft.tenantName,
                     tenantEmail: draft.tenantEmail,
                     tenantPhone: draft.tenantPhone,
@@ -199,6 +203,7 @@ export default function CP12Layout() {
         <Stack
           screenOptions={{
             headerShown: false,
+            gestureEnabled: false,
             contentStyle: {backgroundColor: theme.surface.base},
           }}
         >

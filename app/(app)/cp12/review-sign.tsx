@@ -25,6 +25,8 @@ import {
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import EmailRecipientsList from '../../../components/EmailRecipientsList';
+import {upsertSiteAddress} from '../../../components/forms/SiteAddressPicker';
 import ReminderSection from '../../../components/ReminderSection';
 import {SignaturePad} from '../../../components/SignaturePad';
 import {UI} from '../../../constants/theme';
@@ -110,9 +112,14 @@ export default function ReviewSign() {
     certRef,
     setCertRef,
     landlordForm,
+    tenantTitle,
     tenantName,
     tenantEmail,
     tenantPhone,
+    tenantAddressLine1,
+    tenantAddressLine2,
+    tenantCity,
+    tenantPostCode,
     propertyAddress,
     appliances,
     finalChecks,
@@ -130,7 +137,8 @@ export default function ReviewSign() {
   // Signature modal
   const [showSigPad, setShowSigPad] = useState(false);
   const [oneTimeEmails, setOneTimeEmails] = useState<string[]>([]);
-  const emailRecipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '']);
+  const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
+  const emailRecipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '', ...additionalSendEmails]);
   const savedEmails = [tenantEmail].filter(Boolean) as string[];
 
   useEffect(() => {
@@ -140,6 +148,7 @@ export default function ReviewSign() {
 
       const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {
         reserve: false,
+        p_company_id: userProfile?.company_id || null,
       });
 
       if (error || typeof data !== 'string') {
@@ -150,7 +159,7 @@ export default function ReviewSign() {
     };
 
     void preloadNextReference();
-  }, [certRef, setCertRef]);
+  }, [certRef, setCertRef, userProfile?.company_id]);
 
   // ── date change handlers ──
   const onInspDateChange = (_e: DateTimePickerEvent, date?: Date) => {
@@ -172,6 +181,7 @@ export default function ReviewSign() {
   const getNextCp12Reference = async () => {
     const {data, error} = await supabase.rpc('get_next_gas_cert_reference', {
       reserve: true,
+      p_company_id: userProfile?.company_id || null,
     });
 
     if (error || typeof data !== 'string') {
@@ -336,6 +346,18 @@ export default function ReviewSign() {
         throw new Error('Failed to create gas certificate document record.');
       }
 
+      // Auto-save site address for future reuse
+      void upsertSiteAddress(userProfile.company_id, {
+        addressLine1: tenantAddressLine1,
+        addressLine2: tenantAddressLine2,
+        city: tenantCity,
+        postCode: tenantPostCode,
+        tenantTitle,
+        tenantName,
+        tenantEmail,
+        tenantPhone,
+      });
+
       const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
 
       if (action === 'save') {
@@ -358,9 +380,9 @@ export default function ReviewSign() {
         await WebBrowser.openBrowserAsync(pdfUrl);
         return;
       }
-
-      const recipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '']);
-      if (!recipients.length) {
+// Send email
+const recipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '', ...additionalSendEmails]);
+if (!recipients.length) {
         Alert.alert('No Email Found', 'Add a landlord or tenant email before using Save & Send Email.');
         return;
       }
@@ -379,6 +401,7 @@ export default function ReviewSign() {
         landlordName: landlordForm.customerName,
         tenantName,
         pdfBase64,
+        formLabel: 'Gas Safety Certificate',
       });
 
       await generateCP12PdfFromPayload(
@@ -559,7 +582,15 @@ export default function ReviewSign() {
             )}
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(260).duration(400)}>
+          <Animated.View entering={FadeInDown.delay(210).duration(400)}>
+            <EmailRecipientsList
+              defaultEmails={sanitizeRecipients([landlordForm.email || '', tenantEmail || ''])}
+              additionalEmails={additionalSendEmails}
+              onAdditionalEmailsChange={setAdditionalSendEmails}
+            />
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(220).duration(400)}>
             <ReminderSection
               enabled={renewalReminderEnabled}
               onToggle={setRenewalReminderEnabled}
@@ -588,7 +619,7 @@ export default function ReviewSign() {
             ) : (
               <>
                 <Ionicons name={editingDocumentId ? 'checkmark-circle-outline' : 'save-outline'} size={20} color={UI.brand.primary} />
-                <Text style={s.saveCp12Text}>{editingDocumentId ? 'Update' : 'Save'}</Text>
+                <Text style={s.saveCp12Text}>{editingDocumentId ? 'Save & Update' : 'Save'}</Text>
               </>
             )}
           </TouchableOpacity>

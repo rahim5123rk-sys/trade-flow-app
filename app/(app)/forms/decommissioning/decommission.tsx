@@ -4,9 +4,11 @@ import React, {useEffect, useState} from 'react';
 import {Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Input} from '../../../../components/Input';
+import {AutocompleteInput} from '../../../../components/forms/AutocompleteInput';
 import {FormHeader} from '../../../../components/forms/FormHeader';
 import {FormStepIndicator} from '../../../../components/forms/FormStepIndicator';
 import {ChoiceChips, DropdownField, FormSection, TextAreaField} from '../../../../components/forms/GasFormFields';
+import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {Button} from '../../../../components/ui/Button';
 import {useDecommissioning} from '../../../../src/context/DecommissioningContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
@@ -89,7 +91,7 @@ export default function DecommissionStepScreen() {
             <DropdownField label="Appliance type" value={form.category} options={[...APPLIANCE_CATEGORIES]} onChange={(value) => updateField('category', value as ApplianceCategory)} />
             <Input label="Location" required value={form.location} onChangeText={(value) => updateField('location', value)} placeholder="Kitchen, loft, utility room" />
             <View style={styles.row}>
-              <View style={{flex: 1}}><Input label="Make" value={form.make} onChangeText={(value) => updateField('make', value)} placeholder="Manufacturer" /></View>
+              <View style={{flex: 1}}><AutocompleteInput label="Make" value={form.make} onChangeText={(value) => updateField('make', value)} suggestions={getBrandsForCategory(form.category)} placeholder="Manufacturer" /></View>
               <View style={{flex: 1}}><Input label="Model" value={form.model} onChangeText={(value) => updateField('model', value)} placeholder="Model" /></View>
             </View>
             <View style={styles.row}>

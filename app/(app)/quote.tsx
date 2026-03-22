@@ -31,15 +31,19 @@ import {
     getJobAddress,
     prefillFromJob,
 } from '../../components/CustomerSelector';
+import { upsertSiteAddress } from '../../components/forms';
+import ProPaywallModal from '../../components/ProPaywallModal';
 import { UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
+import { useSubscription } from '../../src/context/SubscriptionContext';
 import { useAppTheme } from '../../src/context/ThemeContext';
 import {
     DocumentData,
     generateDocument,
     LineItem,
 } from '../../src/services/DocumentGenerator';
+import { getNextQuoteReference } from '../../src/services/formDocumentService';
 
 // ─── Design tokens ──────────────────────────────────────────────────
 const GLASS_BG =
@@ -52,8 +56,9 @@ const fmtCurrency = (n: number) =>
 export default function CreateQuoteScreen() {
   const { theme, isDark } = useAppTheme();
   const st = makeStyles(theme, isDark);
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, editId } = useLocalSearchParams<{ id?: string; editId?: string }>();
   const { userProfile } = useAuth();
+  const { isPro } = useSubscription();
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
@@ -66,7 +71,7 @@ export default function CreateQuoteScreen() {
   const [prefilled, setPrefilled] = useState(false);
 
   // ─── Quote Meta ───────────────────────────────────────────────
-  const [quoteNumber, setQuoteNumber] = useState('1001');
+  const [quoteNumber, setQuoteNumber] = useState('QTE-0001');
   const [quoteRef, setQuoteRef] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [items, setItems] = useState<LineItem[]>([
@@ -78,15 +83,75 @@ export default function CreateQuoteScreen() {
 
   // ─── Job link (if coming from a job) ──────────────────────────
   const [jobId, setJobId] = useState<string | null>(null);
+  // ─── Edit mode (editing existing document) ────────────────────
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [originalStatus, setOriginalStatus] = useState<string | null>(null);
 
   useEffect(() => {
     loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile, id]);
+  }, [userProfile, id, editId]);
 
   const loadInitialData = async () => {
     if (!userProfile?.company_id) return;
 
+    // ─── Edit mode: load existing document ─────────────────────
+    if (editId) {
+      const { data: existingDoc } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', editId)
+        .single();
+
+      if (existingDoc) {
+        setEditingDocId(existingDoc.id);
+        setOriginalStatus(existingDoc.status);
+        // New format stores QTE-0001 in reference; old format stored job ref there
+        const ref = existingDoc.reference || '';
+        if (ref.startsWith('QTE-')) {
+          setQuoteNumber(ref);
+        } else {
+          setQuoteNumber(String(existingDoc.number || 1001));
+          if (ref) setQuoteRef(ref);
+        }
+        setExpiryDate(existingDoc.expiry_date || '');
+        setItems(existingDoc.items?.length ? existingDoc.items : [{ description: '', quantity: 1, unitPrice: 0, vatPercent: 0 }]);
+        setDiscountPercent(String(existingDoc.discount_percent || 0));
+        setNotes(existingDoc.notes || '');
+        setJobId(existingDoc.job_id || null);
+
+        const snap = existingDoc.customer_snapshot;
+        const jobAddr = existingDoc.job_address;
+        if (snap) {
+          setCustomerForm({
+            customerId: existingDoc.customer_id || null,
+            customerName: snap.name || '',
+            customerCompany: snap.company_name || '',
+            addressLine1: snap.address_line_1 || '',
+            addressLine2: snap.address_line_2 || '',
+            city: snap.city || '',
+            region: '',
+            postCode: snap.postal_code || '',
+            phone: snap.phone || '',
+            email: snap.email || '',
+            sameAsBilling: true,
+            jobAddressLine1: jobAddr?.address_line_1 || '',
+            jobAddressLine2: jobAddr?.address_line_2 || '',
+            jobCity: jobAddr?.city || '',
+            jobPostCode: jobAddr?.postcode || '',
+            siteContactName: '',
+            siteContactEmail: '',
+            siteContactPhone: '',
+            siteContactTitle: '',
+          });
+          setPrefilled(true);
+        }
+      }
+      setLoading(false);
+      return;
+    }
+
+    // ─── New quote mode ────────────────────────────────────────
     const { data: companyData } = await supabase
       .from('companies')
       .select('settings')
@@ -96,7 +161,14 @@ export default function CreateQuoteScreen() {
     if (companyData?.settings) {
       const s = companyData.settings;
       if (s.quoteTerms) setTerms(s.quoteTerms);
-      if (s.nextQuoteNumber) setQuoteNumber(String(s.nextQuoteNumber));
+    }
+
+    // Get next quote reference (per-company, e.g. QTE-0001)
+    try {
+      const nextRef = await getNextQuoteReference(false, userProfile.company_id);
+      setQuoteNumber(nextRef);
+    } catch {
+      // fallback handled by default state
     }
 
     const expiry = new Date();
@@ -195,11 +267,13 @@ export default function CreateQuoteScreen() {
     return { snapshot, jobAddr, today };
   };
 
-  // ─── Save Draft ───────────────────────────────────────────────
-  const handleSaveDraft = async () => {
+  // ─── Save (shared for draft & generate) ──────────────────────
+  const saveDocument = async (status: string) => {
     if (!userProfile?.company_id) return;
     if (!validate()) return;
-    setSaving(true);
+
+    const isSavingDraft = status === 'Draft';
+    if (isSavingDraft) setSaving(true); else setGenerating(true);
 
     try {
       const { snapshot, jobAddr } = buildDocData();
@@ -219,14 +293,24 @@ export default function CreateQuoteScreen() {
         finalCustomerId = newCust.id;
       }
 
-      const { error } = await supabase.from('documents').insert({
+      // Reserve the quote reference atomically for new quotes
+      let finalQuoteRef = quoteNumber;
+      if (!editingDocId) {
+        try {
+          finalQuoteRef = await getNextQuoteReference(true, userProfile.company_id);
+        } catch {
+          // Fall back to the previewed reference
+        }
+      }
+
+      const docPayload = {
         company_id: userProfile.company_id,
-        type: 'quote',
-        number: parseInt(quoteNumber) || 1001,
-        reference: quoteRef || null,
-        date: new Date().toISOString(),
+        user_id: userProfile.id,
+        type: 'quote' as const,
+        number: parseInt(finalQuoteRef.replace(/\D/g, '')) || 1,
+        reference: finalQuoteRef,
         expiry_date: expiryDate || null,
-        status: 'Draft',
+        status: editingDocId ? (originalStatus || status) : status,
         customer_id: finalCustomerId,
         customer_snapshot: snapshot,
         job_id: jobId || null,
@@ -241,115 +325,63 @@ export default function CreateQuoteScreen() {
         discount_percent: parseFloat(discountPercent) || 0,
         total,
         notes: notes || null,
-      });
+      };
 
-      if (error) throw error;
+      if (editingDocId) {
+        const { error } = await supabase
+          .from('documents')
+          .update(docPayload)
+          .eq('id', editingDocId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('documents').insert({
+          ...docPayload,
+          date: new Date().toISOString(),
+        });
+        if (error) throw error;
+      }
 
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('settings')
-        .eq('id', userProfile.company_id)
-        .single();
+      // Save site/job address for future reuse
+      if (jobAddr.jobAddress1 && jobAddr.jobPostcode) {
+        void upsertSiteAddress(userProfile.company_id, {
+          addressLine1: jobAddr.jobAddress1,
+          addressLine2: jobAddr.jobAddress2 || '',
+          city: jobAddr.jobCity || '',
+          postCode: jobAddr.jobPostcode,
+          tenantName: customerForm.siteContactName || '',
+          tenantEmail: customerForm.siteContactEmail || '',
+        });
+      }
 
-      const currentSettings = companyData?.settings || {};
-      await supabase
-        .from('companies')
-        .update({
-          settings: {
-            ...currentSettings,
-            nextQuoteNumber: (parseInt(quoteNumber) || 1001) + 1,
-          },
-        })
-        .eq('id', userProfile.company_id);
-
-      Alert.alert('Saved', 'Quote saved as draft.', [
+      const msg = editingDocId ? 'Quote updated.' : (isSavingDraft ? 'Quote saved as draft.' : 'Quote saved.');
+      Alert.alert('Saved', msg, [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to save quote.');
     } finally {
       setSaving(false);
+      setGenerating(false);
     }
   };
 
+  // ─── Save Draft ───────────────────────────────────────────────
+  const handleSaveDraft = () => saveDocument('Draft');
+
   // ─── Save & Generate PDF ──────────────────────────────────────
   const handleSaveAndGenerate = async () => {
-    if (!userProfile?.company_id) return;
-    if (!validate()) return;
-    setGenerating(true);
+    await saveDocument('Sent');
 
     try {
-      const { snapshot, jobAddr, today } = buildDocData();
-
-      let finalCustomerId = customerForm.customerId;
-      if (!finalCustomerId) {
-        const insertData = buildCustomerInsert(
-          customerForm,
-          userProfile.company_id,
-        );
-        const { data: newCust, error: custErr } = await supabase
-          .from('customers')
-          .insert(insertData)
-          .select('id')
-          .single();
-        if (custErr) throw new Error('Failed to create new customer.');
-        finalCustomerId = newCust.id;
-      }
-
-      const { error: insertError } = await supabase
-        .from('documents')
-        .insert({
-          company_id: userProfile.company_id,
-          type: 'quote',
-          number: parseInt(quoteNumber) || 1001,
-          reference: quoteRef || null,
-          date: new Date().toISOString(),
-          expiry_date: expiryDate || null,
-          status: 'Sent',
-          customer_id: finalCustomerId,
-          customer_snapshot: snapshot,
-          job_id: jobId || null,
-          job_address: {
-            address_line_1: jobAddr.jobAddress1,
-            address_line_2: jobAddr.jobAddress2 || null,
-            city: jobAddr.jobCity,
-            postcode: jobAddr.jobPostcode,
-          },
-          items,
-          subtotal,
-          discount_percent: parseFloat(discountPercent) || 0,
-          total,
-          notes: notes || null,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('settings')
-        .eq('id', userProfile.company_id)
-        .single();
-
-      const currentSettings = companyData?.settings || {};
-      await supabase
-        .from('companies')
-        .update({
-          settings: {
-            ...currentSettings,
-            nextQuoteNumber: (parseInt(quoteNumber) || 1001) + 1,
-          },
-        })
-        .eq('id', userProfile.company_id);
-
+      if (!userProfile?.company_id) return;
+      const { jobAddr, today } = buildDocData();
       const docData: DocumentData = {
         type: 'quote',
-        number: parseInt(quoteNumber) || 1001,
-        reference: quoteRef || undefined,
+        number: parseInt(quoteNumber.replace(/\D/g, '')) || 1,
+        reference: quoteNumber || undefined,
         date: today,
         expiryDate: expiryDate || today,
-        status: 'Sent',
+        status: editingDocId ? (originalStatus || 'Sent') : 'Sent',
         customerName: customerForm.customerName,
         customerCompany: customerForm.customerCompany || undefined,
         customerAddress1: customerForm.addressLine1,
@@ -367,12 +399,9 @@ export default function CreateQuoteScreen() {
         partialPayment: 0,
         notes: notes || undefined,
       };
-
       await generateDocument(docData, userProfile.company_id);
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to generate quote.');
-    } finally {
-      setGenerating(false);
+    } catch {
+      // PDF generation is optional - save already succeeded
     }
   };
 
@@ -392,6 +421,12 @@ export default function CreateQuoteScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
+      <ProPaywallModal
+        visible={!isPro}
+        onDismiss={() => router.back()}
+        featureTitle="Invoices & Quotes"
+        featureDescription="Create professional quotes with expiry dates, terms, and send them directly to your customers."
+      />
       <LinearGradient
         colors={theme.gradients.appBackground}
         style={{ flex: 1 }}
@@ -416,9 +451,9 @@ export default function CreateQuoteScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text.body} />
             </TouchableOpacity>
             <View style={st.headerCenter}>
-              <Text style={st.screenTitle}>New Quote</Text>
+              <Text style={st.screenTitle}>{editingDocId ? 'Edit Quote' : 'New Quote'}</Text>
               <Text style={st.screenSubtitle}>
-                Build and send a detailed estimate
+                {editingDocId ? 'Update quote details' : 'Build and send a detailed estimate'}
               </Text>
             </View>
             <View style={{ width: 42 }} />
@@ -442,8 +477,7 @@ export default function CreateQuoteScreen() {
                 <TextInput
                   style={st.input}
                   value={quoteNumber}
-                  onChangeText={setQuoteNumber}
-                  keyboardType="number-pad"
+                  editable={false}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -715,7 +749,7 @@ export default function CreateQuoteScreen() {
               ) : (
                 <>
                   <Ionicons name="document-outline" size={18} color={UI.text.muted} />
-                  <Text style={st.draftBtnText}>Save as Draft</Text>
+                  <Text style={st.draftBtnText}>{editingDocId ? 'Save Changes' : 'Save as Draft'}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -742,7 +776,7 @@ export default function CreateQuoteScreen() {
                       color={UI.text.white}
                     />
                     <Text style={st.generateBtnText}>
-                      Save & Generate PDF
+                      {editingDocId ? 'Save & View PDF' : 'Save & Generate PDF'}
                     </Text>
                   </>
                 )}

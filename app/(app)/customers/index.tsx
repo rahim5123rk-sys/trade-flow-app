@@ -75,7 +75,12 @@ export default function CustomersListScreen() {
 
   return (
     <View style={[styles.container, {paddingTop: insets.top, backgroundColor: theme.surface.base}]}>
-      <Text style={[styles.screenTitle, {color: theme.text.title}]}>Customers</Text>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={22} color={theme.text.title} />
+        </TouchableOpacity>
+        <Text style={[styles.screenTitle, {color: theme.text.title, flex: 1}]}>Customers</Text>
+      </View>
 
       <View style={[styles.searchBox, {backgroundColor: theme.surface.card, borderColor: isDark ? theme.surface.border : Colors.border}]}>
         <Ionicons name="search" size={20} color={theme.text.muted} />
@@ -127,13 +132,26 @@ export default function CustomersListScreen() {
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+    gap: 12,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   screenTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: Colors.text,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 4,
   },
   searchBox: {
     flexDirection: 'row',

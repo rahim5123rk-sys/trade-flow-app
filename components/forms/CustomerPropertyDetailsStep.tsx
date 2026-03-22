@@ -1,14 +1,13 @@
-import {Ionicons} from '@expo/vector-icons';
 import {LinearGradient} from 'expo-linear-gradient';
 import React from 'react';
-import {KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useAppTheme} from '../../src/context/ThemeContext';
 import {CustomerFormData, CustomerSelector} from '../CustomerSelector';
-import {Input} from '../Input';
 import {Button} from '../ui/Button';
 import {FormHeader} from './FormHeader';
 import {FormStepIndicator} from './FormStepIndicator';
+import {SiteAddressData, SiteAddressSelector} from './SiteAddressSelector';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
@@ -19,16 +18,8 @@ interface CustomerPropertyDetailsStepProps {
   nextButtonLabel: string;
   customerForm: CustomerFormData;
   onCustomerFormChange: (value: CustomerFormData) => void;
-  propertyAddressLine1: string;
-  onPropertyAddressLine1Change: (value: string) => void;
-  propertyAddressLine2: string;
-  onPropertyAddressLine2Change: (value: string) => void;
-  propertyCity: string;
-  onPropertyCityChange: (value: string) => void;
-  propertyPostCode: string;
-  onPropertyPostCodeChange: (value: string) => void;
-  propertyAddress: string;
-  onUseCustomerAddress: () => void;
+  siteAddress: SiteAddressData;
+  onSiteAddressChange: (value: SiteAddressData) => void;
   onNext: () => void;
 }
 
@@ -39,20 +30,21 @@ export function CustomerPropertyDetailsStep({
   nextButtonLabel,
   customerForm,
   onCustomerFormChange,
-  propertyAddressLine1,
-  onPropertyAddressLine1Change,
-  propertyAddressLine2,
-  onPropertyAddressLine2Change,
-  propertyCity,
-  onPropertyCityChange,
-  propertyPostCode,
-  onPropertyPostCodeChange,
-  propertyAddress,
-  onUseCustomerAddress,
+  siteAddress,
+  onSiteAddressChange,
   onNext,
 }: CustomerPropertyDetailsStepProps) {
   const insets = useSafeAreaInsets();
   const {theme, isDark} = useAppTheme();
+
+  const customerAddress = (customerForm.addressLine1 || customerForm.city || customerForm.postCode)
+    ? {
+        addressLine1: customerForm.addressLine1,
+        addressLine2: customerForm.addressLine2,
+        city: customerForm.city,
+        postCode: customerForm.postCode,
+      }
+    : undefined;
 
   return (
     <View style={styles.root}>
@@ -78,32 +70,12 @@ export function CustomerPropertyDetailsStep({
             showActions
           />
 
-          <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}>
-            <Text style={[styles.sectionTitle, {color: theme.text.title}]}>Property Address</Text>
-            <Text style={[styles.helpText, {color: theme.text.muted}]}>Address where the appliance was worked on. Line 1, city and postcode are required.</Text>
-
-            <Input label="Address Line 1" required value={propertyAddressLine1} onChangeText={onPropertyAddressLine1Change} placeholder="Street address" />
-            <Input label="Address Line 2" value={propertyAddressLine2} onChangeText={onPropertyAddressLine2Change} placeholder="Flat, floor, building" />
-            <View style={styles.row}>
-              <View style={{flex: 1}}>
-                <Input label="City / Town" required value={propertyCity} onChangeText={onPropertyCityChange} placeholder="City" />
-              </View>
-              <View style={{flex: 1}}>
-                <Input label="Postcode" required value={propertyPostCode} onChangeText={onPropertyPostCodeChange} placeholder="SW1A 1AA" autoCapitalize="characters" />
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.copyBtn} onPress={onUseCustomerAddress} activeOpacity={0.75}>
-              <Ionicons name="copy-outline" size={14} color={theme.brand.primary} />
-              <Text style={[styles.copyText, {color: theme.brand.primary}]}>Use customer address</Text>
-            </TouchableOpacity>
-
-            {propertyAddress ? (
-              <View style={[styles.preview, isDark && {backgroundColor: theme.surface.elevated}]}>
-                <Ionicons name="location-outline" size={16} color={theme.brand.primary} />
-                <Text style={[styles.previewText, {color: theme.text.body}]}>{propertyAddress}</Text>
-              </View>
-            ) : null}
+          <View style={{marginTop: 20}}>
+            <SiteAddressSelector
+              value={siteAddress}
+              onChange={onSiteAddressChange}
+              customerAddress={customerAddress}
+            />
           </View>
         </ScrollView>
 
@@ -119,28 +91,6 @@ const styles = StyleSheet.create({
   root: {flex: 1},
   sectionHeader: {marginBottom: 8},
   sectionTitle: {fontSize: 18, fontWeight: '800', marginBottom: 6},
-  card: {
-    marginTop: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 16,
-  },
-  helpText: {fontSize: 13, marginBottom: 12},
-  row: {flexDirection: 'row', gap: 12},
-  copyBtn: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, alignSelf: 'flex-start'},
-  copyText: {fontSize: 13, fontWeight: '700'},
-  preview: {
-    marginTop: 12,
-    borderRadius: 12,
-    padding: 12,
-    backgroundColor: '#F8FAFC',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  previewText: {fontSize: 13, fontWeight: '500', flex: 1},
   bottomBar: {
     position: 'absolute',
     left: 0,

@@ -5,6 +5,7 @@ import {router} from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
 import {supabase} from '../config/supabase';
+import type {UserProfile, UserRole} from '../types';
 
 const PENDING_REGISTRATION_KEY = 'gaspilot_pending_registration';
 const LEGACY_PENDING_REGISTRATION_KEY = 'pilotlight_pending_registration';
@@ -18,15 +19,6 @@ function hashString(str: string): string {
     hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
   }
   return hash.toString(36);
-}
-
-type UserRole = 'admin' | 'worker';
-interface UserProfile {
-  id: string;
-  email: string;
-  display_name: string;
-  company_id: string;
-  role: UserRole;
 }
 
 interface AuthState {
@@ -141,8 +133,22 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         'Authorization': `Bearer ${accessToken}`,
       };
 
+      // Helper for retrying fetch on network failure (common when app just opened from deep link)
+      const fetchWithRetry = async (url: string, options: any, maxRetries = 3): Promise<Response> => {
+        for (let i = 0; i < maxRetries; i++) {
+          try {
+            return await fetch(url, options);
+          } catch (err) {
+            if (i === maxRetries - 1) throw err;
+            console.log(`[Auth] Fetch failed, retrying (${i + 1}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
+          }
+        }
+        throw new Error('Fetch failed after retries');
+      };
+
       if (pendingData.mode === 'create') {
-        const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_company_and_profile`, {
+        const response = await fetchWithRetry(`${supabaseUrl}/rest/v1/rpc/create_company_and_profile`, {
           method: 'POST',
           headers: rpcHeaders,
           body: JSON.stringify({
@@ -192,7 +198,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         console.log('[Auth] Pending create RPC succeeded');
       } else {
         // Join mode (worker)
-        const response = await fetch(`${supabaseUrl}/rest/v1/rpc/join_company_and_profile`, {
+        const response = await fetchWithRetry(`${supabaseUrl}/rest/v1/rpc/join_company_and_profile`, {
           method: 'POST',
           headers: rpcHeaders,
           body: JSON.stringify({

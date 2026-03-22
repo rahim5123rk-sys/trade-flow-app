@@ -33,6 +33,13 @@ import {useAuth} from '../../../src/context/AuthContext';
 import {useOfflineMode} from '../../../src/context/OfflineContext';
 import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
+import {
+  bulkSyncAllJobs,
+  clearAllGasPilotEvents,
+  isCalendarSyncEnabled,
+  requestCalendarPermission,
+  setCalendarSyncEnabled,
+} from '../../../src/services/calendarSync';
 import {getSignedUrl, uploadImage} from '../../../src/services/storage';
 
 const SETTINGS_TIPS: OnboardingTip[] = [
@@ -250,6 +257,7 @@ export default function SettingsScreen() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallFeature, setPaywallFeature] = useState({ title: '', description: '' });
   const sigWebViewRef = useRef<WebView>(null);
+  const workerSigWebViewRef = useRef<WebView>(null);
 
   // Loading States
   const [isLoading, setIsLoading] = useState(true);
@@ -274,9 +282,23 @@ export default function SettingsScreen() {
   const [savedSignatureBase64, setSavedSignatureBase64] = useState<string | null>(null);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
 
+  // Worker Signature
+  const [workerSignatureBase64, setWorkerSignatureBase64] = useState<string | null>(null);
+  const [showWorkerSignaturePad, setShowWorkerSignaturePad] = useState(false);
+  const [isSavingWorkerSig, setIsSavingWorkerSig] = useState(false);
+
+  // Email Preferences
+  const [ccEngineerOnEmails, setCcEngineerOnEmails] = useState(false);
+
   // Preferences
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [calendarSyncOn, setCalendarSyncOn] = useState(false);
+  const [calendarSyncLoading, setCalendarSyncLoading] = useState(false);
   const [reminderDaysInput, setReminderDaysInput] = useState(String(reminderDaysBefore));
+
+  useEffect(() => {
+    isCalendarSyncEnabled().then(setCalendarSyncOn);
+  }, []);
 
   useEffect(() => {
     setReminderDaysInput(String(reminderDaysBefore));
@@ -325,6 +347,13 @@ export default function SettingsScreen() {
         if (s.invoiceTerms) setInvoiceTerms(s.invoiceTerms);
         if (s.invoiceNotes) setInvoiceNotes(s.invoiceNotes);
         if (s.signatureBase64) setSavedSignatureBase64(s.signatureBase64);
+        if (s.ccEngineerOnEmails !== undefined) setCcEngineerOnEmails(!!s.ccEngineerOnEmails);
+
+        // Load worker signature (keyed by user ID)
+        if (!isAdmin && userProfile?.id) {
+          const workerSig = s.signaturesById?.[userProfile.id];
+          if (workerSig) setWorkerSignatureBase64(workerSig);
+        }
       }
     } catch (error) {
       console.error('Failed to load company data:', error);
@@ -361,6 +390,51 @@ export default function SettingsScreen() {
   const clearSignature = () => {
     setSavedSignatureBase64(null);
     setShowSignaturePad(false);
+  };
+
+  // --- Worker Signature Logic ---
+  const handleSaveWorkerSignature = async (sig: string | null) => {
+    if (!userProfile?.company_id || !userProfile?.id) return;
+    setIsSavingWorkerSig(true);
+    try {
+      const {data: currentData} = await supabase.from('companies').select('settings').eq('id', userProfile.company_id).single();
+      const currentSettings = currentData?.settings || {};
+      await supabase.from('companies').update({
+        settings: {
+          ...currentSettings,
+          signaturesById: {
+            ...(currentSettings.signaturesById || {}),
+            [userProfile.id]: sig,
+          },
+        },
+      }).eq('id', userProfile.company_id);
+      Alert.alert('Saved', 'Your signature has been saved.');
+    } catch {
+      Alert.alert('Error', 'Could not save signature.');
+    } finally {
+      setIsSavingWorkerSig(false);
+    }
+  };
+
+  const clearWorkerSignature = async () => {
+    setWorkerSignatureBase64(null);
+    setShowWorkerSignaturePad(false);
+    await handleSaveWorkerSignature(null);
+  };
+
+  const handleWorkerWebViewMessage = (event: any) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === 'signature' && msg.data) {
+        setWorkerSignatureBase64(msg.data);
+        setShowWorkerSignaturePad(false);
+        handleSaveWorkerSignature(msg.data);
+      }
+    } catch (e) { }
+  };
+
+  const saveWorkerSignature = () => {
+    workerSigWebViewRef.current?.injectJavaScript('window.getSignature(); true;');
   };
 
   // --- Image Upload ---
@@ -416,6 +490,7 @@ export default function SettingsScreen() {
               invoiceTerms,
               invoiceNotes,
               signatureBase64: savedSignatureBase64,
+              ccEngineerOnEmails,
             },
           })
           .eq('id', userProfile.company_id);
@@ -577,6 +652,11 @@ export default function SettingsScreen() {
                 .select('type, status, total, created_at')
                 .eq('company_id', companyId);
 
+              const {data: siteAddresses} = await supabase
+                .from('site_addresses')
+                .select('address_line_1, address_line_2, city, post_code, tenant_name, tenant_email, tenant_phone, created_at')
+                .eq('company_id', companyId);
+
               const exportData = {
                 exportDate: new Date().toISOString(),
                 exportedBy: userId,
@@ -585,6 +665,7 @@ export default function SettingsScreen() {
                 customers: customers || [],
                 jobs: (jobs || []).map((j: any) => ({...j, customer_snapshot: undefined})),
                 documents: (documents || []).map((d: any) => ({type: d.type, status: d.status, total: d.total, created_at: d.created_at})),
+                siteAddresses: siteAddresses || [],
               };
 
               const json = JSON.stringify(exportData, null, 2);
@@ -622,6 +703,38 @@ export default function SettingsScreen() {
     } catch (error: any) {
       Alert.alert('Error', 'Failed to save reminder days: ' + (error?.message || 'unknown error'));
     }
+  };
+
+  const handleCalendarSyncToggle = async (enabled: boolean) => {
+    setCalendarSyncLoading(true);
+    try {
+      if (enabled) {
+        const granted = await requestCalendarPermission();
+        if (!granted) {
+          Alert.alert('Permission Required', 'GasPilot needs calendar access to sync your jobs. Please enable it in Settings.');
+          setCalendarSyncLoading(false);
+          return;
+        }
+        await setCalendarSyncEnabled(true);
+        setCalendarSyncOn(true);
+        // Bulk sync all existing jobs
+        if (userProfile?.company_id) {
+          const {data} = await supabase
+            .from('jobs')
+            .select('*')
+            .eq('company_id', userProfile.company_id)
+            .not('scheduled_date', 'is', null);
+          if (data) await bulkSyncAllJobs(data);
+        }
+      } else {
+        await clearAllGasPilotEvents();
+        await setCalendarSyncEnabled(false);
+        setCalendarSyncOn(false);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to toggle calendar sync: ' + (error?.message || 'unknown error'));
+    }
+    setCalendarSyncLoading(false);
   };
 
   const handleSwipeClose = () => {
@@ -856,6 +969,61 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         )}
 
+        {/* --- Worker Signature --- */}
+        {!isAdmin && (
+          <>
+            <SectionHeader title="My Signature" />
+            <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+              <Text style={[styles.hint, {color: theme.text.muted}]}>Used when signing off jobs and certificates.</Text>
+
+              {workerSignatureBase64 && !showWorkerSignaturePad ? (
+                <View>
+                  <View style={styles.signaturePreview}>
+                    <Image source={{uri: workerSignatureBase64}} style={{width: '100%', height: 100}} resizeMode="contain" />
+                  </View>
+                  <View style={styles.sigActions}>
+                    <TouchableOpacity style={[styles.sigBtn, isDark && {backgroundColor: theme.surface.elevated}]} onPress={() => setShowWorkerSignaturePad(true)}>
+                      <Ionicons name="create-outline" size={16} color={theme.brand.primary} />
+                      <Text style={[styles.sigBtnText, {color: theme.brand.primary}]}>Re-draw</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.sigBtn, styles.sigBtnDanger, isDark && {backgroundColor: 'rgba(239,68,68,0.12)'}]} onPress={clearWorkerSignature}>
+                      <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                      <Text style={[styles.sigBtnText, {color: Colors.danger}]}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View>
+                  <View style={[styles.signaturePadWrapper, isDark && {borderColor: theme.surface.border}]}>
+                    <WebView
+                      ref={workerSigWebViewRef}
+                      source={{html: sigCanvasHTML}}
+                      style={{height: SIG_HEIGHT, backgroundColor: 'transparent'}}
+                      scrollEnabled={false}
+                      bounces={false}
+                      onMessage={handleWorkerWebViewMessage}
+                    />
+                    <View style={styles.sigPadLabel}>
+                      <Ionicons name="pencil" size={12} color={theme.surface.border} />
+                      <Text style={[styles.sigPadLabelText, {color: theme.surface.border}]}>Sign here</Text>
+                    </View>
+                  </View>
+                  <View style={styles.sigActions}>
+                    <TouchableOpacity style={[styles.sigBtn, isDark && {backgroundColor: theme.surface.elevated}]} onPress={() => workerSigWebViewRef.current?.injectJavaScript('window.clearCanvas(); true;')}>
+                      <Ionicons name="refresh" size={16} color={theme.text.muted} />
+                      <Text style={[styles.sigBtnText, {color: theme.text.muted}]}>Reset</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.sigBtn, styles.sigBtnPrimary, isSavingWorkerSig && {opacity: 0.7}]} onPress={saveWorkerSignature} disabled={isSavingWorkerSig}>
+                      {isSavingWorkerSig ? <ActivityIndicator size="small" color={UI.text.white} /> : <Ionicons name="checkmark" size={16} color={UI.text.white} />}
+                      <Text style={[styles.sigBtnText, {color: UI.text.white}]}>Save Signature</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+          </>
+        )}
+
         {/* --- Preferences --- */}
         <SectionHeader title="Preferences" />
         <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
@@ -869,6 +1037,19 @@ export default function SettingsScreen() {
           />
           <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
           <SettingRow icon="notifications-outline" label="Push Notifications" hasToggle toggleValue={notificationsEnabled} onToggle={setNotificationsEnabled} />
+          {isAdmin && (
+            <>
+              <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
+              <SettingRow
+                icon="mail-outline"
+                label="CC Me on Emails"
+                value="Get a copy of every certificate email sent"
+                hasToggle
+                toggleValue={ccEngineerOnEmails}
+                onToggle={(val) => { setCcEngineerOnEmails(val); }}
+              />
+            </>
+          )}
           <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
           <SettingRow
             icon="cloud-offline-outline"
@@ -878,6 +1059,19 @@ export default function SettingsScreen() {
             toggleValue={offlineModeEnabled}
             onToggle={(value) => {void setOfflineModeEnabled(value);}}
           />
+          {isPro && (
+            <>
+              <View style={[styles.divider, isDark && {backgroundColor: theme.surface.divider}]} />
+              <SettingRow
+                icon="calendar-outline"
+                label="Sync to iOS Calendar"
+                value={calendarSyncLoading ? 'Syncing...' : 'Jobs appear in your Calendar app'}
+                hasToggle
+                toggleValue={calendarSyncOn}
+                onToggle={(value) => {void handleCalendarSyncToggle(value);}}
+              />
+            </>
+          )}
         </View>
 
         {/* --- LGSR Reminder Settings --- */}

@@ -59,7 +59,7 @@ serve(async (req) => {
 
   // ── Input validation ──
   try {
-    const { to, subject, html, pdfBase64, attachmentName } = await req.json()
+    const { to, subject, html, pdfBase64, attachmentName, fromName, bcc } = await req.json()
 
     // Validate and sanitize recipients
     const recipients = (Array.isArray(to) ? to : typeof to === 'string' ? [to] : [])
@@ -94,9 +94,17 @@ serve(async (req) => {
       })
     }
 
+    const senderName = (typeof fromName === 'string' && fromName.trim()) ? fromName.trim() : 'GasPilot'
+
+    // Sanitize BCC recipients
+    const bccRecipients = (Array.isArray(bcc) ? bcc : [])
+      .map((e: unknown) => typeof e === 'string' ? e.trim().toLowerCase() : '')
+      .filter((e: string) => EMAIL_REGEX.test(e))
+
     const data = await resend.emails.send({
-      from: 'GasPilot <info@gaspilotapp.com>',
+      from: `${senderName} <info@gaspilotapp.com>`,
       to: recipients,
+      ...(bccRecipients.length ? { bcc: bccRecipients } : {}),
       subject: subject.trim(),
       html: html,
       attachments: pdfBase64
