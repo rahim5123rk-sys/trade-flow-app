@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
 import { Job, JobStatus } from '../src/types';
+import { withQueryTimeout } from '../src/utils/withTimeout';
 
 // ─── Fetch & Filter Hook ────────────────────────────────────────────
 
@@ -64,7 +65,9 @@ export function useJobs(options: UseJobsOptions = {}) {
         query = query.lt('scheduled_date', cursor);
       }
 
-      const { data, error } = await query;
+      const result = await withQueryTimeout(query, 10000);
+      if (!result) throw new Error('Query timed out');
+      const { data, error } = result;
       if (error) throw error;
 
       const rows = (data || []) as Job[];

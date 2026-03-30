@@ -33,6 +33,7 @@ import {useAuth} from '../../../src/context/AuthContext';
 import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {ThemeTokens, useAppTheme} from '../../../src/context/ThemeContext';
 import {Document} from '../../../src/types';
+import {withQueryTimeout} from '../../../src/utils/withTimeout';
 
 // ─── Dashboard Onboarding Tips ─────────────
 const ADMIN_TIPS: OnboardingTip[] = [
@@ -581,10 +582,13 @@ export default function DashboardScreen() {
         .order('expiry_date', {ascending: true})
         .limit(24);
 
-      const [{data: jobsData, error: jobsError}, {data: documentsData, error: documentsError}] = await Promise.all([
+      const results = await withQueryTimeout(Promise.all([
         query,
         documentsQuery,
-      ]);
+      ]), 10000);
+
+      if (!results) throw new Error('Dashboard queries timed out');
+      const [{data: jobsData, error: jobsError}, {data: documentsData, error: documentsError}] = results;
 
       if (jobsError) console.error('Error fetching dashboard jobs:', jobsError);
       if (documentsError) console.error('Error fetching dashboard renewals:', documentsError);

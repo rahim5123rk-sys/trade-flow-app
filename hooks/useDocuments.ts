@@ -3,6 +3,7 @@ import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
 import { Document } from '../src/types';
 import { buildDocumentTypeQueryFilters, DocumentFilterKey, matchesDocumentFilters } from '../src/utils/documentFilters';
+import { withQueryTimeout } from '../src/utils/withTimeout';
 
 const PAGE_SIZE = 50;
 
@@ -55,7 +56,9 @@ export function useDocuments(options: UseDocumentsOptions = {}) {
         query = query.or(`reference.ilike.%${term}%`);
       }
 
-      const { data, error } = await query;
+      const result = await withQueryTimeout(query, 10000);
+      if (!result) throw new Error('Query timed out');
+      const { data, error } = result;
       if (error) throw error;
 
       const rows = ((data || []) as Document[]).filter((doc) => matchesDocumentFilters(doc, filters));

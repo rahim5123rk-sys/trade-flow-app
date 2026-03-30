@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
 import { Customer } from '../src/types';
+import { withQueryTimeout } from '../src/utils/withTimeout';
 
 // ─── Fetch & Filter Hook ────────────────────────────────────────────
 
@@ -40,7 +41,9 @@ export function useCustomers() {
         query = query.or(`name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
       }
 
-      const { data, error } = await query;
+      const result = await withQueryTimeout(query, 10000);
+      if (!result) throw new Error('Query timed out');
+      const { data, error } = result;
       if (error) throw error;
 
       const rows = (data || []) as Customer[];

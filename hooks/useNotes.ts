@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {supabase} from '../src/config/supabase';
 import {useAuth} from '../src/context/AuthContext';
+import {withQueryTimeout} from '../src/utils/withTimeout';
 
 export interface Note {
   id: string;
@@ -44,7 +45,9 @@ export function useNotes() {
         query = query.or(`title.ilike.%${term}%,content.ilike.%${term}%`);
       }
 
-      const {data, error} = await query;
+      const result = await withQueryTimeout(query, 10000);
+      if (!result) throw new Error('Query timed out');
+      const {data, error} = result;
       if (error) throw error;
 
       const rows = (data || []) as Note[];

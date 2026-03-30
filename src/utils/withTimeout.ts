@@ -36,3 +36,22 @@ export async function withAbortTimeout<T>(
     clearTimeout(timeoutId);
   }
 }
+
+/**
+ * Race any promise/thenable against a timeout. If the timeout fires first, returns null.
+ * Use for Supabase client queries that don't support AbortController.
+ * Wraps thenables (like PostgREST builders) into proper Promises automatically.
+ */
+export function withQueryTimeout<T>(
+  promiseOrThenable: PromiseLike<T>,
+  timeoutMs: number = 10000,
+): Promise<T | null> {
+  // Explicitly wrap in Promise.resolve to handle Supabase's thenable builders
+  return Promise.race([
+    Promise.resolve(promiseOrThenable),
+    new Promise<null>((resolve) => setTimeout(() => {
+      console.warn(`[QueryTimeout] Query did not complete within ${timeoutMs}ms`);
+      resolve(null);
+    }, timeoutMs)),
+  ]);
+}

@@ -3,7 +3,7 @@ import {Session, User} from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import {router} from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
+import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
 import {supabase} from '../config/supabase';
 import type {UserProfile, UserRole} from '../types';
 import {TimeoutError, withAbortTimeout} from '../utils/withTimeout';
@@ -12,9 +12,11 @@ const PENDING_REGISTRATION_KEY = 'gaspilot_pending_registration';
 const LEGACY_PENDING_REGISTRATION_KEY = 'pilotlight_pending_registration';
 const LAST_HANDLED_AUTH_URL_KEY = '@gaspilot_last_handled_auth_url';
 const LEGACY_LAST_HANDLED_AUTH_URL_KEY = '@pilotlight_last_handled_auth_url';
+const PROFILE_CACHE_KEY = '@gaspilot_cached_profile';
 const PROFILE_FETCH_TIMEOUT_MS = 7000;
 const PROFILE_FETCH_MAX_ATTEMPTS = 2;
 const PROFILE_FETCH_RETRY_DELAY_MS = 1200;
+const PROFILE_RETRY_INTERVAL_MS = 5000; // retry every 5s if profile failed to load
 
 /** Simple hash to avoid storing raw auth URLs (which contain tokens) */
 function hashString(str: string): string {
@@ -68,6 +70,35 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
   const isRegistering = useRef(false);
   const handledUrls = useRef<Set<string>>(new Set());
   const isRecoveryFlow = useRef(false);
+  const profileRetryTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionRef = useRef<Session | null>(null);
+
+  // Keep sessionRef in sync so retry timer can access latest session
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  // Persist profile to AsyncStorage whenever it changes
+  const setAndCacheProfile = useCallback((profile: UserProfile | null) => {
+    setUserProfile(profile);
+    if (profile) {
+      AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile)).catch(() => {});
+    }
+  }, []);
+
+  // Restore cached profile on mount (instant, before any network call)
+  useEffect(() => {
+    AsyncStorage.getItem(PROFILE_CACHE_KEY).then((cached) => {
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          // Only use cache if we don't already have a fresh profile
+          setUserProfile((current) => current ?? parsed);
+          console.log('[Auth] Restored cached profile for', parsed.display_name);
+        } catch { /* corrupted cache, ignore */ }
+      }
+    }).catch(() => {});
+  }, []);
 
   // We change the return type to distinguish between "No Profile" (null) and "Network Error" (throw)
   const fetchProfile = async (userId: string, tokenToUse?: string): Promise<UserProfile | null> => {
@@ -118,7 +149,12 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         const rows = await response.json();
         if (rows && rows.length > 0) {
           console.log('Profile loaded successfully');
-          setUserProfile(rows[0]);
+          setAndCacheProfile(rows[0]);
+          // Stop retry timer since profile loaded
+          if (profileRetryTimer.current) {
+            clearInterval(profileRetryTimer.current);
+            profileRetryTimer.current = null;
+          }
           // Fetch company reminder days
           if (rows[0].company_id) {
             const { data: companyData } = await supabase
@@ -409,6 +445,8 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           } catch (fetchError) {
             // It was a network or token error, DO NOT SIGN OUT.
             console.warn('Could not fetch profile on boot, but session remains active:', fetchError);
+            // Start retry timer — keep trying until profile loads
+            startProfileRetry();
           }
         }
       } catch (e) {
@@ -417,6 +455,53 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         setIsLoading(false); // Make sure we always stop loading
       }
     };
+
+    // Retry profile fetch periodically if it failed on init
+    const startProfileRetry = () => {
+      if (profileRetryTimer.current) return; // already running
+      console.log('[Auth] Starting profile retry timer');
+      profileRetryTimer.current = setInterval(async () => {
+        const currentSession = sessionRef.current;
+        if (!currentSession?.user) return;
+        try {
+          // Check if we already have a profile (loaded by another path)
+          // We read from the ref-like pattern: if setAndCacheProfile was called, the state updated
+          // But we can't read state in an interval, so just try fetching
+          const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+          const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+          const response = await withAbortTimeout(
+            ({signal}) =>
+              fetch(
+                `${supabaseUrl}/rest/v1/profiles?id=eq.${currentSession.user.id}&select=*`,
+                {
+                  method: 'GET',
+                  headers: {
+                    'apikey': supabaseAnonKey,
+                    'Authorization': `Bearer ${currentSession.access_token}`,
+                    'Accept': 'application/json',
+                  },
+                  signal,
+                }
+              ),
+            { timeoutMs: PROFILE_FETCH_TIMEOUT_MS, label: 'Profile retry' }
+          );
+          if (response.ok) {
+            const rows = await response.json();
+            if (rows && rows.length > 0) {
+              console.log('[Auth] Profile retry succeeded');
+              setAndCacheProfile(rows[0]);
+              if (profileRetryTimer.current) {
+                clearInterval(profileRetryTimer.current);
+                profileRetryTimer.current = null;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[Auth] Profile retry failed, will try again:', e);
+        }
+      }, PROFILE_RETRY_INTERVAL_MS);
+    };
+
     initAuth();
 
     const {
@@ -466,6 +551,10 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
 
     return () => {
       clearTimeout(safetyTimer);
+      if (profileRetryTimer.current) {
+        clearInterval(profileRetryTimer.current);
+        profileRetryTimer.current = null;
+      }
       subscription.unsubscribe();
       urlSub.remove();
     };
@@ -473,11 +562,18 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
 
   const signOut = async () => {
     try {
+      if (profileRetryTimer.current) {
+        clearInterval(profileRetryTimer.current);
+        profileRetryTimer.current = null;
+      }
       await supabase.auth.signOut();
       setUserProfile(null);
       setSession(null);
-      // Clear cached subscription state so next login gets a fresh check
-      await AsyncStorage.removeItem('@gaspilot_is_pro_cached').catch(() => {});
+      // Clear cached profile + subscription state
+      await Promise.all([
+        AsyncStorage.removeItem(PROFILE_CACHE_KEY),
+        AsyncStorage.removeItem('@gaspilot_is_pro_cached'),
+      ]).catch(() => {});
     } catch (e) {
       console.error('Sign out error:', e);
     }

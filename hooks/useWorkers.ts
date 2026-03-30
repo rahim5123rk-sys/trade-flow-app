@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
+import { withQueryTimeout } from '../src/utils/withTimeout';
 import { WORKER_SELECT_COLUMNS } from '../src/utils/workerQuery';
 
 interface Worker {
@@ -34,7 +35,9 @@ export function useWorkers() {
         query = query.neq('id', user.id);
       }
 
-      const { data, error } = await query;
+      const result = await withQueryTimeout(query, 10000);
+      if (!result) throw new Error('Query timed out');
+      const { data, error } = result;
 
       if (error) throw error;
       if (data) {
