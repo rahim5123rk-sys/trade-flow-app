@@ -24,7 +24,7 @@ import {useAuth} from '../../../src/context/AuthContext';
 import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 import {Job} from '../../../src/types';
-import {toDateString} from '../../../src/utils/dates';
+import {formatLocalDateKey, toDateString} from '../../../src/utils/dates';
 import {getStatusStyle} from '../../../src/utils/formatting';
 
 const SCREEN_BG = '#F8F9FA';
@@ -82,11 +82,12 @@ export default function UnifiedCalendarScreen() {
   );
   const insets = useSafeAreaInsets();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(userProfile?.company_id));
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => formatLocalDateKey(new Date()));
   const [listMode, setListMode] = useState<'day' | 'week' | 'month'>('day');
   const [showFullCalendar, setShowFullCalendar] = useState(false);
+  const [today, setToday] = useState(() => new Date());
   const weekScrollRef = useRef<ScrollView>(null);
 
   const isAdmin = userProfile?.role === 'admin';
@@ -96,8 +97,21 @@ export default function UnifiedCalendarScreen() {
   const weekDays = useMemo(() => getWeekDays(selectedDateObj), [selectedDateObj]);
   const monthLabel = selectedDateObj.toLocaleDateString('en-GB', {month: 'long'});
   const yearLabel = selectedDateObj.getFullYear().toString();
-  const today = useMemo(() => new Date(), []);
   const isToday = isSameDay(selectedDateObj, today);
+
+  useFocusEffect(
+    useCallback(() => {
+      setToday(new Date());
+
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const timeout = setTimeout(() => {
+        setToday(new Date());
+      }, Math.max(nextMidnight.getTime() - now.getTime() + 250, 250));
+
+      return () => clearTimeout(timeout);
+    }, [])
+  );
 
   const navigateWeek = (dir: -1 | 1) => {
     const d = new Date(selectedDateObj);
@@ -105,14 +119,34 @@ export default function UnifiedCalendarScreen() {
     setSelectedDate(d.toISOString().split('T')[0]);
   };
 
-  const fetchJobs = useCallback(async () => {
-    if (!userProfile?.company_id) return;
+  const monthCacheRef = useRef<Record<string, Job[]>>({});
+
+  const fetchJobsForMonth = useCallback(async (year: number, month: number, force = false) => {
+    if (!userProfile?.company_id) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+    if (!force && monthCacheRef.current[key]) {
+      setJobs(monthCacheRef.current[key]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
+      const monthStart = new Date(year, month, 1).getTime();
+      const monthEnd = new Date(year, month + 1, 0, 23, 59, 59, 999).getTime();
+
       let query = supabase
         .from('jobs')
-        .select('*')
+        .select('id, title, status, scheduled_date, customer_snapshot, assigned_to')
         .eq('company_id', userProfile.company_id)
         .neq('status', 'cancelled')
+        .gte('scheduled_date', monthStart)
+        .lte('scheduled_date', monthEnd)
         .order('scheduled_date', {ascending: true});
 
       if (!isAdmin && user) {
@@ -121,7 +155,10 @@ export default function UnifiedCalendarScreen() {
 
       const {data, error} = await query;
       if (error) throw error;
-      if (data) setJobs(data as Job[]);
+
+      const rows = (data || []) as Job[];
+      monthCacheRef.current[key] = rows;
+      setJobs(rows);
     } catch (e) {
       console.error('Calendar fetch error:', e);
     } finally {
@@ -131,10 +168,22 @@ export default function UnifiedCalendarScreen() {
   }, [userProfile?.company_id, isAdmin, user?.id]);
 
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    const d = new Date(selectedDate + 'T00:00:00');
+    setLoading(true);
+    fetchJobsForMonth(d.getFullYear(), d.getMonth());
+  }, [selectedDate, fetchJobsForMonth]);
 
-  useRealtimeJobs(userProfile?.company_id, fetchJobs);
+  useRealtimeJobs(userProfile?.company_id, () => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    fetchJobsForMonth(d.getFullYear(), d.getMonth(), true);
+  });
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    monthCacheRef.current = {};
+    const d = new Date(selectedDate + 'T00:00:00');
+    fetchJobsForMonth(d.getFullYear(), d.getMonth(), true);
+  }, [selectedDate, fetchJobsForMonth]);
 
   const dayJobs = useMemo(() => {
     return jobs
@@ -348,7 +397,7 @@ export default function UnifiedCalendarScreen() {
           data={listItems}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{paddingHorizontal: 16, paddingBottom: 120}}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchJobs();}} tintColor={theme.brand.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.brand.primary} />}
           ListHeaderComponent={
             <>
               {/* ── Month/Year + Arrows (outside the white box) ── */}
@@ -376,7 +425,7 @@ export default function UnifiedCalendarScreen() {
                   contentContainerStyle={styles.weekRow}
                 >
                   {weekDays.map((d) => {
-                    const ds = d.toISOString().split('T')[0];
+                    const ds = formatLocalDateKey(d);
                     const isSelected = ds === selectedDate;
                     const hasJobs = (jobCountByDate[ds] || 0) > 0;
                     return (
@@ -434,10 +483,10 @@ export default function UnifiedCalendarScreen() {
             <View style={[styles.emptyDay, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <Ionicons name="calendar-clear-outline" size={34} color={theme.surface.border} />
               <Text style={[styles.emptyText, {color: theme.text.muted}]}>{listMeta.emptyText}</Text>
-              {isAdmin && listMode === 'day' && (
+              {listMode === 'day' && (
                 <TouchableOpacity style={styles.addJobBtn} onPress={handleCreateJobFromCalendar}>
                   <Ionicons name="add" size={16} color={UI.brand.primary} />
-                  <Text style={styles.addJobText}>Schedule Job</Text>
+                  <Text style={styles.addJobText}>{isAdmin ? 'Schedule Job' : 'Add Job'}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -495,7 +544,9 @@ export default function UnifiedCalendarScreen() {
           <TouchableOpacity
             style={styles.todayModalBtn}
             onPress={() => {
-              setSelectedDate(new Date().toISOString().split('T')[0]);
+              const nextToday = new Date();
+              setToday(nextToday);
+              setSelectedDate(formatLocalDateKey(nextToday));
               setShowFullCalendar(false);
             }}
           >

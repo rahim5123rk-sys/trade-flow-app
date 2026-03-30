@@ -46,7 +46,7 @@ import {
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
-const ACCENT = '#059669';
+const ACCENT = UI.brand.primary;
 
 // ─── Step indicator ─────────────────────────────────────────────
 
@@ -281,6 +281,33 @@ export default function ServiceRecordReviewSign() {
         postCode: propertyPostCode,
       });
 
+      // Auto-save new customer to database if not already existing
+      if (!customerForm.customerId && (customerForm.customerName || customerForm.addressLine1)) {
+        void (async () => {
+          try {
+            const {data: inserted} = await supabase
+              .from('customers')
+              .insert({
+                company_id: userProfile.company_id,
+                name: customerForm.customerName || 'Customer',
+                company_name: customerForm.customerCompany || null,
+                address_line_1: customerForm.addressLine1 || null,
+                address_line_2: customerForm.addressLine2 || null,
+                city: customerForm.city || null,
+                postal_code: customerForm.postCode || null,
+                email: customerForm.email || null,
+                phone: customerForm.phone || null,
+              })
+              .select('id')
+              .single();
+            // Update the document with the new customer_id
+            if (inserted?.id && documentId) {
+              await supabase.from('documents').update({customer_id: inserted.id}).eq('id', documentId);
+            }
+          } catch { /* silently fail — customer snapshot is already saved */ }
+        })();
+      }
+
       const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
 
       if (action === 'save') {
@@ -319,7 +346,7 @@ export default function ServiceRecordReviewSign() {
         formLabel: 'Service Record',
       });
 
-      await generateServiceRecordPdfFromPayload(lockedPayload, 'share', userProfile.company_id);
+      await generateServiceRecordPdfFromPayload(lockedPayload, 'share', userProfile.company_id, reference);
 
       Alert.alert(
         `${savedLabel} & Sent ✓`,
@@ -533,7 +560,7 @@ export default function ServiceRecordReviewSign() {
             disabled={!!processingAction}
           >
             <LinearGradient
-              colors={processingAction === 'email' ? [UI.text.muted, UI.text.muted] as readonly [string, string] : ['#059669', '#10B981'] as readonly [string, string]}
+              colors={processingAction === 'email' ? [UI.text.muted, UI.text.muted] as readonly [string, string] : UI.gradients.success}
               start={{x: 0, y: 0}}
               end={{x: 1, y: 0}}
               style={s.shareGradient}
@@ -616,7 +643,7 @@ const s = StyleSheet.create({
   sectionHeader: {flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16},
   sectionIconWrap: {
     width: 28, height: 28, borderRadius: 8,
-    backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center',
   },
   sectionTitle: {fontSize: 16, fontWeight: '700', color: UI.text.title},
 
@@ -637,15 +664,15 @@ const s = StyleSheet.create({
   resignBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginTop: 12, paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 10, backgroundColor: '#ECFDF5',
+    borderRadius: 10, backgroundColor: UI.surface.primaryLight,
   },
   resignText: {fontSize: 13, fontWeight: '600'},
   signatureBtn: {borderRadius: 14, overflow: 'hidden'},
   signatureBtnInner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 32, gap: 10, borderRadius: 14,
-    borderWidth: 2, borderColor: '#A7F3D0', borderStyle: 'dashed',
-    backgroundColor: '#ECFDF5',
+    borderWidth: 2, borderColor: '#C7D2FE', borderStyle: 'dashed',
+    backgroundColor: UI.surface.primaryLight,
   },
   signatureBtnText: {fontSize: 15, fontWeight: '600'},
 
@@ -653,7 +680,7 @@ const s = StyleSheet.create({
   emailChip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12,
-    backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0',
+    backgroundColor: UI.surface.primaryLight, borderWidth: 1, borderColor: '#C7D2FE',
   },
   emailChipText: {fontSize: 14, fontWeight: '600'},
   noEmailText: {fontSize: 13, lineHeight: 18},
@@ -691,7 +718,7 @@ const s = StyleSheet.create({
   saveCp12Btn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 16, borderRadius: 16,
-    backgroundColor: '#ECFDF5', borderWidth: 1.5, borderColor: '#A7F3D0',
+    backgroundColor: UI.surface.primaryLight, borderWidth: 1.5, borderColor: '#C7D2FE',
   },
   saveCp12Text: {fontSize: 15, fontWeight: '700'},
   shareBtn: {flex: 1, borderRadius: 16, overflow: 'hidden'},
@@ -704,7 +731,7 @@ const s = StyleSheet.create({
   viewBtn: {
     marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, paddingVertical: 14, borderRadius: 14,
-    backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0',
+    backgroundColor: UI.surface.primaryLight, borderWidth: 1, borderColor: '#C7D2FE',
   },
   viewText: {fontSize: 14, fontWeight: '700'},
 });

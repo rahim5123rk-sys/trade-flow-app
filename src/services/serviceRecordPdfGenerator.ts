@@ -116,6 +116,10 @@ function buildHtml(
   const fi = data.finalInfo || {} as Partial<ServiceFinalInfo>;
 
   // Parse property address parts
+  // 4+ parts: line1, [line2...], city, postcode
+  // 3 parts:  line1, city, postcode (no line2)
+  // 2 parts:  line1, postcode
+  // 1 part:   line1 only
   const propParts = (data.propertyAddress || '').split(',').map(s => s.trim()).filter(Boolean);
   const propLine1 = propParts[0] || data.propertyAddress || '';
   let propLine2 = '', propCity = '', propPostcode = '';
@@ -124,10 +128,10 @@ function buildHtml(
     propCity = propParts[propParts.length - 2] || '';
     propPostcode = propParts[propParts.length - 1] || '';
   } else if (propParts.length === 3) {
-    propLine2 = propParts[1] || '';
+    propCity = propParts[1] || '';
     propPostcode = propParts[2] || '';
   } else if (propParts.length === 2) {
-    propLine2 = propParts[1] || '';
+    propPostcode = propParts[1] || '';
   }
 
   // Parse customer address parts
@@ -138,7 +142,6 @@ function buildHtml(
   // ── Build appliance detail block (single appliance) ──
   const applianceBlocks = appliance ? (() => {
     const a = appliance;
-    const idx = 0;
     const checks = getComponentCheckRows(a);
     // Build pairs for 2-column layout
     const checkPairs: Array<[{ label: string; val: string }, { label: string; val: string } | null]> = [];
@@ -154,9 +157,9 @@ function buildHtml(
     const highRatio = (a.fgaHigh.ratio || '').trim() || (isFinite(fgaHighCo) && isFinite(fgaHighCo2) && fgaHighCo2 > 0 ? (fgaHighCo / (fgaHighCo2 * 10000)).toFixed(4) : '');
 
     return `
-    <!-- Appliance ${idx + 1} -->
+    <!-- Appliance Details -->
     <table class="mt">
-      <tr><td class="shdr" colspan="8">Appliance ${idx + 1}: ${esc(catLabel(a.category))} — ${esc(a.make || '–')} ${esc(a.model || '')} ${conditionBadge(a.applianceCondition)}</td></tr>
+      <tr><td class="shdr" colspan="8">Appliance Details: ${esc(catLabel(a.category))} ${conditionBadge(a.applianceCondition)}</td></tr>
     </table>
     <table class="mt">
       <tr>
@@ -293,8 +296,8 @@ function buildHtml(
       ${gasSafeLogoBase64 ? `<img src="${gasSafeLogoBase64}" style="height:46px;max-width:116px;display:block;margin:0 auto 3px;"/>` : ''}
       <div style="font-size:5pt;color:#cbd5e1;margin-top:2px;text-transform:uppercase;letter-spacing:0.3px;">Record Ref</div>
       <div style="font-size:9pt;font-weight:800;color:#fff;">${esc(data.certRef)}</div>
-      <div style="font-size:5pt;color:#cbd5e1;margin-top:3px;text-transform:uppercase;letter-spacing:0.3px;">Appliances</div>
-      <div style="font-size:9pt;font-weight:800;color:#fff;">${appliance ? 1 : 0}</div>
+      <div style="font-size:5pt;color:#cbd5e1;margin-top:3px;text-transform:uppercase;letter-spacing:0.3px;">Service Date</div>
+      <div style="font-size:8pt;font-weight:800;color:#fff;">${esc(data.serviceDate)}</div>
     </td>
   </tr>
 </table>
@@ -321,6 +324,7 @@ function buildHtml(
     <td style="width:33.34%;padding:0 2px;vertical-align:top;">
       <table>
         <tr><td class="shdr" colspan="2">Property Details</td></tr>
+        <tr><td class="label-cell">Name</td><td class="value-cell">${esc(data.customerName)}</td></tr>
         <tr>
           <td class="label-cell" rowspan="2" style="vertical-align:top;border-bottom:none;">Address</td>
           <td class="value-cell" style="border-bottom:none;">${esc(propLine1)}</td>
@@ -328,8 +332,6 @@ function buildHtml(
         <tr><td class="value-cell" style="border-top:none;min-height:14px;">${esc(propLine2)}&nbsp;</td></tr>
         <tr><td class="label-cell">City</td><td class="value-cell">${esc(propCity)}</td></tr>
         <tr><td class="label-cell">Postcode</td><td class="value-cell">${esc(propPostcode)}</td></tr>
-        <tr><td class="label-cell">Service Date</td><td class="value-cell" style="font-weight:700;">${esc(data.serviceDate)}</td></tr>
-        <tr><td class="label-cell">&nbsp;</td><td class="value-cell">&nbsp;</td></tr>
         <tr><td class="label-cell">&nbsp;</td><td class="value-cell">&nbsp;</td></tr>
       </table>
     </td>
@@ -526,8 +528,10 @@ export async function generateServiceRecordPdfFromPayload(
   payload: ServiceRecordLockedPayload,
   mode: 'share' | 'save' | 'view' = 'share',
   companyId?: string,
+  certRef?: string,
 ): Promise<void> {
-  return generatePdfFromPayload(payload, buildHtml, srTitle, mode, companyId);
+  const fileName = certRef ? `Service-Record-${certRef}.pdf` : 'Service-Record.pdf';
+  return generatePdfFromPayload(payload, buildHtml, srTitle, mode, companyId, fileName);
 }
 
 export async function generateServiceRecordPdfBase64FromPayload(

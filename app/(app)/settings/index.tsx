@@ -1,5 +1,6 @@
 import {Ionicons} from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import {File, Paths} from 'expo-file-system/next';
 import * as ImagePicker from 'expo-image-picker';
 import {LinearGradient} from 'expo-linear-gradient';
@@ -1177,6 +1178,9 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.versionText, {color: theme.text.muted}]}>GasPilot v{appVersion}</Text>
+        <Text style={[styles.versionText, {color: theme.text.muted, marginTop: -12}]}>
+          Build: {Updates.updateId ? Updates.updateId.slice(0, 8) : 'embedded'} | {Updates.channel || 'no-channel'} | 22-Mar-A
+        </Text>
       </ScrollView>
 
       {/* First-run onboarding */}

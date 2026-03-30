@@ -3,6 +3,7 @@
 // (Formerly InvoiceGenerator.ts)
 // ============================================
 
+import * as LegacyFileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
@@ -120,6 +121,14 @@ function buildDocumentHtml(data: DocumentData, company: CompanyInfo): string {
   /** Escape user values for safe HTML interpolation */
   const esc = (v: unknown): string => escapeHtml(v);
 
+  /** Render description: pass through HTML if rich text, otherwise escape */
+  const renderDesc = (desc: string): string => {
+    if (!desc) return '';
+    // Detect if description contains HTML tags (from rich text editor)
+    const hasHtml = /<\/?(?:b|i|u|strong|em|ul|ol|li|br|div|p|span)[ >/]/i.test(desc);
+    return hasHtml ? desc : `<span class="bold">${esc(desc)}</span>`;
+  };
+
   return `
 <!DOCTYPE html>
 <html>
@@ -164,6 +173,11 @@ function buildDocumentHtml(data: DocumentData, company: CompanyInfo): string {
   th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 9px; text-transform: uppercase; padding: 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
   td { padding: 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 10px; }
   .col-desc { width: 45%; }
+  .col-desc ul, .col-desc ol { padding-left: 16px; margin: 2px 0; }
+  .col-desc li { margin-bottom: 1px; }
+  .col-desc b, .col-desc strong { font-weight: 700; color: #0f172a; }
+  .col-desc i, .col-desc em { font-style: italic; }
+  .col-desc u { text-decoration: underline; }
   .col-num { text-align: right; white-space: nowrap; }
 
   /* TOTALS */
@@ -236,7 +250,7 @@ function buildDocumentHtml(data: DocumentData, company: CompanyInfo): string {
   <table>
     <thead><tr><th class="col-desc">Description</th><th class="col-num">Qty</th><th class="col-num">Price</th><th class="col-num">VAT</th><th class="col-num">Total</th></tr></thead>
     <tbody>
-      ${lineRows.map(row => `<tr><td class="col-desc"><div class="bold">${esc(row.description)}</div></td><td class="col-num">${row.quantity}</td><td class="col-num">£${row.unitPrice.toFixed(2)}</td><td class="col-num">${row.vatPercent}%</td><td class="col-num">£${row.totalExVat.toFixed(2)}</td></tr>`).join('')}
+      ${lineRows.map(row => `<tr><td class="col-desc">${renderDesc(row.description)}</td><td class="col-num">${row.quantity}</td><td class="col-num">£${row.unitPrice.toFixed(2)}</td><td class="col-num">${row.vatPercent}%</td><td class="col-num">£${row.totalExVat.toFixed(2)}</td></tr>`).join('')}
     </tbody>
   </table>
 
@@ -275,7 +289,10 @@ function buildDocumentHtml(data: DocumentData, company: CompanyInfo): string {
 export async function generateDocument(data: DocumentData, companyId: string, mode: 'share' | 'save' = 'share'): Promise<void> {
   const company = await getCompanyInfo(companyId);
   const html = buildDocumentHtml(data, company);
-  const title = `${data.type === 'quote' ? 'QUOTE' : 'INVOICE'} #${String(data.number).padStart(4, '0')}`;
+  const ref = data.reference || String(data.number).padStart(4, '0');
+  const typeLabel = data.type === 'quote' ? 'Quote' : 'Invoice';
+  const title = `${typeLabel.toUpperCase()} #${ref}`;
+  const fileName = `${typeLabel}-${ref}.pdf`;
 
   if (mode === 'save') {
     const { uri } = await Print.printToFileAsync({ html, base64: false });
@@ -289,6 +306,13 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
   }
 
   const { uri } = await Print.printToFileAsync({ html, base64: false });
+
+  // Rename to descriptive filename
+  const dir = uri.substring(0, uri.lastIndexOf('/') + 1);
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const newUri = `${dir}${safeName}`;
+  await LegacyFileSystem.moveAsync({ from: uri, to: newUri });
+
   const shareOptions = {
     mimeType: 'application/pdf',
     dialogTitle: title,
@@ -296,13 +320,25 @@ export async function generateDocument(data: DocumentData, companyId: string, mo
   } as const;
 
   if (Platform.OS === 'ios') {
-    void Sharing.shareAsync(uri, shareOptions).catch((err) => {
+    void Sharing.shareAsync(newUri, shareOptions).catch((err) => {
       console.warn('Document share dismissed/failed on iOS:', err);
     });
     return;
   }
 
-  await Sharing.shareAsync(uri, shareOptions);
+  await Sharing.shareAsync(newUri, shareOptions);
+}
+
+/**
+ * Generate an invoice/quote PDF and return its base64.
+ * Used for email attachments.
+ */
+export async function generateDocumentBase64(data: DocumentData, companyId: string): Promise<string> {
+  const company = await getCompanyInfo(companyId);
+  const html = buildDocumentHtml(data, company);
+  const result = await Print.printToFileAsync({ html, base64: true });
+  if (!result.base64) throw new Error('Failed to generate document PDF');
+  return result.base64;
 }
 
 /**

@@ -52,8 +52,8 @@ function CP12AutoSave({children}: {children: React.ReactNode}) {
   // Save draft state on unmount / blur
   const saveDraft = useCallback(async () => {
     // Only save draft if customer details have been entered
-    const hasCustomerDetails = landlordForm.customerName.trim().length > 0;
-    if (!hasCustomerDetails) {
+    const hasAnyDetails = landlordForm.customerName.trim().length > 0 || tenantAddressLine1.trim().length > 0;
+    if (!hasAnyDetails) {
       await AsyncStorage.removeItem(CP12_DRAFT_KEY);
       return;
     }

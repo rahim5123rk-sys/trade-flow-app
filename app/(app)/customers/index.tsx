@@ -1,6 +1,6 @@
 import {Ionicons} from '@expo/vector-icons';
 import {router} from 'expo-router';
-import React, {useEffect, useState} from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Colors, UI} from '../../../constants/theme';
-import {supabase} from '../../../src/config/supabase';
+import {useCustomers} from '../../../hooks/useCustomers';
 import {useAuth} from '../../../src/context/AuthContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 
@@ -21,35 +21,7 @@ export default function CustomersListScreen() {
   const {userProfile} = useAuth();
   const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    fetchCustomers();
-  }, [userProfile]);
-
-  const fetchCustomers = async () => {
-    if (!userProfile?.company_id) return;
-    setLoading(true);
-
-    const {data, error} = await supabase
-      .from('customers')
-      .select('*')
-      .eq('company_id', userProfile.company_id)
-      .order('name', {ascending: true});
-
-    if (data) setCustomers(data);
-    setLoading(false);
-    setRefreshing(false);
-  };
-
-  const filteredCustomers = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.address.toLowerCase().includes(search.toLowerCase())
-  );
+  const {customers: filteredCustomers, loading, refreshing, loadingMore, hasMore, search, setSearch, onRefresh, loadMore} = useCustomers();
 
   const renderCustomer = ({item}: {item: any}) => (
     <TouchableOpacity
@@ -113,12 +85,36 @@ export default function CustomersListScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchCustomers();
-              }}
+              onRefresh={onRefresh}
               tintColor={theme.brand.primary}
             />
+          }
+          ListFooterComponent={
+            hasMore ? (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 8, paddingVertical: 14, marginTop: 8, marginBottom: 20,
+                  borderRadius: 14, backgroundColor: UI.surface.primaryLight,
+                  borderWidth: 1, borderColor: '#C7D2FE',
+                }}
+                onPress={loadMore}
+                activeOpacity={0.7}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color={UI.brand.primary} />
+                ) : (
+                  <>
+                    <Ionicons name="chevron-down-outline" size={18} color={UI.brand.primary} />
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: UI.brand.primary }}>Load more customers</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : filteredCustomers.length > 0 ? (
+              <Text style={{ textAlign: 'center', color: theme.text.muted, fontSize: 13, paddingVertical: 16 }}>
+                All customers loaded
+              </Text>
+            ) : null
           }
           ListEmptyComponent={
             <Text style={[styles.empty, {color: theme.text.muted}]}>No customers found.</Text>

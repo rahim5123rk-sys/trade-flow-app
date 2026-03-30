@@ -11,7 +11,7 @@ import {useCalendarSync} from '../../hooks/useCalendarSync';
 import {useAuth} from '../../src/context/AuthContext';
 import {useOfflineMode} from '../../src/context/OfflineContext';
 import {useAppTheme} from '../../src/context/ThemeContext';
-import {setupNotificationListeners} from '../../src/services/notifications';
+import {registerForPushNotifications, setupNotificationListeners} from '../../src/services/notifications';
 
 const ADMIN_FAB_ACTIONS = [
   {
@@ -41,6 +41,12 @@ const ADMIN_FAB_ACTIONS = [
 ];
 
 const WORKER_FAB_ACTIONS = [
+  {
+    key: 'job',
+    label: 'New Job',
+    icon: 'briefcase-outline' as const,
+    route: '/(app)/jobs/create',
+  },
   {
     key: 'form',
     label: 'New Form',
@@ -96,7 +102,7 @@ function FabMenuItem({
 }
 
 export default function AppLayout() {
-  const {session, isLoading, role} = useAuth();
+  const {session, isLoading, role, userProfile} = useAuth();
   const {offlineModeEnabled} = useOfflineMode();
   const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -124,6 +130,13 @@ export default function AppLayout() {
     });
     return cleanup;
   }, []);
+
+  // Register push token so edge functions can send notifications
+  useEffect(() => {
+    if (userProfile?.id) {
+      registerForPushNotifications(userProfile.id);
+    }
+  }, [userProfile?.id]);
 
   const toggleFab = () => {
     if (fabOpen) {

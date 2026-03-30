@@ -27,6 +27,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import JobAcceptModal from '../../../components/JobAcceptModal';
 import Onboarding, {OnboardingTip} from '../../../components/Onboarding';
 import {Colors, UI} from '../../../constants/theme';
+import {useRealtimeJobs} from '../../../hooks/useRealtime';
 import {supabase} from '../../../src/config/supabase';
 import {useAuth} from '../../../src/context/AuthContext';
 import {useSubscription} from '../../../src/context/SubscriptionContext';
@@ -539,6 +540,12 @@ export default function DashboardScreen() {
     useCallback(() => {
       if (userProfile?.company_id) {
         fetchDashboardData();
+        // Safety: if fetch hangs for 10s, stop showing spinner
+        const safety = setTimeout(() => {
+          setLoading(false);
+          setRefreshing(false);
+        }, 10000);
+        return () => clearTimeout(safety);
       } else {
         setLoading(false);
         setRefreshing(false);
@@ -553,89 +560,97 @@ export default function DashboardScreen() {
       return;
     }
 
-    let query = supabase
-      .from('jobs')
-      .select('*')
-      .eq('company_id', userProfile.company_id)
-      .neq('status', 'cancelled')
-      .order('scheduled_date', {ascending: true});
-
-    if (!isAdmin && user?.id) {
-      query = query.contains('assigned_to', [user.id]);
-    }
-
-    const documentsQuery = supabase
-      .from('documents')
-      .select('*')
-      .eq('company_id', userProfile.company_id)
-      .not('expiry_date', 'is', null)
-      .order('expiry_date', {ascending: true})
-      .limit(24);
-
-    const [{data: jobsData, error: jobsError}, {data: documentsData, error: documentsError}] = await Promise.all([
-      query,
-      documentsQuery,
-    ]);
-
-    if (jobsError) console.error('Error fetching dashboard jobs:', jobsError);
-    if (documentsError) console.error('Error fetching dashboard renewals:', documentsError);
-
-    if (jobsData) setAllJobs(jobsData as any);
-    if (documentsData) setDocuments(documentsData as Document[]);
-
-    // Pending jobs for workers
-    if (userProfile?.role === 'worker' && user?.id) {
-      const workerId = user.id;
-
-      const {data: pendingRows} = await supabase
-        .from('job_acceptance')
-        .select('job_id, jobs(id, title, customer_snapshot)')
-        .eq('worker_id', workerId)
-        .eq('status', 'pending');
-
-      let resolvedPending: {jobId: string; jobTitle: string; address: string}[] = (pendingRows ?? []).map((row: any) => ({
-        jobId: row.job_id,
-        jobTitle: row.jobs?.title ?? 'Job',
-        address: (row.jobs?.customer_snapshot as any)?.address_line_1 ?? '',
-      }));
-
-      // Reconciliation: find jobs assigned to this worker with no acceptance row at all
-      const {data: allAcceptances} = await supabase
-        .from('job_acceptance')
-        .select('job_id')
-        .eq('worker_id', workerId);
-
-      const allAcceptedJobIds = new Set((allAcceptances ?? []).map((r: any) => r.job_id));
-
-      const {data: assignedJobs} = await supabase
+    try {
+      let query = supabase
         .from('jobs')
-        .select('id, title, customer_snapshot')
-        .contains('assigned_to', [workerId]);
+        .select('id, title, reference, status, scheduled_date, customer_snapshot, assigned_to, company_id')
+        .eq('company_id', userProfile.company_id)
+        .neq('status', 'cancelled')
+        .order('scheduled_date', {ascending: true})
+        .limit(50);
 
-      const gaps = (assignedJobs ?? []).filter((j: any) => !allAcceptedJobIds.has(j.id));
-
-      if (gaps.length > 0) {
-        await supabase.from('job_acceptance').upsert(
-          gaps.map((j: any) => ({job_id: j.id, worker_id: workerId, status: 'pending'})),
-          {onConflict: 'job_id,worker_id', ignoreDuplicates: true}
-        );
-        for (const j of gaps) {
-          resolvedPending.push({
-            jobId: j.id,
-            jobTitle: j.title,
-            address: (j.customer_snapshot as any)?.address_line_1 ?? '',
-          });
-        }
+      if (!isAdmin && user?.id) {
+        query = query.contains('assigned_to', [user.id]);
       }
 
-      setPendingJobs(resolvedPending);
-    } else {
-      setPendingJobs([]);
-    }
+      const documentsQuery = supabase
+        .from('documents')
+        .select('id, type, status, reference, created_at, expiry_date, customer_snapshot, company_id, user_id')
+        .eq('company_id', userProfile.company_id)
+        .not('expiry_date', 'is', null)
+        .order('expiry_date', {ascending: true})
+        .limit(24);
 
-    setLoading(false);
-    setRefreshing(false);
+      const [{data: jobsData, error: jobsError}, {data: documentsData, error: documentsError}] = await Promise.all([
+        query,
+        documentsQuery,
+      ]);
+
+      if (jobsError) console.error('Error fetching dashboard jobs:', jobsError);
+      if (documentsError) console.error('Error fetching dashboard renewals:', documentsError);
+
+      if (jobsData) setAllJobs(jobsData as any);
+      if (documentsData) setDocuments(documentsData as Document[]);
+
+      // Pending jobs for workers
+      if (userProfile?.role === 'worker' && user?.id) {
+        const workerId = user.id;
+
+        const {data: pendingRows} = await supabase
+          .from('job_acceptance')
+          .select('job_id, jobs(id, title, customer_snapshot)')
+          .eq('worker_id', workerId)
+          .eq('status', 'pending');
+
+        let resolvedPending: {jobId: string; jobTitle: string; address: string}[] = (pendingRows ?? []).map((row: any) => ({
+          jobId: row.job_id,
+          jobTitle: row.jobs?.title ?? 'Job',
+          address: (row.jobs?.customer_snapshot as any)?.address_line_1 ?? '',
+        }));
+
+        // Reconciliation: find jobs assigned to this worker with no acceptance row at all
+        const {data: allAcceptances} = await supabase
+          .from('job_acceptance')
+          .select('job_id')
+          .eq('worker_id', workerId);
+
+        const allAcceptedJobIds = new Set((allAcceptances ?? []).map((r: any) => r.job_id));
+
+        const {data: assignedJobs} = await supabase
+          .from('jobs')
+          .select('id, title, customer_snapshot')
+          .contains('assigned_to', [workerId]);
+
+        const gaps = (assignedJobs ?? []).filter((j: any) => !allAcceptedJobIds.has(j.id));
+
+        if (gaps.length > 0) {
+          await supabase.from('job_acceptance').upsert(
+            gaps.map((j: any) => ({job_id: j.id, worker_id: workerId, status: 'pending'})),
+            {onConflict: 'job_id,worker_id', ignoreDuplicates: true}
+          );
+          for (const j of gaps) {
+            resolvedPending.push({
+              jobId: j.id,
+              jobTitle: j.title,
+              address: (j.customer_snapshot as any)?.address_line_1 ?? '',
+            });
+          }
+        }
+
+        setPendingJobs(resolvedPending);
+      } else {
+        setPendingJobs([]);
+      }
+    } catch (e) {
+      console.error('Dashboard fetch error:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
+
+  // Live updates when jobs change (from other devices / workers)
+  useRealtimeJobs(userProfile?.company_id, fetchDashboardData);
 
   const stats = useMemo(() => {
     const now = new Date();

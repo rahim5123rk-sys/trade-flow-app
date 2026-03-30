@@ -141,8 +141,8 @@ export function buildSingleApplianceFormHtml({
         ${gasSafeLogoBase64 ? `<img src="${gasSafeLogoBase64}" style="height:46px;max-width:116px;display:block;margin:0 auto 3px;" />` : ''}
         <div style="font-size:5pt;color:#CBD5E1;margin-top:2px;text-transform:uppercase;letter-spacing:0.3px;">Record Ref</div>
         <div class="ref-chip">${esc(ref)}</div>
-        <div style="font-size:5pt;color:#CBD5E1;margin-top:3px;text-transform:uppercase;letter-spacing:0.3px;">Appliances</div>
-        <div class="ref-chip">1</div>
+        <div style="font-size:5pt;color:#CBD5E1;margin-top:3px;text-transform:uppercase;letter-spacing:0.3px;">${esc(primaryDateLabel)}</div>
+        <div style="font-size:8pt;font-weight:800;color:#fff;">${esc(primaryDate)}</div>
       </td>
     </tr>
   </table>
@@ -164,6 +164,7 @@ export function buildSingleApplianceFormHtml({
       <td style="width:33.34%;padding:0 2px;vertical-align:top;">
         <table>
           <tr><td class="shdr" colspan="2">Property Details</td></tr>
+          <tr><td class="label-cell">Name</td><td class="value-cell">${esc(customerName)}</td></tr>
           <tr>
             <td class="label-cell" rowspan="2" style="vertical-align:top;border-bottom:none;">Address</td>
             <td class="value-cell" style="border-bottom:none;">${esc(propertyAddressParts.line1)}</td>
@@ -171,9 +172,7 @@ export function buildSingleApplianceFormHtml({
           <tr><td class="value-cell" style="border-top:none;min-height:12px;">${esc(propertyAddressParts.line2)}&nbsp;</td></tr>
           <tr><td class="label-cell">City</td><td class="value-cell">${esc(propertyAddressParts.city)}</td></tr>
           <tr><td class="label-cell">Postcode</td><td class="value-cell">${esc(propertyAddressParts.postcode)}</td></tr>
-          <tr><td class="label-cell">${esc(primaryDateLabel)}</td><td class="value-cell" style="font-weight:700;">${esc(primaryDate)}</td></tr>
-          <tr><td class="label-cell">${esc(secondaryDateLabel || 'Next Due')}</td><td class="value-cell">${esc(secondaryDate || '')}</td></tr>
-          <tr><td class="label-cell">Reference</td><td class="value-cell">${esc(ref)}</td></tr>
+          <tr><td class="label-cell">&nbsp;</td><td class="value-cell">&nbsp;</td></tr>
         </table>
       </td>
       <td style="width:33.33%;padding:0;vertical-align:top;">

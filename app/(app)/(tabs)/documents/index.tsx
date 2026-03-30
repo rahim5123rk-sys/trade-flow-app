@@ -25,6 +25,7 @@ import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeabl
 import Animated, {FadeInDown, FadeInRight} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Colors, UI} from '../../../../constants/theme';
+import {useDocuments} from '../../../../hooks/useDocuments';
 import {supabase} from '../../../../src/config/supabase';
 import {useAuth} from '../../../../src/context/AuthContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
@@ -266,36 +267,12 @@ export default function DocumentsHubScreen() {
   const insets = useSafeAreaInsets();
   const glassBg = isDark ? theme.glass.bg : GLASS_BG;
   const glassBorder = isDark ? theme.glass.border : GLASS_BORDER;
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<DocumentFilterKey[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedView, setSelectedView] = useState<'landing' | 'certificates' | 'invoices'>('landing');
-
-  useEffect(() => {
-    if (userProfile?.company_id) fetchDocuments();
-  }, [userProfile]);
-
-  const fetchDocuments = useCallback(async () => {
-    if (!userProfile?.company_id) return;
-
-    let query = supabase
-      .from('documents')
-      .select('*')
-      .eq('company_id', userProfile.company_id);
-      
-    if (role !== 'admin' && userProfile.id) {
-      query = query.eq('user_id', userProfile.id);
-    }
-
-    const {data, error} = await query.order('created_at', {ascending: false});
-    if (error) console.error('Error fetching documents:', error);
-    if (data) setDocuments(data as Document[]);
-    setLoading(false);
-    setRefreshing(false);
-  }, [userProfile?.company_id]);
+  const {documents, loading, refreshing, loadingMore, hasMore, search: searchQuery, setSearch: setSearchQuery, refresh: fetchDocuments, onRefresh, loadMore, removeDocument} = useDocuments({
+    typeFilters: selectedFilters.length > 0 ? selectedFilters : undefined,
+  });
 
   const handleDelete = (doc: Document) => {
     const isCp12 = isCp12Document(doc);
@@ -320,7 +297,7 @@ export default function DocumentsHubScreen() {
             if (error) {
               Alert.alert('Error', 'Could not delete document.');
             } else {
-              setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+              removeDocument(doc.id);
             }
           },
         },
@@ -379,23 +356,7 @@ export default function DocumentsHubScreen() {
     setSearchQuery('');
   };
 
-  // ─── Filtered list ────────────────────────────────────────────
-
-  const filteredDocuments = documents.filter((doc) => {
-    if (selectedFilters.length > 0) {
-      const docFilterKey = getDocumentFilterKey(doc);
-      if (!docFilterKey || !selectedFilters.includes(docFilterKey)) return false;
-    }
-
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      doc.customer_snapshot?.name?.toLowerCase().includes(q) ||
-      doc.reference?.toLowerCase().includes(q) ||
-      String(doc.number).includes(q) ||
-      getSiteAddress(doc).toLowerCase().includes(q)
-    );
-  });
+  // Documents are now filtered server-side via the useDocuments hook
 
   // ─── Render card ──────────────────────────────────────────────
 
@@ -749,19 +710,43 @@ export default function DocumentsHubScreen() {
         <ActivityIndicator size="large" color={Colors.primary} style={{marginTop: 40}} />
       ) : (
         <FlatList
-          data={filteredDocuments}
+          data={documents}
           keyExtractor={(item) => item.id}
           renderItem={renderDocument}
           contentContainerStyle={{paddingHorizontal: 20, paddingBottom: 100, paddingTop: 8}}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchDocuments();
-              }}
+              onRefresh={onRefresh}
               tintColor={Colors.primary}
             />
+          }
+          ListFooterComponent={
+            hasMore ? (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 8, paddingVertical: 14, marginTop: 8, marginBottom: 20,
+                  borderRadius: 14, backgroundColor: UI.surface.primaryLight,
+                  borderWidth: 1, borderColor: '#C7D2FE',
+                }}
+                onPress={loadMore}
+                activeOpacity={0.7}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color={UI.brand.primary} />
+                ) : (
+                  <>
+                    <Ionicons name="chevron-down-outline" size={18} color={UI.brand.primary} />
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: UI.brand.primary }}>Load more</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : documents.length > 0 ? (
+              <Text style={{ textAlign: 'center', color: theme.text.muted, fontSize: 13, paddingVertical: 16 }}>
+                All documents loaded
+              </Text>
+            ) : null
           }
           ListEmptyComponent={
             <View style={[st.emptyCard, {backgroundColor: glassBg, borderColor: glassBorder}]}>

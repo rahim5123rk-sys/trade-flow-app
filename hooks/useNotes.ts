@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {supabase} from '../src/config/supabase';
 import {useAuth} from '../src/context/AuthContext';
 
@@ -13,41 +13,95 @@ export interface Note {
   updated_at: string;
 }
 
+const NOTES_PAGE_SIZE = 50;
+
 export function useNotes() {
   const {userProfile, user} = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const offsetRef = useRef(0);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRender = useRef(true);
 
-  const fetchNotes = useCallback(async () => {
+  const fetchPage = useCallback(async (offset: number, searchTerm?: string, append = false) => {
     if (!userProfile?.company_id || !user?.id) return;
     try {
-      const {data, error} = await supabase
+      let query = supabase
         .from('notes')
         .select('*')
         .eq('company_id', userProfile.company_id)
         .eq('user_id', user.id)
         .eq('is_archived', false)
         .order('is_pinned', {ascending: false})
-        .order('updated_at', {ascending: false});
+        .order('updated_at', {ascending: false})
+        .range(offset, offset + NOTES_PAGE_SIZE - 1);
+
+      if (searchTerm && searchTerm.trim()) {
+        const term = searchTerm.trim();
+        query = query.or(`title.ilike.%${term}%,content.ilike.%${term}%`);
+      }
+
+      const {data, error} = await query;
       if (error) throw error;
-      if (data) setNotes(data as Note[]);
+
+      const rows = (data || []) as Note[];
+      setNotes((prev) => append ? [...prev, ...rows] : rows);
+      setHasMore(rows.length === NOTES_PAGE_SIZE);
+      offsetRef.current = offset + rows.length;
     } catch (e) {
       console.error('useNotes fetch error:', e);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [userProfile?.company_id, user?.id]);
 
-  useEffect(() => {
-    fetchNotes();
-  }, [fetchNotes]);
+  const fetchNotes = useCallback(() => {
+    setLoading(true);
+    offsetRef.current = 0;
+    fetchPage(0, search.trim() || undefined);
+  }, [fetchPage, search]);
 
-  const filteredNotes = useMemo(() => {
-    if (!search.trim()) return notes;
-    const q = search.toLowerCase();
-    return notes.filter((n) => n.content.toLowerCase().includes(q));
-  }, [notes, search]);
+  const loadMore = useCallback(() => {
+    if (!hasMore || loadingMore || loading) return;
+    setLoadingMore(true);
+    fetchPage(offsetRef.current, search.trim() || undefined, true);
+  }, [hasMore, loadingMore, loading, fetchPage, search]);
+
+  // Initial fetch
+  useEffect(() => {
+    if (userProfile?.company_id && user?.id) {
+      setLoading(true);
+      offsetRef.current = 0;
+      fetchPage(0);
+    }
+  }, [userProfile?.company_id, user?.id]);
+
+  // Debounced server-side search
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    searchTimerRef.current = setTimeout(() => {
+      if (!userProfile?.company_id || !user?.id) return;
+      setLoading(true);
+      offsetRef.current = 0;
+      fetchPage(0, search.trim() || undefined);
+    }, 300);
+
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [search]);
+
+  const filteredNotes = notes;
 
   const createNote = useCallback(
     async (content: string) => {
@@ -155,6 +209,9 @@ export function useNotes() {
     loading,
     search,
     setSearch,
+    hasMore,
+    loadingMore,
+    loadMore,
     fetchNotes,
     createNote,
     updateNote,

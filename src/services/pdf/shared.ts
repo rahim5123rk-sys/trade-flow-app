@@ -195,10 +195,10 @@ export function parseAddress(address: string): {
     city = parts[parts.length - 2] || '';
     postcode = parts[parts.length - 1] || '';
   } else if (parts.length === 3) {
-    line2 = parts[1] || '';
+    city = parts[1] || '';
     postcode = parts[2] || '';
   } else if (parts.length === 2) {
-    line2 = parts[1] || '';
+    postcode = parts[1] || '';
   }
 
   return { line1, line2, city, postcode };
@@ -391,11 +391,22 @@ export async function printHtmlToPdfBase64(html: string): Promise<string> {
 }
 
 /** Share a PDF via the system share sheet */
-export async function shareHtmlAsPdf(html: string, title: string): Promise<void> {
+export async function shareHtmlAsPdf(html: string, title: string, fileName?: string): Promise<void> {
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Sharing is not available on this device');
   }
   const uri = await printHtmlToPdf(html);
+
+  // Rename to a descriptive filename so the shared file has a proper name
+  let shareUri = uri;
+  if (fileName) {
+    const dir = uri.substring(0, uri.lastIndexOf('/') + 1);
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const newUri = `${dir}${safeName}`;
+    await LegacyFileSystem.moveAsync({ from: uri, to: newUri });
+    shareUri = newUri;
+  }
+
   const shareOptions = {
     mimeType: 'application/pdf',
     dialogTitle: title,
@@ -403,12 +414,12 @@ export async function shareHtmlAsPdf(html: string, title: string): Promise<void>
   } as const;
 
   if (Platform.OS === 'ios') {
-    void Sharing.shareAsync(uri, shareOptions).catch((err) => {
+    void Sharing.shareAsync(shareUri, shareOptions).catch((err) => {
       console.warn('PDF share dismissed/failed on iOS:', err);
     });
     return;
   }
-  await Sharing.shareAsync(uri, shareOptions);
+  await Sharing.shareAsync(shareUri, shareOptions);
 }
 
 // ─── Generic payload lifecycle helpers ──────────────────────────
@@ -459,13 +470,14 @@ export async function generatePdfFromPayload<P extends BaseLockedPayload>(
   titleFn: (payload: P) => string,
   mode: 'share' | 'save' | 'view' = 'share',
   companyId?: string,
+  fileName?: string,
 ): Promise<void> {
   const { html, title } = await resolveAndBuildHtml(payload, buildHtmlFn, titleFn, companyId);
   if (mode === 'view') {
     await Print.printAsync({ html });
     return;
   }
-  await shareHtmlAsPdf(html, mode === 'save' ? `${title} (Save)` : title);
+  await shareHtmlAsPdf(html, mode === 'save' ? `${title} (Save)` : title, fileName);
 }
 
 /**

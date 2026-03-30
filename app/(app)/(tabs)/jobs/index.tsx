@@ -17,6 +17,8 @@ import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Onboarding, {OnboardingTip} from '../../../../components/Onboarding';
 import {Colors, UI} from '../../../../constants/theme';
+import {useJobs} from '../../../../hooks/useJobs';
+import {useRealtimeJobs} from '../../../../hooks/useRealtime';
 import {useWorkers} from '../../../../hooks/useWorkers';
 import {supabase} from '../../../../src/config/supabase';
 import {useAuth} from '../../../../src/context/AuthContext';
@@ -69,8 +71,9 @@ export default function UnifiedJobList() {
   const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const {workers} = useWorkers();
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {jobs, loading, refreshing, loadingMore, hasMore, fetchJobs, onRefresh, loadMore} = useJobs({
+    autoFetch: false,
+  });
 
   const [filter, setFilter] = useState<ScopeFilter>('mine');
   const [tab, setTab] = useState<JobTab>('active');
@@ -100,41 +103,21 @@ export default function UnifiedJobList() {
     );
   }, [workers]);
 
-  // ✅ FIX: useFocusEffect ensures the list reloads when you navigate back to it
   useFocusEffect(
     useCallback(() => {
       if (userProfile?.company_id) {
         fetchJobs();
       }
-    }, [userProfile?.company_id])
+    }, [userProfile?.company_id, fetchJobs])
   );
 
-  const fetchJobs = async () => {
-    if (!userProfile?.company_id) return;
-    // Don't set loading to true here to avoid flickering on every focus
-
-    // ✅ FIX: Removed "customer_snapshot(name)" which was breaking the query.
-    // Using "*" automatically fetches the customer_snapshot column.
-    let query = supabase
-      .from('jobs')
-      .select('*')
-      .eq('company_id', userProfile.company_id)
-      .neq('status', 'cancelled')
-      .order('scheduled_date', {ascending: false});
-
-    const {data, error} = await query;
-    if (error) console.error("Error fetching jobs:", error);
-    if (data) setJobs(data);
-    setLoading(false);
-  };
+  // Live updates when jobs change (from other devices / workers)
+  useRealtimeJobs(userProfile?.company_id, fetchJobs);
 
   const handleUpdateJobStatus = async (
     jobId: string,
     status: 'pending' | 'in_progress' | 'complete',
   ) => {
-    const previous = [...jobs];
-    setJobs((prev) => prev.map((j) => (j.id === jobId ? {...j, status} : j)));
-
     const {error} = await supabase
       .from('jobs')
       .update({status})
@@ -142,8 +125,9 @@ export default function UnifiedJobList() {
       .eq('company_id', userProfile?.company_id);
 
     if (error) {
-      setJobs(previous);
       Alert.alert('Error', 'Could not update job status.');
+    } else {
+      fetchJobs();
     }
   };
 
@@ -154,9 +138,7 @@ export default function UnifiedJobList() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          const previous = [...jobs];
           const jobToDelete = jobs.find((j) => j.id === jobId);
-          setJobs((prev) => prev.filter((j) => j.id !== jobId));
 
           // Best-effort: remove this job's photos from storage before deleting the record
           if (jobToDelete?.photos?.length) {
@@ -182,8 +164,9 @@ export default function UnifiedJobList() {
             .eq('company_id', userProfile?.company_id);
 
           if (error) {
-            setJobs(previous);
             Alert.alert('Error', 'Could not delete job.');
+          } else {
+            fetchJobs();
           }
         },
       },
@@ -472,16 +455,43 @@ export default function UnifiedJobList() {
           data={listRows}
           keyExtractor={(item) => item.key}
           contentContainerStyle={{paddingHorizontal: 16, paddingBottom: 120}}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={() => {setLoading(true); fetchJobs();}} tintColor={theme.brand.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand.primary} />}
           renderItem={({item, index}) => item.type === 'section' ? (
             <View style={styles.sectionHeaderRow}>
               <Text style={[styles.sectionHeaderText, {color: theme.text.title}]}>{item.title}</Text>
             </View>
           ) : renderJobRow(item.item, index)}
+          ListFooterComponent={
+            hasMore ? (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 8, paddingVertical: 14, marginHorizontal: 0, marginTop: 8, marginBottom: 20,
+                  borderRadius: 14, backgroundColor: UI.surface.primaryLight,
+                  borderWidth: 1, borderColor: '#C7D2FE',
+                }}
+                onPress={loadMore}
+                activeOpacity={0.7}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color={UI.brand.primary} />
+                ) : (
+                  <>
+                    <Ionicons name="chevron-down-outline" size={18} color={UI.brand.primary} />
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: UI.brand.primary }}>Load more jobs</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : jobs.length > 0 ? (
+              <Text style={{ textAlign: 'center', color: theme.text.muted, fontSize: 13, paddingVertical: 16 }}>
+                All jobs loaded
+              </Text>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={[styles.emptyCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <Ionicons name={tab === 'workers' ? 'people-outline' : 'briefcase-outline'} size={32} color={theme.surface.border} />
-              <Text style={[styles.empty, {color: theme.text.muted}]}> 
+              <Text style={[styles.empty, {color: theme.text.muted}]}>
                 {tab === 'completed'
                   ? 'No completed jobs found.'
                   : tab === 'workers'

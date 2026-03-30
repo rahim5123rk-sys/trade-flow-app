@@ -11,6 +11,7 @@ import {
   ServiceAppliance,
   ServiceFinalInfo
 } from '../types/serviceRecord';
+import {cloneSingleApplianceList, mergeCustomerForm, splitPropertyAddress} from './singleApplianceFormUtils';
 
 const DRAFT_KEY = 'service_record_draft_v1';
 
@@ -47,6 +48,25 @@ interface ServiceRecordContextValue extends ServiceRecordState {
   setCertRef: (v: string) => void;
   editingDocumentId: string | null;
   setEditingDocumentId: (id: string | null) => void;
+  hydrateFromDuplicate: (seed: {
+    propertyAddress?: string;
+    appliances?: ServiceAppliance[];
+    customerForm?: Partial<CustomerFormData>;
+    finalInfo?: ServiceFinalInfo;
+    serviceDate?: string;
+    nextInspectionDate?: string;
+  }) => void;
+  hydrateForEdit: (seed: {
+    propertyAddress?: string;
+    appliances?: ServiceAppliance[];
+    customerForm?: Partial<CustomerFormData>;
+    finalInfo?: ServiceFinalInfo;
+    serviceDate?: string;
+    nextInspectionDate?: string;
+    customerSignature?: string;
+    certRef?: string;
+    documentId: string;
+  }) => void;
   resetServiceRecord: () => void;
 }
 
@@ -83,6 +103,52 @@ export function ServiceRecordProvider({children}: {children: React.ReactNode}) {
 
   const removeAppliance = useCallback((id: string) => {
     setAppliances((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const hydrateFromDuplicate = useCallback((seed: {
+    propertyAddress?: string;
+    appliances?: ServiceAppliance[];
+    customerForm?: Partial<CustomerFormData>;
+    finalInfo?: ServiceFinalInfo;
+    serviceDate?: string;
+    nextInspectionDate?: string;
+  }) => {
+    const property = splitPropertyAddress(seed.propertyAddress);
+    setPropertyAddressLine1(property.line1);
+    setPropertyAddressLine2(property.line2);
+    setPropertyCity(property.city);
+    setPropertyPostCode(property.postCode);
+    setAppliances(cloneSingleApplianceList(seed.appliances));
+    if (seed.customerForm) setCustomerForm(mergeCustomerForm(seed.customerForm));
+    if (seed.finalInfo) setFinalInfo(seed.finalInfo);
+    if (seed.serviceDate) setServiceDate(seed.serviceDate);
+    if (seed.nextInspectionDate) setNextInspectionDate(seed.nextInspectionDate);
+  }, []);
+
+  const hydrateForEdit = useCallback((seed: {
+    propertyAddress?: string;
+    appliances?: ServiceAppliance[];
+    customerForm?: Partial<CustomerFormData>;
+    finalInfo?: ServiceFinalInfo;
+    serviceDate?: string;
+    nextInspectionDate?: string;
+    customerSignature?: string;
+    certRef?: string;
+    documentId: string;
+  }) => {
+    const property = splitPropertyAddress(seed.propertyAddress);
+    setPropertyAddressLine1(property.line1);
+    setPropertyAddressLine2(property.line2);
+    setPropertyCity(property.city);
+    setPropertyPostCode(property.postCode);
+    setAppliances(cloneSingleApplianceList(seed.appliances));
+    if (seed.customerForm) setCustomerForm(mergeCustomerForm(seed.customerForm));
+    if (seed.finalInfo) setFinalInfo(seed.finalInfo);
+    if (seed.serviceDate) setServiceDate(seed.serviceDate);
+    if (seed.nextInspectionDate) setNextInspectionDate(seed.nextInspectionDate);
+    if (seed.customerSignature) setCustomerSignature(seed.customerSignature);
+    if (seed.certRef) setCertRef(seed.certRef);
+    setEditingDocumentId(seed.documentId);
   }, []);
 
   const resetServiceRecord = useCallback(() => {
@@ -134,6 +200,8 @@ export function ServiceRecordProvider({children}: {children: React.ReactNode}) {
         setCertRef,
         editingDocumentId,
         setEditingDocumentId,
+        hydrateFromDuplicate,
+        hydrateForEdit,
         resetServiceRecord,
       }}
     >

@@ -298,6 +298,46 @@ export async function completeFormAction(
 
   if (!documentId) throw new Error(`Failed to create ${config.label} document.`);
 
+  // Auto-save new customer to database if not already existing (with dedup)
+  if (!params.customerId && params.customerSnapshot.name && params.customerSnapshot.name !== 'Customer') {
+    void (async () => {
+      try {
+        // Check for existing customer first
+        const { data: existing } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('company_id', companyId)
+          .ilike('name', params.customerSnapshot.name)
+          .limit(1)
+          .maybeSingle();
+
+        let customerId = existing?.id;
+        if (!customerId) {
+          const { data: inserted } = await supabase
+            .from('customers')
+            .insert({
+              company_id: companyId,
+              name: params.customerSnapshot.name,
+              company_name: params.customerSnapshot.company_name || null,
+              address_line_1: params.customerSnapshot.address_line_1 || null,
+              address_line_2: params.customerSnapshot.address_line_2 || null,
+              city: params.customerSnapshot.city || null,
+              postal_code: params.customerSnapshot.postal_code || null,
+              email: params.customerSnapshot.email || null,
+              phone: params.customerSnapshot.phone || null,
+            })
+            .select('id')
+            .single();
+          customerId = inserted?.id;
+        }
+
+        if (customerId && documentId) {
+          await supabase.from('documents').update({ customer_id: customerId }).eq('id', documentId);
+        }
+      } catch { /* silently fail — customer snapshot is already saved */ }
+    })();
+  }
+
   const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
 
   if (action === 'save') {
@@ -331,7 +371,7 @@ export async function completeFormAction(
   });
 
   // Also trigger share sheet so engineer has a local copy
-  await generateRegisteredPdf(lockedPayload, 'share', companyId);
+  await generateRegisteredPdf(lockedPayload, 'share', companyId, certRef);
 
   return documentId;
 }

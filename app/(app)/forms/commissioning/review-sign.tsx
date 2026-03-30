@@ -8,8 +8,8 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {SignaturePad} from '../../../../components/SignaturePad';
 import {FormHeader} from '../../../../components/forms/FormHeader';
 import {FormStepIndicator} from '../../../../components/forms/FormStepIndicator';
-import {Button} from '../../../../components/ui/Button';
 import EmailRecipientsList from '../../../../components/EmailRecipientsList';
+import {UI} from '../../../../constants/theme';
 import {upsertSiteAddress} from '../../../../components/forms/SiteAddressPicker';
 import {useAuth} from '../../../../src/context/AuthContext';
 import {useCommissioning} from '../../../../src/context/CommissioningContext';
@@ -69,7 +69,7 @@ export default function CommissioningReviewSignScreen() {
   }, [certRef, editingDocumentId, setCertRef]);
 
   const appliance = appliances[0];
-  const canSubmit = useMemo(() => !!appliance && !!customerForm.customerName.trim(), [appliance, customerForm.customerName]);
+  const canSubmit = useMemo(() => !!appliance, [appliance]);
 
   const pdfData: CommissioningPdfData = {
     customerName: customerForm.customerName || '',
@@ -204,19 +204,78 @@ export default function CommissioningReviewSignScreen() {
             />
           </View>
 
-          <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}>
-            <Text style={[styles.cardTitle, {color: theme.text.title}]}>Customer Signature</Text>
-            {customerSignature ? <Image source={{uri: customerSignature}} style={styles.signaturePreview} resizeMode="contain" /> : <Text style={[styles.helperText, {color: theme.text.muted}]}>Capture the customer signature before saving.</Text>}
-            <Button title={customerSignature ? 'Retake Signature' : 'Capture Signature'} onPress={() => setShowSigPad(true)} variant="secondary" icon="create-outline" />
+          <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+            <View style={styles.sigSectionHeader}>
+              <View style={styles.sigIconWrap}>
+                <Ionicons name="pencil-outline" size={16} color={theme.brand.primary} />
+              </View>
+              <Text style={[styles.sigSectionTitle, {color: theme.text.title}]}>Customer Signature</Text>
+            </View>
+
+            {customerSignature ? (
+              <View style={[styles.sigPreview, isDark && {borderColor: theme.surface.border}]}>
+                <Image source={{uri: customerSignature}} style={styles.sigImage} resizeMode="contain" />
+                <TouchableOpacity
+                  style={styles.resignBtn}
+                  onPress={() => { setCustomerSignature(''); setShowSigPad(true); }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="refresh" size={16} color={UI.brand.primary} />
+                  <Text style={styles.resignText}>Re-sign</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.signatureBtn} onPress={() => setShowSigPad(true)} activeOpacity={0.7}>
+                <LinearGradient colors={UI.gradients.soft} style={styles.signatureBtnGradient}>
+                  <Ionicons name="pencil" size={22} color={UI.brand.primary} />
+                  <Text style={styles.signatureBtnText}>Tap to Capture Signature</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
 
-        <View style={[styles.bottomBar, isDark && {backgroundColor: theme.surface.base, borderTopColor: theme.surface.border}]}>
-          <View style={styles.actionsRow}>
-            <Button title="Save" onPress={() => handleComplete('save')} loading={processingAction === 'save'} disabled={!canSubmit} style={{flex: 1}} />
-            <Button title="View" onPress={() => handleComplete('view')} variant="secondary" loading={processingAction === 'view'} disabled={!canSubmit} style={{flex: 1}} />
+        <View style={[styles.bottomBar, isDark && {backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)'}]}>
+          <View style={styles.bottomBtnRow}>
+            <TouchableOpacity style={styles.saveBtn} activeOpacity={0.85} onPress={() => handleComplete('save')} disabled={!!processingAction}>
+              {processingAction === 'save' ? (
+                <ActivityIndicator color={UI.brand.primary} size="small" />
+              ) : (
+                <>
+                  <Ionicons name={editingDocumentId ? 'checkmark-circle-outline' : 'save-outline'} size={20} color={UI.brand.primary} />
+                  <Text style={styles.saveBtnText}>{editingDocumentId ? 'Update' : 'Save'}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.sendBtn} activeOpacity={0.85} onPress={() => handleComplete('email')} disabled={!!processingAction}>
+              <LinearGradient
+                colors={processingAction === 'email' ? [UI.text.muted, UI.text.muted] as readonly [string, string] : UI.gradients.success}
+                start={{x: 0, y: 0}} end={{x: 1, y: 0}}
+                style={styles.sendBtnGradient}
+              >
+                {processingAction === 'email' ? (
+                  <ActivityIndicator color={UI.text.white} size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="mail-outline" size={20} color={UI.text.white} />
+                    <Text style={styles.sendBtnText}>Save & Send</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
-          <Button title="Save & Send" onPress={() => handleComplete('email')} variant="success" loading={processingAction === 'email'} disabled={!canSubmit} icon="mail-outline" />
+
+          <TouchableOpacity style={[styles.viewBtn, !!processingAction && {opacity: 0.6}]} activeOpacity={0.85} onPress={() => handleComplete('view')} disabled={!!processingAction}>
+            {processingAction === 'view' ? (
+              <ActivityIndicator color={UI.brand.primary} size="small" />
+            ) : (
+              <>
+                <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
+                <Text style={styles.viewBtnText}>View Certificate</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
 
@@ -252,8 +311,32 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dateText: {fontSize: 15, fontWeight: '600'},
-  helperText: {fontSize: 13, marginBottom: 12},
-  signaturePreview: {height: 120, width: '100%', marginBottom: 12},
+  // Signature
+  sigSectionHeader: {flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16},
+  sigIconWrap: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center',
+  },
+  sigSectionTitle: {fontSize: 16, fontWeight: '700'},
+  sigPreview: {
+    borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
+    backgroundColor: '#fff', padding: 12, alignItems: 'center',
+  },
+  sigImage: {width: '100%', height: 200, borderRadius: 8},
+  resignBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 12, paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 10, backgroundColor: UI.surface.primaryLight,
+  },
+  resignText: {fontSize: 13, fontWeight: '600', color: UI.brand.primary},
+  signatureBtn: {borderRadius: 14, overflow: 'hidden'},
+  signatureBtnGradient: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 32, gap: 10, borderRadius: 14,
+    borderWidth: 2, borderColor: '#C7D2FE', borderStyle: 'dashed',
+  },
+  signatureBtnText: {fontSize: 15, fontWeight: '600', color: UI.brand.primary},
+  // Bottom bar buttons
   bottomBar: {
     position: 'absolute',
     left: 0,
@@ -267,7 +350,25 @@ const styles = StyleSheet.create({
     borderTopColor: '#E2E8F0',
     gap: 10,
   },
-  actionsRow: {flexDirection: 'row', gap: 10},
+  bottomBtnRow: {flexDirection: 'row', gap: 10},
+  saveBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 16, borderRadius: 16,
+    backgroundColor: UI.surface.primaryLight, borderWidth: 1.5, borderColor: '#C7D2FE',
+  },
+  saveBtnText: {fontSize: 15, fontWeight: '700', color: UI.brand.primary},
+  sendBtn: {flex: 1, borderRadius: 16, overflow: 'hidden'},
+  sendBtnGradient: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 16, gap: 8,
+  },
+  sendBtnText: {fontSize: 15, fontWeight: '700', color: UI.text.white},
+  viewBtn: {
+    marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: UI.surface.primaryLight, borderWidth: 1, borderColor: '#C7D2FE',
+  },
+  viewBtnText: {fontSize: 14, fontWeight: '700', color: UI.brand.primary},
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15,23,42,0.35)',

@@ -40,6 +40,27 @@ interface FormPdfRegistration<P extends BaseLockedPayload = BaseLockedPayload> {
 // The registry map, keyed by `kind`
 const REGISTRY = new Map<string, FormPdfRegistration<any>>();
 
+// ─── PDF filename mapping ───────────────────────────────────────
+
+const FILE_NAME_PREFIX: Record<string, string> = {
+  cp12: 'Gas-Safety-Record',
+  service_record: 'Service-Record',
+  commissioning: 'Commissioning-Certificate',
+  decommissioning: 'Decommissioning-Certificate',
+  warning_notice: 'Warning-Notice',
+  breakdown_report: 'Breakdown-Report',
+  installation_cert: 'Installation-Certificate',
+};
+
+/**
+ * Get a descriptive PDF filename for a document kind + reference.
+ * e.g. "Gas-Safety-Record-REF-0042.pdf", "Invoice-INV-0001.pdf"
+ */
+export function getDocumentFileName(kind: string, ref?: string): string {
+  const prefix = FILE_NAME_PREFIX[kind] || kind;
+  return ref ? `${prefix}-${ref}.pdf` : `${prefix}.pdf`;
+}
+
 /**
  * Register a new form-type PDF generator.
  * Call this at module scope in each form's PDF generator file.
@@ -89,10 +110,12 @@ export async function generateRegisteredPdf(
   payload: BaseLockedPayload,
   mode: 'share' | 'save' | 'view',
   companyId?: string,
+  certRef?: string,
 ): Promise<void> {
   const reg = REGISTRY.get(payload.kind);
   if (!reg) throw new Error(`No PDF generator registered for kind "${payload.kind}"`);
-  return generatePdfFromPayload(payload, reg.buildHtml, reg.titleFn, mode, companyId);
+  const fileName = getDocumentFileName(payload.kind, certRef);
+  return generatePdfFromPayload(payload, reg.buildHtml, reg.titleFn, mode, companyId, fileName);
 }
 
 /**

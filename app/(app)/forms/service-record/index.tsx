@@ -4,9 +4,10 @@
 // ============================================
 
 import {Ionicons} from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router} from 'expo-router';
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -22,6 +23,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {CustomerSelector} from '../../../../components/CustomerSelector';
 import {SiteAddressSelector, SiteAddressData} from '../../../../components/forms/SiteAddressSelector';
 import {Colors, UI} from '../../../../constants/theme';
+import {SERVICE_RECORD_DUPLICATE_SEED_KEY, SERVICE_RECORD_EDIT_SEED_KEY} from '../../../../src/services/documentActions';
 import {useServiceRecord} from '../../../../src/context/ServiceRecordContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
 
@@ -83,12 +85,58 @@ export default function ServiceRecordDetailsScreen() {
     propertyPostCode,
     setPropertyPostCode,
     propertyAddress,
+    hydrateFromDuplicate,
+    hydrateForEdit,
   } = useServiceRecord();
 
   const [tenantTitle, setTenantTitle] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [tenantEmail, setTenantEmail] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
+
+  useEffect(() => {
+    const loadSeed = async () => {
+      try {
+        const editRaw = await AsyncStorage.getItem(SERVICE_RECORD_EDIT_SEED_KEY);
+        if (editRaw) {
+          const parsed = JSON.parse(editRaw);
+          hydrateForEdit({
+            propertyAddress: parsed?.propertyAddress,
+            appliances: parsed?.appliances,
+            customerForm: parsed?.customerForm,
+            finalInfo: parsed?.finalInfo,
+            serviceDate: parsed?.serviceDate,
+            nextInspectionDate: parsed?.nextInspectionDate,
+            customerSignature: parsed?.customerSignature,
+            certRef: parsed?.certRef,
+            documentId: parsed?.documentId,
+          });
+          await AsyncStorage.removeItem(SERVICE_RECORD_EDIT_SEED_KEY);
+          Alert.alert('Editing Service Record', 'Previous details have been loaded. Make your changes and save from Review.');
+          return;
+        }
+
+        const duplicateRaw = await AsyncStorage.getItem(SERVICE_RECORD_DUPLICATE_SEED_KEY);
+        if (!duplicateRaw) return;
+        const parsed = JSON.parse(duplicateRaw);
+        hydrateFromDuplicate({
+          propertyAddress: parsed?.propertyAddress,
+          appliances: parsed?.appliances,
+          customerForm: parsed?.customerForm,
+          finalInfo: parsed?.finalInfo,
+          serviceDate: parsed?.serviceDate,
+          nextInspectionDate: parsed?.nextInspectionDate,
+        });
+        await AsyncStorage.removeItem(SERVICE_RECORD_DUPLICATE_SEED_KEY);
+        Alert.alert('Service Record Duplicated', 'Customer, property and appliance details have been prefilled. Review them before saving.');
+      } catch {
+        await AsyncStorage.removeItem(SERVICE_RECORD_DUPLICATE_SEED_KEY);
+        await AsyncStorage.removeItem(SERVICE_RECORD_EDIT_SEED_KEY);
+      }
+    };
+
+    void loadSeed();
+  }, [hydrateForEdit, hydrateFromDuplicate]);
 
   const siteAddress: SiteAddressData = {
     tenantTitle, tenantName, tenantEmail, tenantPhone,
@@ -108,10 +156,6 @@ export default function ServiceRecordDetailsScreen() {
   };
 
   const handleNext = () => {
-    if (!customerForm.customerName.trim()) {
-      Alert.alert('Missing Info', 'Please enter the customer name.');
-      return;
-    }
     if (!propertyAddressLine1.trim() || !propertyCity.trim() || !propertyPostCode.trim()) {
       Alert.alert('Missing Info', 'Address Line 1, City and Postcode are required.');
       return;

@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
+import { WORKER_SELECT_COLUMNS } from '../src/utils/workerQuery';
 
 interface Worker {
   id: string;
   display_name: string;
   email: string;
-  phone?: string;
-  avatar_url?: string;
-  push_token?: string;
   is_test_user?: boolean;
   created_at?: string;
 }
@@ -18,28 +16,29 @@ interface Worker {
 export function useWorkers() {
   const { userProfile, user } = useAuth();
   const [workers, setWorkers] = useState<Worker[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(userProfile?.company_id));
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchWorkers = useCallback(async () => {
     if (!userProfile?.company_id) return;
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('profiles')
-        .select('*')
+        .select(WORKER_SELECT_COLUMNS)
         .eq('company_id', userProfile.company_id)
+        .neq('role', 'admin')
         .order('display_name', { ascending: true });
+
+      if (user?.id) {
+        query = query.neq('id', user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       if (data) {
-        const teammates = (data as any[])
-          .filter((profile) => profile.id !== user?.id)
-          .filter((profile) => {
-            const role = String(profile.role || '').toLowerCase();
-            return role !== 'admin';
-          });
-        setWorkers(teammates as Worker[]);
+        setWorkers(data as Worker[]);
       }
     } catch (e) {
       console.error('useWorkers fetch error:', e);
@@ -50,6 +49,8 @@ export function useWorkers() {
   }, [userProfile?.company_id, user?.id]);
 
   useEffect(() => {
+    if (!userProfile?.company_id) return;
+    setLoading(true);
     fetchWorkers();
   }, [fetchWorkers]);
 

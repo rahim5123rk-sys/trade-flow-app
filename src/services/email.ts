@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { escapeHtml } from '../utils/escapeHtml';
+import { cachedQuery } from '../utils/queryCache';
 import { getSignedUrl } from './storage';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,29 +44,42 @@ interface SendHtmlEmailArgs {
 
 /** Fetch company info + settings for email context */
 async function getCompanyEmailContext(companyId: string) {
-  const { data } = await supabase
-    .from('companies')
-    .select('name, email, phone, logo_url, settings')
-    .eq('id', companyId)
-    .single();
+  let companyData: any = null;
+  try {
+    companyData = await cachedQuery(
+      `company:${companyId}`,
+      async () => {
+        const { data, error } = await supabase
+          .from('companies')
+          .select('name, email, phone, logo_url, settings')
+          .eq('id', companyId)
+          .single();
+        if (error) throw error;
+        return data;
+      },
+      5 * 60 * 1000, // 5 minute TTL for company branding data
+    );
+  } catch {
+    return null;
+  }
 
-  if (!data) return null;
+  if (!companyData) return null;
 
   let logoSignedUrl = '';
-  if (data.logo_url) {
+  if (companyData.logo_url) {
     try {
-      logoSignedUrl = await getSignedUrl(data.logo_url);
+      logoSignedUrl = await getSignedUrl(companyData.logo_url);
     } catch {
       // ignore — no logo
     }
   }
 
   return {
-    companyName: data.name || '',
-    companyEmail: data.email || '',
-    companyPhone: data.phone || '',
+    companyName: companyData.name || '',
+    companyEmail: companyData.email || '',
+    companyPhone: companyData.phone || '',
     logoUrl: logoSignedUrl,
-    ccEngineerOnEmails: !!(data.settings as any)?.ccEngineerOnEmails,
+    ccEngineerOnEmails: !!(companyData.settings as any)?.ccEngineerOnEmails,
   };
 }
 
@@ -313,7 +327,7 @@ export async function sendCp12CertificateEmail({
     bcc: bccList.length ? bccList : undefined,
     subject,
     html,
-    attachmentName: `${certRef || 'certificate'}.pdf`,
+    attachmentName: `${(formLabel || label).replace(/\s+/g, '-')}-${certRef || 'certificate'}.pdf`,
     pdfBase64,
     fromName: companyCtx?.companyName || undefined,
   });

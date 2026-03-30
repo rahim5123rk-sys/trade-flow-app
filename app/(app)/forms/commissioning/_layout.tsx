@@ -26,11 +26,6 @@ function CommissioningAutoSave({children}: {children: React.ReactNode}) {
   const restored = useRef(false);
 
   const saveDraft = useCallback(async () => {
-    if (!customerForm.customerName.trim()) {
-      await AsyncStorage.removeItem(COMMISSIONING_DRAFT_KEY);
-      return;
-    }
-
     await AsyncStorage.setItem(COMMISSIONING_DRAFT_KEY, JSON.stringify({
       propertyAddress,
       appliances,

@@ -14,10 +14,6 @@ function InstallationAutoSave({children}: {children: React.ReactNode}) {
   const restored = useRef(false);
 
   const saveDraft = useCallback(async () => {
-    if (!customerForm.customerName.trim()) {
-      await AsyncStorage.removeItem(INSTALLATION_CERT_DRAFT_KEY);
-      return;
-    }
     await AsyncStorage.setItem(INSTALLATION_CERT_DRAFT_KEY, JSON.stringify({propertyAddress, appliances, customerForm, finalInfo, installationDate, nextServiceDate, customerSignature, certRef, editingDocumentId, savedAt: Date.now()}));
   }, [customerForm, propertyAddress, appliances, finalInfo, installationDate, nextServiceDate, customerSignature, certRef, editingDocumentId]);
 

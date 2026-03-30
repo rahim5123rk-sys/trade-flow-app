@@ -14,10 +14,6 @@ function BreakdownAutoSave({children}: {children: React.ReactNode}) {
   const restored = useRef(false);
 
   const saveDraft = useCallback(async () => {
-    if (!customerForm.customerName.trim()) {
-      await AsyncStorage.removeItem(BREAKDOWN_REPORT_DRAFT_KEY);
-      return;
-    }
     await AsyncStorage.setItem(BREAKDOWN_REPORT_DRAFT_KEY, JSON.stringify({propertyAddress, appliances, customerForm, finalInfo, reportDate, customerSignature, certRef, editingDocumentId, savedAt: Date.now()}));
   }, [customerForm, propertyAddress, appliances, finalInfo, reportDate, customerSignature, certRef, editingDocumentId]);
 

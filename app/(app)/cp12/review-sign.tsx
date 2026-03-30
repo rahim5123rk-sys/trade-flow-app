@@ -358,6 +358,32 @@ export default function ReviewSign() {
         tenantPhone,
       });
 
+      // Auto-save new customer (landlord) to database if not already existing
+      if (!landlordForm.customerId && (landlordForm.customerName || landlordForm.addressLine1)) {
+        void (async () => {
+          try {
+            const {data: inserted} = await supabase
+              .from('customers')
+              .insert({
+                company_id: userProfile.company_id,
+                name: landlordForm.customerName || 'Customer',
+                company_name: landlordForm.customerCompany || null,
+                address_line_1: landlordForm.addressLine1 || null,
+                address_line_2: landlordForm.addressLine2 || null,
+                city: landlordForm.city || null,
+                postal_code: landlordForm.postCode || null,
+                email: landlordForm.email || null,
+                phone: landlordForm.phone || null,
+              })
+              .select('id')
+              .single();
+            if (inserted?.id && documentId) {
+              await supabase.from('documents').update({customer_id: inserted.id}).eq('id', documentId);
+            }
+          } catch { /* silently fail — customer snapshot already saved */ }
+        })();
+      }
+
       const savedLabel = editingDocumentId ? 'Updated' : 'Saved';
 
       if (action === 'save') {
@@ -408,6 +434,7 @@ if (!recipients.length) {
         lockedPayload,
         'share',
         userProfile.company_id,
+        cp12Reference,
       );
 
       Alert.alert(

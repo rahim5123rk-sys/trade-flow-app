@@ -76,10 +76,6 @@ export default function CommissioningIndex() {
   }, [hydrateForEdit, hydrateFromDuplicate]);
 
   const handleNext = () => {
-    if (!customerForm.customerName.trim()) {
-      Alert.alert('Missing Info', 'Please enter the customer name.');
-      return;
-    }
     if (!propertyAddressLine1.trim() || !propertyCity.trim() || !propertyPostCode.trim()) {
       Alert.alert('Missing Info', 'Address Line 1, City and Postcode are required.');
       return;

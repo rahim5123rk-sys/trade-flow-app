@@ -33,6 +33,7 @@ import {
 } from '../../components/CustomerSelector';
 import { upsertSiteAddress } from '../../components/forms';
 import ProPaywallModal from '../../components/ProPaywallModal';
+import RichTextLineInput from '../../components/RichTextLineInput';
 import { UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
@@ -41,8 +42,10 @@ import { useAppTheme } from '../../src/context/ThemeContext';
 import {
     DocumentData,
     generateDocument,
+    generateDocumentBase64,
     LineItem,
 } from '../../src/services/DocumentGenerator';
+import { sanitizeRecipients, sendCp12CertificateEmail } from '../../src/services/email';
 import { getNextInvoiceReference } from '../../src/services/formDocumentService';
 
 // ─── Design tokens ──────────────────────────────────────────────────
@@ -78,6 +81,8 @@ export default function CreateInvoiceScreen() {
   const [discountPercent, setDiscountPercent] = useState('0');
   const [notes, setNotes] = useState('');
   const [paymentInfo, setPaymentInfo] = useState('');
+  const [emailing, setEmailing] = useState(false);
+  const [focusedDescIdx, setFocusedDescIdx] = useState<number | null>(null);
 
   // ─── Job link (if coming from a job) ──────────────────────────
   const [jobId, setJobId] = useState<string | null>(null);
@@ -410,6 +415,83 @@ export default function CreateInvoiceScreen() {
     }
   };
 
+  // ─── Save & Send Email ──────────────────────────────────────
+  const handleSaveAndEmail = async () => {
+    if (!userProfile?.company_id) return;
+    if (!validate()) return;
+
+    const email = customerForm.email?.trim();
+    if (!email) {
+      Alert.alert('No Email', 'Add a customer email address to send an invoice.');
+      return;
+    }
+
+    const recipients = sanitizeRecipients([email]);
+    if (!recipients.length) {
+      Alert.alert('Invalid Email', 'The customer email address is not valid.');
+      return;
+    }
+
+    setEmailing(true);
+    try {
+      // Save first
+      await saveDocument('Sent');
+
+      // Build PDF data
+      const { jobAddr, today } = buildDocData();
+      const docData: DocumentData = {
+        type: 'invoice',
+        number: parseInt(invoiceNumber.replace(/\D/g, '')) || 1,
+        reference: invoiceNumber || undefined,
+        date: today,
+        expiryDate: dueDate || today,
+        status: 'Sent',
+        customerName: customerForm.customerName,
+        customerCompany: customerForm.customerCompany || undefined,
+        customerAddress1: customerForm.addressLine1,
+        customerAddress2: customerForm.addressLine2 || undefined,
+        customerCity: customerForm.city,
+        customerPostcode: customerForm.postCode,
+        customerEmail: customerForm.email || undefined,
+        customerPhone: customerForm.phone || undefined,
+        jobAddress1: jobAddr.jobAddress1,
+        jobAddress2: jobAddr.jobAddress2 || undefined,
+        jobCity: jobAddr.jobCity,
+        jobPostcode: jobAddr.jobPostcode,
+        items,
+        discountPercent: parseFloat(discountPercent) || 0,
+        partialPayment: 0,
+        notes: notes || undefined,
+        paymentInfo: paymentInfo || undefined,
+      };
+
+      const pdfBase64 = await generateDocumentBase64(docData, userProfile.company_id);
+
+      await sendCp12CertificateEmail({
+        to: recipients,
+        certRef: invoiceNumber,
+        propertyAddress: `${jobAddr.jobAddress1}${jobAddr.jobCity ? `, ${jobAddr.jobCity}` : ''}${jobAddr.jobPostcode ? ` ${jobAddr.jobPostcode}` : ''}`,
+        inspectionDate: today,
+        nextDueDate: dueDate || '',
+        landlordName: customerForm.customerName,
+        tenantName: '',
+        pdfBase64,
+        formLabel: 'Invoice',
+      });
+
+      Alert.alert('Sent', `Invoice emailed to ${recipients.join(', ')}.`, [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (e: any) {
+      // Save already succeeded; only email failed
+      if (e.message && !e.message.includes('save')) {
+        Alert.alert('Email Failed', e.message || 'Invoice saved but email could not be sent.');
+      }
+    } finally {
+      setEmailing(false);
+    }
+  };
+
   // ──────────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────────
@@ -583,12 +665,15 @@ export default function CreateInvoiceScreen() {
                 )}
               </View>
 
-              <TextInput
-                style={[st.input, { marginTop: 8 }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+              <RichTextLineInput
                 value={item.description}
                 onChangeText={(v) => updateItem(index, 'description', v)}
                 placeholder="Description"
-                placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
+                isFocused={focusedDescIdx === index}
+                onFocus={() => setFocusedDescIdx(index)}
+                onBlur={() => { if (focusedDescIdx === index) setFocusedDescIdx(null); }}
+                isDark={isDark}
+                theme={theme}
               />
 
               <View style={st.row}>
@@ -746,8 +831,37 @@ export default function CreateInvoiceScreen() {
 
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={handleSaveAndEmail}
+              disabled={emailing || generating || saving}
+              style={st.generateWrap}
+            >
+              <LinearGradient
+                colors={[UI.brand.primary, '#6366f1']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={st.generateBtn}
+              >
+                {emailing ? (
+                  <ActivityIndicator color={UI.text.white} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color={UI.text.white}
+                    />
+                    <Text style={st.generateBtnText}>
+                      Save & Send Email
+                    </Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
               onPress={handleSaveAndGenerate}
-              disabled={generating || saving}
+              disabled={generating || saving || emailing}
               style={st.generateWrap}
             >
               <LinearGradient
@@ -772,6 +886,17 @@ export default function CreateInvoiceScreen() {
                 )}
               </LinearGradient>
             </TouchableOpacity>
+
+            {editingDocId && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push(`/(app)/(tabs)/documents/${editingDocId}`)}
+                style={[st.draftBtn, { borderColor: UI.brand.primary, borderWidth: 1.5 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.brand?.primary || UI.brand.primary }]}
+              >
+                <Ionicons name="eye-outline" size={18} color={UI.brand.primary} />
+                <Text style={[st.draftBtnText, { color: UI.brand.primary }]}>View Invoice</Text>
+              </TouchableOpacity>
+            )}
           </Animated.View>
         </ScrollView>
       </LinearGradient>

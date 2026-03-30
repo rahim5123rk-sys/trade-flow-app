@@ -21,16 +21,22 @@ export const BREAKDOWN_REPORT_DUPLICATE_SEED_KEY = 'breakdown_report_duplicate_s
 export const BREAKDOWN_REPORT_EDIT_SEED_KEY = 'breakdown_report_edit_seed_v1';
 export const INSTALLATION_CERT_DUPLICATE_SEED_KEY = 'installation_cert_duplicate_seed_v1';
 export const INSTALLATION_CERT_EDIT_SEED_KEY = 'installation_cert_edit_seed_v1';
+export const SERVICE_RECORD_DUPLICATE_SEED_KEY = 'service_record_duplicate_seed_v1';
+export const SERVICE_RECORD_EDIT_SEED_KEY = 'service_record_edit_seed_v1';
 
 // ─── Utility helpers ────────────────────────────────────────
 
 export const splitAddress = (address?: string) => {
   const parts = (address || '').split(',').map((part) => part.trim()).filter(Boolean);
+  // 4+ parts: line1, [line2...], city, postcode
+  // 3 parts:  line1, city, postcode (no line2)
+  // 2 parts:  line1, postcode
+  // 1 part:   line1 only
   return {
     line1: parts[0] || '',
-    line2: parts.length > 3 ? parts.slice(1, -2).join(', ') : parts[1] || '',
-    city: parts.length > 2 ? parts[parts.length - 2] || '' : '',
-    postCode: parts.length > 1 ? parts[parts.length - 1] || '' : '',
+    line2: parts.length > 3 ? parts.slice(1, -2).join(', ') : '',
+    city: parts.length >= 3 ? parts[parts.length - 2] || '' : '',
+    postCode: parts.length >= 2 ? parts[parts.length - 1] || '' : '',
   };
 };
 
@@ -386,6 +392,42 @@ async function editInstallation(doc: Document, payload: any, resolveCustomerId: 
   router.push('/(app)/forms/installation' as any);
 }
 
+async function duplicateServiceRecord(doc: Document, payload: any, resolveCustomerId: ResolveCustomerId) {
+  const {pdfData} = payload;
+  const snap = doc.customer_snapshot;
+  await AsyncStorage.setItem(
+    SERVICE_RECORD_DUPLICATE_SEED_KEY,
+    JSON.stringify({
+      propertyAddress: pdfData.propertyAddress || snap?.address || '',
+      appliances: pdfData.appliances,
+      customerForm: await buildCustomerFormDuplicate(pdfData, snap, doc.customer_id, resolveCustomerId),
+      finalInfo: pdfData.finalInfo,
+      serviceDate: pdfData.serviceDate,
+      nextInspectionDate: incrementDdMmYyyyByYear(pdfData.nextInspectionDate),
+    }),
+  );
+  router.push('/(app)/forms/service-record' as any);
+}
+
+async function editServiceRecord(doc: Document, payload: any, resolveCustomerId: ResolveCustomerId) {
+  const {pdfData} = payload;
+  await AsyncStorage.setItem(
+    SERVICE_RECORD_EDIT_SEED_KEY,
+    JSON.stringify({
+      documentId: doc.id,
+      propertyAddress: pdfData.propertyAddress,
+      appliances: pdfData.appliances,
+      customerForm: await buildCustomerFormEdit(pdfData, doc.customer_id, resolveCustomerId),
+      finalInfo: pdfData.finalInfo,
+      serviceDate: pdfData.serviceDate,
+      nextInspectionDate: pdfData.nextInspectionDate,
+      customerSignature: pdfData.customerSignature || '',
+      certRef: pdfData.certRef || doc.reference || '',
+    }),
+  );
+  router.push('/(app)/forms/service-record' as any);
+}
+
 // ─── Public API ─────────────────────────────────────────────
 
 const duplicateMap: Record<string, (doc: Document, payload: any, r: ResolveCustomerId) => Promise<void>> = {
@@ -395,6 +437,7 @@ const duplicateMap: Record<string, (doc: Document, payload: any, r: ResolveCusto
   warning_notice: duplicateWarningNotice,
   breakdown_report: duplicateBreakdown,
   installation_cert: duplicateInstallation,
+  service_record: duplicateServiceRecord,
 };
 
 const editMap: Record<string, (doc: Document, payload: any, r: ResolveCustomerId) => Promise<void>> = {
@@ -404,6 +447,7 @@ const editMap: Record<string, (doc: Document, payload: any, r: ResolveCustomerId
   warning_notice: editWarningNotice,
   breakdown_report: editBreakdown,
   installation_cert: editInstallation,
+  service_record: editServiceRecord,
 };
 
 const errorLabelMap: Record<string, string> = {
@@ -413,6 +457,7 @@ const errorLabelMap: Record<string, string> = {
   warning_notice: 'warning notice',
   breakdown_report: 'breakdown report',
   installation_cert: 'installation certificate',
+  service_record: 'service record',
 };
 
 export async function duplicateDocument(doc: Document, payload: any, resolveCustomerId: ResolveCustomerId): Promise<void> {

@@ -42,7 +42,7 @@ export {
 export {
     generateRegisteredPdf,
     generateRegisteredPdfBase64,
-    generateRegisteredPdfUrl, getFormPdfRegistration,
+    generateRegisteredPdfUrl, getDocumentFileName, getFormPdfRegistration,
     getRegisteredKinds,
     parseLockedPayload, registerFormPdf
 } from './registry';

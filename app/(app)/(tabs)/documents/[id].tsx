@@ -27,13 +27,14 @@ import {supabase} from '../../../../src/config/supabase';
 import {useAuth} from '../../../../src/context/AuthContext';
 import {useOfflineMode} from '../../../../src/context/OfflineContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
-import {generateDocument, generateDocumentUrl} from '../../../../src/services/DocumentGenerator';
+import {generateDocument, generateDocumentBase64, generateDocumentUrl} from '../../../../src/services/DocumentGenerator';
 import type {CP12LockedPayload} from '../../../../src/services/cp12PdfGenerator';
 import {sanitizeRecipients, sendCp12CertificateEmail} from '../../../../src/services/email';
 import type {BreakdownReportLockedPayload} from '../../../../src/services/breakdownReportPdfGenerator';
 import type {CommissioningLockedPayload} from '../../../../src/services/commissioningPdfGenerator';
 import type {DecommissioningLockedPayload} from '../../../../src/services/decommissioningPdfGenerator';
 import type {InstallationCertLockedPayload} from '../../../../src/services/installationCertPdfGenerator';
+import {stripHtml} from '../../../../components/RichTextLineInput';
 import {
   generateRegisteredPdf,
   generateRegisteredPdfBase64,
@@ -181,7 +182,7 @@ export default function DocumentDetailScreen() {
     try {
       const payload = parseLockedPayload(doc.payment_info);
       if (payload) {
-        await generateRegisteredPdf(payload, 'share', userProfile.company_id);
+        await generateRegisteredPdf(payload, 'share', userProfile.company_id, doc.reference);
       } else {
         const docData = buildDocData();
         if (docData) await generateDocument(docData, userProfile.company_id, 'share');
@@ -286,23 +287,25 @@ export default function DocumentDetailScreen() {
   const openSendEmailModal = () => {
     if (!doc) return;
     const payload = parseLockedPayload(doc.payment_info);
-    if (!payload) return;
 
     // For CP12, include landlord + tenant emails; for all others, use customer snapshot
-    const cp12P = payload.kind === 'cp12' ? payload as CP12LockedPayload : null;
+    const cp12P = payload?.kind === 'cp12' ? payload as CP12LockedPayload : null;
     const emailCandidates = cp12P
       ? [cp12P.pdfData.landlordEmail || '', cp12P.pdfData.tenantEmail || '', doc.customer_snapshot?.email || '', ...additionalSendEmails]
       : [doc.customer_snapshot?.email || '', ...additionalSendEmails];
 
     const recipients = sanitizeRecipients(emailCandidates);
     if (!recipients.length) {
-      Alert.alert('No Email Found', 'No valid email found for this document.');
+      Alert.alert('No Email Found', 'No valid email found for this document. Add a customer email first.');
       return;
     }
 
+    const typeLabel = doc.type === 'invoice' ? 'Invoice' : doc.type === 'quote' ? 'Quote' : null;
     const defaultSubject = cp12P
       ? `Landlord Gas Safety Record for ${cp12P.pdfData.propertyAddress || doc.customer_snapshot?.address || 'Property'}`
-      : `${doc.reference || 'Service Record'} — ${doc.customer_snapshot?.name || 'Customer'}`;
+      : typeLabel
+        ? `${typeLabel} ${doc.reference || `#${String(doc.number).padStart(4, '0')}`} — ${doc.customer_snapshot?.name || 'Customer'}`
+        : `${doc.reference || 'Service Record'} — ${doc.customer_snapshot?.name || 'Customer'}`;
     setEmailSubject(defaultSubject.trim());
     setAdditionalSendEmails([]);
     setShowEmailModal(true);
@@ -316,9 +319,7 @@ export default function DocumentDetailScreen() {
     }
 
     const payload = parseLockedPayload(doc.payment_info);
-    if (!payload) return;
-
-    const cp12P = payload.kind === 'cp12' ? payload as CP12LockedPayload : null;
+    const cp12P = payload?.kind === 'cp12' ? payload as CP12LockedPayload : null;
     const emailCandidates = cp12P
       ? [cp12P.pdfData.landlordEmail || '', cp12P.pdfData.tenantEmail || '', doc.customer_snapshot?.email || '', ...additionalSendEmails]
       : [doc.customer_snapshot?.email || '', ...additionalSendEmails];
@@ -331,7 +332,6 @@ export default function DocumentDetailScreen() {
 
     setSendingEmail(true);
     try {
-      const pdfBase64 = await generateRegisteredPdfBase64(payload, userProfile.company_id);
       const formLabelMap: Record<string, string> = {
         cp12: 'Gas Safety Certificate',
         service_record: 'Service Record',
@@ -343,17 +343,33 @@ export default function DocumentDetailScreen() {
         invoice: 'Invoice',
         quote: 'Quote',
       };
+
+      let pdfBase64: string;
+      if (payload) {
+        // Gas forms — use locked payload registry
+        pdfBase64 = await generateRegisteredPdfBase64(payload, userProfile.company_id);
+      } else {
+        // Invoices/Quotes — use DocumentGenerator
+        const docData = buildDocData();
+        if (!docData) throw new Error('Could not build document data');
+        pdfBase64 = await generateDocumentBase64(docData, userProfile.company_id);
+      }
+
+      const formLabel = payload
+        ? (formLabelMap[payload.kind] || doc.type)
+        : (formLabelMap[doc.type] || doc.type);
+
       await sendCp12CertificateEmail({
         to: recipients,
-        certRef: doc.reference || cp12P?.pdfData.certRef || 'REF',
+        certRef: doc.reference || cp12P?.pdfData.certRef || `#${String(doc.number).padStart(4, '0')}`,
         propertyAddress: cp12P?.pdfData.propertyAddress || doc.customer_snapshot?.address || '',
-        inspectionDate: cp12P?.pdfData.inspectionDate || '',
-        nextDueDate: cp12P?.pdfData.nextDueDate || '',
+        inspectionDate: cp12P?.pdfData.inspectionDate || formatDisplayDate(doc.date),
+        nextDueDate: cp12P?.pdfData.nextDueDate || (doc.expiry_date ? formatDisplayDate(doc.expiry_date) : ''),
         landlordName: cp12P?.pdfData.landlordName || doc.customer_snapshot?.name || '',
         tenantName: cp12P?.pdfData.tenantName || '',
         pdfBase64,
         subjectOverride: emailSubject,
-        formLabel: formLabelMap[payload.kind] || formLabelMap[doc.type] || doc.type,
+        formLabel,
       });
       setShowEmailModal(false);
       Alert.alert('Email Sent', `Document emailed to ${recipients.join(', ')}.`);
@@ -653,7 +669,7 @@ export default function DocumentDetailScreen() {
               {doc.items?.map((item: any, idx: number) => (
                 <View key={idx} style={[styles.itemRow, idx > 0 && {borderTopWidth: 1, borderTopColor: UI.surface.elevated, paddingTop: 10}]}>
                   <View style={{flex: 1}}>
-                    <Text style={[styles.itemDesc, isDark && {color: theme.text.title}]}>{item.description || 'Item'}</Text>
+                    <Text style={[styles.itemDesc, isDark && {color: theme.text.title}]}>{stripHtml(item.description) || 'Item'}</Text>
                     <Text style={[styles.itemMeta, isDark && {color: theme.text.muted}]}>{item.quantity} x £{item.unitPrice?.toFixed(2)}</Text>
                   </View>
                   <Text style={[styles.itemTotal, isDark && {color: theme.text.title}]}>£{(item.quantity * item.unitPrice).toFixed(2)}</Text>
@@ -747,6 +763,21 @@ export default function DocumentDetailScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
+              onPress={openSendEmailModal}
+              disabled={isBusy}
+              activeOpacity={0.8}
+            >
+              {sendingEmail ? (
+                <ActivityIndicator color={UI.brand.primary} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="mail-outline" size={18} color={UI.brand.primary} />
+                  <Text style={styles.duplicateActionText}>Send Email</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
               onPress={() => {
                 const route = isInvoice ? '/(app)/invoice' : '/(app)/quote';
                 router.push({pathname: route as any, params: {editId: doc.id}});
@@ -782,6 +813,32 @@ export default function DocumentDetailScreen() {
               <>
                 <Ionicons name="copy-outline" size={18} color={UI.brand.primary} />
                 <Text style={styles.duplicateActionText}>Duplicate for This Year</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
+
+        {isSR ? (
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(srPayload)} disabled={isBusy}>
+            {duplicating ? (
+              <ActivityIndicator color={UI.brand.primary} size="small" />
+            ) : (
+              <>
+                <Ionicons name="create-outline" size={18} color={UI.brand.primary} />
+                <Text style={styles.duplicateActionText}>Edit Service Record</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
+
+        {isSR ? (
+          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(srPayload)} disabled={isBusy}>
+            {duplicating ? (
+              <ActivityIndicator color={UI.brand.primary} size="small" />
+            ) : (
+              <>
+                <Ionicons name="copy-outline" size={18} color={UI.brand.primary} />
+                <Text style={styles.duplicateActionText}>Duplicate Service Record</Text>
               </>
             )}
           </TouchableOpacity>
@@ -928,7 +985,7 @@ export default function DocumentDetailScreen() {
                 style={[styles.modalInput, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}, {marginBottom: 16}]}
                 value={emailSubject}
                 onChangeText={setEmailSubject}
-                placeholder="Gas Safety Certificate"
+                placeholder="Email subject line"
                 placeholderTextColor={isDark ? theme.text.placeholder : UI.text.muted}
                 autoCapitalize="sentences"
               />

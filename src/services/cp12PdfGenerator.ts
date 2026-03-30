@@ -99,10 +99,10 @@ function buildHtml(
     propertyCity = propertyAddressParts[propertyAddressParts.length - 2] || '';
     propertyPostcode = propertyAddressParts[propertyAddressParts.length - 1] || '';
   } else if (propertyAddressParts.length === 3) {
-    propertyAddressLine2 = propertyAddressParts[1] || '';
+    propertyCity = propertyAddressParts[1] || '';
     propertyPostcode = propertyAddressParts[2] || '';
   } else if (propertyAddressParts.length === 2) {
-    propertyAddressLine2 = propertyAddressParts[1] || '';
+    propertyPostcode = propertyAddressParts[1] || '';
   }
 
   // tickH and checkInH are imported from shared
@@ -448,8 +448,10 @@ export async function generateCP12PdfFromPayload(
   payload: CP12LockedPayload,
   mode: 'share' | 'save' | 'view' = 'share',
   companyId?: string,
+  certRef?: string,
 ): Promise<void> {
-  return generatePdfFromPayload(payload, buildHtml, cp12Title, mode, companyId);
+  const fileName = certRef ? `Gas-Safety-Record-${certRef}.pdf` : 'Gas-Safety-Record.pdf';
+  return generatePdfFromPayload(payload, buildHtml, cp12Title, mode, companyId, fileName);
 }
 
 export async function generateCP12PdfBase64FromPayload(

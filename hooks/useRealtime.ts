@@ -14,6 +14,7 @@ export function useRealtimeJobs(
 ) {
   const callbackRef = useRef(onUpdate);
   callbackRef.current = onUpdate;
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -29,12 +30,16 @@ export function useRealtimeJobs(
           filter: `company_id=eq.${companyId}`,
         },
         (_payload) => {
-          callbackRef.current();
+          if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = setTimeout(() => {
+            callbackRef.current();
+          }, 500);
         }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [companyId]);
@@ -53,6 +58,7 @@ export function useRealtimeJobActivity(
 ) {
   const callbackRef = useRef(onUpdate);
   callbackRef.current = onUpdate;
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!jobId) return;
@@ -68,12 +74,16 @@ export function useRealtimeJobActivity(
           filter: `job_id=eq.${jobId}`,
         },
         (_payload) => {
-          callbackRef.current();
+          if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = setTimeout(() => {
+            callbackRef.current();
+          }, 500);
         }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [jobId]);
@@ -92,6 +102,7 @@ export function useRealtimeTable(
 ) {
   const callbackRef = useRef(onUpdate);
   callbackRef.current = onUpdate;
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!filter) return;
@@ -107,12 +118,16 @@ export function useRealtimeTable(
           filter,
         },
         (_payload) => {
-          callbackRef.current();
+          if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = setTimeout(() => {
+            callbackRef.current();
+          }, 500);
         }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [table, filter]);

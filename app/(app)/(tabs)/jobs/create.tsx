@@ -33,6 +33,7 @@ import { supabase } from '../../../../src/config/supabase';
 import { useAuth } from '../../../../src/context/AuthContext';
 import { useAppTheme } from '../../../../src/context/ThemeContext';
 import { scheduleJobReminders } from '../../../../src/services/notifications';
+import { resolveAssignedWorkerIds } from '../../../../src/utils/jobAssignments';
 
 const DURATIONS = ['30 mins', '1 hour', '2 hours', '3 hours', '4 hours', 'Full day', 'Multi-day'];
 
@@ -40,6 +41,7 @@ export default function CreateJobScreen() {
   const { userProfile, user } = useAuth();
   const { mode, prefillDate } = useLocalSearchParams();
   const isQuoteMode = mode === 'quote';
+  const isAdmin = userProfile?.role === 'admin';
 
   // ─── Customer State (shared component) ────────────────────────
   const [customerForm, setCustomerForm] = useState<CustomerFormData>(EMPTY_CUSTOMER_FORM);
@@ -76,6 +78,12 @@ export default function CreateJobScreen() {
     if (!userProfile?.company_id) return;
     checkForWorkers();
   }, [userProfile]);
+
+  useEffect(() => {
+    if (!isAdmin && user?.id) {
+      setAssignedTo([user.id]);
+    }
+  }, [isAdmin, user?.id]);
 
   const checkForWorkers = async () => {
     const { count } = await supabase
@@ -167,7 +175,11 @@ export default function CreateJobScreen() {
         finalSnapshot = buildCustomerSnapshot(customerForm);
       }
 
-      const finalAssignedTo = assignedTo.length > 0 ? assignedTo : user?.id ? [user.id] : [];
+      const finalAssignedTo = resolveAssignedWorkerIds({
+        assignedTo,
+        currentUserId: user?.id,
+        isAdmin: Boolean(isAdmin),
+      });
 
       const { data: newJob, error: jobError } = await supabase
         .from('jobs')
@@ -319,19 +331,32 @@ export default function CreateJobScreen() {
         <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Schedule</Text>
         <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderWidth: 1, borderColor: theme.glass.border }]}>
           {isQuickEntry ? (
-            <TouchableOpacity
-              style={styles.dateDisplay}
-              onPress={() => { setPickerMode('date'); setShowDatePicker(true); }}
-            >
-              <View style={styles.row}>
-                <Ionicons name="calendar-outline" size={20} color={theme.brand.primary} style={{ marginRight: 10 }} />
-                <Text style={[styles.dateText, { textAlign: 'left' }, isDark && { color: theme.text.title }]}>
-                  {scheduledDate.toLocaleString('en-GB', {
-                    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                  })}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            <View>
+              <TouchableOpacity
+                style={styles.dateDisplay}
+                onPress={() => { setPickerMode('date'); setShowDatePicker(true); }}
+              >
+                <View style={styles.row}>
+                  <Ionicons name="calendar-outline" size={20} color={theme.brand.primary} style={{ marginRight: 10 }} />
+                  <Text style={[styles.dateText, { textAlign: 'left' }, isDark && { color: theme.text.title }]}>
+                    {scheduledDate.toLocaleDateString('en-GB', {
+                      weekday: 'short', day: 'numeric', month: 'short',
+                    })}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dateDisplay, { marginTop: 8 }]}
+                onPress={() => { setPickerMode('time'); setShowDatePicker(true); }}
+              >
+                <View style={styles.row}>
+                  <Ionicons name="time-outline" size={20} color={theme.brand.primary} style={{ marginRight: 10 }} />
+                  <Text style={[styles.dateText, { textAlign: 'left' }, isDark && { color: theme.text.title }]}>
+                    {scheduledDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           ) : (
             <>
               <View style={styles.row}>
@@ -386,13 +411,20 @@ export default function CreateJobScreen() {
         </Modal>
 
         {/* Assign To */}
-        {hasWorkers && !isQuoteMode && (
+        {hasWorkers && !isQuoteMode && isAdmin && (
           <>
             <Text style={[styles.sectionTitle, isDark && { color: theme.text.muted }]}>Assign To (Optional)</Text>
             <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderWidth: 1, borderColor: theme.glass.border }]}>
               <WorkerPicker companyId={userProfile?.company_id || ''} selectedWorkerIds={assignedTo} onSelect={setAssignedTo} />
             </View>
           </>
+        )}
+
+        {!isQuoteMode && !isAdmin && (
+          <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderWidth: 1, borderColor: theme.glass.border }]}> 
+            <Text style={[styles.label, isDark && { color: theme.text.muted }]}>Assigned To</Text>
+            <Text style={[styles.workerAssignmentText, isDark && { color: theme.text.title }]}>This job will be assigned to you.</Text>
+          </View>
         )}
 
         <TouchableOpacity style={[styles.submitBtn, { backgroundColor: theme.brand.primary }, loading && { opacity: 0.7 }]} onPress={handleCreateJob} disabled={loading}>
@@ -430,4 +462,5 @@ const styles = StyleSheet.create({
   pickerModalContent: { backgroundColor: '#ffffff', borderRadius: 20, padding: 20, alignItems: 'center' },
   confirmBtn: { marginTop: 20, backgroundColor: Colors.primary, padding: 12, borderRadius: 10, width: '100%', alignItems: 'center' },
   confirmBtnText: { color: UI.text.white, fontWeight: '700' },
+  workerAssignmentText: { fontSize: 15, fontWeight: '600', color: UI.text.title },
 });

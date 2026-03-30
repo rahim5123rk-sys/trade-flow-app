@@ -61,6 +61,14 @@ serve(async (req) => {
   try {
     const { to, subject, html, pdfBase64, attachmentName, fromName, bcc } = await req.json()
 
+    // Validate attachment size (5MB limit)
+    if (pdfBase64 && typeof pdfBase64 === 'string' && pdfBase64.length > 5_000_000) {
+      return new Response(
+        JSON.stringify({ error: 'Attachment too large (max 5MB)' }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Validate and sanitize recipients
     const recipients = (Array.isArray(to) ? to : typeof to === 'string' ? [to] : [])
       .map((e: unknown) => typeof e === 'string' ? e.trim().toLowerCase() : '')

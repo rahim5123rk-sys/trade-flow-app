@@ -25,11 +25,6 @@ function WarningNoticeAutoSave({children}: {children: React.ReactNode}) {
   const restored = useRef(false);
 
   const saveDraft = useCallback(async () => {
-    if (!customerForm.customerName.trim()) {
-      await AsyncStorage.removeItem(WARNING_NOTICE_DRAFT_KEY);
-      return;
-    }
-
     await AsyncStorage.setItem(WARNING_NOTICE_DRAFT_KEY, JSON.stringify({
       propertyAddress,
       appliances,

@@ -33,6 +33,7 @@ import {
 } from '../../components/CustomerSelector';
 import { upsertSiteAddress } from '../../components/forms';
 import ProPaywallModal from '../../components/ProPaywallModal';
+import RichTextLineInput from '../../components/RichTextLineInput';
 import { UI } from '../../constants/theme';
 import { supabase } from '../../src/config/supabase';
 import { useAuth } from '../../src/context/AuthContext';
@@ -41,8 +42,10 @@ import { useAppTheme } from '../../src/context/ThemeContext';
 import {
     DocumentData,
     generateDocument,
+    generateDocumentBase64,
     LineItem,
 } from '../../src/services/DocumentGenerator';
+import { sanitizeRecipients, sendCp12CertificateEmail } from '../../src/services/email';
 import { getNextQuoteReference } from '../../src/services/formDocumentService';
 
 // ─── Design tokens ──────────────────────────────────────────────────
@@ -64,6 +67,7 @@ export default function CreateQuoteScreen() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [emailing, setEmailing] = useState(false);
 
   // ─── Customer (shared component) ──────────────────────────────
   const [customerForm, setCustomerForm] =
@@ -80,6 +84,7 @@ export default function CreateQuoteScreen() {
   const [discountPercent, setDiscountPercent] = useState('0');
   const [notes, setNotes] = useState('');
   const [terms, setTerms] = useState('Valid for 30 days');
+  const [focusedDescIdx, setFocusedDescIdx] = useState<number | null>(null);
 
   // ─── Job link (if coming from a job) ──────────────────────────
   const [jobId, setJobId] = useState<string | null>(null);
@@ -405,6 +410,81 @@ export default function CreateQuoteScreen() {
     }
   };
 
+  // ─── Save & Send Email ──────────────────────────────────────
+  const handleSaveAndEmail = async () => {
+    if (!userProfile?.company_id) return;
+    if (!validate()) return;
+
+    const email = customerForm.email?.trim();
+    if (!email) {
+      Alert.alert('No Email', 'Add a customer email address to send a quote.');
+      return;
+    }
+
+    const recipients = sanitizeRecipients([email]);
+    if (!recipients.length) {
+      Alert.alert('Invalid Email', 'The customer email address is not valid.');
+      return;
+    }
+
+    setEmailing(true);
+    try {
+      // Save first
+      await saveDocument('Sent');
+
+      // Build PDF data
+      const { jobAddr, today } = buildDocData();
+      const docData: DocumentData = {
+        type: 'quote',
+        number: parseInt(quoteNumber.replace(/\D/g, '')) || 1,
+        reference: quoteNumber || undefined,
+        date: today,
+        expiryDate: expiryDate || today,
+        status: 'Sent',
+        customerName: customerForm.customerName,
+        customerCompany: customerForm.customerCompany || undefined,
+        customerAddress1: customerForm.addressLine1,
+        customerAddress2: customerForm.addressLine2 || undefined,
+        customerCity: customerForm.city,
+        customerPostcode: customerForm.postCode,
+        customerEmail: customerForm.email || undefined,
+        customerPhone: customerForm.phone || undefined,
+        jobAddress1: jobAddr.jobAddress1,
+        jobAddress2: jobAddr.jobAddress2 || undefined,
+        jobCity: jobAddr.jobCity,
+        jobPostcode: jobAddr.jobPostcode,
+        items,
+        discountPercent: parseFloat(discountPercent) || 0,
+        partialPayment: 0,
+        notes: notes || undefined,
+      };
+
+      const pdfBase64 = await generateDocumentBase64(docData, userProfile.company_id);
+
+      await sendCp12CertificateEmail({
+        to: recipients,
+        certRef: quoteNumber,
+        propertyAddress: `${jobAddr.jobAddress1}${jobAddr.jobCity ? `, ${jobAddr.jobCity}` : ''}${jobAddr.jobPostcode ? ` ${jobAddr.jobPostcode}` : ''}`,
+        inspectionDate: today,
+        nextDueDate: expiryDate || '',
+        landlordName: customerForm.customerName,
+        tenantName: '',
+        pdfBase64,
+        formLabel: 'Quote',
+      });
+
+      Alert.alert('Sent', `Quote emailed to ${recipients.join(', ')}.`, [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (e: any) {
+      if (e.message && !e.message.includes('save')) {
+        Alert.alert('Email Failed', e.message || 'Quote saved but email could not be sent.');
+      }
+    } finally {
+      setEmailing(false);
+    }
+  };
+
   // ──────────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────────
@@ -578,12 +658,15 @@ export default function CreateQuoteScreen() {
                 )}
               </View>
 
-              <TextInput
-                style={[st.input, { marginTop: 8 }]}
+              <RichTextLineInput
                 value={item.description}
                 onChangeText={(v) => updateItem(index, 'description', v)}
                 placeholder="Description"
-                placeholderTextColor="#94a3b8"
+                isFocused={focusedDescIdx === index}
+                onFocus={() => setFocusedDescIdx(index)}
+                onBlur={() => { if (focusedDescIdx === index) setFocusedDescIdx(null); }}
+                isDark={isDark}
+                theme={theme}
               />
 
               <View style={st.row}>
@@ -756,8 +839,37 @@ export default function CreateQuoteScreen() {
 
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={handleSaveAndEmail}
+              disabled={emailing || generating || saving}
+              style={st.generateWrap}
+            >
+              <LinearGradient
+                colors={[UI.brand.primary, '#6366f1']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={st.generateBtn}
+              >
+                {emailing ? (
+                  <ActivityIndicator color={UI.text.white} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color={UI.text.white}
+                    />
+                    <Text style={st.generateBtnText}>
+                      Save & Send Email
+                    </Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
               onPress={handleSaveAndGenerate}
-              disabled={generating || saving}
+              disabled={generating || saving || emailing}
               style={st.generateWrap}
             >
               <LinearGradient
@@ -782,6 +894,17 @@ export default function CreateQuoteScreen() {
                 )}
               </LinearGradient>
             </TouchableOpacity>
+
+            {editingDocId && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push(`/(app)/(tabs)/documents/${editingDocId}`)}
+                style={[st.draftBtn, { borderColor: UI.brand.primary, borderWidth: 1.5 }]}
+              >
+                <Ionicons name="eye-outline" size={18} color={UI.brand.primary} />
+                <Text style={[st.draftBtnText, { color: UI.brand.primary }]}>View Quote</Text>
+              </TouchableOpacity>
+            )}
           </Animated.View>
         </ScrollView>
       </LinearGradient>

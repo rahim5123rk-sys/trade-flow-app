@@ -6,11 +6,15 @@ import * as SecureStore from 'expo-secure-store';
 import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
 import {supabase} from '../config/supabase';
 import type {UserProfile, UserRole} from '../types';
+import {TimeoutError, withAbortTimeout} from '../utils/withTimeout';
 
 const PENDING_REGISTRATION_KEY = 'gaspilot_pending_registration';
 const LEGACY_PENDING_REGISTRATION_KEY = 'pilotlight_pending_registration';
 const LAST_HANDLED_AUTH_URL_KEY = '@gaspilot_last_handled_auth_url';
 const LEGACY_LAST_HANDLED_AUTH_URL_KEY = '@pilotlight_last_handled_auth_url';
+const PROFILE_FETCH_TIMEOUT_MS = 7000;
+const PROFILE_FETCH_MAX_ATTEMPTS = 2;
+const PROFILE_FETCH_RETRY_DELAY_MS = 1200;
 
 /** Simple hash to avoid storing raw auth URLs (which contain tokens) */
 function hashString(str: string): string {
@@ -19,6 +23,15 @@ function hashString(str: string): string {
     hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
   }
   return hash.toString(36);
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isRetryableProfileError(error: unknown): boolean {
+  if (error instanceof TimeoutError) return true;
+  if (!(error instanceof Error)) return false;
+
+  return /network request failed|fetch failed|timed out/i.test(error.message);
 }
 
 interface AuthState {
@@ -73,41 +86,66 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': supabaseAnonKey,
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      }
-    );
+    let lastError: unknown;
 
-    if (!response.ok) {
-      // THROW instead of returning null. We don't want to sign the user out for a 500 or network drop.
-      throw new Error(`Profile fetch failed: ${response.status}`);
+    for (let attempt = 1; attempt <= PROFILE_FETCH_MAX_ATTEMPTS; attempt++) {
+      try {
+        const response = await withAbortTimeout(
+          ({signal}) =>
+            fetch(
+              `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`,
+              {
+                method: 'GET',
+                headers: {
+                  'apikey': supabaseAnonKey,
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/json',
+                },
+                signal,
+              }
+            ),
+          {
+            timeoutMs: PROFILE_FETCH_TIMEOUT_MS,
+            label: 'Profile fetch',
+          }
+        );
+
+        if (!response.ok) {
+          // THROW instead of returning null. We don't want to sign the user out for a 500 or network drop.
+          throw new Error(`Profile fetch failed: ${response.status}`);
+        }
+
+        const rows = await response.json();
+        if (rows && rows.length > 0) {
+          console.log('Profile loaded successfully');
+          setUserProfile(rows[0]);
+          // Fetch company reminder days
+          if (rows[0].company_id) {
+            const { data: companyData } = await supabase
+              .from('companies')
+              .select('reminder_days_before')
+              .eq('id', rows[0].company_id)
+              .single();
+            setReminderDaysBefore(companyData?.reminder_days_before ?? 30);
+          }
+          return rows[0];
+        }
+
+        console.log('No profile found for user in the database');
+        return null; // This safely indicates the profile TRULY does not exist
+      } catch (error) {
+        lastError = error;
+
+        if (!isRetryableProfileError(error) || attempt === PROFILE_FETCH_MAX_ATTEMPTS) {
+          throw error;
+        }
+
+        console.warn(`[Auth] Profile fetch attempt ${attempt} failed, retrying...`, error);
+        await sleep(PROFILE_FETCH_RETRY_DELAY_MS);
+      }
     }
 
-    const rows = await response.json();
-    if (rows && rows.length > 0) {
-      console.log('Profile loaded successfully');
-      setUserProfile(rows[0]);
-      // Fetch company reminder days
-      if (rows[0].company_id) {
-        const { data: companyData } = await supabase
-          .from('companies')
-          .select('reminder_days_before')
-          .eq('id', rows[0].company_id)
-          .single();
-        setReminderDaysBefore(companyData?.reminder_days_before ?? 30);
-      }
-      return rows[0];
-    }
-
-    console.log('No profile found for user in the database');
-    return null; // This safely indicates the profile TRULY does not exist
+    throw lastError instanceof Error ? lastError : new Error('Profile fetch failed');
   };
 
   /**
@@ -175,19 +213,17 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         const companyId = rpcData.company_id;
 
         if (companyId && !pendingData.isApprentice && pendingData.gasSafeRegisterNumber && pendingData.acceptedGasSafeTerms) {
-          await supabase
-            .from('companies')
-            .update({
-              settings: {
-                userDetailsById: {
-                  [userId]: {
-                    gasSafeRegisterNumber: pendingData.gasSafeRegisterNumber.trim(),
-                    acceptedGasSafeTerms: true,
-                  },
+          await supabase.rpc('merge_company_settings', {
+            p_company_id: companyId,
+            p_settings: {
+              userDetailsById: {
+                [userId]: {
+                  gasSafeRegisterNumber: pendingData.gasSafeRegisterNumber.trim(),
+                  acceptedGasSafeTerms: true,
                 },
               },
-            })
-            .eq('id', companyId);
+            },
+          });
 
           await supabase
             .from('profiles')
@@ -317,11 +353,29 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
       handleAuthUrl(url);
     });
 
+    // Safety timeout — if auth takes too long, stop showing the loading screen
+    const safetyTimer = setTimeout(() => {
+      setIsLoading((prev) => {
+        if (prev) console.warn('[Auth] Safety timeout — forcing isLoading to false');
+        return false;
+      });
+    }, 8000);
+
     const initAuth = async () => {
       try {
         if (isRegistering.current) return;
 
-        const {data: {session: currentSession}} = await supabase.auth.getSession();
+        const sessionResult: any = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 6000)),
+        ]);
+
+        if (!sessionResult) {
+          console.warn('[Auth] getSession timed out on init');
+          return;
+        }
+
+        const {data: {session: currentSession}} = sessionResult;
 
         if (isRegistering.current) return;
 
@@ -411,6 +465,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     });
 
     return () => {
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
       urlSub.remove();
     };
@@ -421,6 +476,8 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
       await supabase.auth.signOut();
       setUserProfile(null);
       setSession(null);
+      // Clear cached subscription state so next login gets a fresh check
+      await AsyncStorage.removeItem('@gaspilot_is_pro_cached').catch(() => {});
     } catch (e) {
       console.error('Sign out error:', e);
     }

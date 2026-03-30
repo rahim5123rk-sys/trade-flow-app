@@ -204,10 +204,6 @@ export default function CP12DetailsScreen() {
   }, [hydrateFromDuplicate, hydrateForEdit]);
 
   const handleNext = () => {
-    if (!landlordForm.customerName.trim()) {
-      Alert.alert('Missing Info', 'Please enter the landlord name.');
-      return;
-    }
     if (!tenantAddressLine1.trim() || !tenantCity.trim() || !tenantPostCode.trim()) {
       Alert.alert('Missing Info', 'Address Line 1, City and Postcode are required.');
       return;

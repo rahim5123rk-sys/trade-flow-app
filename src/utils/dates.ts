@@ -109,10 +109,22 @@ export function isFuture(timestamp: number): boolean {
 }
 
 /**
+ * Format a Date-like value into a local YYYY-MM-DD key.
+ */
+export function formatLocalDateKey(value: Date | number | string): string {
+  const date = value instanceof Date ? new Date(value) : new Date(value);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+/**
  * Convert a timestamp to YYYY-MM-DD string (for calendar components).
  */
 export function toDateString(timestamp: number): string {
-  return toDate(timestamp).toISOString().split('T')[0];
+  return formatLocalDateKey(toDate(timestamp));
 }
 
 /**

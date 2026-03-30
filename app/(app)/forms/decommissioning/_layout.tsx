@@ -25,11 +25,6 @@ function DecommissioningAutoSave({children}: {children: React.ReactNode}) {
   const restored = useRef(false);
 
   const saveDraft = useCallback(async () => {
-    if (!customerForm.customerName.trim()) {
-      await AsyncStorage.removeItem(DECOMMISSIONING_DRAFT_KEY);
-      return;
-    }
-
     await AsyncStorage.setItem(DECOMMISSIONING_DRAFT_KEY, JSON.stringify({
       propertyAddress,
       appliances,

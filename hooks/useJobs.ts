@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '../src/config/supabase';
 import { useAuth } from '../src/context/AuthContext';
@@ -15,75 +15,128 @@ interface UseJobsOptions {
   autoFetch?: boolean;
 }
 
+const PAGE_SIZE = 50;
+
 export function useJobs(options: UseJobsOptions = {}) {
   const { userProfile, user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(userProfile?.company_id));
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const cursorRef = useRef<number | null>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRender = useRef(true);
 
   const { statusFilter, assignedTo, autoFetch = true } = options;
 
-  const fetchJobs = useCallback(async () => {
+  const buildQuery = useCallback((searchTerm?: string) => {
+    let query = supabase
+      .from('jobs')
+      .select('id, title, reference, status, scheduled_date, customer_snapshot, assigned_to, company_id')
+      .eq('company_id', userProfile!.company_id!)
+      .order('scheduled_date', { ascending: false });
+
+    if (statusFilter && statusFilter.length > 0) {
+      query = query.in('status', statusFilter);
+    }
+
+    if (assignedTo) {
+      query = query.contains('assigned_to', [assignedTo]);
+    }
+
+    if (searchTerm && searchTerm.trim()) {
+      const term = searchTerm.trim();
+      query = query.or(`title.ilike.%${term}%,reference.ilike.%${term}%`);
+    }
+
+    return query;
+  }, [userProfile?.company_id, assignedTo, statusFilter?.join(',')]);
+
+  const fetchPage = useCallback(async (cursor: number | null, searchTerm?: string, append = false) => {
     if (!userProfile?.company_id) return;
 
     try {
-      let query = supabase
-        .from('jobs')
-        .select('*')
-        .eq('company_id', userProfile.company_id)
-        .order('scheduled_date', { ascending: false });
+      let query = buildQuery(searchTerm).limit(PAGE_SIZE);
 
-      if (statusFilter && statusFilter.length > 0) {
-        query = query.in('status', statusFilter);
-      }
-
-      if (assignedTo) {
-        query = query.contains('assigned_to', [assignedTo]);
+      if (cursor) {
+        query = query.lt('scheduled_date', cursor);
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      if (data) setJobs(data as Job[]);
+
+      const rows = (data || []) as Job[];
+      setJobs(prev => append ? [...prev, ...rows] : rows);
+      setHasMore(rows.length === PAGE_SIZE);
+
+      if (rows.length > 0) {
+        cursorRef.current = rows[rows.length - 1].scheduled_date;
+      }
     } catch (e) {
       console.error('useJobs fetch error:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
-  }, [userProfile?.company_id, assignedTo, statusFilter?.join(',')]);
+  }, [userProfile?.company_id, buildQuery]);
 
-  useEffect(() => {
-    if (autoFetch) fetchJobs();
-  }, [fetchJobs, autoFetch]);
-
-  const onRefresh = useCallback(() => {
+  const refresh = useCallback(() => {
     setRefreshing(true);
-    fetchJobs();
-  }, [fetchJobs]);
+    cursorRef.current = null;
+    fetchPage(null, search.trim() || undefined);
+  }, [fetchPage, search]);
 
-  // Client-side search filter
-  const filteredJobs = useMemo(() => {
-    if (!search.trim()) return jobs;
-    const q = search.toLowerCase();
-    return jobs.filter(
-      (j) =>
-        j.reference?.toLowerCase().includes(q) ||
-        j.title?.toLowerCase().includes(q) ||
-        j.customer_snapshot?.name?.toLowerCase().includes(q) ||
-        j.customer_snapshot?.address?.toLowerCase().includes(q)
-    );
-  }, [jobs, search]);
+  const loadMore = useCallback(() => {
+    if (!hasMore || loadingMore || loading) return;
+    setLoadingMore(true);
+    fetchPage(cursorRef.current, search.trim() || undefined, true);
+  }, [hasMore, loadingMore, loading, fetchPage, search]);
+
+  // Initial fetch
+  useEffect(() => {
+    if (autoFetch && userProfile?.company_id) {
+      setLoading(true);
+      cursorRef.current = null;
+      fetchPage(null);
+    }
+  }, [autoFetch, userProfile?.company_id]);
+
+  // Debounced server-side search
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    searchTimerRef.current = setTimeout(() => {
+      if (!userProfile?.company_id) return;
+      setLoading(true);
+      cursorRef.current = null;
+      fetchPage(null, search.trim() || undefined);
+    }, 300);
+
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [search]);
 
   return {
     jobs,
-    filteredJobs,
+    filteredJobs: jobs, // backward compat — consumers already use filteredJobs
     loading,
     refreshing,
+    loadingMore,
+    hasMore,
     search,
     setSearch,
-    fetchJobs,
-    onRefresh,
+    fetchJobs: refresh,
+    onRefresh: refresh,
+    loadMore,
   };
 }
 
@@ -113,60 +166,21 @@ export function useCreateJob() {
     setLoading(true);
 
     try {
-      // 1. Get next reference number
-      const { data: companyData, error: companyErr } = await supabase
-        .from('companies')
-        .select('settings')
-        .eq('id', userProfile.company_id)
-        .single();
-
-      if (companyErr) throw companyErr;
-
-      const currentCount = companyData?.settings?.nextJobNumber || 1;
-      const reference = `TF-${new Date().getFullYear()}-${String(currentCount).padStart(4, '0')}`;
-
-      // 2. Insert job
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .insert({
-          company_id: userProfile.company_id,
-          reference,
-          title: params.title.trim(),
-          customer_id: params.customerId,
-          customer_snapshot: params.customerSnapshot,
-          assigned_to: params.assignedTo,
-          status: 'pending',
-          scheduled_date: params.scheduledDate.getTime(),
-          estimated_duration: params.estimatedDuration || null,
-          price: params.price || null,
-          notes: params.notes?.trim() || null,
-        })
-        .select()
-        .single();
-
-      if (jobError) throw jobError;
-
-      // 3. Increment counter
-      await supabase
-        .from('companies')
-        .update({
-          settings: { ...companyData?.settings, nextJobNumber: currentCount + 1 },
-        })
-        .eq('id', userProfile.company_id);
-
-      // 4. Log activity
-      await supabase.from('job_activity').insert({
-        job_id: job.id,
-        company_id: userProfile.company_id,
-        actor_id: userProfile.id,
-        action: 'created',
-        details: {
-          title: params.title,
-          assigned_to: params.assignedTo,
-        },
+      const { data, error } = await supabase.rpc('create_job_with_activity', {
+        p_company_id: userProfile.company_id,
+        p_title: params.title.trim(),
+        p_customer_id: params.customerId,
+        p_customer_snapshot: params.customerSnapshot,
+        p_assigned_to: params.assignedTo,
+        p_scheduled_date: params.scheduledDate.getTime(),
+        p_actor_id: userProfile.id,
+        p_estimated_duration: params.estimatedDuration || null,
+        p_price: params.price || null,
+        p_notes: params.notes?.trim() || null,
       });
 
-      return job as Job;
+      if (error) throw error;
+      return data as Job;
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create job.');
       return null;
@@ -192,28 +206,15 @@ export function useUpdateJobStatus() {
 
     setUpdating(true);
     try {
-      const updateData: Record<string, any> = { status: newStatus };
-
-      if (newStatus === 'paid') {
-        updateData.payment_status = 'paid';
-      }
-
-      const { error } = await supabase
-        .from('jobs')
-        .update(updateData)
-        .eq('id', jobId);
-
-      if (error) throw error;
-
-      // Log activity
-      await supabase.from('job_activity').insert({
-        job_id: jobId,
-        company_id: userProfile.company_id,
-        actor_id: userProfile.id,
-        action: 'status_change',
-        details: { new_status: newStatus },
+      const { error } = await supabase.rpc('update_job_status_with_activity', {
+        p_job_id: jobId,
+        p_company_id: userProfile.company_id,
+        p_actor_id: userProfile.id,
+        p_new_status: newStatus,
+        p_payment_status: newStatus === 'paid' ? 'paid' : null,
       });
 
+      if (error) throw error;
       return true;
     } catch (e) {
       Alert.alert('Error', 'Could not update status.');

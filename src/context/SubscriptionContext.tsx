@@ -6,6 +6,7 @@ import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
 
 const DEV_OVERRIDE_KEY = '@gaspilot_dev_starter_override';
+const PRO_CACHE_KEY = '@gaspilot_is_pro_cached';
 
 type SubscriptionContextType = {
   isPro: boolean;
@@ -43,6 +44,19 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [currentOffering, setCurrentOffering] = useState<PurchasesOffering | null>(null);
 
   const isAdmin = userProfile?.role === 'admin';
+
+  // Restore cached Pro status immediately on mount (avoids flash of starter on cold start)
+  useEffect(() => {
+    AsyncStorage.getItem(PRO_CACHE_KEY).then((cached) => {
+      if (cached === 'true') setIsPro(true);
+    }).catch(() => {});
+  }, []);
+
+  // Persist Pro status to cache whenever it changes
+  const updateIsPro = useCallback((value: boolean) => {
+    setIsPro(value);
+    AsyncStorage.setItem(PRO_CACHE_KEY, value ? 'true' : 'false').catch(() => {});
+  }, []);
 
   // Sync admin's subscription to Supabase (admin + all company members)
   const syncToSupabase = useCallback(
@@ -82,16 +96,30 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    // Workers (non-admin) or web: check Supabase directly instead of RevenueCat
-    if (!isAdmin || Platform.OS === 'web') {
+    // Workers always have full access — they can only exist when admin has paid for a seat
+    if (!isAdmin) {
+      updateIsPro(true);
+      setIsLoading(false);
+      return;
+    }
+
+    // Web: check Supabase directly instead of RevenueCat
+    if (Platform.OS === 'web') {
       const checkProfile = async () => {
-        const { data } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', session.user.id)
-          .single();
-        setIsPro(data?.subscription_tier === 'pro');
-        setIsLoading(false);
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', session.user.id)
+            .single();
+          if (!error && data) {
+            updateIsPro(data.subscription_tier === 'pro');
+          }
+        } catch (e) {
+          console.warn('[Subscription] Profile check failed, keeping cached state:', e);
+        } finally {
+          setIsLoading(false);
+        }
       };
       checkProfile();
       return;
@@ -115,7 +143,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         const override = await AsyncStorage.getItem(DEV_OVERRIDE_KEY);
         if (override === 'true') return;
       }
-      setIsPro(typeof info.entitlements.active['pro'] !== 'undefined');
+      updateIsPro(typeof info.entitlements.active['pro'] !== 'undefined');
       syncToSupabase(info);
     });
 
@@ -125,7 +153,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         if (__DEV__) {
           const override = await AsyncStorage.getItem(DEV_OVERRIDE_KEY);
           if (override === 'true') {
-            setIsPro(false);
+            updateIsPro(false);
             const offerings = await Purchases.getOfferings();
             setCurrentOffering(offerings.current);
             setIsLoading(false);
@@ -137,7 +165,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           Purchases.getCustomerInfo(),
           Purchases.getOfferings(),
         ]);
-        setIsPro(typeof info.entitlements.active['pro'] !== 'undefined');
+        updateIsPro(typeof info.entitlements.active['pro'] !== 'undefined');
         setCurrentOffering(offerings.current);
         await syncToSupabase(info);
       } catch (e) {
@@ -155,9 +183,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const purchasePackage = useCallback(async (pkg: PurchasesPackage) => {
     await AsyncStorage.removeItem(DEV_OVERRIDE_KEY);
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    setIsPro(typeof customerInfo.entitlements.active['pro'] !== 'undefined');
+    updateIsPro(typeof customerInfo.entitlements.active['pro'] !== 'undefined');
     await syncToSupabase(customerInfo);
-  }, [syncToSupabase]);
+  }, [syncToSupabase, updateIsPro]);
 
   const purchaseWorkerSeat = useCallback(async () => {
     if (!currentOffering || !userProfile?.company_id) throw new Error('Not available');
@@ -168,30 +196,23 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     const { customerInfo } = await Purchases.purchasePackage(seatPkg);
     // Only increment seat limit if purchase actually went through
     if (customerInfo.entitlements.active['worker_seat'] || customerInfo.allPurchasedProductIdentifiers.includes(seatPkg.product.identifier)) {
-      const { data: company } = await supabase
-        .from('companies')
-        .select('worker_seat_limit')
-        .eq('id', userProfile.company_id)
-        .single();
-      const currentLimit = company?.worker_seat_limit ?? 0;
-      await supabase
-        .from('companies')
-        .update({ worker_seat_limit: currentLimit + 1 })
-        .eq('id', userProfile.company_id);
+      await supabase.rpc('increment_worker_seat', {
+        p_company_id: userProfile.company_id,
+      });
     }
   }, [currentOffering, userProfile?.company_id]);
 
   const devResetToStarter = useCallback(async () => {
     if (!__DEV__) return;
     await AsyncStorage.setItem(DEV_OVERRIDE_KEY, 'true');
-    setIsPro(false);
-  }, []);
+    updateIsPro(false);
+  }, [updateIsPro]);
 
   const restorePurchases = useCallback(async () => {
     const info = await Purchases.restorePurchases();
-    setIsPro(typeof info.entitlements.active['pro'] !== 'undefined');
+    updateIsPro(typeof info.entitlements.active['pro'] !== 'undefined');
     await syncToSupabase(info);
-  }, [syncToSupabase]);
+  }, [syncToSupabase, updateIsPro]);
 
   return (
     <SubscriptionContext.Provider value={{ isPro, isLoading, currentOffering, purchasePackage, purchaseWorkerSeat, restorePurchases, devResetToStarter }}>
