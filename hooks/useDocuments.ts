@@ -14,9 +14,9 @@ interface UseDocumentsOptions {
 }
 
 export function useDocuments(options: UseDocumentsOptions = {}) {
-  const { userProfile, role } = useAuth();
+  const { userProfile, role, session } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(Boolean(userProfile?.company_id));
+  const [loading, setLoading] = useState(Boolean(session && userProfile?.company_id));
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [hasMore, setHasMore] = useState(true);
@@ -105,13 +105,13 @@ export function useDocuments(options: UseDocumentsOptions = {}) {
     };
   }, [search, options.typeFilters?.join(',')]);
 
-  // Initial fetch on mount
+  // Initial fetch on mount — only when session AND profile are ready
   useEffect(() => {
-    if (!userProfile?.company_id) return;
+    if (!session || !userProfile?.company_id) return;
     setLoading(true);
     cursorRef.current = null;
     fetchPage(null, search.trim() || undefined);
-  }, [userProfile?.company_id]);
+  }, [session, userProfile?.company_id]);
 
   const removeDocument = useCallback((docId: string) => {
     setDocuments(prev => prev.filter(d => d.id !== docId));

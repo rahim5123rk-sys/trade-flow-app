@@ -15,9 +15,9 @@ interface Worker {
 // ─── Fetch Workers Hook ─────────────────────────────────────────────
 
 export function useWorkers() {
-  const { userProfile, user } = useAuth();
+  const { userProfile, user, session } = useAuth();
   const [workers, setWorkers] = useState<Worker[]>([]);
-  const [loading, setLoading] = useState(Boolean(userProfile?.company_id));
+  const [loading, setLoading] = useState(Boolean(session && userProfile?.company_id));
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchWorkers = useCallback(async () => {
@@ -52,10 +52,10 @@ export function useWorkers() {
   }, [userProfile?.company_id, user?.id]);
 
   useEffect(() => {
-    if (!userProfile?.company_id) return;
+    if (!session || !userProfile?.company_id) return;
     setLoading(true);
     fetchWorkers();
-  }, [fetchWorkers]);
+  }, [session, fetchWorkers]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

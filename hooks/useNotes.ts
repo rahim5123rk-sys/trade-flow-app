@@ -17,9 +17,9 @@ export interface Note {
 const NOTES_PAGE_SIZE = 50;
 
 export function useNotes() {
-  const {userProfile, user} = useAuth();
+  const {userProfile, user, session} = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(session && userProfile?.company_id));
   const [search, setSearch] = useState('');
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -74,14 +74,14 @@ export function useNotes() {
     fetchPage(offsetRef.current, search.trim() || undefined, true);
   }, [hasMore, loadingMore, loading, fetchPage, search]);
 
-  // Initial fetch
+  // Initial fetch — only when session AND profile are ready
   useEffect(() => {
-    if (userProfile?.company_id && user?.id) {
+    if (session && userProfile?.company_id && user?.id) {
       setLoading(true);
       offsetRef.current = 0;
       fetchPage(0);
     }
-  }, [userProfile?.company_id, user?.id]);
+  }, [session, userProfile?.company_id, user?.id]);
 
   // Debounced server-side search
   useEffect(() => {

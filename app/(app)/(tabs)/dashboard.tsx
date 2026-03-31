@@ -524,7 +524,7 @@ const NavButton = ({
 
 // --- Main Dashboard ---
 export default function DashboardScreen() {
-  const {userProfile, user} = useAuth();
+  const {userProfile, user, session} = useAuth();
   const {theme, colors, isDark} = useAppTheme();
   const {isPro} = useSubscription();
   const insets = useSafeAreaInsets();
@@ -539,7 +539,7 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (userProfile?.company_id) {
+      if (session && userProfile?.company_id) {
         fetchDashboardData();
         // Safety: if fetch hangs for 10s, stop showing spinner
         const safety = setTimeout(() => {
@@ -551,7 +551,7 @@ export default function DashboardScreen() {
         setLoading(false);
         setRefreshing(false);
       }
-    }, [userProfile])
+    }, [session, userProfile])
   );
 
   const fetchDashboardData = async () => {

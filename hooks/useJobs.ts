@@ -19,9 +19,9 @@ interface UseJobsOptions {
 const PAGE_SIZE = 50;
 
 export function useJobs(options: UseJobsOptions = {}) {
-  const { userProfile, user } = useAuth();
+  const { userProfile, user, session } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(Boolean(userProfile?.company_id));
+  const [loading, setLoading] = useState(Boolean(session && userProfile?.company_id));
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [hasMore, setHasMore] = useState(true);
@@ -98,14 +98,14 @@ export function useJobs(options: UseJobsOptions = {}) {
     fetchPage(cursorRef.current, search.trim() || undefined, true);
   }, [hasMore, loadingMore, loading, fetchPage, search]);
 
-  // Initial fetch
+  // Initial fetch — only when session AND profile are ready
   useEffect(() => {
-    if (autoFetch && userProfile?.company_id) {
+    if (autoFetch && session && userProfile?.company_id) {
       setLoading(true);
       cursorRef.current = null;
       fetchPage(null);
     }
-  }, [autoFetch, userProfile?.company_id]);
+  }, [autoFetch, session, userProfile?.company_id]);
 
   // Debounced server-side search
   useEffect(() => {

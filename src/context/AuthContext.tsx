@@ -86,18 +86,17 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     }
   }, []);
 
-  // Restore cached profile on mount (instant, before any network call)
-  useEffect(() => {
-    AsyncStorage.getItem(PROFILE_CACHE_KEY).then((cached) => {
+  // Helper: load cached profile from AsyncStorage (called INSIDE initAuth, after session is confirmed)
+  const restoreCachedProfile = useCallback(async (): Promise<UserProfile | null> => {
+    try {
+      const cached = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
       if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          // Only use cache if we don't already have a fresh profile
-          setUserProfile((current) => current ?? parsed);
-          console.log('[Auth] Restored cached profile for', parsed.display_name);
-        } catch { /* corrupted cache, ignore */ }
+        const parsed = JSON.parse(cached);
+        console.log('[Auth] Restored cached profile for', parsed.display_name);
+        return parsed;
       }
-    }).catch(() => {});
+    } catch { /* corrupted cache, ignore */ }
+    return null;
   }, []);
 
   // We change the return type to distinguish between "No Profile" (null) and "Network Error" (throw)
@@ -418,6 +417,13 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         setSession(currentSession);
 
         if (currentSession?.user) {
+          // Session confirmed — now safe to restore cached profile
+          // This lets hooks start fetching immediately with the Supabase client's auth ready
+          const cachedProfile = await restoreCachedProfile();
+          if (cachedProfile) {
+            setUserProfile(cachedProfile);
+          }
+
           try {
             const profile = await fetchProfile(currentSession.user.id, currentSession.access_token);
 
@@ -445,8 +451,14 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           } catch (fetchError) {
             // It was a network or token error, DO NOT SIGN OUT.
             console.warn('Could not fetch profile on boot, but session remains active:', fetchError);
-            // Start retry timer — keep trying until profile loads
-            startProfileRetry();
+            // If we already set cached profile above, hooks can still function.
+            // Start retry timer to fetch fresh profile in background.
+            if (!cachedProfile) {
+              startProfileRetry();
+            } else {
+              console.log('[Auth] Using cached profile — will retry fresh fetch in background');
+              startProfileRetry();
+            }
           }
         }
       } catch (e) {
