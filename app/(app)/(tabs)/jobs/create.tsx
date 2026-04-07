@@ -218,7 +218,7 @@ export default function CreateJobScreen() {
         router.replace({ pathname: '/(app)/quote', params: { id: newJob.id } });
       } else {
         Alert.alert('Success', 'Job created successfully.');
-        router.replace('/(app)/jobs/index' as any);
+        router.replace('/(app)/jobs' as any);
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create job.');

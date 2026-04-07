@@ -82,7 +82,7 @@ export default function UnifiedCalendarScreen() {
   );
   const insets = useSafeAreaInsets();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(Boolean(userProfile?.company_id));
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => formatLocalDateKey(new Date()));
   const [listMode, setListMode] = useState<'day' | 'week' | 'month'>('day');
@@ -173,7 +173,17 @@ export default function UnifiedCalendarScreen() {
     fetchJobsForMonth(d.getFullYear(), d.getMonth());
   }, [selectedDate, fetchJobsForMonth]);
 
+  // Refetch when screen regains focus (e.g. after creating a job)
+  useFocusEffect(
+    useCallback(() => {
+      monthCacheRef.current = {};
+      const d = new Date(selectedDate + 'T00:00:00');
+      fetchJobsForMonth(d.getFullYear(), d.getMonth(), true);
+    }, [selectedDate, fetchJobsForMonth])
+  );
+
   useRealtimeJobs(userProfile?.company_id, () => {
+    monthCacheRef.current = {};
     const d = new Date(selectedDate + 'T00:00:00');
     fetchJobsForMonth(d.getFullYear(), d.getMonth(), true);
   });
