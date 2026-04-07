@@ -13,10 +13,8 @@ const LEGACY_PENDING_REGISTRATION_KEY = 'pilotlight_pending_registration';
 const LAST_HANDLED_AUTH_URL_KEY = '@gaspilot_last_handled_auth_url';
 const LEGACY_LAST_HANDLED_AUTH_URL_KEY = '@pilotlight_last_handled_auth_url';
 const PROFILE_CACHE_KEY = '@gaspilot_cached_profile';
-const PROFILE_FETCH_TIMEOUT_MS = 7000;
-const PROFILE_FETCH_MAX_ATTEMPTS = 2;
-const PROFILE_FETCH_RETRY_DELAY_MS = 1200;
-const PROFILE_RETRY_INTERVAL_MS = 5000; // retry every 5s if profile failed to load
+const PROFILE_FETCH_TIMEOUT_MS = 8000;
+const PROFILE_RETRY_INTERVAL_MS = 4000;
 
 /** Simple hash to avoid storing raw auth URLs (which contain tokens) */
 function hashString(str: string): string {
@@ -27,12 +25,9 @@ function hashString(str: string): string {
   return hash.toString(36);
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 function isRetryableProfileError(error: unknown): boolean {
   if (error instanceof TimeoutError) return true;
   if (!(error instanceof Error)) return false;
-
   return /network request failed|fetch failed|timed out/i.test(error.message);
 }
 
@@ -72,121 +67,97 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
   const isRecoveryFlow = useRef(false);
   const profileRetryTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionRef = useRef<Session | null>(null);
+  const isMountedRef = useRef(true);
 
-  // Keep sessionRef in sync so retry timer can access latest session
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
+  // Keep sessionRef in sync
+  useEffect(() => { sessionRef.current = session; }, [session]);
 
   // Persist profile to AsyncStorage whenever it changes
   const setAndCacheProfile = useCallback((profile: UserProfile | null) => {
+    if (!isMountedRef.current) return;
     setUserProfile(profile);
     if (profile) {
       AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile)).catch(() => {});
     }
   }, []);
 
-  // Helper: load cached profile from AsyncStorage (called INSIDE initAuth, after session is confirmed)
-  const restoreCachedProfile = useCallback(async (): Promise<UserProfile | null> => {
-    try {
-      const cached = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        console.log('[Auth] Restored cached profile for', parsed.display_name);
-        return parsed;
-      }
-    } catch { /* corrupted cache, ignore */ }
-    return null;
+  // Stop any pending retry timer
+  const stopRetryTimer = useCallback(() => {
+    if (profileRetryTimer.current) {
+      clearInterval(profileRetryTimer.current);
+      profileRetryTimer.current = null;
+    }
   }, []);
 
-  // We change the return type to distinguish between "No Profile" (null) and "Network Error" (throw)
-  const fetchProfile = async (userId: string, tokenToUse?: string): Promise<UserProfile | null> => {
+  /**
+   * Fetch profile from Supabase REST API. Returns the profile on success,
+   * null if the profile truly doesn't exist, or throws on network error.
+   */
+  const fetchProfileFromAPI = useCallback(async (userId: string, token: string): Promise<UserProfile | null> => {
     const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
     const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-    let token = tokenToUse || session?.access_token;
-
-    if (!token) {
-      const {data: {session: currentSession}} = await supabase.auth.getSession();
-      token = currentSession?.access_token;
-    }
-
-    if (!token) {
-      console.log('No token available for profile fetch');
-      throw new Error('No authentication token');
-    }
-
-    let lastError: unknown;
-
-    for (let attempt = 1; attempt <= PROFILE_FETCH_MAX_ATTEMPTS; attempt++) {
-      try {
-        const response = await withAbortTimeout(
-          ({signal}) =>
-            fetch(
-              `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`,
-              {
-                method: 'GET',
-                headers: {
-                  'apikey': supabaseAnonKey,
-                  'Authorization': `Bearer ${token}`,
-                  'Accept': 'application/json',
-                },
-                signal,
-              }
-            ),
+    const response = await withAbortTimeout(
+      ({signal}) =>
+        fetch(
+          `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`,
           {
-            timeoutMs: PROFILE_FETCH_TIMEOUT_MS,
-            label: 'Profile fetch',
+            method: 'GET',
+            headers: {
+              'apikey': supabaseAnonKey,
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+            },
+            signal,
           }
-        );
+        ),
+      { timeoutMs: PROFILE_FETCH_TIMEOUT_MS, label: 'Profile fetch' }
+    );
 
-        if (!response.ok) {
-          // THROW instead of returning null. We don't want to sign the user out for a 500 or network drop.
-          throw new Error(`Profile fetch failed: ${response.status}`);
-        }
+    if (!response.ok) {
+      throw new Error(`Profile fetch HTTP ${response.status}`);
+    }
 
-        const rows = await response.json();
-        if (rows && rows.length > 0) {
-          console.log('Profile loaded successfully');
-          setAndCacheProfile(rows[0]);
-          // Stop retry timer since profile loaded
-          if (profileRetryTimer.current) {
-            clearInterval(profileRetryTimer.current);
-            profileRetryTimer.current = null;
-          }
-          // Fetch company reminder days
-          if (rows[0].company_id) {
-            const { data: companyData } = await supabase
-              .from('companies')
-              .select('reminder_days_before')
-              .eq('id', rows[0].company_id)
-              .single();
-            setReminderDaysBefore(companyData?.reminder_days_before ?? 30);
-          }
-          return rows[0];
-        }
+    const rows = await response.json();
+    if (rows && rows.length > 0) {
+      return rows[0] as UserProfile;
+    }
+    return null; // Profile truly doesn't exist in DB
+  }, []);
 
-        console.log('No profile found for user in the database');
-        return null; // This safely indicates the profile TRULY does not exist
-      } catch (error) {
-        lastError = error;
+  /**
+   * Fetch profile + cache it + fetch company settings.
+   * This is the ONE function all paths call to load a fresh profile.
+   */
+  const loadFreshProfile = useCallback(async (userId: string, token: string): Promise<UserProfile | null> => {
+    const profile = await fetchProfileFromAPI(userId, token);
 
-        if (!isRetryableProfileError(error) || attempt === PROFILE_FETCH_MAX_ATTEMPTS) {
-          throw error;
-        }
+    if (profile && isMountedRef.current) {
+      console.log('[Auth] Profile loaded from network');
+      setAndCacheProfile(profile);
+      stopRetryTimer();
 
-        console.warn(`[Auth] Profile fetch attempt ${attempt} failed, retrying...`, error);
-        await sleep(PROFILE_FETCH_RETRY_DELAY_MS);
+      // Fire-and-forget: load company reminder days
+      if (profile.company_id) {
+        Promise.resolve(
+          supabase
+            .from('companies')
+            .select('reminder_days_before')
+            .eq('id', profile.company_id)
+            .single()
+        )
+          .then(({ data }) => {
+            if (isMountedRef.current) setReminderDaysBefore(data?.reminder_days_before ?? 30);
+          })
+          .catch(() => {});
       }
     }
 
-    throw lastError instanceof Error ? lastError : new Error('Profile fetch failed');
-  };
+    return profile;
+  }, [fetchProfileFromAPI, setAndCacheProfile, stopRetryTimer]);
 
   /**
    * Check for pending registration data saved during email-confirmation flow.
-   * If found, call the appropriate RPC to create the company/profile, then clean up.
-   * Returns true if pending reg was found and completed successfully.
    */
   const completePendingRegistration = async (userId: string, accessToken: string): Promise<boolean> => {
     try {
@@ -206,7 +177,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         'Authorization': `Bearer ${accessToken}`,
       };
 
-      // Helper for retrying fetch on network failure (common when app just opened from deep link)
       const fetchWithRetry = async (url: string, options: any, maxRetries = 3): Promise<Response> => {
         for (let i = 0; i < maxRetries; i++) {
           try {
@@ -214,7 +184,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           } catch (err) {
             if (i === maxRetries - 1) throw err;
             console.log(`[Auth] Fetch failed, retrying (${i + 1}/${maxRetries})...`);
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
+            await new Promise(resolve => setTimeout(resolve, 2000));
           }
         }
         throw new Error('Fetch failed after retries');
@@ -243,7 +213,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           console.error('[Auth] Pending create RPC failed:', response.status, err);
           return false;
         }
-        
+
         const rpcData = await response.json();
         const companyId = rpcData.company_id;
 
@@ -259,16 +229,10 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
               },
             },
           });
-
-          await supabase
-            .from('profiles')
-            .update({ accepted_gas_safe_terms: true })
-            .eq('id', userId);
+          await supabase.from('profiles').update({ accepted_gas_safe_terms: true }).eq('id', userId);
         }
-
         console.log('[Auth] Pending create RPC succeeded');
       } else {
-        // Join mode (worker)
         const response = await fetchWithRetry(`${supabaseUrl}/rest/v1/rpc/join_company_and_profile`, {
           method: 'POST',
           headers: rpcHeaders,
@@ -281,7 +245,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
             p_consent_given_at: pendingData.consentGivenAt,
           }),
         });
-
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
           console.error('[Auth] Pending join RPC failed:', response.status, err);
@@ -290,7 +253,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         console.log('[Auth] Pending join RPC succeeded');
       }
 
-      // Only remove pending data after successful completion
       await Promise.all([
         SecureStore.deleteItemAsync(PENDING_REGISTRATION_KEY),
         SecureStore.deleteItemAsync(LEGACY_PENDING_REGISTRATION_KEY),
@@ -303,28 +265,27 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     }
   };
 
+  // ─── Main initialization effect ────────────────────────────────────
   useEffect(() => {
+    isMountedRef.current = true;
+
+    // ── Deep link handling ──
     const parseParams = (url: string): Record<string, string> => {
       const parsed = Linking.parse(url);
       const params = {...(parsed.queryParams || {})} as Record<string, string>;
       const hash = url.split('#')[1];
-
       if (hash) {
         hash.split('&').forEach((pair) => {
           const [rawKey, rawValue] = pair.split('=');
           if (!rawKey) return;
-          const key = decodeURIComponent(rawKey);
-          const value = decodeURIComponent(rawValue || '');
-          params[key] = value;
+          params[decodeURIComponent(rawKey)] = decodeURIComponent(rawValue || '');
         });
       }
-
       return params;
     };
 
     const handleAuthUrl = async (url: string | null) => {
       if (!url) return;
-
       try {
         const params = parseParams(url);
         const code = params.code;
@@ -332,241 +293,182 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         const refreshToken = params.refresh_token;
         const type = params.type;
 
-        const hasAuthPayload = Boolean(code || (accessToken && refreshToken));
-        if (!hasAuthPayload) {
-          return;
-        }
+        if (!code && !(accessToken && refreshToken)) return;
 
-        // Deduplicate in-memory for this runtime.
-        if (handledUrls.current.has(url)) {
-          console.log('[Auth] Skipping already-handled URL (runtime)');
-          return;
-        }
-
-        // Deduplicate across app restarts.
-        const lastHandledUrl =
+        if (handledUrls.current.has(url)) return;
+        const lastHandled =
           (await AsyncStorage.getItem(LAST_HANDLED_AUTH_URL_KEY)) ||
           (await AsyncStorage.getItem(LEGACY_LAST_HANDLED_AUTH_URL_KEY));
-        if (lastHandledUrl === hashString(url)) {
-          console.log('[Auth] Skipping already-handled URL (persisted)');
-          return;
-        }
+        if (lastHandled === hashString(url)) return;
 
         handledUrls.current.add(url);
-
-        // Only treat as recovery if the URL explicitly says so
-        if (type === 'recovery') {
-          isRecoveryFlow.current = true;
-        }
+        if (type === 'recovery') isRecoveryFlow.current = true;
 
         if (code) {
           await supabase.auth.exchangeCodeForSession(code);
           await AsyncStorage.setItem(LAST_HANDLED_AUTH_URL_KEY, hashString(url));
-          if (type === 'recovery') {
-            router.replace('/(auth)/reset-password');
-          }
+          if (type === 'recovery') router.replace('/(auth)/reset-password');
           return;
         }
-
         if (accessToken && refreshToken) {
           await supabase.auth.setSession({access_token: accessToken, refresh_token: refreshToken});
           await AsyncStorage.setItem(LAST_HANDLED_AUTH_URL_KEY, hashString(url));
-          if (type === 'recovery') {
-            router.replace('/(auth)/reset-password');
-          }
+          if (type === 'recovery') router.replace('/(auth)/reset-password');
         }
       } catch (e) {
         console.warn('Auth deep link parse error:', e);
       }
     };
 
-    Linking.getInitialURL().then((url) => {
-      handleAuthUrl(url);
-    });
+    Linking.getInitialURL().then(handleAuthUrl);
+    const urlSub = Linking.addEventListener('url', ({url}) => handleAuthUrl(url));
 
-    const urlSub = Linking.addEventListener('url', ({url}) => {
-      handleAuthUrl(url);
-    });
-
-    // Safety timeout — if auth takes too long, stop showing the loading screen
+    // ── Safety timeout — absolute backstop ──
     const safetyTimer = setTimeout(() => {
-      setIsLoading((prev) => {
-        if (prev) console.warn('[Auth] Safety timeout — forcing isLoading to false');
-        return false;
-      });
-    }, 8000);
-
-    const initAuth = async () => {
-      try {
-        if (isRegistering.current) return;
-
-        const sessionResult: any = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise((resolve) => setTimeout(() => resolve(null), 6000)),
-        ]);
-
-        if (!sessionResult) {
-          console.warn('[Auth] getSession timed out on init');
-          return;
-        }
-
-        const {data: {session: currentSession}} = sessionResult;
-
-        if (isRegistering.current) return;
-
-        setSession(currentSession);
-
-        if (currentSession?.user) {
-          // Session confirmed — now safe to restore cached profile
-          // This lets hooks start fetching immediately with the Supabase client's auth ready
-          const cachedProfile = await restoreCachedProfile();
-          if (cachedProfile) {
-            setUserProfile(cachedProfile);
-          }
-
-          try {
-            const profile = await fetchProfile(currentSession.user.id, currentSession.access_token);
-
-            // Strictly check for null (database confirmed missing). 
-            // Ignore if it threw an error (handled by the catch block below)
-            if (profile === null && !isRegistering.current) {
-              // Check for pending registration data (email confirmation flow)
-              const didComplete = await completePendingRegistration(
-                currentSession.user.id,
-                currentSession.access_token
-              );
-              if (didComplete) {
-                // Profile should now exist — fetch it
-                const newProfile = await fetchProfile(currentSession.user.id, currentSession.access_token);
-                if (newProfile) {
-                  console.log('[Auth] Pending registration completed on init — profile loaded');
-                  return; // All good, don't sign out
-                }
-              }
-
-              console.log('Database confirmed no profile exists — signing out orphaned user');
-              await supabase.auth.signOut();
-              setSession(null);
-            }
-          } catch (fetchError) {
-            // It was a network or token error, DO NOT SIGN OUT.
-            console.warn('Could not fetch profile on boot, but session remains active:', fetchError);
-            // If we already set cached profile above, hooks can still function.
-            // Start retry timer to fetch fresh profile in background.
-            if (!cachedProfile) {
-              startProfileRetry();
-            } else {
-              console.log('[Auth] Using cached profile — will retry fresh fetch in background');
-              startProfileRetry();
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Auth init error:', e);
-      } finally {
-        setIsLoading(false); // Make sure we always stop loading
+      if (isMountedRef.current) {
+        setIsLoading((prev) => {
+          if (prev) console.warn('[Auth] Safety timeout — forcing isLoading to false');
+          return false;
+        });
       }
-    };
+    }, 6000);
 
-    // Retry profile fetch periodically if it failed on init
+    // ── Start cached profile restore early (AsyncStorage = fast, ~10-50ms) ──
+    const cachePromise = AsyncStorage.getItem(PROFILE_CACHE_KEY).then(raw => {
+      if (raw) {
+        try { return JSON.parse(raw) as UserProfile; } catch {}
+      }
+      return null;
+    }).catch(() => null);
+
+    // ── Profile retry timer (background) ──
     const startProfileRetry = () => {
-      if (profileRetryTimer.current) return; // already running
+      if (profileRetryTimer.current) return;
       console.log('[Auth] Starting profile retry timer');
       profileRetryTimer.current = setInterval(async () => {
-        const currentSession = sessionRef.current;
-        if (!currentSession?.user) return;
+        const s = sessionRef.current;
+        if (!s?.user) return;
         try {
-          // Check if we already have a profile (loaded by another path)
-          // We read from the ref-like pattern: if setAndCacheProfile was called, the state updated
-          // But we can't read state in an interval, so just try fetching
-          const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-          const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-          const response = await withAbortTimeout(
-            ({signal}) =>
-              fetch(
-                `${supabaseUrl}/rest/v1/profiles?id=eq.${currentSession.user.id}&select=*`,
-                {
-                  method: 'GET',
-                  headers: {
-                    'apikey': supabaseAnonKey,
-                    'Authorization': `Bearer ${currentSession.access_token}`,
-                    'Accept': 'application/json',
-                  },
-                  signal,
-                }
-              ),
-            { timeoutMs: PROFILE_FETCH_TIMEOUT_MS, label: 'Profile retry' }
-          );
-          if (response.ok) {
-            const rows = await response.json();
-            if (rows && rows.length > 0) {
-              console.log('[Auth] Profile retry succeeded');
-              setAndCacheProfile(rows[0]);
-              if (profileRetryTimer.current) {
-                clearInterval(profileRetryTimer.current);
-                profileRetryTimer.current = null;
-              }
-            }
-          }
+          await loadFreshProfile(s.user.id, s.access_token);
         } catch (e) {
-          console.warn('[Auth] Profile retry failed, will try again:', e);
+          console.warn('[Auth] Profile retry failed:', e);
         }
       }, PROFILE_RETRY_INTERVAL_MS);
     };
 
-    initAuth();
-
-    const {
-      data: {subscription},
-    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+    // ── Handle INITIAL_SESSION: cold start path ──
+    const handleInitialSession = async (currentSession: Session | null) => {
+      if (!isMountedRef.current) return;
       setSession(currentSession);
 
-      if (_event === 'PASSWORD_RECOVERY') {
-        // Only redirect if this recovery was triggered by a fresh deep link,
-        // NOT from a stale session being reloaded on cold start.
+      if (!currentSession?.user) {
+        // No stored session → go to login
+        setIsLoading(false);
+        return;
+      }
+
+      // 1. Immediately restore cached profile (fast path — makes app usable)
+      const cachedProfile = await cachePromise;
+      if (cachedProfile && isMountedRef.current) {
+        console.log('[Auth] Using cached profile for', cachedProfile.display_name);
+        setUserProfile(cachedProfile);
+        // APP IS NOW USABLE — stop blocking the UI
+        setIsLoading(false);
+      }
+
+      // 2. Fetch fresh profile from network (background — updates cache)
+      try {
+        const profile = await loadFreshProfile(currentSession.user.id, currentSession.access_token);
+
+        if (profile === null && !isRegistering.current) {
+          // Profile truly doesn't exist — try pending registration
+          const didComplete = await completePendingRegistration(currentSession.user.id, currentSession.access_token);
+          if (didComplete) {
+            const newProfile = await loadFreshProfile(currentSession.user.id, currentSession.access_token);
+            if (newProfile) {
+              console.log('[Auth] Pending registration completed on init');
+              setIsLoading(false);
+              return;
+            }
+          }
+
+          if (!cachedProfile) {
+            // No cache AND no profile in DB → orphaned user
+            console.log('[Auth] No profile found — signing out orphaned user');
+            await supabase.auth.signOut();
+            if (isMountedRef.current) { setSession(null); setUserProfile(null); }
+          }
+        }
+      } catch (fetchError) {
+        console.warn('[Auth] Network profile fetch failed:', fetchError);
+        if (!cachedProfile) {
+          // No cache — need to retry until profile loads
+          startProfileRetry();
+        }
+      }
+
+      // Ensure loading stops even if we didn't have a cache
+      if (isMountedRef.current) setIsLoading(false);
+    };
+
+    // ── Handle subsequent auth events (SIGNED_IN, TOKEN_REFRESHED, etc.) ──
+    const handleAuthEvent = async (event: string, currentSession: Session | null) => {
+      if (!isMountedRef.current) return;
+      setSession(currentSession);
+
+      if (event === 'PASSWORD_RECOVERY') {
         if (isRecoveryFlow.current) {
-          isRecoveryFlow.current = false; // consume the flag — handle once only
+          isRecoveryFlow.current = false;
           router.replace('/(auth)/reset-password');
-        } else {
-          console.log('[Auth] Ignoring stale PASSWORD_RECOVERY event (no active recovery deep link)');
         }
         return;
       }
 
-      if (isRegistering.current) {
+      if (isRegistering.current) return;
+
+      if (event === 'SIGNED_OUT' || !currentSession?.user) {
+        setUserProfile(null);
+        setIsLoading(false);
         return;
       }
 
-      if (currentSession?.user) {
+      // SIGNED_IN or TOKEN_REFRESHED — fetch fresh profile
+      if (event === 'SIGNED_IN') {
         try {
-          const profile = await fetchProfile(currentSession.user.id, currentSession.access_token);
-
-          // If profile is null, check for pending registration (email confirmation flow)
+          const profile = await loadFreshProfile(currentSession.user.id, currentSession.access_token);
           if (profile === null) {
-            const didComplete = await completePendingRegistration(
-              currentSession.user.id,
-              currentSession.access_token
-            );
+            const didComplete = await completePendingRegistration(currentSession.user.id, currentSession.access_token);
             if (didComplete) {
-              await fetchProfile(currentSession.user.id, currentSession.access_token);
-              console.log('[Auth] Pending registration completed on auth state change');
+              await loadFreshProfile(currentSession.user.id, currentSession.access_token);
+              console.log('[Auth] Pending registration completed on sign-in');
             }
           }
         } catch (e) {
-          console.warn('onAuthStateChange profile fetch error:', e);
+          console.warn('[Auth] Profile fetch on sign-in failed:', e);
         }
+      }
+      // TOKEN_REFRESHED — just update session ref, don't refetch profile
+    };
+
+    // ── Subscribe to auth state changes (sole source of session) ──
+    // Supabase fires INITIAL_SESSION automatically when subscribing.
+    // This replaces the old getSession() call entirely.
+    const {
+      data: {subscription},
+    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log('[Auth] onAuthStateChange:', event);
+
+      if (event === 'INITIAL_SESSION') {
+        await handleInitialSession(currentSession);
       } else {
-        setUserProfile(null);
-        setIsLoading(false);
+        await handleAuthEvent(event, currentSession);
       }
     });
 
     return () => {
+      isMountedRef.current = false;
       clearTimeout(safetyTimer);
-      if (profileRetryTimer.current) {
-        clearInterval(profileRetryTimer.current);
-        profileRetryTimer.current = null;
-      }
+      stopRetryTimer();
       subscription.unsubscribe();
       urlSub.remove();
     };
@@ -574,14 +476,10 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
 
   const signOut = async () => {
     try {
-      if (profileRetryTimer.current) {
-        clearInterval(profileRetryTimer.current);
-        profileRetryTimer.current = null;
-      }
+      stopRetryTimer();
       await supabase.auth.signOut();
       setUserProfile(null);
       setSession(null);
-      // Clear cached profile + subscription state
       await Promise.all([
         AsyncStorage.removeItem(PROFILE_CACHE_KEY),
         AsyncStorage.removeItem('@gaspilot_is_pro_cached'),
@@ -593,26 +491,12 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
 
   const refreshProfile = async (): Promise<UserProfile | null> => {
     try {
-      let currentSession = session;
-
-      if (!currentSession?.user) {
-        const sessionResult: any = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
-        ]);
-
-        if (sessionResult?.data?.session) {
-          currentSession = sessionResult.data.session;
-          setSession(currentSession);
-        }
-      }
-
-      if (!currentSession?.user) {
-        console.warn('refreshProfile: no session or timed out');
+      const s = sessionRef.current;
+      if (!s?.user) {
+        console.warn('refreshProfile: no session');
         return null;
       }
-
-      return await fetchProfile(currentSession.user.id, currentSession.access_token);
+      return await loadFreshProfile(s.user.id, s.access_token);
     } catch (e) {
       console.error('refreshProfile error:', e);
       return null;

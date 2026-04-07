@@ -21,7 +21,7 @@ const PAGE_SIZE = 50;
 export function useJobs(options: UseJobsOptions = {}) {
   const { userProfile, user, session } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(Boolean(session && userProfile?.company_id));
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [hasMore, setHasMore] = useState(true);
@@ -98,13 +98,15 @@ export function useJobs(options: UseJobsOptions = {}) {
     fetchPage(cursorRef.current, search.trim() || undefined, true);
   }, [hasMore, loadingMore, loading, fetchPage, search]);
 
-  // Initial fetch — only when session AND profile are ready
+  // Initial fetch — fires when session AND profile are ready, skips + stops loading if not
   useEffect(() => {
-    if (autoFetch && session && userProfile?.company_id) {
-      setLoading(true);
-      cursorRef.current = null;
-      fetchPage(null);
+    if (!autoFetch || !session || !userProfile?.company_id) {
+      setLoading(false);
+      return;
     }
+    setLoading(true);
+    cursorRef.current = null;
+    fetchPage(null);
   }, [autoFetch, session, userProfile?.company_id]);
 
   // Debounced server-side search

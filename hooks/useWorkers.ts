@@ -17,7 +17,7 @@ interface Worker {
 export function useWorkers() {
   const { userProfile, user, session } = useAuth();
   const [workers, setWorkers] = useState<Worker[]>([]);
-  const [loading, setLoading] = useState(Boolean(session && userProfile?.company_id));
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchWorkers = useCallback(async () => {
@@ -52,7 +52,10 @@ export function useWorkers() {
   }, [userProfile?.company_id, user?.id]);
 
   useEffect(() => {
-    if (!session || !userProfile?.company_id) return;
+    if (!session || !userProfile?.company_id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     fetchWorkers();
   }, [session, fetchWorkers]);

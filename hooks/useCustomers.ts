@@ -12,7 +12,7 @@ const PAGE_SIZE = 50;
 export function useCustomers() {
   const { userProfile, session } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(Boolean(session && userProfile?.company_id));
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [hasMore, setHasMore] = useState(true);
@@ -74,13 +74,15 @@ export function useCustomers() {
     fetchPage(cursorRef.current, search.trim() || undefined, true);
   }, [hasMore, loadingMore, loading, fetchPage, search]);
 
-  // Initial fetch — only when session AND profile are ready
+  // Initial fetch — fires when session AND profile are ready, skips + stops loading if not
   useEffect(() => {
-    if (session && userProfile?.company_id) {
-      setLoading(true);
-      cursorRef.current = null;
-      fetchPage(null);
+    if (!session || !userProfile?.company_id) {
+      setLoading(false);
+      return;
     }
+    setLoading(true);
+    cursorRef.current = null;
+    fetchPage(null);
   }, [session, userProfile?.company_id]);
 
   // Debounced server-side search

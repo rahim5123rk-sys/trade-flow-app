@@ -16,7 +16,7 @@ interface UseDocumentsOptions {
 export function useDocuments(options: UseDocumentsOptions = {}) {
   const { userProfile, role, session } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(Boolean(session && userProfile?.company_id));
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [hasMore, setHasMore] = useState(true);
@@ -105,9 +105,12 @@ export function useDocuments(options: UseDocumentsOptions = {}) {
     };
   }, [search, options.typeFilters?.join(',')]);
 
-  // Initial fetch on mount — only when session AND profile are ready
+  // Initial fetch — fires when session AND profile are ready, skips + stops loading if not
   useEffect(() => {
-    if (!session || !userProfile?.company_id) return;
+    if (!session || !userProfile?.company_id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     cursorRef.current = null;
     fetchPage(null, search.trim() || undefined);
