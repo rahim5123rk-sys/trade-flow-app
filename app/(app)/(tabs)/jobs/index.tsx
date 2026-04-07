@@ -1,7 +1,7 @@
 import {Ionicons} from '@expo/vector-icons';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router, useFocusEffect} from 'expo-router'; // Added useFocusEffect
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,10 +12,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import ReanimatedSwipeable, {SwipeableMethods} from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Onboarding, {OnboardingTip} from '../../../../components/Onboarding';
+import {SwipeableJobCard} from '../../../../components/SwipeableJobCard';
 import {Colors, UI} from '../../../../constants/theme';
 import {useJobs} from '../../../../hooks/useJobs';
 import {useRealtimeJobs} from '../../../../hooks/useRealtime';
@@ -27,7 +27,7 @@ import {useAppTheme} from '../../../../src/context/ThemeContext';
 const JOBS_TIPS: OnboardingTip[] = [
   {
     title: 'Your Jobs List',
-    description: 'All your active jobs appear here, sorted by date. Swipe left on a job for quick actions.',
+    description: 'All your active jobs appear here, sorted by date. Swipe a job to update its status.',
     icon: 'briefcase-outline',
     position: 'center',
     arrowDirection: 'none',
@@ -43,7 +43,7 @@ const JOBS_TIPS: OnboardingTip[] = [
   },
   {
     title: 'Swipe Actions',
-    description: 'Swipe any job left to quickly mark it In Progress, Complete, or Delete it.',
+    description: 'Swipe right to advance status (Start → Complete → Paid). Swipe left to revert or delete.',
     icon: 'swap-horizontal-outline',
     position: 'center',
     arrowDirection: 'down',
@@ -116,7 +116,7 @@ export default function UnifiedJobList() {
 
   const handleUpdateJobStatus = async (
     jobId: string,
-    status: 'pending' | 'in_progress' | 'complete',
+    status: 'pending' | 'in_progress' | 'complete' | 'paid',
   ) => {
     const {error} = await supabase
       .from('jobs')
@@ -173,62 +173,16 @@ export default function UnifiedJobList() {
     ]);
   };
 
-  const openRowRef = useRef<SwipeableMethods | null>(null);
+  const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'] as const;
 
-  const closeOpenRow = () => {
-    openRowRef.current?.close();
-    openRowRef.current = null;
+  const getNextStatus = (current: string) => {
+    const idx = STATUS_FLOW.indexOf(current as any);
+    return idx >= 0 && idx < STATUS_FLOW.length - 1 ? STATUS_FLOW[idx + 1] : null;
   };
 
-  const renderSwipeActions = (item: any) => {
-    const isPending = item.status === 'pending';
-    const isInProgress = item.status === 'in_progress';
-    const isComplete = item.status === 'complete';
-
-    return (
-      <View style={styles.swipeActionsWrap}>
-        {/* Show contextual status action */}
-        {isPending && (
-          <TouchableOpacity
-            style={[styles.swipeActionBtn, {backgroundColor: UI.status.inProgress}]}
-            onPress={() => {closeOpenRow(); handleUpdateJobStatus(item.id, 'in_progress');}}
-          >
-            <Ionicons name="play" size={18} color={UI.text.white} />
-            <Text style={styles.swipeActionText}>Start</Text>
-          </TouchableOpacity>
-        )}
-
-        {isInProgress && (
-          <TouchableOpacity
-            style={[styles.swipeActionBtn, {backgroundColor: UI.status.complete}]}
-            onPress={() => {closeOpenRow(); handleUpdateJobStatus(item.id, 'complete');}}
-          >
-            <Ionicons name="checkmark-circle" size={18} color={UI.text.white} />
-            <Text style={styles.swipeActionText}>Done</Text>
-          </TouchableOpacity>
-        )}
-
-        {isComplete && (
-          <TouchableOpacity
-            style={[styles.swipeActionBtn, {backgroundColor: UI.status.pending}]}
-            onPress={() => {closeOpenRow(); handleUpdateJobStatus(item.id, 'pending');}}
-          >
-            <Ionicons name="refresh" size={18} color={UI.text.white} />
-            <Text style={styles.swipeActionText}>Reopen</Text>
-          </TouchableOpacity>
-        )}
-
-        {isAdmin && (
-          <TouchableOpacity
-            style={[styles.swipeActionBtn, {backgroundColor: UI.brand.danger}]}
-            onPress={() => {closeOpenRow(); handleDeleteJob(item.id);}}
-          >
-            <Ionicons name="trash" size={18} color={UI.text.white} />
-            <Text style={styles.swipeActionText}>Delete</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
+  const getPrevStatus = (current: string) => {
+    const idx = STATUS_FLOW.indexOf(current as any);
+    return idx > 0 ? STATUS_FLOW[idx - 1] : null;
   };
 
   const scopedJobs = useMemo(() => {
@@ -279,22 +233,22 @@ export default function UnifiedJobList() {
     const scheduledAt = new Date(item.scheduled_date);
     const time = scheduledAt.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
     const subtitle = `${item.customer_snapshot?.name || 'Unknown customer'} • ${scheduledAt.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'})}`;
-    const rowRef = React.createRef<SwipeableMethods>();
+
+    const nextStatus = getNextStatus(item.status);
+    const prevStatus = getPrevStatus(item.status);
 
     return (
       <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 200)).duration(300)}>
-        <ReanimatedSwipeable
-          ref={rowRef}
-          renderRightActions={() => renderSwipeActions(item)}
-          overshootRight={false}
-          friction={2}
-          rightThreshold={40}
-          onSwipeableWillOpen={() => {
-            closeOpenRow();
+        <SwipeableJobCard
+          status={item.status}
+          isAdmin={isAdmin}
+          onAdvanceStatus={() => {
+            if (nextStatus) handleUpdateJobStatus(item.id, nextStatus);
           }}
-          onSwipeableOpen={() => {
-            openRowRef.current = rowRef.current;
+          onRevertStatus={() => {
+            if (prevStatus) handleUpdateJobStatus(item.id, prevStatus);
           }}
+          onDelete={() => handleDeleteJob(item.id)}
         >
           <TouchableOpacity
             style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
@@ -339,7 +293,7 @@ export default function UnifiedJobList() {
 
             <Ionicons name="chevron-forward" size={16} color={theme.surface.border} style={styles.cardChevron} />
           </TouchableOpacity>
-        </ReanimatedSwipeable>
+        </SwipeableJobCard>
       </Animated.View>
     );
   };
@@ -583,7 +537,6 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
@@ -638,19 +591,5 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   empty: {textAlign: 'center', color: UI.text.muted, fontWeight: '600'},
-  swipeActionsWrap: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    marginBottom: 10,
-    marginLeft: 6,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  swipeActionBtn: {
-    width: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 3,
-  },
-  swipeActionText: {color: UI.text.white, fontSize: 10, fontWeight: '700'},
+
 });
