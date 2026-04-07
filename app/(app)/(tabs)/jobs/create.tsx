@@ -168,8 +168,27 @@ export default function CreateJobScreen() {
           .select()
           .single();
 
-        if (custError) throw custError;
-        customerId = newCust.id;
+        if (custError) {
+          // If duplicate customer, find the existing one and reuse it
+          if (custError.code === '23505') {
+            const { data: existing } = await supabase
+              .from('customers')
+              .select('id')
+              .eq('company_id', userProfile.company_id)
+              .ilike('name', insertPayload.name)
+              .limit(1)
+              .single();
+            if (existing) {
+              customerId = existing.id;
+            } else {
+              throw custError;
+            }
+          } else {
+            throw custError;
+          }
+        } else {
+          customerId = newCust.id;
+        }
         finalSnapshot = buildCustomerSnapshot(customerForm);
       } else {
         finalSnapshot = buildCustomerSnapshot(customerForm);

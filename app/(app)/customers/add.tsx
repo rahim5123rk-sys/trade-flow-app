@@ -129,7 +129,14 @@ export default function AddCustomerScreen() {
         email: email.trim() || null,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          Alert.alert('Duplicate', 'A customer with this name already exists.');
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       Alert.alert('Success', 'Customer added.');
       router.back();

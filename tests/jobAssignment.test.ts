@@ -35,3 +35,14 @@ test('resolveAssignedWorkerIds falls back to current user when nobody is selecte
     ['worker-1'],
   );
 });
+
+test('resolveAssignedWorkerIds allows admin to leave unassigned', () => {
+  assert.deepEqual(
+    resolveAssignedWorkerIds({
+      assignedTo: [],
+      currentUserId: 'admin-1',
+      isAdmin: true,
+    }),
+    [],
+  );
+});

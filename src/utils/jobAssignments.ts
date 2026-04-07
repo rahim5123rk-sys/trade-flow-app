@@ -13,13 +13,11 @@ export function resolveAssignedWorkerIds({
     return isAdmin ? assignedTo : [];
   }
 
+  // Workers always self-assign
   if (!isAdmin) {
     return [currentUserId];
   }
 
-  if (assignedTo.length > 0) {
-    return assignedTo;
-  }
-
-  return [currentUserId];
+  // Admin: respect their selection (including empty = unassigned)
+  return assignedTo;
 }

@@ -240,7 +240,29 @@ export function CustomerSelector({
         .select('id')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If duplicate, find existing customer and link to it
+        if (error.code === '23505') {
+          const { data: existing } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('company_id', userProfile?.company_id!)
+            .ilike('name', insertData.name)
+            .limit(1)
+            .single();
+          if (existing) {
+            onChange({ ...value, customerId: existing.id });
+            setCustomerMode('existing');
+            await fetchCustomers();
+            Alert.alert('Linked', 'An existing customer with that name was found and linked.');
+            setIsEditing(false);
+            setOriginalData(null);
+            return;
+          }
+        }
+        throw error;
+      }
+
       onChange({ ...value, customerId: newCust.id });
       setCustomerMode('existing');
       await fetchCustomers();
