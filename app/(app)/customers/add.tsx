@@ -91,8 +91,12 @@ export default function AddCustomerScreen() {
   };
 
   const handleSave = async () => {
-    if (!customerName.trim() || !address1.trim() || !postCode.trim()) {
-      Alert.alert('Missing Info', 'Contact Name, Address Line 1, and Post Code are required.');
+    if (!customerName.trim() && !companyName.trim()) {
+      Alert.alert('Missing Info', 'Either a Contact Name or Company Name is required.');
+      return;
+    }
+    if (!address1.trim() || !postCode.trim()) {
+      Alert.alert('Missing Info', 'Address Line 1 and Post Code are required.');
       return;
     }
 
@@ -117,7 +121,7 @@ export default function AddCustomerScreen() {
 
       const {error} = await supabase.from('customers').insert({
         company_id: userProfile?.company_id,
-        name: customerName.trim(),
+        name: customerName.trim() || companyName.trim(),
         company_name: companyName.trim() || null,
         address_line_1: address1.trim(),
         address_line_2: address2.trim() || null,

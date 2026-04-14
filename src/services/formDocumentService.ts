@@ -23,7 +23,7 @@ import { getCompanyAndEngineer } from './pdf/shared';
 export interface FormDocumentConfig {
   /** The `kind` discriminator e.g. 'cp12', 'service_record', 'warning_notice' */
   kind: string;
-  /** Supabase document `type` column value. Falls back to 'quote' if type check fails */
+  /** Supabase document `type` column value */
   documentType: string;
   /** Human-readable label e.g. "Gas Safety Certificate" */
   label: string;
@@ -173,20 +173,7 @@ export async function saveFormDocument(
     .select('id')
     .limit(1);
 
-  if (saveError) {
-    // Fallback: if type constraint fails (enum hasn't been added yet), use 'quote'
-    const msg = (saveError.message || '').toLowerCase();
-    if (msg.includes('type') || msg.includes('enum') || msg.includes('check constraint')) {
-      const { data: fallbackRows, error: fbErr } = await supabase
-        .from('documents')
-        .insert({ ...documentBase, type: 'quote' as const })
-        .select('id')
-        .limit(1);
-      if (fbErr) throw fbErr;
-      return { lockedPayload, documentId: fallbackRows?.[0]?.id as string };
-    }
-    throw saveError;
-  }
+  if (saveError) throw saveError;
 
   return { lockedPayload, documentId: insertedRows?.[0]?.id as string };
 }

@@ -106,6 +106,8 @@ function buildEditorHtml(isDark: boolean): string {
     var html = editor.innerHTML;
     // Treat just <br> or empty content as empty
     if (html === '<br>' || html === '<div><br></div>') html = '';
+    // Clean trailing &nbsp; entities
+    html = html.replace(/(&nbsp;\\s*)+$/g, '').replace(/(&nbsp;)+<\\/div>/g, '</div>').replace(/(&nbsp;)+<\\/p>/g, '</p>');
     window.ReactNativeWebView.postMessage(JSON.stringify({
       type: 'content',
       html: html

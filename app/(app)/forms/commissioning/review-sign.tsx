@@ -54,6 +54,9 @@ export default function CommissioningReviewSignScreen() {
   const [showNextDatePicker, setShowNextDatePicker] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
   const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
+  const [defaultSendEmails, setDefaultSendEmails] = useState<string[]>(() =>
+    sanitizeRecipients([customerForm.email || ''])
+  );
 
   useEffect(() => {
     const preload = async () => {
@@ -119,7 +122,7 @@ export default function CommissioningReviewSignScreen() {
         customerId: customerForm.customerId || null,
         editingDocumentId,
         expiryDate: nextServiceDate,
-        emailRecipients: sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]),
+        emailRecipients: sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]),
         emailContext: {
           propertyAddress,
           inspectionDate: commissioningDate,
@@ -198,9 +201,10 @@ export default function CommissioningReviewSignScreen() {
 
           <View style={{marginBottom: 16}}>
             <EmailRecipientsList
-              defaultEmails={sanitizeRecipients([customerForm.email || ''])}
+              defaultEmails={defaultSendEmails}
               additionalEmails={additionalSendEmails}
               onAdditionalEmailsChange={setAdditionalSendEmails}
+              onDefaultEmailsChange={setDefaultSendEmails}
             />
           </View>
 

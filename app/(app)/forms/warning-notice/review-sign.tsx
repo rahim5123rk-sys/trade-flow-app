@@ -33,6 +33,9 @@ export default function WarningNoticeReviewSignScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
   const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
+  const [defaultSendEmails, setDefaultSendEmails] = useState<string[]>(() =>
+    sanitizeRecipients([customerForm.email || ''])
+  );
 
   useEffect(() => {const preload = async () => {if (certRef || editingDocumentId) return; try {setCertRef(await getNextCertReference(false, userProfile?.company_id));} catch { } }; void preload();}, [certRef, editingDocumentId, setCertRef, userProfile?.company_id]);
 
@@ -48,7 +51,7 @@ export default function WarningNoticeReviewSignScreen() {
     if (!canSubmit) return Alert.alert('Missing Details', 'Complete the appliance details before continuing.');
     setProcessingAction(action);
     try {
-      const documentId = await completeFormAction({action, config: {kind: 'warning_notice', documentType: 'warning_notice', label: 'Warning Notice'}, companyId: userProfile.company_id, userId: userProfile.id, certRef, pdfData, customerSnapshot, customerId: customerForm.customerId || null, editingDocumentId, emailRecipients: sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]), emailContext: {propertyAddress, inspectionDate: issueDate, nextDueDate: '', landlordName: customerForm.customerName, tenantName: ''}, onReset: resetWarningNotice, setCertRef});
+      const documentId = await completeFormAction({action, config: {kind: 'warning_notice', documentType: 'warning_notice', label: 'Warning Notice'}, companyId: userProfile.company_id, userId: userProfile.id, certRef, pdfData, customerSnapshot, customerId: customerForm.customerId || null, editingDocumentId, emailRecipients: sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]), emailContext: {propertyAddress, inspectionDate: issueDate, nextDueDate: '', landlordName: customerForm.customerName, tenantName: ''}, onReset: resetWarningNotice, setCertRef});
       void upsertSiteAddress(userProfile.company_id, {addressLine1: propertyAddressLine1, addressLine2: propertyAddressLine2, city: propertyCity, postCode: propertyPostCode});
       Alert.alert(editingDocumentId ? 'Updated' : 'Saved', action === 'email' ? `Warning notice ${certRef || 'record'} was ${editingDocumentId ? 'updated' : 'saved'} and emailed.` : `Warning notice ${certRef || 'record'} was ${editingDocumentId ? 'updated' : 'saved'}.`, [{text: 'Done', onPress: () => {resetWarningNotice(); router.replace(`/(app)/documents/${documentId}` as any);}}]);
     } catch (error: any) {
@@ -61,9 +64,10 @@ export default function WarningNoticeReviewSignScreen() {
     <View style={[styles.card, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}><Text style={[styles.cardTitle, {color: theme.text.title}]}>Issue Date</Text><TouchableOpacity style={[styles.dateButton, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => setShowDatePicker(true)}><Ionicons name="calendar-outline" size={18} color="#EF4444" /><Text style={[styles.dateText, {color: theme.text.title}]}>{issueDate}</Text></TouchableOpacity>{showDatePicker ? <DateTimePicker value={parseGBDate(issueDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_e: DateTimePickerEvent, date?: Date) => {setShowDatePicker(Platform.OS === 'ios'); if (date) setIssueDate(formatGBDate(date));}} /> : null}</View>
     <View style={{marginBottom: 16}}>
       <EmailRecipientsList
-        defaultEmails={sanitizeRecipients([customerForm.email || ''])}
+        defaultEmails={defaultSendEmails}
         additionalEmails={additionalSendEmails}
         onAdditionalEmailsChange={setAdditionalSendEmails}
+        onDefaultEmailsChange={setDefaultSendEmails}
       />
     </View>
     <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>

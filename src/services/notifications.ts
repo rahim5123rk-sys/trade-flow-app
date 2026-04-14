@@ -148,6 +148,7 @@ export async function scheduleJobReminders(
   jobId: string,
   jobTitle: string,
   scheduledDateMs: number,
+  jobAddress?: string,
 ): Promise<void> {
   if (!jobId || !scheduledDateMs) return;
 
@@ -160,13 +161,17 @@ export async function scheduleJobReminders(
   const now = new Date();
   if (jobDate <= now) return;
 
+  // Use address for display, fall back to job title
+  const displayLabel = jobAddress?.trim() || jobTitle;
+
   const oneHourBefore = new Date(jobDate.getTime() - 60 * 60 * 1000);
+  const fifteenMinBefore = new Date(jobDate.getTime() - 15 * 60 * 1000);
 
   if (oneHourBefore > now) {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Job Reminder',
-        body: `${jobTitle} starts in 1 hour`,
+        body: `${displayLabel} starts in 1 hour`,
         data: {
           type: JOB_REMINDER_TYPE,
           jobId,
@@ -180,10 +185,28 @@ export async function scheduleJobReminders(
     });
   }
 
+  if (fifteenMinBefore > now) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Job Starting Soon',
+        body: `${displayLabel} starts in 15 minutes`,
+        data: {
+          type: JOB_REMINDER_TYPE,
+          jobId,
+          reminder: 'fifteen_min',
+        },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: fifteenMinBefore,
+      },
+    });
+  }
+
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Job Starting Now',
-      body: `${jobTitle} is scheduled now`,
+      body: `${displayLabel} is scheduled now`,
       data: {
         type: JOB_REMINDER_TYPE,
         jobId,

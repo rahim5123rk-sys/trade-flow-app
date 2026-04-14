@@ -33,6 +33,9 @@ export default function InstallationReviewSignScreen() {
   const [showNextDatePicker, setShowNextDatePicker] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
   const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
+  const [defaultSendEmails, setDefaultSendEmails] = useState<string[]>(() =>
+    sanitizeRecipients([customerForm.email || ''])
+  );
 
   useEffect(() => {const preload = async () => {if (certRef || editingDocumentId) return; try {setCertRef(await getNextCertReference(false, userProfile?.company_id));} catch { } }; void preload();}, [certRef, editingDocumentId, setCertRef, userProfile?.company_id]);
   const appliance = appliances[0];
@@ -47,7 +50,7 @@ export default function InstallationReviewSignScreen() {
     if (!canSubmit) return Alert.alert('Missing Details', 'Complete the appliance details before continuing.');
     setProcessingAction(action);
     try {
-      const documentId = await completeFormAction({action, config: {kind: 'installation_cert', documentType: 'installation_cert', label: 'Installation Certificate'}, companyId: userProfile.company_id, userId: userProfile.id, certRef, pdfData, customerSnapshot, customerId: customerForm.customerId || null, editingDocumentId, emailRecipients: sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]), emailContext: {propertyAddress, inspectionDate: installationDate, nextDueDate: nextServiceDate, landlordName: customerForm.customerName, tenantName: ''}, onReset: resetInstallationCert, setCertRef});
+      const documentId = await completeFormAction({action, config: {kind: 'installation_cert', documentType: 'installation_cert', label: 'Installation Certificate'}, companyId: userProfile.company_id, userId: userProfile.id, certRef, pdfData, customerSnapshot, customerId: customerForm.customerId || null, editingDocumentId, emailRecipients: sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]), emailContext: {propertyAddress, inspectionDate: installationDate, nextDueDate: nextServiceDate, landlordName: customerForm.customerName, tenantName: ''}, onReset: resetInstallationCert, setCertRef});
       void upsertSiteAddress(userProfile.company_id, {addressLine1: propertyAddressLine1, addressLine2: propertyAddressLine2, city: propertyCity, postCode: propertyPostCode});
       Alert.alert(editingDocumentId ? 'Updated' : 'Saved', action === 'email' ? `Installation certificate ${certRef || 'record'} was ${editingDocumentId ? 'updated' : 'saved'} and emailed.` : `Installation certificate ${certRef || 'record'} was ${editingDocumentId ? 'updated' : 'saved'}.`, [{text: 'Done', onPress: () => {resetInstallationCert(); router.replace(`/(app)/documents/${documentId}` as any);}}]);
     } catch (error: any) {Alert.alert('Error', error?.message || 'Failed to save installation certificate.');} finally {setProcessingAction(null);}
@@ -59,9 +62,10 @@ export default function InstallationReviewSignScreen() {
       <TouchableOpacity style={[styles.dateButton, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => setShowNextDatePicker(true)}><Ionicons name="alarm-outline" size={18} color="#0284C7" /><Text style={[styles.dateText, {color: theme.text.title}]}>{nextServiceDate || 'Set next service date'}</Text></TouchableOpacity>{showNextDatePicker ? <DateTimePicker value={parseGBDate(nextServiceDate || installationDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_e: DateTimePickerEvent, date?: Date) => {setShowNextDatePicker(Platform.OS === 'ios'); if (date) setNextServiceDate(formatGBDate(date));}} /> : null}</View>
     <View style={{marginBottom: 16}}>
       <EmailRecipientsList
-        defaultEmails={sanitizeRecipients([customerForm.email || ''])}
+        defaultEmails={defaultSendEmails}
         additionalEmails={additionalSendEmails}
         onAdditionalEmailsChange={setAdditionalSendEmails}
+        onDefaultEmailsChange={setDefaultSendEmails}
       />
     </View>
     <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>

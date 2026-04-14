@@ -122,9 +122,12 @@ export default function ServiceRecordReviewSign() {
   const [showSigPad, setShowSigPad] = useState(false);
   const [oneTimeEmails, setOneTimeEmails] = useState<string[]>([]);
   const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
+  const [defaultSendEmails, setDefaultSendEmails] = useState<string[]>(() =>
+    sanitizeRecipients([customerForm.email || ''])
+  );
 
   const savedEmails: string[] = [];
-  const emailRecipients = sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]);
+  const emailRecipients = sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]);
 
   useEffect(() => {
     const preloadNextReference = async () => {
@@ -326,7 +329,7 @@ export default function ServiceRecordReviewSign() {
       }
 
       // Email
-      const recipients = sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]);
+      const recipients = sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]);
       if (!recipients.length) {
         Alert.alert('No Email Found', 'Add a customer email before using Save & Send.');
         return;
@@ -514,9 +517,10 @@ export default function ServiceRecordReviewSign() {
 
           <Animated.View entering={FadeInDown.delay(210).duration(400)}>
             <EmailRecipientsList
-              defaultEmails={sanitizeRecipients([customerForm.email || ''])}
+              defaultEmails={defaultSendEmails}
               additionalEmails={additionalSendEmails}
               onAdditionalEmailsChange={setAdditionalSendEmails}
+              onDefaultEmailsChange={setDefaultSendEmails}
             />
           </Animated.View>
 

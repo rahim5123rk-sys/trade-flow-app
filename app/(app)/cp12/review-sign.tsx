@@ -138,7 +138,10 @@ export default function ReviewSign() {
   const [showSigPad, setShowSigPad] = useState(false);
   const [oneTimeEmails, setOneTimeEmails] = useState<string[]>([]);
   const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
-  const emailRecipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '', ...additionalSendEmails]);
+  const [defaultSendEmails, setDefaultSendEmails] = useState<string[]>(() =>
+    sanitizeRecipients([landlordForm.email || '', tenantEmail || ''])
+  );
+  const emailRecipients = sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]);
   const savedEmails = [tenantEmail].filter(Boolean) as string[];
 
   useEffect(() => {
@@ -407,7 +410,7 @@ export default function ReviewSign() {
         return;
       }
 // Send email
-const recipients = sanitizeRecipients([landlordForm.email || '', tenantEmail || '', ...additionalSendEmails]);
+const recipients = sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]);
 if (!recipients.length) {
         Alert.alert('No Email Found', 'Add a landlord or tenant email before using Save & Send Email.');
         return;
@@ -611,9 +614,10 @@ if (!recipients.length) {
 
           <Animated.View entering={FadeInDown.delay(210).duration(400)}>
             <EmailRecipientsList
-              defaultEmails={sanitizeRecipients([landlordForm.email || '', tenantEmail || ''])}
+              defaultEmails={defaultSendEmails}
               additionalEmails={additionalSendEmails}
               onAdditionalEmailsChange={setAdditionalSendEmails}
+              onDefaultEmailsChange={setDefaultSendEmails}
             />
           </Animated.View>
 

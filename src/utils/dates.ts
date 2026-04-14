@@ -143,6 +143,47 @@ export function parseGBDate(ddmmyyyy: string): Date {
 export function formatGBDate(date: Date): string {
   return date.toLocaleDateString('en-GB');
 }
+function startOfDayFor(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+function normaliseDateInput(value: Date | number): Date {
+  return value instanceof Date ? new Date(value) : toDate(value);
+}
+export function formatRelativeDateLabel(value: Date | number, baseDate: Date = new Date()): string | null {
+  const target = normaliseDateInput(value);
+  const baseStart = startOfDayFor(baseDate);
+  const targetStart = startOfDayFor(target);
+  const diffDays = Math.round((targetStart - baseStart) / 86_400_000);
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  if (diffDays === -1) return 'Yesterday';
+
+  return null;
+}
+type FormatDateWithRelativeHintOptions = {
+  baseDate?: Date;
+  includeWeekday?: boolean;
+  includeYear?: boolean;
+};
+export function formatDateWithRelativeHint(
+  value: Date | number,
+  options: FormatDateWithRelativeHintOptions = {}
+): string {
+  const {baseDate = new Date(), includeWeekday = true, includeYear = false} = options;
+  const target = normaliseDateInput(value);
+  const relativeLabel = formatRelativeDateLabel(target, baseDate);
+  const formattedDate = target.toLocaleDateString('en-GB', {
+    ...(includeWeekday ? {weekday: 'short'} : {}),
+    day: 'numeric',
+    month: 'short',
+    ...(includeYear ? {year: 'numeric'} : {}),
+  });
+
+  if (relativeLabel === 'Tomorrow') return `${formattedDate} (Tomorrow)`;
+
+  return formattedDate;
+}
 
 /**
  * Get "X days ago" / "in X days" / "today" relative label.

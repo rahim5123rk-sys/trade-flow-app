@@ -7,6 +7,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -43,6 +44,7 @@ import {
     DocumentData,
     generateDocument,
     generateDocumentBase64,
+    generateDocumentUrl,
     LineItem,
 } from '../../src/services/DocumentGenerator';
 import { sanitizeRecipients, sendCp12CertificateEmail } from '../../src/services/email';
@@ -90,7 +92,9 @@ export default function CreateQuoteScreen() {
   const [jobId, setJobId] = useState<string | null>(null);
   // ─── Edit mode (editing existing document) ────────────────────
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [savedDocId, setSavedDocId] = useState<string | null>(null);
   const [originalStatus, setOriginalStatus] = useState<string | null>(null);
+  const [viewingPdf, setViewingPdf] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -139,7 +143,7 @@ export default function CreateQuoteScreen() {
             postCode: snap.postal_code || '',
             phone: snap.phone || '',
             email: snap.email || '',
-            sameAsBilling: true,
+            sameAsBilling: !(jobAddr?.address_line_1),
             jobAddressLine1: jobAddr?.address_line_1 || '',
             jobAddressLine2: jobAddr?.address_line_2 || '',
             jobCity: jobAddr?.city || '',
@@ -149,7 +153,7 @@ export default function CreateQuoteScreen() {
             siteContactPhone: '',
             siteContactTitle: '',
           });
-          setPrefilled(true);
+          // Don't lock fields in edit mode — show all fields editable
         }
       }
       setLoading(false);
@@ -249,8 +253,8 @@ export default function CreateQuoteScreen() {
       Alert.alert('Error', 'Add at least one item with a description.');
       return false;
     }
-    if (!customerForm.customerName.trim()) {
-      Alert.alert('Error', 'Customer name is required.');
+    if (!customerForm.customerName.trim() && !customerForm.customerCompany.trim()) {
+      Alert.alert('Error', 'Either a customer name or company name is required.');
       return false;
     }
     return true;
@@ -339,11 +343,12 @@ export default function CreateQuoteScreen() {
           .eq('id', editingDocId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('documents').insert({
+        const { data: insertedDoc, error } = await supabase.from('documents').insert({
           ...docPayload,
           date: new Date().toISOString(),
-        });
+        }).select('id').single();
         if (error) throw error;
+        if (insertedDoc?.id) setSavedDocId(insertedDoc.id);
       }
 
       // Save site/job address for future reuse
@@ -359,9 +364,13 @@ export default function CreateQuoteScreen() {
       }
 
       const msg = editingDocId ? 'Quote updated.' : (isSavingDraft ? 'Quote saved as draft.' : 'Quote saved.');
-      Alert.alert('Saved', msg, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      if (editingDocId) {
+        Alert.alert('Saved', msg, [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      } else {
+        Alert.alert('Saved', msg);
+      }
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to save quote.');
     } finally {
@@ -485,6 +494,83 @@ export default function CreateQuoteScreen() {
     }
   };
 
+  // ─── View PDF directly ─────────────────────────────────────
+  const handleViewPdf = async () => {
+    if (!userProfile?.company_id) return;
+    setViewingPdf(true);
+    try {
+      const { jobAddr, today } = buildDocData();
+      const docData: DocumentData = {
+        type: 'quote',
+        number: parseInt(quoteNumber.replace(/\D/g, '')) || 1,
+        reference: quoteNumber || undefined,
+        date: today,
+        expiryDate: expiryDate || today,
+        status: originalStatus || 'Draft',
+        customerName: customerForm.customerName,
+        customerCompany: customerForm.customerCompany || undefined,
+        customerAddress1: customerForm.addressLine1,
+        customerAddress2: customerForm.addressLine2 || undefined,
+        customerCity: customerForm.city,
+        customerPostcode: customerForm.postCode,
+        customerEmail: customerForm.email || undefined,
+        customerPhone: customerForm.phone || undefined,
+        jobAddress1: jobAddr.jobAddress1,
+        jobAddress2: jobAddr.jobAddress2 || undefined,
+        jobCity: jobAddr.jobCity,
+        jobPostcode: jobAddr.jobPostcode,
+        items,
+        discountPercent: parseFloat(discountPercent) || 0,
+        partialPayment: 0,
+        notes: notes || undefined,
+      };
+      const pdfUrl = await generateDocumentUrl(docData, userProfile.company_id);
+      await WebBrowser.openBrowserAsync(pdfUrl);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to open PDF.');
+    } finally {
+      setViewingPdf(false);
+    }
+  };
+
+  // ─── Share PDF ────────────────────────────────────────────────
+  const handleSharePdf = async () => {
+    if (!userProfile?.company_id) return;
+    setViewingPdf(true);
+    try {
+      const { jobAddr, today } = buildDocData();
+      const docData: DocumentData = {
+        type: 'quote',
+        number: parseInt(quoteNumber.replace(/\D/g, '')) || 1,
+        reference: quoteNumber || undefined,
+        date: today,
+        expiryDate: expiryDate || today,
+        status: originalStatus || 'Draft',
+        customerName: customerForm.customerName,
+        customerCompany: customerForm.customerCompany || undefined,
+        customerAddress1: customerForm.addressLine1,
+        customerAddress2: customerForm.addressLine2 || undefined,
+        customerCity: customerForm.city,
+        customerPostcode: customerForm.postCode,
+        customerEmail: customerForm.email || undefined,
+        customerPhone: customerForm.phone || undefined,
+        jobAddress1: jobAddr.jobAddress1,
+        jobAddress2: jobAddr.jobAddress2 || undefined,
+        jobCity: jobAddr.jobCity,
+        jobPostcode: jobAddr.jobPostcode,
+        items,
+        discountPercent: parseFloat(discountPercent) || 0,
+        partialPayment: 0,
+        notes: notes || undefined,
+      };
+      await generateDocument(docData, userProfile.company_id, 'share');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to share PDF.');
+    } finally {
+      setViewingPdf(false);
+    }
+  };
+
   // ──────────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────────
@@ -579,7 +665,7 @@ export default function CreateQuoteScreen() {
           </Animated.View>
 
           {/* ─── Prefill Banner ─── */}
-          {prefilled && (
+          {prefilled && !editingDocId && (
             <Animated.View
               entering={FadeIn.duration(300)}
               style={st.prefillBanner}
@@ -602,11 +688,11 @@ export default function CreateQuoteScreen() {
               onChange={setCustomerForm}
               mode="compact"
               showJobAddress={true}
-              prefillMode={prefilled ? 'locked' : 'none'}
+              prefillMode={prefilled && !editingDocId ? 'locked' : 'none'}
             />
           </Animated.View>
 
-          {prefilled && (
+          {prefilled && !editingDocId && (
             <TouchableOpacity
               style={st.editPrefillBtn}
               onPress={() => setPrefilled(false)}
@@ -791,31 +877,6 @@ export default function CreateQuoteScreen() {
             />
           </Animated.View>
 
-          {/* ─── Terms ─── */}
-          <Animated.View
-            entering={FadeInDown.delay(320).duration(350).springify()}
-            style={st.card}
-          >
-            <View style={st.cardHeader}>
-              <View
-                style={[
-                  st.cardIconWrap,
-                  { backgroundColor: 'rgba(16,185,129,0.1)' },
-                ]}
-              >
-                <Ionicons name="shield-checkmark" size={16} color={UI.status.complete} />
-              </View>
-              <Text style={st.cardTitle}>Terms</Text>
-            </View>
-            <TextInput
-              style={st.input}
-              value={terms}
-              onChangeText={setTerms}
-              placeholder="e.g. Valid for 30 days"
-              placeholderTextColor="#94a3b8"
-            />
-          </Animated.View>
-
           {/* ─── Action Buttons ─── */}
           <Animated.View
             entering={FadeInUp.delay(350).duration(400).springify()}
@@ -895,16 +956,61 @@ export default function CreateQuoteScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            {editingDocId && (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => router.push(`/(app)/(tabs)/documents/${editingDocId}`)}
-                style={[st.draftBtn, { borderColor: UI.brand.primary, borderWidth: 1.5 }]}
-              >
-                <Ionicons name="eye-outline" size={18} color={UI.brand.primary} />
-                <Text style={[st.draftBtnText, { color: UI.brand.primary }]}>View Quote</Text>
-              </TouchableOpacity>
+            {(editingDocId || savedDocId) && (
+              <>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleViewPdf}
+                  disabled={viewingPdf}
+                  style={[st.draftBtn, { borderColor: UI.brand.primary, borderWidth: 1.5 }]}
+                >
+                  {viewingPdf ? (
+                    <ActivityIndicator color={UI.brand.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
+                      <Text style={[st.draftBtnText, { color: UI.brand.primary }]}>View Quote PDF</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleSharePdf}
+                  disabled={viewingPdf}
+                  style={[st.draftBtn, { borderColor: '#059669', borderWidth: 1.5 }]}
+                >
+                  <Ionicons name="share-outline" size={18} color="#059669" />
+                  <Text style={[st.draftBtnText, { color: '#059669' }]}>Share</Text>
+                </TouchableOpacity>
+              </>
             )}
+          </Animated.View>
+
+          {/* ─── Terms (at the bottom) ─── */}
+          <Animated.View
+            entering={FadeInDown.delay(400).duration(350).springify()}
+            style={[st.card, { marginTop: 8 }]}
+          >
+            <View style={st.cardHeader}>
+              <View
+                style={[
+                  st.cardIconWrap,
+                  { backgroundColor: 'rgba(16,185,129,0.1)' },
+                ]}
+              >
+                <Ionicons name="shield-checkmark" size={16} color={UI.status.complete} />
+              </View>
+              <Text style={st.cardTitle}>Terms & Conditions</Text>
+            </View>
+            <TextInput
+              style={[st.input, { minHeight: 60 }]}
+              value={terms}
+              onChangeText={setTerms}
+              placeholder="e.g. Valid for 30 days"
+              placeholderTextColor="#94a3b8"
+              multiline
+            />
           </Animated.View>
         </ScrollView>
       </LinearGradient>

@@ -9,6 +9,7 @@ import {router, useFocusEffect} from 'expo-router';
 import React, {useCallback, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   RefreshControl,
   ScrollView,
@@ -25,6 +26,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import JobAcceptModal from '../../../components/JobAcceptModal';
+import {SwipeableJobCard} from '../../../components/SwipeableJobCard';
 import Onboarding, {OnboardingTip} from '../../../components/Onboarding';
 import {Colors, UI} from '../../../constants/theme';
 import {useRealtimeJobs} from '../../../hooks/useRealtime';
@@ -33,6 +35,7 @@ import {useAuth} from '../../../src/context/AuthContext';
 import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {ThemeTokens, useAppTheme} from '../../../src/context/ThemeContext';
 import {Document} from '../../../src/types';
+import {formatRelativeDateLabel} from '../../../src/utils/dates';
 import {withQueryTimeout} from '../../../src/utils/withTimeout';
 
 // ─── Dashboard Onboarding Tips ─────────────
@@ -368,10 +371,18 @@ const JobTile = ({
   job,
   isToday,
   delay = 0,
+  isAdmin = false,
+  onAdvanceStatus,
+  onRevertStatus,
+  onDelete,
 }: {
   job: DashboardJob;
   isToday?: boolean;
   delay?: number;
+  isAdmin?: boolean;
+  onAdvanceStatus?: () => void;
+  onRevertStatus?: () => void;
+  onDelete?: () => void;
 }) => {
   const {theme, isDark} = useAppTheme();
   const statusMap: Record<string, {color: string; label: string}> = {
@@ -381,24 +392,43 @@ const JobTile = ({
     paid: {color: UI.status.paid, label: 'Paid'},
   };
   const st = statusMap[job.status] || {color: Colors.secondary, label: job.status};
-  const time = new Date(job.scheduled_date).toLocaleTimeString('en-GB', {
+  const jobDate = new Date(job.scheduled_date);
+  const timePart = jobDate.toLocaleTimeString('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
   });
+  const relativeDateLabel = formatRelativeDateLabel(jobDate);
+  const datePart = !isToday
+    ? relativeDateLabel === 'Tomorrow'
+      ? 'Tomorrow'
+      : `${jobDate.getDate()} ${jobDate.toLocaleDateString('en-GB', {month: 'short'})}`
+    : null;
   const primaryAddress = getPrimaryJobAddressLine(job);
   const cardTitle = isToday ? primaryAddress : job.title;
   const cardSubtitle = isToday ? job.title : primaryAddress;
 
   return (
     <Animated.View entering={FadeInRight.delay(delay).springify()}>
-      <TouchableOpacity
-        style={[s.jobTile, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
-        activeOpacity={0.7}
-        onPress={() => router.push({pathname: '/(app)/jobs/[id]', params: {id: job.id, from: 'jobs'}} as any)}
+      <SwipeableJobCard
+        status={job.status as any}
+        isAdmin={isAdmin}
+        onAdvanceStatus={onAdvanceStatus || (() => {})}
+        onRevertStatus={onRevertStatus || (() => {})}
+        onDelete={onDelete || (() => {})}
       >
+        <TouchableOpacity
+          style={[s.jobTile, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
+          activeOpacity={0.7}
+          onPress={() => router.push({pathname: '/(app)/jobs/[id]', params: {id: job.id, from: 'jobs'}} as any)}
+        >
         <View style={s.jobBody}>
           <View style={s.jobTopRow}>
-            <Text style={[s.jobTime, {color: theme.text.muted}]}>{time}</Text>
+            <View style={[s.jobTimeCol, !isToday && s.jobTimeColWide]}>
+              {datePart && (
+                <Text style={[s.jobDate, {color: theme.text.title}]}>{datePart}</Text>
+              )}
+              <Text style={[s.jobTime, {color: theme.text.muted}]}>{timePart}</Text>
+            </View>
             <View style={s.jobDivider} />
 
             <View style={s.jobCopy}>
@@ -420,6 +450,7 @@ const JobTile = ({
           <Ionicons name="chevron-forward" size={18} color={theme.surface.border} />
         </View>
       </TouchableOpacity>
+      </SwipeableJobCard>
     </Animated.View>
   );
 };
@@ -474,9 +505,17 @@ const RenewalCard = ({
 const UpcomingRow = ({
   job,
   delay = 0,
+  isAdmin = false,
+  onAdvanceStatus,
+  onRevertStatus,
+  onDelete,
 }: {
   job: DashboardJob;
   delay?: number;
+  isAdmin?: boolean;
+  onAdvanceStatus?: () => void;
+  onRevertStatus?: () => void;
+  onDelete?: () => void;
 }) => {
   const d = new Date(job.scheduled_date);
   return (
@@ -488,7 +527,7 @@ const UpcomingRow = ({
         </Text>
       </View>
       <View style={{flex: 1}}>
-        <JobTile job={job} />
+        <JobTile job={job} isAdmin={isAdmin} onAdvanceStatus={onAdvanceStatus} onRevertStatus={onRevertStatus} onDelete={onDelete} />
       </View>
     </Animated.View>
   );
@@ -656,13 +695,64 @@ export default function DashboardScreen() {
   // Live updates when jobs change (from other devices / workers)
   useRealtimeJobs(userProfile?.company_id, fetchDashboardData);
 
+  // ─── Status helpers ─────────────────────────────
+  const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'] as const;
+  const getNextStatus = (current: string) => {
+    const idx = STATUS_FLOW.indexOf(current as any);
+    return idx >= 0 && idx < STATUS_FLOW.length - 1 ? STATUS_FLOW[idx + 1] : null;
+  };
+  const getPrevStatus = (current: string) => {
+    const idx = STATUS_FLOW.indexOf(current as any);
+    return idx > 0 ? STATUS_FLOW[idx - 1] : null;
+  };
+
+  const handleUpdateJobStatus = async (
+    jobId: string,
+    status: 'pending' | 'in_progress' | 'complete' | 'paid',
+  ) => {
+    const {error} = await supabase
+      .from('jobs')
+      .update({status})
+      .eq('id', jobId)
+      .eq('company_id', userProfile?.company_id);
+
+    if (error) {
+      Alert.alert('Error', 'Could not update job status.');
+    } else {
+      fetchDashboardData();
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    Alert.alert('Delete Job', 'Are you sure you want to delete this job?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const {error} = await supabase
+            .from('jobs')
+            .delete()
+            .eq('id', jobId)
+            .eq('company_id', userProfile?.company_id);
+
+          if (error) {
+            Alert.alert('Error', 'Could not delete job.');
+          } else {
+            fetchDashboardData();
+          }
+        },
+      },
+    ]);
+  };
+
   const stats = useMemo(() => {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
 
     const upcomingJobs = allJobs
-      .filter((j) => j.scheduled_date >= startOfDay)
+      .filter((j) => j.scheduled_date >= startOfDay && j.status !== 'complete' && j.status !== 'paid' && j.status !== 'cancelled')
       .sort((a, b) => a.scheduled_date - b.scheduled_date)
       .slice(0, 3);
 
@@ -958,8 +1048,19 @@ export default function DashboardScreen() {
               const now = new Date();
               const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
               const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+              const nextStatus = getNextStatus(job.status);
+              const prevStatus = getPrevStatus(job.status);
               return (
-                <JobTile key={job.id} job={job} isToday={job.scheduled_date >= dayStart && job.scheduled_date < dayEnd} delay={360 + i * 60} />
+                <JobTile
+                  key={job.id}
+                  job={job}
+                  isToday={job.scheduled_date >= dayStart && job.scheduled_date < dayEnd}
+                  delay={360 + i * 60}
+                  isAdmin={isAdmin}
+                  onAdvanceStatus={() => { if (nextStatus) handleUpdateJobStatus(job.id, nextStatus); }}
+                  onRevertStatus={() => { if (prevStatus) handleUpdateJobStatus(job.id, prevStatus); }}
+                  onDelete={() => handleDeleteJob(job.id)}
+                />
               );
             })
           )}
@@ -1169,7 +1270,10 @@ const s = StyleSheet.create({
   },
   jobBody: {flex: 1, paddingVertical: 19, paddingHorizontal: 18},
   jobTopRow: {flexDirection: 'row', alignItems: 'center', gap: 12},
-  jobTime: {fontSize: 14, fontWeight: '600', color: UI.text.muted, width: 42},
+  jobTimeCol: {width: 42, alignItems: 'center' as const, justifyContent: 'center' as const},
+  jobTimeColWide: {width: 74},
+  jobDate: {fontSize: 12, fontWeight: '600', color: UI.text.title, marginBottom: 2},
+  jobTime: {fontSize: 13, fontWeight: '400', color: UI.text.muted},
   jobDivider: {
     width: 1,
     height: 36,

@@ -124,9 +124,12 @@ function buildDocumentHtml(data: DocumentData, company: CompanyInfo): string {
   /** Render description: pass through HTML if rich text, otherwise escape */
   const renderDesc = (desc: string): string => {
     if (!desc) return '';
+    // Clean &nbsp; entities that may have leaked from the rich text editor
+    const cleaned = desc.replace(/&nbsp;/g, ' ').replace(/\s+$/g, '');
+    if (!cleaned) return '';
     // Detect if description contains HTML tags (from rich text editor)
-    const hasHtml = /<\/?(?:b|i|u|strong|em|ul|ol|li|br|div|p|span)[ >/]/i.test(desc);
-    return hasHtml ? desc : `<span class="bold">${esc(desc)}</span>`;
+    const hasHtml = /<\/?(?:b|i|u|strong|em|ul|ol|li|br|div|p|span)[ >/]/i.test(cleaned);
+    return hasHtml ? cleaned : `<span class="bold">${esc(cleaned)}</span>`;
   };
 
   return `

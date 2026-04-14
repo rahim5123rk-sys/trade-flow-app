@@ -51,6 +51,9 @@ export default function DecommissioningReviewSignScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
   const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
+  const [defaultSendEmails, setDefaultSendEmails] = useState<string[]>(() =>
+    sanitizeRecipients([customerForm.email || ''])
+  );
 
   useEffect(() => {
     const preload = async () => {
@@ -115,7 +118,7 @@ export default function DecommissioningReviewSignScreen() {
         customerId: customerForm.customerId || null,
         editingDocumentId,
         expiryDate: null,
-        emailRecipients: sanitizeRecipients([customerForm.email || '', ...additionalSendEmails]),
+        emailRecipients: sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]),
         emailContext: {
           propertyAddress,
           inspectionDate: decommissionDate,
@@ -188,9 +191,10 @@ export default function DecommissioningReviewSignScreen() {
 
           <View style={{marginBottom: 16}}>
             <EmailRecipientsList
-              defaultEmails={sanitizeRecipients([customerForm.email || ''])}
+              defaultEmails={defaultSendEmails}
               additionalEmails={additionalSendEmails}
               onAdditionalEmailsChange={setAdditionalSendEmails}
+              onDefaultEmailsChange={setDefaultSendEmails}
             />
           </View>
 

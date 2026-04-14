@@ -93,7 +93,8 @@ export default function JobDetailScreen() {
       return;
     }
 
-    router.replace('/(app)/jobs' as any);
+    // Use router.back() to preserve tab state (e.g. completed jobs list)
+    router.back();
   };
 
   useFocusEffect(

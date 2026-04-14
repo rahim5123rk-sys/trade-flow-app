@@ -33,6 +33,7 @@ import { supabase } from '../../../../src/config/supabase';
 import { useAuth } from '../../../../src/context/AuthContext';
 import { useAppTheme } from '../../../../src/context/ThemeContext';
 import { scheduleJobReminders } from '../../../../src/services/notifications';
+import { formatDateWithRelativeHint } from '../../../../src/utils/dates';
 import { resolveAssignedWorkerIds } from '../../../../src/utils/jobAssignments';
 
 const DURATIONS = ['30 mins', '1 hour', '2 hours', '3 hours', '4 hours', 'Full day', 'Multi-day'];
@@ -73,6 +74,7 @@ export default function CreateJobScreen() {
 
   const [loading, setLoading] = useState(false);
   const { theme, isDark } = useAppTheme();
+  const scheduledDateLabel = formatDateWithRelativeHint(scheduledDate, { includeYear: false });
 
   useEffect(() => {
     if (!userProfile?.company_id) return;
@@ -224,6 +226,7 @@ export default function CreateJobScreen() {
         newJob.id,
         title.trim(),
         scheduledDate.getTime(),
+        customerForm.addressLine1?.trim() || undefined,
       );
 
       await supabase
@@ -358,9 +361,7 @@ export default function CreateJobScreen() {
                 <View style={styles.row}>
                   <Ionicons name="calendar-outline" size={20} color={theme.brand.primary} style={{ marginRight: 10 }} />
                   <Text style={[styles.dateText, { textAlign: 'left' }, isDark && { color: theme.text.title }]}>
-                    {scheduledDate.toLocaleDateString('en-GB', {
-                      weekday: 'short', day: 'numeric', month: 'short',
-                    })}
+                    {scheduledDateLabel}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -384,7 +385,7 @@ export default function CreateJobScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.dateDisplay} onPress={() => { setPickerMode('date'); setShowDatePicker(true); }}>
                   <Text style={[styles.dateText, isDark && { color: theme.text.title }]}>
-                    {scheduledDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    {scheduledDateLabel}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.adjustBtn, isDark && { backgroundColor: theme.surface.elevated }]} onPress={() => adjustDate(1)}>

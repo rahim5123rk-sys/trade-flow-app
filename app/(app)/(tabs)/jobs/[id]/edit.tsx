@@ -28,6 +28,7 @@ import { supabase } from '../../../../../src/config/supabase';
 import { useAuth } from '../../../../../src/context/AuthContext';
 import { useAppTheme } from '../../../../../src/context/ThemeContext';
 import { scheduleJobReminders } from '../../../../../src/services/notifications';
+import { formatDateWithRelativeHint } from '../../../../../src/utils/dates';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -49,11 +50,13 @@ export default function EditJobScreen() {
   const [estimatedDuration, setEstimatedDuration] = useState('1 hour');
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [hasWorkers, setHasWorkers] = useState(false);
+  const [jobAddress, setJobAddress] = useState('');
 
   // Picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
   const { theme, isDark } = useAppTheme();
+  const scheduledDateLabel = formatDateWithRelativeHint(scheduledDate, { includeYear: true });
 
   useEffect(() => {
     if (!id) return;
@@ -74,6 +77,8 @@ export default function EditJobScreen() {
       setScheduledDate(new Date(data.scheduled_date));
       setEstimatedDuration(data.estimated_duration || '1 hour');
       setAssignedTo(data.assigned_to || []);
+      const snap = data.customer_snapshot as any;
+      setJobAddress(snap?.addressLine1 || snap?.address_line_1 || '');
     }
     setLoading(false);
   };
@@ -131,6 +136,7 @@ export default function EditJobScreen() {
         id,
         title.trim(),
         scheduledDate.getTime(),
+        jobAddress || undefined,
       );
 
       router.back();
@@ -217,7 +223,7 @@ export default function EditJobScreen() {
                 >
                   <Ionicons name="calendar-outline" size={15} color={isDark ? theme.text.muted : UI.text.muted} />
                   <Text style={[styles.dateText, isDark && { color: theme.text.title }]}>
-                    {scheduledDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    {scheduledDateLabel}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustDate(1)}>

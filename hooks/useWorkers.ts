@@ -87,7 +87,8 @@ export async function notifyWorkers(
   workerIds: string[],
   jobTitle: string,
   jobDate: string,
-  type: 'job_assigned' | 'job_updated' | 'status_change' = 'job_assigned'
+  type: 'job_assigned' | 'job_updated' | 'status_change' = 'job_assigned',
+  jobAddress?: string,
 ) {
   if (!workerIds.length) return;
 
@@ -100,6 +101,9 @@ export async function notifyWorkers(
 
     if (!workers?.length) return;
 
+    // Use address for display, fall back to job title
+    const displayLabel = jobAddress?.trim() || jobTitle;
+
     const titleMap = {
       job_assigned: 'New Job Assigned',
       job_updated: 'Job Updated',
@@ -107,9 +111,9 @@ export async function notifyWorkers(
     };
 
     const bodyMap = {
-      job_assigned: `You've been assigned: ${jobTitle} on ${jobDate}`,
-      job_updated: `"${jobTitle}" has been updated`,
-      status_change: `"${jobTitle}" status has changed`,
+      job_assigned: `You've been assigned: ${displayLabel} on ${jobDate}`,
+      job_updated: `"${displayLabel}" has been updated`,
+      status_change: `"${displayLabel}" status has changed`,
     };
 
     const messages = workers

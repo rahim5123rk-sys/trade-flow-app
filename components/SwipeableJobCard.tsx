@@ -1,50 +1,50 @@
 // ============================================
 // FILE: components/SwipeableJobCard.tsx
-// Swipe-to-update-status job card with gradient
-// reveal and haptic feedback.
+// Swipe-to-update-status with glowing reveal
+// and haptic feedback.
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+
+const IS_IOS = Platform.OS === 'ios';
 import Animated, {
   Extrapolation,
   interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
-import { UI } from '../constants/theme';
 
 // ─── Status flow ────────────────────────────────
-const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'] as const;
-type JobStatus = (typeof STATUS_FLOW)[number] | 'cancelled';
+type JobStatus = 'pending' | 'in_progress' | 'complete' | 'paid' | 'cancelled';
 
-const SWIPE_THRESHOLD = 100;
-const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.8 };
+const SWIPE_THRESHOLD = 90;
+const SPRING_CONFIG = { damping: 18, stiffness: 220, mass: 0.7 };
 
 interface StatusMeta {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  colors: readonly [string, string];
+  color: string;
+  glowBg: string;
 }
 
 const NEXT_STATUS_META: Record<string, StatusMeta> = {
-  pending:     { label: 'Start',    icon: 'play',             colors: [UI.status.inProgress, '#60A5FA'] },
-  in_progress: { label: 'Complete', icon: 'checkmark-circle', colors: ['#059669', '#34D399'] },
-  complete:    { label: 'Paid',     icon: 'cash',             colors: ['#7C3AED', '#A78BFA'] },
+  pending:      { label: 'Start',  icon: 'play',             color: '#3B82F6', glowBg: '#DBEAFE' },
+  in_progress:  { label: 'Done',   icon: 'checkmark-circle', color: '#10B981', glowBg: '#D1FAE5' },
+  complete:     { label: 'Paid',   icon: 'cash',             color: '#8B5CF6', glowBg: '#EDE9FE' },
 };
 
 const PREV_STATUS_META: Record<string, StatusMeta> = {
-  in_progress: { label: 'Reopen',   icon: 'refresh',   colors: ['#D97706', '#FBBF24'] },
-  complete:    { label: 'Reopen',   icon: 'refresh',   colors: ['#D97706', '#FBBF24'] },
-  paid:        { label: 'Unpay',    icon: 'refresh',   colors: ['#D97706', '#FBBF24'] },
-  pending:     { label: 'Delete',   icon: 'trash',     colors: ['#DC2626', '#F87171'] },
+  in_progress:  { label: 'Reopen', icon: 'arrow-undo', color: '#F59E0B', glowBg: '#FEF3C7' },
+  complete:     { label: 'Reopen', icon: 'arrow-undo', color: '#F59E0B', glowBg: '#FEF3C7' },
+  paid:         { label: 'Reopen', icon: 'arrow-undo', color: '#F59E0B', glowBg: '#FEF3C7' },
+  pending:      { label: 'Delete', icon: 'trash',      color: '#EF4444', glowBg: '#FEE2E2' },
 };
 
 // ─── Props ──────────────────────────────────────
@@ -66,21 +66,27 @@ export function SwipeableJobCard({
   onDelete,
 }: SwipeableJobCardProps) {
   const translateX = useSharedValue(0);
-  const hasTriggeredHaptic = useRef(false);
+  const triggered = useSharedValue(false);
   const isActive = useSharedValue(false);
+  const hasTriggeredHaptic = useRef(false);
 
   const nextMeta = NEXT_STATUS_META[status];
   const prevMeta = PREV_STATUS_META[status];
 
-  // Can advance? (paid is the last status)
   const canAdvance = status !== 'paid' && status !== 'cancelled';
-  // Left swipe: revert (or delete if pending)
-  const canRevert = isAdmin; // only admins can revert/delete
+  const canRevert = isAdmin;
 
   const triggerHaptic = useCallback(() => {
     if (!hasTriggeredHaptic.current) {
       hasTriggeredHaptic.current = true;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, []);
+
+  const untriggerHaptic = useCallback(() => {
+    if (hasTriggeredHaptic.current) {
+      hasTriggeredHaptic.current = false;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, []);
 
@@ -107,27 +113,31 @@ export function SwipeableJobCard({
     .failOffsetY([-10, 10])
     .onStart(() => {
       isActive.value = true;
+      triggered.value = false;
       runOnJS(resetHaptic)();
     })
     .onUpdate((event) => {
-      // Clamp based on what's allowed
       let x = event.translationX;
       if (!canAdvance && x > 0) x = 0;
       if (!canRevert && x < 0) x = 0;
 
-      // Rubber-band feel at edges
-      if (x > SWIPE_THRESHOLD * 1.5) {
-        x = SWIPE_THRESHOLD * 1.5 + (x - SWIPE_THRESHOLD * 1.5) * 0.3;
-      }
-      if (x < -SWIPE_THRESHOLD * 1.5) {
-        x = -SWIPE_THRESHOLD * 1.5 + (x + SWIPE_THRESHOLD * 1.5) * 0.3;
+      // Rubber-band after threshold
+      if (Math.abs(x) > SWIPE_THRESHOLD) {
+        const over = Math.abs(x) - SWIPE_THRESHOLD;
+        const sign = x > 0 ? 1 : -1;
+        x = sign * (SWIPE_THRESHOLD + over * 0.25);
       }
 
       translateX.value = x;
 
-      // Haptic at threshold
-      if (Math.abs(x) >= SWIPE_THRESHOLD) {
+      // Haptic at threshold crossing (both directions)
+      const pastThreshold = Math.abs(x) >= SWIPE_THRESHOLD;
+      if (pastThreshold && !triggered.value) {
+        triggered.value = true;
         runOnJS(triggerHaptic)();
+      } else if (!pastThreshold && triggered.value) {
+        triggered.value = false;
+        runOnJS(untriggerHaptic)();
       }
     })
     .onEnd(() => {
@@ -135,136 +145,140 @@ export function SwipeableJobCard({
       const x = translateX.value;
 
       if (x >= SWIPE_THRESHOLD && canAdvance) {
-        // Snap out then snap back
-        translateX.value = withSpring(SWIPE_THRESHOLD * 1.2, SPRING_CONFIG, () => {
-          translateX.value = withSpring(0, SPRING_CONFIG);
-        });
+        translateX.value = withSequence(
+          withSpring(SWIPE_THRESHOLD * 1.15, SPRING_CONFIG),
+          withSpring(0, { ...SPRING_CONFIG, damping: 22 }),
+        );
         runOnJS(handleAdvance)();
       } else if (x <= -SWIPE_THRESHOLD && canRevert) {
-        translateX.value = withSpring(-SWIPE_THRESHOLD * 1.2, SPRING_CONFIG, () => {
-          translateX.value = withSpring(0, SPRING_CONFIG);
-        });
+        translateX.value = withSequence(
+          withSpring(-SWIPE_THRESHOLD * 1.15, SPRING_CONFIG),
+          withSpring(0, { ...SPRING_CONFIG, damping: 22 }),
+        );
         runOnJS(handleRevert)();
       } else {
         translateX.value = withSpring(0, SPRING_CONFIG);
       }
     });
 
-  // Card translation
+  // ─── Animated styles ───────────────────────────
+
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
 
-  // Right gradient (advance) — revealed when swiping right
-  const rightRevealStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      translateX.value,
-      [0, SWIPE_THRESHOLD * 0.5, SWIPE_THRESHOLD],
-      [0, 0.5, 1],
-      Extrapolation.CLAMP,
+  // Right action (advance) — slides in from left
+  const rightActionStyle = useAnimatedStyle(() => {
+    const progress = interpolate(
+      translateX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP,
     );
-    const scale = interpolate(
-      translateX.value,
-      [0, SWIPE_THRESHOLD],
-      [0.6, 1],
-      Extrapolation.CLAMP,
-    );
-    return { opacity, transform: [{ scale }] };
-  });
-
-  // Left gradient (revert/delete) — revealed when swiping left
-  const leftRevealStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      translateX.value,
-      [0, -SWIPE_THRESHOLD * 0.5, -SWIPE_THRESHOLD],
-      [0, 0.5, 1],
-      Extrapolation.CLAMP,
-    );
-    const scale = interpolate(
-      translateX.value,
-      [0, -SWIPE_THRESHOLD],
-      [0.6, 1],
-      Extrapolation.CLAMP,
-    );
-    return { opacity, transform: [{ scale }] };
-  });
-
-  // Threshold indicator — icon pulses when threshold is reached
-  const rightIconStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      translateX.value,
-      [SWIPE_THRESHOLD * 0.8, SWIPE_THRESHOLD, SWIPE_THRESHOLD * 1.2],
-      [1, 1.3, 1.15],
-      Extrapolation.CLAMP,
-    );
-    return { transform: [{ scale }] };
-  });
-
-  const leftIconStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      translateX.value,
-      [-SWIPE_THRESHOLD * 0.8, -SWIPE_THRESHOLD, -SWIPE_THRESHOLD * 1.2],
-      [1, 1.3, 1.15],
-      Extrapolation.CLAMP,
-    );
-    return { transform: [{ scale }] };
-  });
-
-  // Subtle card shadow/elevation change when dragging
-  const containerStyle = useAnimatedStyle(() => {
-    const elevation = isActive.value
-      ? withTiming(8, { duration: 150 })
-      : withTiming(2, { duration: 300 });
     return {
-      shadowOpacity: interpolate(elevation, [2, 8], [0.04, 0.15]),
-      shadowRadius: interpolate(elevation, [2, 8], [6, 16]),
-      elevation,
+      opacity: progress,
+      transform: [
+        { translateX: interpolate(progress, [0, 1], [-20, 0], Extrapolation.CLAMP) },
+      ],
+    };
+  });
+
+  // Left action (revert/delete) — slides in from right
+  const leftActionStyle = useAnimatedStyle(() => {
+    const progress = interpolate(
+      translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], Extrapolation.CLAMP,
+    );
+    return {
+      opacity: progress,
+      transform: [
+        { translateX: interpolate(progress, [0, 1], [20, 0], Extrapolation.CLAMP) },
+      ],
+    };
+  });
+
+  // Icon pulse when past threshold
+  const rightIconPulse = useAnimatedStyle(() => {
+    const past = translateX.value >= SWIPE_THRESHOLD;
+    const s = past
+      ? withSpring(1.3, { damping: 8, stiffness: 300 })
+      : withSpring(1, { damping: 12, stiffness: 200 });
+    return { transform: [{ scale: s }] };
+  });
+
+  const leftIconPulse = useAnimatedStyle(() => {
+    const past = translateX.value <= -SWIPE_THRESHOLD;
+    const s = past
+      ? withSpring(1.3, { damping: 8, stiffness: 300 })
+      : withSpring(1, { damping: 12, stiffness: 200 });
+    return { transform: [{ scale: s }] };
+  });
+
+  // Glow border + shadow on the card as you drag
+  const glowStyle = useAnimatedStyle(() => {
+    const absX = Math.abs(translateX.value);
+    const isRight = translateX.value > 0;
+    const glowColor = isRight
+      ? (canAdvance && nextMeta ? nextMeta.color : 'transparent')
+      : (canRevert && prevMeta ? prevMeta.color : 'transparent');
+
+    const intensity = absX < 5
+      ? 0
+      : interpolate(absX, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP);
+
+    const bw = interpolate(intensity, [0, 1], [0, 2], Extrapolation.CLAMP);
+    const sOpacity = IS_IOS
+      ? interpolate(intensity, [0, 0.5, 1], [0, 0.25, 0.55], Extrapolation.CLAMP)
+      : 0;
+    const sRadius = IS_IOS
+      ? interpolate(intensity, [0, 1], [0, 18], Extrapolation.CLAMP)
+      : 0;
+    const elev = IS_IOS ? 0 : interpolate(intensity, [0, 1], [2, 12], Extrapolation.CLAMP);
+
+    return {
+      borderColor: intensity > 0 ? glowColor : 'transparent',
+      borderWidth: bw,
+      shadowColor: glowColor,
+      shadowOpacity: sOpacity,
+      shadowRadius: sRadius,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: elev,
     };
   });
 
   return (
-    <Animated.View style={[styles.wrapper, containerStyle]}>
-      {/* Advance gradient (behind — right side) */}
+    <View style={styles.wrapper}>
+      {/* Right action indicator (advance) */}
       {canAdvance && nextMeta && (
-        <Animated.View style={[styles.revealContainer, styles.revealLeft, rightRevealStyle]}>
-          <LinearGradient
-            colors={[...nextMeta.colors]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.gradient}
-          >
-            <Animated.View style={[styles.revealContent, rightIconStyle]}>
-              <Ionicons name={nextMeta.icon} size={24} color="#FFFFFF" />
-              <Text style={styles.revealLabel}>{nextMeta.label}</Text>
+        <Animated.View style={[styles.actionContainer, styles.actionLeft, rightActionStyle]}>
+          <View style={[styles.actionPill, { backgroundColor: nextMeta.glowBg }]}>
+            <Animated.View style={rightIconPulse}>
+              <View style={[styles.iconCircle, { backgroundColor: nextMeta.color }]}>
+                <Ionicons name={nextMeta.icon} size={18} color="#FFFFFF" />
+              </View>
             </Animated.View>
-          </LinearGradient>
+            <Text style={[styles.actionLabel, { color: nextMeta.color }]}>{nextMeta.label}</Text>
+          </View>
         </Animated.View>
       )}
 
-      {/* Revert/Delete gradient (behind — left side) */}
+      {/* Left action indicator (revert/delete) */}
       {canRevert && prevMeta && (
-        <Animated.View style={[styles.revealContainer, styles.revealRight, leftRevealStyle]}>
-          <LinearGradient
-            colors={[...prevMeta.colors]}
-            start={{ x: 1, y: 0.5 }}
-            end={{ x: 0, y: 0.5 }}
-            style={styles.gradient}
-          >
-            <Animated.View style={[styles.revealContent, styles.revealContentRight, leftIconStyle]}>
-              <Ionicons name={prevMeta.icon} size={24} color="#FFFFFF" />
-              <Text style={styles.revealLabel}>{prevMeta.label}</Text>
+        <Animated.View style={[styles.actionContainer, styles.actionRight, leftActionStyle]}>
+          <View style={[styles.actionPill, { backgroundColor: prevMeta.glowBg }]}>
+            <Text style={[styles.actionLabel, { color: prevMeta.color }]}>{prevMeta.label}</Text>
+            <Animated.View style={leftIconPulse}>
+              <View style={[styles.iconCircle, { backgroundColor: prevMeta.color }]}>
+                <Ionicons name={prevMeta.icon} size={18} color="#FFFFFF" />
+              </View>
             </Animated.View>
-          </LinearGradient>
+          </View>
         </Animated.View>
       )}
 
-      {/* The actual card content — slides over the gradients */}
+      {/* Sliding card with glow border */}
       <GestureDetector gesture={pan}>
-        <Animated.View style={cardStyle}>
+        <Animated.View style={[cardStyle, glowStyle, styles.cardClip]}>
           {children}
         </Animated.View>
       </GestureDetector>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -272,42 +286,44 @@ const styles = StyleSheet.create({
   wrapper: {
     position: 'relative',
     marginBottom: 10,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
   },
-  revealContainer: {
+  actionContainer: {
     ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: -1,
+  },
+  actionLeft: {
+    justifyContent: 'flex-start',
+    paddingLeft: 16,
+  },
+  actionRight: {
+    justifyContent: 'flex-end',
+    paddingRight: 16,
+  },
+  actionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  cardClip: {
     borderRadius: 14,
     overflow: 'hidden',
-  },
-  revealLeft: {
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  revealRight: {
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-  },
-  revealContent: {
-    alignItems: 'center',
-    gap: 4,
-    paddingLeft: 24,
-  },
-  revealContentRight: {
-    paddingLeft: 0,
-    paddingRight: 24,
-    alignSelf: 'flex-end',
-  },
-  revealLabel: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
 });

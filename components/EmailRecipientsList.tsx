@@ -14,6 +14,7 @@ interface Props {
   defaultEmails: string[];
   additionalEmails: string[];
   onAdditionalEmailsChange: (emails: string[]) => void;
+  onDefaultEmailsChange?: (emails: string[]) => void;
   title?: string;
   subtitle?: string;
 }
@@ -22,11 +23,14 @@ export default function EmailRecipientsList({
   defaultEmails,
   additionalEmails,
   onAdditionalEmailsChange,
+  onDefaultEmailsChange,
   title = "Email Recipients",
   subtitle = "Document will be sent to these addresses"
 }: Props) {
   const { theme, isDark } = useAppTheme();
   const [inputValue, setInputValue] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const addEmail = () => {
     const trimmed = inputValue.trim().toLowerCase();
@@ -58,11 +62,46 @@ export default function EmailRecipientsList({
 
       <View style={[styles.divider, { backgroundColor: isDark ? theme.surface.border : '#E5E7EB' }]} />
 
-      {/* Default emails */}
-      {defaultEmails.map((email) => (
-        <View key={email} style={styles.emailRow}>
+      {/* Default emails — tap pencil to edit */}
+      {defaultEmails.map((email, idx) => (
+        <View key={`default-${idx}`} style={styles.emailRow}>
           <Ionicons name="person-outline" size={14} color={theme.text.muted} />
-          <Text style={[styles.emailText, { color: theme.text.body }]}>{email}</Text>
+          {editingIndex === idx ? (
+            <TextInput
+              style={[styles.emailText, { color: theme.text.body, borderBottomWidth: 1, borderBottomColor: theme.brand.primary }]}
+              value={editValue}
+              onChangeText={setEditValue}
+              autoFocus
+              keyboardType="email-address"
+              autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                if (onDefaultEmailsChange) {
+                  const trimmed = editValue.trim().toLowerCase();
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (trimmed && emailRegex.test(trimmed)) {
+                    const updated = [...defaultEmails];
+                    updated[idx] = trimmed;
+                    onDefaultEmailsChange(updated);
+                  }
+                }
+                setEditingIndex(null);
+              }}
+              onBlur={() => setEditingIndex(null)}
+            />
+          ) : (
+            <>
+              <Text style={[styles.emailText, { color: theme.text.body }]}>{email}</Text>
+              {onDefaultEmailsChange && (
+                <TouchableOpacity
+                  onPress={() => { setEditingIndex(idx); setEditValue(email); }}
+                  style={{ marginLeft: 'auto' }}
+                >
+                  <Ionicons name="pencil-outline" size={14} color={theme.text.muted} />
+                </TouchableOpacity>
+              )}
+            </>
+          )}
         </View>
       ))}
       

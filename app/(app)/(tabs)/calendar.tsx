@@ -4,6 +4,7 @@ import {router, useFocusEffect} from 'expo-router';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   RefreshControl,
@@ -17,6 +18,7 @@ import {Calendar, DateData} from 'react-native-calendars';
 import Animated, {FadeInDown, FadeInRight} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import ProPaywallModal from '../../../components/ProPaywallModal';
+import {SwipeableJobCard} from '../../../components/SwipeableJobCard';
 import {UI} from '../../../constants/theme';
 import {useRealtimeJobs} from '../../../hooks/useRealtime';
 import {supabase} from '../../../src/config/supabase';
@@ -24,7 +26,7 @@ import {useAuth} from '../../../src/context/AuthContext';
 import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 import {Job} from '../../../src/types';
-import {formatLocalDateKey, toDateString} from '../../../src/utils/dates';
+import {formatLocalDateKey, formatRelativeDateLabel, toDateString} from '../../../src/utils/dates';
 import {getStatusStyle} from '../../../src/utils/formatting';
 
 const SCREEN_BG = '#F8F9FA';
@@ -250,7 +252,7 @@ export default function UnifiedCalendarScreen() {
 
   const dateSummaryLabel = isToday
     ? `Today, ${selectedDateObj.toLocaleDateString('en-GB', {month: 'long', day: 'numeric'})}`
-    : selectedDateObj.toLocaleDateString('en-GB', {weekday: 'long', month: 'long', day: 'numeric'});
+    : `${selectedDateObj.toLocaleDateString('en-GB', {weekday: 'long', month: 'long', day: 'numeric'})}${formatRelativeDateLabel(selectedDateObj) === 'Tomorrow' ? ' (Tomorrow)' : ''}`;
 
   const listMeta = useMemo(() => {
     if (listMode === 'week') {
@@ -311,6 +313,59 @@ export default function UnifiedCalendarScreen() {
     return items;
   }, [listMeta.jobs, listMode, today]);
 
+  // ─── Status helpers ─────────────────────────
+  const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'] as const;
+  const getNextStatus = (current: string) => {
+    const idx = STATUS_FLOW.indexOf(current as any);
+    return idx >= 0 && idx < STATUS_FLOW.length - 1 ? STATUS_FLOW[idx + 1] : null;
+  };
+  const getPrevStatus = (current: string) => {
+    const idx = STATUS_FLOW.indexOf(current as any);
+    return idx > 0 ? STATUS_FLOW[idx - 1] : null;
+  };
+
+  const handleUpdateJobStatus = async (
+    jobId: string,
+    status: 'pending' | 'in_progress' | 'complete' | 'paid',
+  ) => {
+    const {error} = await supabase
+      .from('jobs')
+      .update({status})
+      .eq('id', jobId)
+      .eq('company_id', userProfile?.company_id);
+
+    if (error) {
+      Alert.alert('Error', 'Could not update job status.');
+    } else {
+      const d = new Date(selectedDate);
+      fetchJobsForMonth(d.getFullYear(), d.getMonth(), true);
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    Alert.alert('Delete Job', 'Are you sure you want to delete this job?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const {error} = await supabase
+            .from('jobs')
+            .delete()
+            .eq('id', jobId)
+            .eq('company_id', userProfile?.company_id);
+
+          if (error) {
+            Alert.alert('Error', 'Could not delete job.');
+          } else {
+            const d = new Date(selectedDate);
+            fetchJobsForMonth(d.getFullYear(), d.getMonth(), true);
+          }
+        },
+      },
+    ]);
+  };
+
   const handleCreateJobFromCalendar = () => {
     router.push({
       pathname: '/(app)/jobs/create',
@@ -325,35 +380,50 @@ export default function UnifiedCalendarScreen() {
       minute: '2-digit',
     });
 
+    const nextStatus = getNextStatus(item.status);
+    const prevStatus = getPrevStatus(item.status);
+
     return (
       <Animated.View entering={FadeInRight.delay(Math.min(index * 40, 240)).springify()}>
-        <TouchableOpacity
-          style={[styles.jobCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
-          activeOpacity={0.7}
-          onPress={() => router.push({pathname: '/(app)/jobs/[id]', params: {id: item.id, from: 'calendar'}} as any)}
+        <SwipeableJobCard
+          status={item.status as any}
+          isAdmin={isAdmin}
+          onAdvanceStatus={() => {
+            if (nextStatus) handleUpdateJobStatus(item.id, nextStatus);
+          }}
+          onRevertStatus={() => {
+            if (prevStatus) handleUpdateJobStatus(item.id, prevStatus);
+          }}
+          onDelete={() => handleDeleteJob(item.id)}
         >
-          <View style={styles.jobBody}>
-            <View style={styles.jobRow}>
-              <Text style={[styles.timeText, {color: theme.text.muted}]}>{time}</Text>
-              <View style={styles.jobDivider} />
-              <View style={styles.jobInfo}>
-                <Text style={[styles.jobTitle, {color: theme.text.title}]} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <Text style={[styles.jobCustomer, {color: theme.text.muted}]} numberOfLines={1}>
-                  {subtitle}
-                </Text>
-              </View>
-              <View style={[styles.statusPill, {backgroundColor: `${status.color}14`}]}>
-                <Text style={[styles.statusText, {color: status.color}]}>
-                  {String(item.status).replace('_', ' ')}
-                </Text>
+          <TouchableOpacity
+            style={[styles.jobCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
+            activeOpacity={0.7}
+            onPress={() => router.push({pathname: '/(app)/jobs/[id]', params: {id: item.id, from: 'calendar'}} as any)}
+          >
+            <View style={styles.jobBody}>
+              <View style={styles.jobRow}>
+                <Text style={[styles.timeText, {color: theme.text.muted}]}>{time}</Text>
+                <View style={styles.jobDivider} />
+                <View style={styles.jobInfo}>
+                  <Text style={[styles.jobTitle, {color: theme.text.title}]} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.jobCustomer, {color: theme.text.muted}]} numberOfLines={1}>
+                    {subtitle}
+                  </Text>
+                </View>
+                <View style={[styles.statusPill, {backgroundColor: `${status.color}14`}]}>
+                  <Text style={[styles.statusText, {color: status.color}]}>
+                    {String(item.status).replace('_', ' ')}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          <Ionicons name="chevron-forward" size={16} color={theme.surface.border} style={{marginRight: 14}} />
-        </TouchableOpacity>
+            <Ionicons name="chevron-forward" size={16} color={theme.surface.border} style={{marginRight: 14}} />
+          </TouchableOpacity>
+        </SwipeableJobCard>
       </Animated.View>
     );
   };

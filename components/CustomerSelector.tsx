@@ -145,6 +145,7 @@ export function CustomerSelector({
   const [originalData, setOriginalData] = useState<CustomerFormData | null>(
     null,
   );
+  const [updateSuccess, setUpdateSuccess] = useState(false);
 
   useEffect(() => {
     if (value.customerId) setCustomerMode('existing');
@@ -219,17 +220,21 @@ export function CustomerSelector({
     try {
       await updateExistingCustomer(value.customerId!, value);
       await fetchCustomers();
-      Alert.alert('Success', 'Customer details updated permanently.');
-      setIsEditing(false);
-      setOriginalData(null);
+      // Show animated success indicator instead of alert
+      setUpdateSuccess(true);
+      setTimeout(() => {
+        setUpdateSuccess(false);
+        setIsEditing(false);
+        setOriginalData(null);
+      }, 1500);
     } catch {
       Alert.alert('Error', 'Could not update customer.');
     }
   };
 
   const handleCreateCustomerInDB = async () => {
-    if (!value.customerName || !value.addressLine1 || !value.postCode) {
-      Alert.alert('Missing Info', 'Name, Address, and Post Code are required.');
+    if ((!value.customerName && !value.customerCompany) || !value.addressLine1 || !value.postCode) {
+      Alert.alert('Missing Info', 'Either Name or Company, Address, and Post Code are required.');
       return;
     }
     try {
@@ -283,7 +288,8 @@ export function CustomerSelector({
   );
 
   const isLocked = prefillMode === 'locked' && !isEditing;
-  const showInputs = hideTabs || isEditing || customerMode === 'new';
+  // Always show input fields — even for existing customers (pre-filled)
+  const showInputs = hideTabs || isEditing || customerMode === 'new' || (customerMode === 'existing' && !!value.customerId);
 
   // ──────────────────────────────────────────────────────────────────
   // Renders
@@ -513,6 +519,37 @@ export function CustomerSelector({
               entering={FadeInDown.delay(100).duration(350).springify()}
               style={[s.card, darkCard]}
             >
+              {/* When existing customer selected, show change/clear buttons */}
+              {customerMode === 'existing' && value.customerId && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <TouchableOpacity
+                    style={[s.pickerBtn, darkInput, { flex: 1, marginRight: 8 }]}
+                    activeOpacity={0.7}
+                    onPress={() => setShowPicker(true)}
+                  >
+                    <View style={s.pickerLeft}>
+                      <View style={s.pickerIconWrap}>
+                        <Ionicons name="swap-horizontal" size={16} color={UI.brand.primary} />
+                      </View>
+                      <Text style={[s.pickerText, darkTitle, { fontSize: 13 }]}>Change Customer</Text>
+                    </View>
+                    <Ionicons name="chevron-down" size={16} color={isDark ? theme.text.muted : UI.text.muted} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{ padding: 8, borderRadius: 8, backgroundColor: isDark ? theme.surface.elevated : '#FEF2F2' }}
+                    onPress={() => {
+                      onChange({
+                        ...EMPTY_CUSTOMER_FORM,
+                        sameAsBilling: value.sameAsBilling,
+                      });
+                      setCustomerMode('new');
+                    }}
+                  >
+                    <Ionicons name="close-circle" size={20} color={UI.brand.danger} />
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {renderLabel('Contact Name *')}
               {renderInput('e.g. Sarah Jenkins', value.customerName, 'customerName')}
 
@@ -595,7 +632,18 @@ export function CustomerSelector({
               {/* ACTION BUTTONS */}
               {showActions && isEditing && (
                 <Animated.View entering={FadeInUp.delay(100).duration(300)} style={{ marginTop: 10 }}>
-                  {!hasChanged ? (
+                  {updateSuccess ? (
+                    /* ─── Animated success indicator ─── */
+                    <Animated.View
+                      entering={FadeIn.duration(400)}
+                      style={{ alignItems: 'center', paddingVertical: 16 }}
+                    >
+                      <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#DEF7EC', justifyContent: 'center', alignItems: 'center' }}>
+                        <Ionicons name="checkmark-circle" size={32} color="#059669" />
+                      </View>
+                      <Text style={{ marginTop: 8, fontSize: 14, fontWeight: '600', color: '#059669' }}>Updated</Text>
+                    </Animated.View>
+                  ) : !hasChanged ? (
                     <View style={s.editActions}>
                       <TouchableOpacity style={[s.cancelBtn, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]} onPress={cancelEditing}>
                         <Text style={[s.cancelBtnText, darkMuted]}>Cancel</Text>
@@ -891,7 +939,7 @@ export function buildCustomerSnapshot(form: CustomerFormData) {
     .join(', ');
 
   return {
-    name: form.customerName.trim(),
+    name: form.customerName.trim() || form.customerCompany.trim(),
     company_name: form.customerCompany.trim(),
     address_line_1: activeAddressLine1.trim(),
     address_line_2: activeAddressLine2.trim(),

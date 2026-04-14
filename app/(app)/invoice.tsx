@@ -7,6 +7,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -43,6 +44,7 @@ import {
     DocumentData,
     generateDocument,
     generateDocumentBase64,
+    generateDocumentUrl,
     LineItem,
 } from '../../src/services/DocumentGenerator';
 import { sanitizeRecipients, sendCp12CertificateEmail } from '../../src/services/email';
@@ -81,13 +83,16 @@ export default function CreateInvoiceScreen() {
   const [discountPercent, setDiscountPercent] = useState('0');
   const [notes, setNotes] = useState('');
   const [paymentInfo, setPaymentInfo] = useState('');
+  const [paymentTerms, setPaymentTerms] = useState('');
   const [emailing, setEmailing] = useState(false);
+  const [viewingPdf, setViewingPdf] = useState(false);
   const [focusedDescIdx, setFocusedDescIdx] = useState<number | null>(null);
 
   // ─── Job link (if coming from a job) ──────────────────────────
   const [jobId, setJobId] = useState<string | null>(null);
   // ─── Edit mode (editing existing document) ────────────────────
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [savedDocId, setSavedDocId] = useState<string | null>(null);
   const [originalStatus, setOriginalStatus] = useState<string | null>(null);
   const { theme, isDark } = useAppTheme();
 
@@ -139,7 +144,7 @@ export default function CreateInvoiceScreen() {
             postCode: snap.postal_code || '',
             phone: snap.phone || '',
             email: snap.email || '',
-            sameAsBilling: true,
+            sameAsBilling: !(jobAddr?.address_line_1),
             jobAddressLine1: jobAddr?.address_line_1 || '',
             jobAddressLine2: jobAddr?.address_line_2 || '',
             jobCity: jobAddr?.city || '',
@@ -149,7 +154,7 @@ export default function CreateInvoiceScreen() {
             siteContactPhone: '',
             siteContactTitle: '',
           });
-          setPrefilled(true);
+          // Don't lock fields in edit mode — show all fields editable
         }
       }
       setLoading(false);
@@ -166,6 +171,7 @@ export default function CreateInvoiceScreen() {
     if (companyData?.settings) {
       const s = companyData.settings;
       if (s.invoiceNotes) setPaymentInfo(s.invoiceNotes);
+      if (s.invoiceTerms) setPaymentTerms(s.invoiceTerms);
     }
 
     // Get next invoice reference (per-company, e.g. INV-0001)
@@ -249,8 +255,8 @@ export default function CreateInvoiceScreen() {
       Alert.alert('Error', 'Add at least one item with a description.');
       return false;
     }
-    if (!customerForm.customerName.trim()) {
-      Alert.alert('Error', 'Customer name is required.');
+    if (!customerForm.customerName.trim() && !customerForm.customerCompany.trim()) {
+      Alert.alert('Error', 'Either a customer name or company name is required.');
       return false;
     }
     return true;
@@ -342,11 +348,12 @@ export default function CreateInvoiceScreen() {
         if (error) throw error;
       } else {
         // Insert new document
-        const { error } = await supabase.from('documents').insert({
+        const { data: insertedDoc, error } = await supabase.from('documents').insert({
           ...docPayload,
           date: new Date().toISOString(),
-        });
+        }).select('id').single();
         if (error) throw error;
+        if (insertedDoc?.id) setSavedDocId(insertedDoc.id);
       }
 
       // Save site/job address for future reuse
@@ -362,9 +369,13 @@ export default function CreateInvoiceScreen() {
       }
 
       const msg = editingDocId ? 'Invoice updated.' : (isSavingDraft ? 'Invoice saved as draft.' : 'Invoice saved.');
-      Alert.alert('Saved', msg, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      if (editingDocId) {
+        Alert.alert('Saved', msg, [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      } else {
+        Alert.alert('Saved', msg);
+      }
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to save invoice.');
     } finally {
@@ -492,6 +503,85 @@ export default function CreateInvoiceScreen() {
     }
   };
 
+  // ─── View PDF directly ─────────────────────────────────────
+  const handleViewPdf = async () => {
+    if (!userProfile?.company_id) return;
+    setViewingPdf(true);
+    try {
+      const { jobAddr, today } = buildDocData();
+      const docData: DocumentData = {
+        type: 'invoice',
+        number: parseInt(invoiceNumber.replace(/\D/g, '')) || 1,
+        reference: invoiceNumber || undefined,
+        date: today,
+        expiryDate: dueDate || today,
+        status: originalStatus || 'Draft',
+        customerName: customerForm.customerName,
+        customerCompany: customerForm.customerCompany || undefined,
+        customerAddress1: customerForm.addressLine1,
+        customerAddress2: customerForm.addressLine2 || undefined,
+        customerCity: customerForm.city,
+        customerPostcode: customerForm.postCode,
+        customerEmail: customerForm.email || undefined,
+        customerPhone: customerForm.phone || undefined,
+        jobAddress1: jobAddr.jobAddress1,
+        jobAddress2: jobAddr.jobAddress2 || undefined,
+        jobCity: jobAddr.jobCity,
+        jobPostcode: jobAddr.jobPostcode,
+        items,
+        discountPercent: parseFloat(discountPercent) || 0,
+        partialPayment: 0,
+        notes: notes || undefined,
+        paymentInfo: paymentInfo || undefined,
+      };
+      const pdfUrl = await generateDocumentUrl(docData, userProfile.company_id);
+      await WebBrowser.openBrowserAsync(pdfUrl);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to open PDF.');
+    } finally {
+      setViewingPdf(false);
+    }
+  };
+
+  // ─── Share PDF ────────────────────────────────────────────────
+  const handleSharePdf = async () => {
+    if (!userProfile?.company_id) return;
+    setViewingPdf(true);
+    try {
+      const { jobAddr, today } = buildDocData();
+      const docData: DocumentData = {
+        type: 'invoice',
+        number: parseInt(invoiceNumber.replace(/\D/g, '')) || 1,
+        reference: invoiceNumber || undefined,
+        date: today,
+        expiryDate: dueDate || today,
+        status: originalStatus || 'Draft',
+        customerName: customerForm.customerName,
+        customerCompany: customerForm.customerCompany || undefined,
+        customerAddress1: customerForm.addressLine1,
+        customerAddress2: customerForm.addressLine2 || undefined,
+        customerCity: customerForm.city,
+        customerPostcode: customerForm.postCode,
+        customerEmail: customerForm.email || undefined,
+        customerPhone: customerForm.phone || undefined,
+        jobAddress1: jobAddr.jobAddress1,
+        jobAddress2: jobAddr.jobAddress2 || undefined,
+        jobCity: jobAddr.jobCity,
+        jobPostcode: jobAddr.jobPostcode,
+        items,
+        discountPercent: parseFloat(discountPercent) || 0,
+        partialPayment: 0,
+        notes: notes || undefined,
+        paymentInfo: paymentInfo || undefined,
+      };
+      await generateDocument(docData, userProfile.company_id, 'share');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to share PDF.');
+    } finally {
+      setViewingPdf(false);
+    }
+  };
+
   // ──────────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────────
@@ -586,7 +676,7 @@ export default function CreateInvoiceScreen() {
           </Animated.View>
 
           {/* ─── Prefill Banner ─── */}
-          {prefilled && (
+          {prefilled && !editingDocId && (
             <Animated.View
               entering={FadeIn.duration(300)}
               style={st.prefillBanner}
@@ -609,11 +699,11 @@ export default function CreateInvoiceScreen() {
               onChange={setCustomerForm}
               mode="compact"
               showJobAddress={true}
-              prefillMode={prefilled ? 'locked' : 'none'}
+              prefillMode={prefilled && !editingDocId ? 'locked' : 'none'}
             />
           </Animated.View>
 
-          {prefilled && (
+          {prefilled && !editingDocId && (
             <TouchableOpacity
               style={st.editPrefillBtn}
               onPress={() => setPrefilled(false)}
@@ -772,7 +862,7 @@ export default function CreateInvoiceScreen() {
             </View>
           </Animated.View>
 
-          {/* ─── Notes & Payment ─── */}
+          {/* ─── Notes ─── */}
           <Animated.View
             entering={FadeInDown.delay(300).duration(350).springify()}
             style={[st.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
@@ -786,23 +876,13 @@ export default function CreateInvoiceScreen() {
               >
                 <Ionicons name="chatbox-ellipses" size={16} color={UI.status.inProgress} />
               </View>
-              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Notes & Payment</Text>
+              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Notes</Text>
             </View>
-            <Text style={[st.label, isDark && { color: theme.text.muted }]}>Notes</Text>
             <TextInput
               style={[st.input, { minHeight: 60 }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Any additional notes..."
-              placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
-              multiline
-            />
-            <Text style={[st.label, isDark && { color: theme.text.muted }]}>Payment Instructions</Text>
-            <TextInput
-              style={[st.input, { minHeight: 80 }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
-              value={paymentInfo}
-              onChangeText={setPaymentInfo}
-              placeholder="Bank details, payment terms..."
               placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
               multiline
             />
@@ -887,16 +967,70 @@ export default function CreateInvoiceScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            {editingDocId && (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => router.push(`/(app)/(tabs)/documents/${editingDocId}`)}
-                style={[st.draftBtn, { borderColor: UI.brand.primary, borderWidth: 1.5 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.brand?.primary || UI.brand.primary }]}
-              >
-                <Ionicons name="eye-outline" size={18} color={UI.brand.primary} />
-                <Text style={[st.draftBtnText, { color: UI.brand.primary }]}>View Invoice</Text>
-              </TouchableOpacity>
+            {(editingDocId || savedDocId) && (
+              <>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleViewPdf}
+                  disabled={viewingPdf}
+                  style={[st.draftBtn, { borderColor: UI.brand.primary, borderWidth: 1.5 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.brand?.primary || UI.brand.primary }]}
+                >
+                  {viewingPdf ? (
+                    <ActivityIndicator color={UI.brand.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
+                      <Text style={[st.draftBtnText, { color: UI.brand.primary }]}>View Invoice PDF</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleSharePdf}
+                  disabled={viewingPdf}
+                  style={[st.draftBtn, { borderColor: '#059669', borderWidth: 1.5 }, isDark && { backgroundColor: theme.glass.bg, borderColor: '#059669' }]}
+                >
+                  <Ionicons name="share-outline" size={18} color="#059669" />
+                  <Text style={[st.draftBtnText, { color: '#059669' }]}>Share</Text>
+                </TouchableOpacity>
+              </>
             )}
+          </Animated.View>
+
+          {/* ─── Payment Terms & Instructions (at the bottom) ─── */}
+          <Animated.View
+            entering={FadeInDown.delay(400).duration(350).springify()}
+            style={[st.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }, { marginTop: 8 }]}
+          >
+            <View style={st.cardHeader}>
+              <View
+                style={[
+                  st.cardIconWrap,
+                  { backgroundColor: 'rgba(16,185,129,0.1)' },
+                ]}
+              >
+                <Ionicons name="shield-checkmark" size={16} color={UI.status.complete} />
+              </View>
+              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Payment Terms</Text>
+            </View>
+            <Text style={[st.label, isDark && { color: theme.text.muted }]}>Terms</Text>
+            <TextInput
+              style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+              value={paymentTerms}
+              onChangeText={setPaymentTerms}
+              placeholder="e.g. 14 days, Net 30..."
+              placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
+            />
+            <Text style={[st.label, { marginTop: 8 }, isDark && { color: theme.text.muted }]}>Payment Instructions</Text>
+            <TextInput
+              style={[st.input, { minHeight: 80 }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+              value={paymentInfo}
+              onChangeText={setPaymentInfo}
+              placeholder="Bank details, payment instructions..."
+              placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
+              multiline
+            />
           </Animated.View>
         </ScrollView>
       </LinearGradient>
