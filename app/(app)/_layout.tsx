@@ -127,6 +127,9 @@ export default function AppLayout() {
       if (data.type === 'job_assigned' && data.jobId) {
         router.push(`/(app)/jobs/${data.jobId}?showAcceptModal=true` as any);
       }
+      if (data.type === 'quote_response' && data.documentId) {
+        router.push(`/(app)/(tabs)/documents/${data.documentId}` as any);
+      }
     });
     return cleanup;
   }, []);

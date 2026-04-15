@@ -29,7 +29,7 @@ import {useOfflineMode} from '../../../../src/context/OfflineContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
 import {generateDocument, generateDocumentBase64, generateDocumentUrl} from '../../../../src/services/DocumentGenerator';
 import type {CP12LockedPayload} from '../../../../src/services/cp12PdfGenerator';
-import {sanitizeRecipients, sendCp12CertificateEmail} from '../../../../src/services/email';
+import {sanitizeRecipients, sendCp12CertificateEmail, createQuoteResponseToken} from '../../../../src/services/email';
 import type {BreakdownReportLockedPayload} from '../../../../src/services/breakdownReportPdfGenerator';
 import type {CommissioningLockedPayload} from '../../../../src/services/commissioningPdfGenerator';
 import type {DecommissioningLockedPayload} from '../../../../src/services/decommissioningPdfGenerator';
@@ -80,10 +80,12 @@ export default function DocumentDetailScreen() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
   const {theme, isDark} = useAppTheme();
 
   useEffect(() => {
     if (id) fetchDocument();
+    if (id) fetchEmailStatus();
   }, [id]);
 
   useEffect(() => {
@@ -105,6 +107,18 @@ export default function DocumentDetailScreen() {
     if (data) setDoc(data as Document);
     if (error) Alert.alert('Error', 'Could not load document.');
     setLoading(false);
+  };
+
+  const fetchEmailStatus = async () => {
+    if (!id) return;
+    const {data} = await supabase
+      .from('email_events')
+      .select('status')
+      .eq('document_id', id)
+      .order('updated_at', {ascending: false})
+      .limit(1)
+      .maybeSingle();
+    if (data?.status) setEmailStatus(data.status);
   };
 
   const resolveCustomerId = async (currentId: string | null | undefined, name: string) => {
@@ -370,8 +384,12 @@ export default function DocumentDetailScreen() {
         pdfBase64,
         subjectOverride: emailSubject,
         formLabel,
+        documentId: doc.id,
+        quoteResponseUrl: doc.type === 'quote' ? await createQuoteResponseToken(doc.id).catch(() => undefined) : undefined,
       });
       setShowEmailModal(false);
+      // Refresh email status after sending
+      fetchEmailStatus();
       Alert.alert('Email Sent', `Document emailed to ${recipients.join(', ')}.`);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to send email.');
@@ -591,6 +609,20 @@ export default function DocumentDetailScreen() {
             </View>
           </View>
 
+          {/* Email delivery status badge */}
+          {emailStatus ? (
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: isDark ? theme.surface.divider : UI.surface.elevated}}>
+              <Ionicons
+                name={emailStatus === 'opened' ? 'mail-open-outline' : emailStatus === 'delivered' ? 'checkmark-done-outline' : emailStatus === 'bounced' ? 'alert-circle-outline' : 'mail-outline'}
+                size={14}
+                color={emailStatus === 'opened' ? '#16a34a' : emailStatus === 'delivered' ? '#2563eb' : emailStatus === 'bounced' ? '#dc2626' : '#64748b'}
+              />
+              <Text style={{fontSize: 12, fontWeight: '600', color: emailStatus === 'opened' ? '#16a34a' : emailStatus === 'delivered' ? '#2563eb' : emailStatus === 'bounced' ? '#dc2626' : '#64748b'}}>
+                Email {emailStatus === 'opened' ? 'Opened' : emailStatus === 'delivered' ? 'Delivered' : emailStatus === 'bounced' ? 'Bounced' : emailStatus === 'sent' ? 'Sent' : emailStatus.charAt(0).toUpperCase() + emailStatus.slice(1)}
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.headerMeta}>
             <View style={styles.metaItem}>
               <Ionicons name="calendar-outline" size={14} color={isDark ? theme.text.muted : Colors.textLight} />
@@ -777,6 +809,21 @@ export default function DocumentDetailScreen() {
               )}
             </TouchableOpacity>
             <TouchableOpacity
+              style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, {backgroundColor: isDark ? theme.surface.elevated : '#f0fdf4', borderColor: isDark ? theme.surface.border : '#86efac'}]}
+              onPress={handleShare}
+              disabled={isBusy}
+              activeOpacity={0.8}
+            >
+              {sharing ? (
+                <ActivityIndicator color="#25D366" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                  <Text style={[styles.duplicateActionText, {color: '#25D366'}]}>WhatsApp</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
               onPress={() => {
                 const route = isInvoice ? '/(app)/invoice' : '/(app)/quote';
@@ -959,6 +1006,21 @@ export default function DocumentDetailScreen() {
               )}
             </TouchableOpacity>
           </View>
+          <TouchableOpacity
+            style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, {backgroundColor: isDark ? theme.surface.elevated : '#f0fdf4', borderColor: isDark ? theme.surface.border : '#86efac'}]}
+            onPress={handleShare}
+            disabled={isBusy}
+            activeOpacity={0.8}
+          >
+            {sharing ? (
+              <ActivityIndicator color="#25D366" size="small" />
+            ) : (
+              <>
+                <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                <Text style={[styles.duplicateActionText, {color: '#25D366'}]}>WhatsApp</Text>
+              </>
+            )}
+          </TouchableOpacity>
         ) : null}
 
         <TouchableOpacity style={[styles.deleteAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: '#FCA5A5'}]} onPress={handleDelete} disabled={isBusy}>

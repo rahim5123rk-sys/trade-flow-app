@@ -5,6 +5,42 @@ import { getSignedUrl } from './storage';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Generate a secure quote response token and return the URL for email.
+ * The customer can click this to accept/decline the quote from a web page.
+ */
+export async function createQuoteResponseToken(documentId: string): Promise<string> {
+  // Generate a 64-char hex token
+  // Hermes supports globalThis.crypto.getRandomValues; fallback to Math.random
+  let token: string;
+  try {
+    const bytes = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(bytes);
+    token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    // Fallback: concatenate random hex segments
+    token = Array.from({ length: 8 }, () =>
+      Math.floor(Math.random() * 0xFFFFFFFF).toString(16).padStart(8, '0')
+    ).join('');
+  }
+
+  const { error } = await supabase
+    .from('document_tokens')
+    .insert({
+      document_id: documentId,
+      token,
+    });
+
+  if (error) {
+    console.warn('Failed to create quote response token:', error.message);
+    throw new Error('Could not create response link');
+  }
+
+  // Build the URL that points to the quote-response edge function
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+  return `${supabaseUrl}/functions/v1/quote-response?token=${token}`;
+}
+
 export const sanitizeRecipients = (emails: string[]): string[] => {
   const unique = new Set<string>();
 
@@ -30,6 +66,10 @@ interface SendCp12CertificateArgs {
   subjectOverride?: string;
   /** Form type label shown in the email, e.g. "Gas Safety Certificate" */
   formLabel?: string;
+  /** Document ID for email delivery tracking */
+  documentId?: string;
+  /** Accept/Decline token URL for quotes */
+  quoteResponseUrl?: string;
 }
 
 interface SendHtmlEmailArgs {
@@ -40,6 +80,8 @@ interface SendHtmlEmailArgs {
   pdfBase64?: string;
   fromName?: string;
   bcc?: string[];
+  /** Document ID for email delivery tracking */
+  documentId?: string;
 }
 
 /** Fetch company info + settings for email context */
@@ -91,6 +133,7 @@ export async function sendHtmlEmail({
   pdfBase64,
   fromName,
   bcc,
+  documentId,
 }: SendHtmlEmailArgs): Promise<void> {
   const recipients = sanitizeRecipients(to);
   if (recipients.length === 0) {
@@ -134,6 +177,7 @@ export async function sendHtmlEmail({
       pdfBase64,
       fromName: fromName || undefined,
       bcc: bcc?.length ? bcc : undefined,
+      documentId: documentId || undefined,
     },
   });
 
@@ -182,11 +226,12 @@ function buildBrandedEmail(opts: {
   nextDueDate: string;
   landlordName: string;
   tenantName: string;
+  quoteResponseUrl?: string;
 }): string {
   const {
     logoUrl, companyName, companyPhone, companyEmail,
     formLabel, certRef, propertyAddress, inspectionDate,
-    nextDueDate, landlordName, tenantName,
+    nextDueDate, landlordName, tenantName, quoteResponseUrl,
   } = opts;
 
   const logoSection = logoUrl
@@ -242,6 +287,31 @@ function buildBrandedEmail(opts: {
         </td></tr>
 
         <!-- Company Contact -->
+        ${quoteResponseUrl ? `
+        <tr><td style="padding:8px 32px 24px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" style="padding-bottom:8px;">
+                <p style="margin:0 0 16px;font-size:15px;color:#0f172a;font-weight:600;">Please respond to this quote:</p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding-right:8px;">
+                      <a href="${quoteResponseUrl}" style="display:inline-block;padding:14px 28px;background-color:#16a34a;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:10px;">✓ Accept Quote</a>
+                    </td>
+                    <td style="padding-left:8px;">
+                      <a href="${quoteResponseUrl}" style="display:inline-block;padding:14px 28px;background-color:#f1f5f9;color:#64748b;font-weight:700;font-size:15px;text-decoration:none;border-radius:10px;border:1px solid #e2e8f0;">✗ Decline</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td></tr>` : ''}
+
         ${companyContactParts ? `
         <tr><td style="padding:0 32px 24px;">
           <div style="background-color:#f8fafc;border-radius:10px;padding:14px 16px;text-align:center;">
@@ -276,6 +346,8 @@ export async function sendCp12CertificateEmail({
   pdfBase64,
   subjectOverride,
   formLabel,
+  documentId,
+  quoteResponseUrl,
 }: SendCp12CertificateArgs): Promise<void> {
   const recipients = sanitizeRecipients(to);
   if (recipients.length === 0) {
@@ -311,6 +383,7 @@ export async function sendCp12CertificateEmail({
     nextDueDate,
     landlordName: landlordName || '',
     tenantName: tenantName || '',
+    quoteResponseUrl,
   });
 
   // BCC engineer if setting enabled (hidden from customer)
@@ -330,5 +403,6 @@ export async function sendCp12CertificateEmail({
     attachmentName: `${(formLabel || label).replace(/\s+/g, '-')}-${certRef || 'certificate'}.pdf`,
     pdfBase64,
     fromName: companyCtx?.companyName || undefined,
+    documentId,
   });
 }

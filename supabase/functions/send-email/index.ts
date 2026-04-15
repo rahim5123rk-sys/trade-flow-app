@@ -4,6 +4,12 @@ import {Resend} from "npm:resend@2.0.0"
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
 
+// Admin client for writing email_events (bypasses RLS)
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+)
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MAX_RECIPIENTS = 5
 
@@ -59,7 +65,7 @@ serve(async (req) => {
 
   // ── Input validation ──
   try {
-    const { to, subject, html, pdfBase64, attachmentName, fromName, bcc } = await req.json()
+    const { to, subject, html, pdfBase64, attachmentName, fromName, bcc, documentId } = await req.json()
 
     // Validate attachment size (5MB limit)
     if (pdfBase64 && typeof pdfBase64 === 'string' && pdfBase64.length > 5_000_000) {
@@ -124,6 +130,21 @@ serve(async (req) => {
           ]
         : undefined,
     })
+
+    // Store email event for tracking (best-effort, don't fail the request)
+    if (documentId && data?.id) {
+      try {
+        const rows = recipients.map((r: string) => ({
+          document_id: documentId,
+          resend_message_id: data.id,
+          recipient: r,
+          status: 'sent',
+        }))
+        await supabaseAdmin.from('email_events').insert(rows)
+      } catch {
+        // Non-critical — don't fail the email send
+      }
+    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -488,6 +488,7 @@ export default function CreateInvoiceScreen() {
         tenantName: '',
         pdfBase64,
         formLabel: 'Invoice',
+        documentId: editingDocId || savedDocId || undefined,
       });
 
       Alert.alert('Sent', `Invoice emailed to ${recipients.join(', ')}.`, [

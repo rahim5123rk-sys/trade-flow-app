@@ -47,7 +47,7 @@ import {
     generateDocumentUrl,
     LineItem,
 } from '../../src/services/DocumentGenerator';
-import { sanitizeRecipients, sendCp12CertificateEmail } from '../../src/services/email';
+import { sanitizeRecipients, sendCp12CertificateEmail, createQuoteResponseToken } from '../../src/services/email';
 import { getNextQuoteReference } from '../../src/services/formDocumentService';
 
 // ─── Design tokens ──────────────────────────────────────────────────
@@ -441,6 +441,9 @@ export default function CreateQuoteScreen() {
       // Save first
       await saveDocument('Sent');
 
+      // Get the document ID (either editing or newly created)
+      const docId = editingDocId || savedDocId;
+
       // Build PDF data
       const { jobAddr, today } = buildDocData();
       const docData: DocumentData = {
@@ -470,6 +473,16 @@ export default function CreateQuoteScreen() {
 
       const pdfBase64 = await generateDocumentBase64(docData, userProfile.company_id);
 
+      // Create quote response token for accept/decline buttons in email
+      let quoteResponseUrl: string | undefined;
+      if (docId) {
+        try {
+          quoteResponseUrl = await createQuoteResponseToken(docId);
+        } catch {
+          // Non-critical — email will still send without accept/decline buttons
+        }
+      }
+
       await sendCp12CertificateEmail({
         to: recipients,
         certRef: quoteNumber,
@@ -480,6 +493,8 @@ export default function CreateQuoteScreen() {
         tenantName: '',
         pdfBase64,
         formLabel: 'Quote',
+        documentId: docId || undefined,
+        quoteResponseUrl,
       });
 
       Alert.alert('Sent', `Quote emailed to ${recipients.join(', ')}.`, [
