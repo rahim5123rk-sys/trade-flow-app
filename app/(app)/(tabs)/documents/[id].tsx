@@ -81,6 +81,8 @@ export default function DocumentDetailScreen() {
   const [emailSubject, setEmailSubject] = useState('');
   const [additionalSendEmails, setAdditionalSendEmails] = useState<string[]>([]);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const [defaultSendEmails, setDefaultSendEmails] = useState<string[]>([]);
   const {theme, isDark} = useAppTheme();
 
   useEffect(() => {
@@ -321,6 +323,7 @@ export default function DocumentDetailScreen() {
         ? `${typeLabel} ${doc.reference || `#${String(doc.number).padStart(4, '0')}`} — ${doc.customer_snapshot?.name || 'Customer'}`
         : `${doc.reference || 'Service Record'} — ${doc.customer_snapshot?.name || 'Customer'}`;
     setEmailSubject(defaultSubject.trim());
+    setDefaultSendEmails(recipients);
     setAdditionalSendEmails([]);
     setShowEmailModal(true);
   };
@@ -334,11 +337,8 @@ export default function DocumentDetailScreen() {
 
     const payload = parseLockedPayload(doc.payment_info);
     const cp12P = payload?.kind === 'cp12' ? payload as CP12LockedPayload : null;
-    const emailCandidates = cp12P
-      ? [cp12P.pdfData.landlordEmail || '', cp12P.pdfData.tenantEmail || '', doc.customer_snapshot?.email || '', ...additionalSendEmails]
-      : [doc.customer_snapshot?.email || '', ...additionalSendEmails];
 
-    const recipients = sanitizeRecipients(emailCandidates);
+    const recipients = sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]);
     if (!recipients.length) {
       Alert.alert('No Email Found', 'No valid email found for this document.');
       return;
@@ -462,6 +462,27 @@ export default function DocumentDetailScreen() {
     }
   };
 
+  const handleOverflowEdit = () => {
+    setShowOverflowMenu(false);
+    if (!doc) return;
+    const payload = parseLockedPayload(doc.payment_info);
+    if (payload) {
+      handleEdit(payload);
+    } else {
+      const route = doc.type === 'invoice' ? '/(app)/invoice' : '/(app)/quote';
+      router.push({pathname: route as any, params: {editId: doc.id}});
+    }
+  };
+
+  const handleOverflowDuplicate = () => {
+    setShowOverflowMenu(false);
+    if (!doc) return;
+    const payload = parseLockedPayload(doc.payment_info);
+    if (payload) {
+      handleDuplicate(payload);
+    }
+  };
+
   // ─── Render ─────────────────────────────────────────────────
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>;
@@ -573,15 +594,24 @@ export default function DocumentDetailScreen() {
 
   return (
     <ScrollView style={[styles.container, isDark && {backgroundColor: theme.surface.base}]} contentContainerStyle={{paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40}}>
-      {/* Back button */}
-      <TouchableOpacity
-        onPress={() => router.replace('/(app)/documents' as any)}
-        style={[styles.backBtn, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="arrow-back" size={20} color={isDark ? theme.text.title : UI.text.title} />
-        <Text style={[styles.backBtnText, isDark && {color: theme.text.title}]}>Back</Text>
-      </TouchableOpacity>
+      {/* Top nav row */}
+      <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
+        <TouchableOpacity
+          onPress={() => router.replace('/(app)/documents' as any)}
+          style={[styles.backBtn, {marginBottom: 0}, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={20} color={isDark ? theme.text.title : UI.text.title} />
+          <Text style={[styles.backBtnText, isDark && {color: theme.text.title}]}>Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setShowOverflowMenu(true)}
+          style={[styles.backBtn, {marginBottom: 0, paddingHorizontal: 10}, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="ellipsis-vertical" size={20} color={isDark ? theme.text.title : UI.text.title} />
+        </TouchableOpacity>
+      </View>
 
       {/* Header Card */}
       <Animated.View entering={FadeInDown.delay(50).springify()}>
@@ -775,263 +805,63 @@ export default function DocumentDetailScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* View PDF — invoice/quote uses handleViewDocument; gas forms use handleViewCertificate */}
-        {!isGasForm ? (
-          <>
-            <TouchableOpacity
-              style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
-              onPress={handleViewDocument}
-              disabled={isBusy}
-              activeOpacity={0.8}
-            >
-              {viewing ? (
-                <ActivityIndicator color={UI.brand.primary} size="small" />
-              ) : (
-                <>
-                  <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
-                  <Text style={styles.duplicateActionText}>View {isInvoice ? 'Invoice' : 'Quote'}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
-              onPress={openSendEmailModal}
-              disabled={isBusy}
-              activeOpacity={0.8}
-            >
-              {sendingEmail ? (
-                <ActivityIndicator color={UI.brand.primary} size="small" />
-              ) : (
-                <>
-                  <Ionicons name="mail-outline" size={18} color={UI.brand.primary} />
-                  <Text style={styles.duplicateActionText}>Send Email</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, {backgroundColor: isDark ? theme.surface.elevated : '#f0fdf4', borderColor: isDark ? theme.surface.border : '#86efac'}]}
-              onPress={handleShare}
-              disabled={isBusy}
-              activeOpacity={0.8}
-            >
-              {sharing ? (
-                <ActivityIndicator color="#25D366" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
-                  <Text style={[styles.duplicateActionText, {color: '#25D366'}]}>WhatsApp</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
-              onPress={() => {
-                const route = isInvoice ? '/(app)/invoice' : '/(app)/quote';
-                router.push({pathname: route as any, params: {editId: doc.id}});
-              }}
-              disabled={isBusy}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="create-outline" size={18} color={UI.brand.primary} />
-              <Text style={styles.duplicateActionText}>Edit {isInvoice ? 'Invoice' : 'Quote'}</Text>
-            </TouchableOpacity>
-          </>
-        ) : null}
+        {/* View PDF */}
+        <TouchableOpacity
+          style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
+          onPress={isGasForm ? handleViewCertificate : handleViewDocument}
+          disabled={isBusy}
+          activeOpacity={0.8}
+        >
+          {viewing ? (
+            <ActivityIndicator color={UI.brand.primary} size="small" />
+          ) : (
+            <>
+              <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
+              <Text style={styles.duplicateActionText}>View PDF</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
-        {/* CP12-specific: edit + duplicate */}
-        {isCp12 ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(cp12Payload)} disabled={isBusy}>
-            {duplicating ? (
-              <ActivityIndicator color={UI.brand.primary} size="small" />
-            ) : (
-              <>
-                <Ionicons name="create-outline" size={18} color={UI.brand.primary} />
-                <Text style={styles.duplicateActionText}>Edit Certificate</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        {isCp12 ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(cp12Payload)} disabled={isBusy}>
-            {duplicating ? (
-              <ActivityIndicator color={UI.brand.primary} size="small" />
-            ) : (
-              <>
-                <Ionicons name="copy-outline" size={18} color={UI.brand.primary} />
-                <Text style={styles.duplicateActionText}>Duplicate for This Year</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        {isSR ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(srPayload)} disabled={isBusy}>
-            {duplicating ? (
-              <ActivityIndicator color={UI.brand.primary} size="small" />
-            ) : (
-              <>
-                <Ionicons name="create-outline" size={18} color={UI.brand.primary} />
-                <Text style={styles.duplicateActionText}>Edit Service Record</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        {isSR ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(srPayload)} disabled={isBusy}>
-            {duplicating ? (
-              <ActivityIndicator color={UI.brand.primary} size="small" />
-            ) : (
-              <>
-                <Ionicons name="copy-outline" size={18} color={UI.brand.primary} />
-                <Text style={styles.duplicateActionText}>Duplicate Service Record</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        {isCommissioning ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(commissioningPayload)} disabled={isBusy}>
-            {duplicating ? (
-              <ActivityIndicator color={UI.brand.primary} size="small" />
-            ) : (
-              <>
-                <Ionicons name="create-outline" size={18} color={UI.brand.primary} />
-                <Text style={styles.duplicateActionText}>Edit Certificate</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        {isCommissioning ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(commissioningPayload)} disabled={isBusy}>
-            {duplicating ? (
-              <ActivityIndicator color={UI.brand.primary} size="small" />
-            ) : (
-              <>
-                <Ionicons name="copy-outline" size={18} color={UI.brand.primary} />
-                <Text style={styles.duplicateActionText}>Duplicate for Next Visit</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        {isDecommissioning ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(decommissioningPayload)} disabled={isBusy}>
-            {duplicating ? (
-              <ActivityIndicator color={UI.brand.primary} size="small" />
-            ) : (
-              <>
-                <Ionicons name="create-outline" size={18} color={UI.brand.primary} />
-                <Text style={styles.duplicateActionText}>Edit Certificate</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        {isDecommissioning ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(decommissioningPayload)} disabled={isBusy}>
-            {duplicating ? (
-              <ActivityIndicator color={UI.brand.primary} size="small" />
-            ) : (
-              <>
-                <Ionicons name="copy-outline" size={18} color={UI.brand.primary} />
-                <Text style={styles.duplicateActionText}>Duplicate Certificate</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        {isWarningNotice ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(warningNoticePayload)} disabled={isBusy}>
-            {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="create-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Edit Notice</Text></>}
-          </TouchableOpacity>
-        ) : null}
-
-        {isWarningNotice ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(warningNoticePayload)} disabled={isBusy}>
-            {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="copy-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Duplicate Notice</Text></>}
-          </TouchableOpacity>
-        ) : null}
-
-        {isBreakdown ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(breakdownPayload)} disabled={isBusy}>
-            {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="create-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Edit Report</Text></>}
-          </TouchableOpacity>
-        ) : null}
-
-        {isBreakdown ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(breakdownPayload)} disabled={isBusy}>
-            {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="copy-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Duplicate Report</Text></>}
-          </TouchableOpacity>
-        ) : null}
-
-        {isInstallation ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleEdit(installationPayload)} disabled={isBusy}>
-            {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="create-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Edit Certificate</Text></>}
-          </TouchableOpacity>
-        ) : null}
-
-        {isInstallation ? (
-          <TouchableOpacity style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={() => handleDuplicate(installationPayload)} disabled={isBusy}>
-            {duplicating ? <ActivityIndicator color={UI.brand.primary} size="small" /> : <><Ionicons name="copy-outline" size={18} color={UI.brand.primary} /><Text style={styles.duplicateActionText}>Duplicate for Next Service</Text></>}
-          </TouchableOpacity>
-        ) : null}
-
-        {/* View + Email + WhatsApp buttons — all gas forms */}
-        {isGasForm ? (
-          <>
-          <View style={styles.cp12ExtraActions}>
-            <TouchableOpacity style={[styles.secondaryAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleViewCertificate} disabled={isBusy}>
-              {viewing ? (
-                <ActivityIndicator color={UI.brand.primary} size="small" />
-              ) : (
-                <>
-                  <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
-                  <Text style={styles.secondaryActionText}>
-                    {isCp12 ? 'View Certificate' : isSR ? 'View Service Record' : isCommissioning ? 'View Commissioning' : isDecommissioning ? 'View Decommissioning' : isWarningNotice ? 'View Notice' : isBreakdown ? 'View Report' : isInstallation ? 'View Certificate' : 'View Document'}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.secondaryAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={openSendEmailModal} disabled={isBusy}>
-              {sendingEmail ? (
-                <ActivityIndicator color={UI.brand.primary} size="small" />
-              ) : (
-                <>
-                  <Ionicons name="mail-outline" size={18} color={UI.brand.primary} />
-                  <Text style={styles.secondaryActionText}>Send Email</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, {backgroundColor: isDark ? theme.surface.elevated : '#f0fdf4', borderColor: isDark ? theme.surface.border : '#86efac'}]}
-            onPress={handleShare}
-            disabled={isBusy}
-            activeOpacity={0.8}
-          >
-            {sharing ? (
-              <ActivityIndicator color="#25D366" size="small" />
-            ) : (
-              <>
-                <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
-                <Text style={[styles.duplicateActionText, {color: '#25D366'}]}>WhatsApp</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          </>
-        ) : null}
-
-        <TouchableOpacity style={[styles.deleteAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: '#FCA5A5'}]} onPress={handleDelete} disabled={isBusy}>
-          <Ionicons name="trash-outline" size={18} color={Colors.danger} />
-          <Text style={styles.deleteActionText}>
-            Delete {isCp12 ? 'Certificate' : isSR ? 'Service Record' : isCommissioning ? 'Commissioning' : isDecommissioning ? 'Decommissioning' : isWarningNotice ? 'Warning Notice' : isBreakdown ? 'Breakdown Report' : isInstallation ? 'Installation Certificate' : isGasForm ? 'Gas Form' : isInvoice ? 'Invoice' : 'Quote'}
-          </Text>
+        {/* Send Email */}
+        <TouchableOpacity
+          style={[styles.duplicateAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
+          onPress={openSendEmailModal}
+          disabled={isBusy}
+          activeOpacity={0.8}
+        >
+          {sendingEmail ? (
+            <ActivityIndicator color={UI.brand.primary} size="small" />
+          ) : (
+            <>
+              <Ionicons name="mail-outline" size={18} color={UI.brand.primary} />
+              <Text style={styles.duplicateActionText}>Send Email</Text>
+            </>
+          )}
         </TouchableOpacity>
       </Animated.View>
+
+      {/* Overflow Menu */}
+      <Modal visible={showOverflowMenu} transparent animationType="fade" onRequestClose={() => setShowOverflowMenu(false)}>
+        <TouchableOpacity style={{flex: 1}} activeOpacity={1} onPress={() => setShowOverflowMenu(false)}>
+          <View style={{position: 'absolute', top: insets.top + 50, right: 16, backgroundColor: isDark ? theme.surface.card : '#fff', borderRadius: 12, paddingVertical: 4, minWidth: 180, shadowColor: '#000', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8, borderWidth: isDark ? 1 : 0, borderColor: theme.surface.border}}>
+            <TouchableOpacity style={{flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12}} onPress={handleOverflowEdit}>
+              <Ionicons name="create-outline" size={18} color={isDark ? theme.text.title : UI.text.title} />
+              <Text style={{fontSize: 15, fontWeight: '600', color: isDark ? theme.text.title : UI.text.title}}>Edit</Text>
+            </TouchableOpacity>
+            {isGasForm ? (
+              <TouchableOpacity style={{flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12}} onPress={handleOverflowDuplicate}>
+                <Ionicons name="copy-outline" size={18} color={isDark ? theme.text.title : UI.text.title} />
+                <Text style={{fontSize: 15, fontWeight: '600', color: isDark ? theme.text.title : UI.text.title}}>Duplicate</Text>
+              </TouchableOpacity>
+            ) : null}
+            <View style={{height: 1, backgroundColor: isDark ? theme.surface.divider : UI.surface.elevated, marginHorizontal: 12}} />
+            <TouchableOpacity style={{flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12}} onPress={() => { setShowOverflowMenu(false); handleDelete(); }}>
+              <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+              <Text style={{fontSize: 15, fontWeight: '600', color: Colors.danger}}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal
         visible={showEmailModal}
@@ -1055,13 +885,10 @@ export default function DocumentDetailScreen() {
               />
 
               <EmailRecipientsList
-                defaultEmails={sanitizeRecipients(
-                  parseLockedPayload(doc?.payment_info)?.kind === 'cp12'
-                    ? [(parseLockedPayload(doc?.payment_info) as CP12LockedPayload).pdfData.landlordEmail || '', (parseLockedPayload(doc?.payment_info) as CP12LockedPayload).pdfData.tenantEmail || '', doc?.customer_snapshot?.email || '']
-                    : [doc?.customer_snapshot?.email || '']
-                )}
+                defaultEmails={defaultSendEmails}
                 additionalEmails={additionalSendEmails}
                 onAdditionalEmailsChange={setAdditionalSendEmails}
+                onDefaultEmailsChange={setDefaultSendEmails}
               />
 
               <View style={styles.modalActions}>

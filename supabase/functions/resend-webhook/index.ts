@@ -12,8 +12,6 @@ const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-const WEBHOOK_SECRET = Deno.env.get('RESEND_WEBHOOK_SECRET') || ''
-
 // Map Resend event types to our status values
 const EVENT_TO_STATUS: Record<string, string> = {
   'email.sent': 'sent',
@@ -36,15 +34,6 @@ Deno.serve(async (req) => {
   // Only accept POST
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 })
-  }
-
-  // Verify webhook secret if configured (Resend sends it as svix-signature)
-  // For now we use a simple shared secret in a custom header
-  if (WEBHOOK_SECRET) {
-    const providedSecret = req.headers.get('webhook-secret') || ''
-    if (providedSecret !== WEBHOOK_SECRET) {
-      return new Response('Unauthorized', { status: 401 })
-    }
   }
 
   let body: any
