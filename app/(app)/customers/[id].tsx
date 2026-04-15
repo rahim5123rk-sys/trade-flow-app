@@ -237,7 +237,9 @@ export default function CustomerDetailScreen() {
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={[styles.historyStatus, { color: getStatusColor(item.status) }]}>{item.status.toUpperCase()}</Text>
-          <Text style={[styles.historyPrice, isDark && { color: theme.text.title }]}>£{(item.price || item.total || 0).toFixed(2)}</Text>
+          {(isJob ? item.price : (item.type === 'invoice' || item.type === 'quote') ? item.total : null) != null && (
+            <Text style={[styles.historyPrice, isDark && { color: theme.text.title }]}>£{(isJob ? item.price : item.total || 0).toFixed(2)}</Text>
+          )}
         </View>
       </TouchableOpacity>
     );

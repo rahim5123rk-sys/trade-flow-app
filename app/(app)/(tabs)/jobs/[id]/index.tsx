@@ -88,7 +88,13 @@ export default function JobDetailScreen() {
       return;
     }
 
-    // router.back() works for all cases including cross-tab navigation (calendar → jobs)
+    if (from === 'calendar') {
+      // NativeTabs: switch back to the calendar tab directly
+      router.navigate('/(app)/(tabs)/calendar' as any);
+      return;
+    }
+
+    // Default: pop the current stack (e.g. jobs list, completed jobs)
     router.back();
   };
 

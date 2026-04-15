@@ -232,8 +232,8 @@ export function CustomerSelector({
       setUpdateSuccess(true);
       setTimeout(() => {
         setUpdateSuccess(false);
-        setIsEditing(false);
-        setOriginalData(null);
+        // Keep editing mode active with fresh baseline so user can update again
+        setOriginalData({ ...value });
       }, 1500);
     } catch {
       Alert.alert('Error', 'Could not update customer.');

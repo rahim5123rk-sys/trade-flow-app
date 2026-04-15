@@ -36,6 +36,11 @@ export default function CustomersListScreen() {
         </View>
         <View style={{flex: 1}}>
           <Text style={[styles.name, {color: theme.text.title}]}>{item.name}</Text>
+          {item.company_name ? (
+            <Text style={[styles.companyName, {color: theme.brand.primary}]} numberOfLines={1}>
+              {item.company_name}
+            </Text>
+          ) : null}
           <Text style={[styles.address, {color: theme.text.muted}]} numberOfLines={1}>
             {item.address}
           </Text>
@@ -180,6 +185,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {fontSize: 18, fontWeight: '700', color: Colors.primary},
   name: {fontSize: 16, fontWeight: '700', color: Colors.text},
+  companyName: {fontSize: 13, fontWeight: '600', marginTop: 1},
   address: {fontSize: 14, color: Colors.textLight},
   empty: {textAlign: 'center', marginTop: 40, color: Colors.textLight},
 });
