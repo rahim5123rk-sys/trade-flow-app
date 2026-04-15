@@ -979,8 +979,9 @@ export default function DocumentDetailScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* View + Email buttons — all gas forms */}
+        {/* View + Email + WhatsApp buttons — all gas forms */}
         {isGasForm ? (
+          <>
           <View style={styles.cp12ExtraActions}>
             <TouchableOpacity style={[styles.secondaryAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]} onPress={handleViewCertificate} disabled={isBusy}>
               {viewing ? (
@@ -1021,6 +1022,7 @@ export default function DocumentDetailScreen() {
               </>
             )}
           </TouchableOpacity>
+          </>
         ) : null}
 
         <TouchableOpacity style={[styles.deleteAction, isDark && {backgroundColor: theme.surface.elevated, borderColor: '#FCA5A5'}]} onPress={handleDelete} disabled={isBusy}>
