@@ -37,7 +37,7 @@ export async function createQuoteResponseToken(documentId: string): Promise<stri
   }
 
   // Build the URL that points to the quote-response page hosted on our website
-  return `https://gaspilotapp.com/quote-response.html?token=${token}`;
+  return `https://gaspilotapp.com/quote-response?token=${token}`;
 }
 
 export const sanitizeRecipients = (emails: string[]): string[] => {
