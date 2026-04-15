@@ -56,8 +56,14 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url)
   const token = url.searchParams.get('token')
+  const wantJson = url.searchParams.get('format') === 'json'
 
   if (!token) {
+    if (wantJson) {
+      return new Response(JSON.stringify({ error: 'Missing token', title: 'Invalid Link' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
+      })
+    }
     return new Response(
       htmlPage('Invalid Link', '<h1>Invalid Link</h1><p>This link is missing the required token.</p>'),
       { headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }, status: 400 },
@@ -72,6 +78,11 @@ Deno.serve(async (req) => {
     .single()
 
   if (tokenError || !tokenRow) {
+    if (wantJson) {
+      return new Response(JSON.stringify({ error: 'This link is invalid or has expired.', title: 'Link Not Found' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404,
+      })
+    }
     return new Response(
       htmlPage('Link Not Found', '<h1>Link Not Found</h1><p>This link is invalid or has expired.</p>'),
       { headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }, status: 404 },
@@ -80,6 +91,11 @@ Deno.serve(async (req) => {
 
   // Check expiry
   if (new Date(tokenRow.expires_at) < new Date()) {
+    if (wantJson) {
+      return new Response(JSON.stringify({ error: 'This link has expired. Please contact the sender for a new quote.', title: 'Link Expired' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 410,
+      })
+    }
     return new Response(
       htmlPage('Link Expired', '<h1>Link Expired</h1><p>This link has expired. Please contact the sender for a new quote.</p>'),
       { headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }, status: 410 },
@@ -89,6 +105,11 @@ Deno.serve(async (req) => {
   // Check if already used
   if (tokenRow.used_at) {
     const action = tokenRow.action === 'accept' ? 'accepted' : tokenRow.action === 'decline' ? 'declined' : 'responded to'
+    if (wantJson) {
+      return new Response(JSON.stringify({ alreadyUsed: true, action: tokenRow.action }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
     return new Response(
       htmlPage('Already Responded',
         `<div class="success-icon">${tokenRow.action === 'accept' ? '✅' : '❌'}</div>
@@ -106,6 +127,11 @@ Deno.serve(async (req) => {
 
   // ── GET → Show accept/decline form ──
   if (req.method === 'GET') {
+    if (wantJson) {
+      return new Response(JSON.stringify({ reference, customerName, total }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
     // Build form action from env (Deno runtime URL may lack /functions/v1/ prefix and use http)
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || url.origin
     const formAction = `${supabaseUrl}/functions/v1/quote-response?token=${encodeURIComponent(token)}`
@@ -206,6 +232,13 @@ Deno.serve(async (req) => {
 
     // Show confirmation page
     const isAccept = validAction === 'accept'
+
+    if (wantJson) {
+      return new Response(JSON.stringify({ ok: true, action: validAction, reference }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const page = htmlPage(
       isAccept ? 'Quote Accepted' : 'Quote Declined',
       `<div class="success-icon">${isAccept ? '✅' : '❌'}</div>

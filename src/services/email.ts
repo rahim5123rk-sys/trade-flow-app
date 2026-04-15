@@ -36,9 +36,8 @@ export async function createQuoteResponseToken(documentId: string): Promise<stri
     throw new Error('Could not create response link');
   }
 
-  // Build the URL that points to the quote-response edge function
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-  return `${supabaseUrl}/functions/v1/quote-response?token=${token}`;
+  // Build the URL that points to the quote-response page hosted on our website
+  return `https://gaspilotapp.com/quote-response.html?token=${token}`;
 }
 
 export const sanitizeRecipients = (emails: string[]): string[] => {
