@@ -277,9 +277,9 @@ export default function CreateQuoteScreen() {
   };
 
   // ─── Save (shared for draft & generate) ──────────────────────
-  const saveDocument = async (status: string) => {
-    if (!userProfile?.company_id) return;
-    if (!validate()) return;
+  const saveDocument = async (status: string): Promise<string | null> => {
+    if (!userProfile?.company_id) return null;
+    if (!validate()) return null;
 
     const isSavingDraft = status === 'Draft';
     if (isSavingDraft) setSaving(true); else setGenerating(true);
@@ -336,6 +336,8 @@ export default function CreateQuoteScreen() {
         notes: notes || null,
       };
 
+      let resultDocId: string | null = editingDocId;
+
       if (editingDocId) {
         const { error } = await supabase
           .from('documents')
@@ -348,7 +350,10 @@ export default function CreateQuoteScreen() {
           date: new Date().toISOString(),
         }).select('id').single();
         if (error) throw error;
-        if (insertedDoc?.id) setSavedDocId(insertedDoc.id);
+        if (insertedDoc?.id) {
+          setSavedDocId(insertedDoc.id);
+          resultDocId = insertedDoc.id;
+        }
       }
 
       // Save site/job address for future reuse
@@ -371,8 +376,11 @@ export default function CreateQuoteScreen() {
       } else {
         Alert.alert('Saved', msg);
       }
+
+      return resultDocId;
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to save quote.');
+      return null;
     } finally {
       setSaving(false);
       setGenerating(false);
@@ -438,11 +446,9 @@ export default function CreateQuoteScreen() {
 
     setEmailing(true);
     try {
-      // Save first
-      await saveDocument('Sent');
-
-      // Get the document ID (either editing or newly created)
-      const docId = editingDocId || savedDocId;
+      // Save first and get the document ID
+      const docId = await saveDocument('Sent');
+      if (!docId) throw new Error('Failed to save quote.');
 
       // Build PDF data
       const { jobAddr, today } = buildDocData();

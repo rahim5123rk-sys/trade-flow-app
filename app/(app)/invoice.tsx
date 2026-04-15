@@ -279,9 +279,9 @@ export default function CreateInvoiceScreen() {
   };
 
   // ─── Save (shared for draft & generate) ──────────────────────
-  const saveDocument = async (status: string) => {
-    if (!userProfile?.company_id) return;
-    if (!validate()) return;
+  const saveDocument = async (status: string): Promise<string | null> => {
+    if (!userProfile?.company_id) return null;
+    if (!validate()) return null;
 
     const isSavingDraft = status === 'Draft';
     if (isSavingDraft) setSaving(true); else setGenerating(true);
@@ -339,6 +339,8 @@ export default function CreateInvoiceScreen() {
         payment_info: paymentInfo || null,
       };
 
+      let resultDocId: string | null = editingDocId;
+
       if (editingDocId) {
         // Update existing document
         const { error } = await supabase
@@ -353,7 +355,10 @@ export default function CreateInvoiceScreen() {
           date: new Date().toISOString(),
         }).select('id').single();
         if (error) throw error;
-        if (insertedDoc?.id) setSavedDocId(insertedDoc.id);
+        if (insertedDoc?.id) {
+          setSavedDocId(insertedDoc.id);
+          resultDocId = insertedDoc.id;
+        }
       }
 
       // Save site/job address for future reuse
@@ -376,8 +381,11 @@ export default function CreateInvoiceScreen() {
       } else {
         Alert.alert('Saved', msg);
       }
+
+      return resultDocId;
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to save invoice.');
+      return null;
     } finally {
       setSaving(false);
       setGenerating(false);
@@ -445,8 +453,9 @@ export default function CreateInvoiceScreen() {
 
     setEmailing(true);
     try {
-      // Save first
-      await saveDocument('Sent');
+      // Save first and get the document ID
+      const docId = await saveDocument('Sent');
+      if (!docId) throw new Error('Failed to save invoice.');
 
       // Build PDF data
       const { jobAddr, today } = buildDocData();
@@ -488,7 +497,7 @@ export default function CreateInvoiceScreen() {
         tenantName: '',
         pdfBase64,
         formLabel: 'Invoice',
-        documentId: editingDocId || savedDocId || undefined,
+        documentId: docId,
       });
 
       Alert.alert('Sent', `Invoice emailed to ${recipients.join(', ')}.`, [
