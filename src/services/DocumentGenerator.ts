@@ -66,6 +66,8 @@ interface CompanyInfo {
   signatureBase64?: string;
   invoiceTerms?: string;
   quoteTerms?: string; // ✅ NEW: Specific terms for quotes
+  gasSafeNumber?: string;
+  gasLicenceNumber?: string;
 }
 
 async function getCompanyInfo(companyId: string): Promise<CompanyInfo> {
@@ -73,6 +75,18 @@ async function getCompanyInfo(companyId: string): Promise<CompanyInfo> {
   const s = data?.settings || {};
   // Resolve private storage ref to signed URL
   const resolvedLogo = data?.logo_url ? await getSignedUrl(data.logo_url) : undefined;
+
+  // Get current user's gas safe + licence from company settings
+  let gasSafeNumber = '';
+  let gasLicenceNumber = '';
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id && s.userDetailsById?.[user.id]) {
+      const ud = s.userDetailsById[user.id];
+      gasSafeNumber = ud.gasSafeRegisterNumber || '';
+      gasLicenceNumber = ud.gasLicenceNumber || '';
+    }
+  } catch { /* ignore */ }
 
   return {
     name: data?.name || 'Your Company',
@@ -83,6 +97,8 @@ async function getCompanyInfo(companyId: string): Promise<CompanyInfo> {
     signatureBase64: s.signatureBase64 || null,
     invoiceTerms: s.invoiceTerms || '',
     quoteTerms: s.quoteTerms || '',
+    gasSafeNumber,
+    gasLicenceNumber,
   };
 }
 
@@ -144,7 +160,7 @@ function buildDocumentHtml(data: DocumentData, company: CompanyInfo): string {
   body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     color: #334155; font-size: 11px; line-height: 1.3; margin: 0;
-    padding: 20mm; padding-bottom: 45mm; -webkit-print-color-adjust: exact;
+    padding: 20mm; padding-bottom: 20mm; -webkit-print-color-adjust: exact;
   }
   .row { display: flex; flex-direction: row; justify-content: space-between; gap: 20px; }
   .col { flex: 1; }
@@ -213,11 +229,12 @@ function buildDocumentHtml(data: DocumentData, company: CompanyInfo): string {
 
   <div class="header">
     <div class="col">
-      ${company.logoUrl ? `<img src="${company.logoUrl}" class="company-logo" />` : ''}
-      <div class="company-title">${esc(company.name)}</div>
+      ${company.logoUrl ? `<img src="${company.logoUrl}" class="company-logo" />` : `<div class="company-title">${esc(company.name)}</div>`}
       <div class="company-text">${esc(company.address.replace(/\n/g, ', '))}</div>
       <div class="company-text">${esc(company.phone)}</div>
       <div class="company-text">${esc(company.email)}</div>
+      ${company.gasSafeNumber ? `<div class="company-text" style="margin-top:4px;"><span style="font-weight:600; color:#0f172a;">Gas Safe Reg:</span> ${esc(company.gasSafeNumber)}</div>` : ''}
+      ${company.gasLicenceNumber ? `<div class="company-text"><span style="font-weight:600; color:#0f172a;">Licence No:</span> ${esc(company.gasLicenceNumber)}</div>` : ''}
     </div>
     <div class="col">
       <div class="doc-title">${title}</div>

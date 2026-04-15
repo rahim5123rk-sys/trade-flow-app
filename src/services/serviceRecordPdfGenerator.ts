@@ -134,10 +134,20 @@ function buildHtml(
     propPostcode = propParts[1] || '';
   }
 
-  // Parse customer address parts
+  // Parse customer address parts (same logic as property)
   const custParts = (data.customerAddress || '').split(',').map(s => s.trim()).filter(Boolean);
   const custLine1 = custParts[0] || data.customerAddress || '';
-  const custLine2 = custParts.length > 1 ? custParts.slice(1).join(', ') : '';
+  let custLine2 = '', custCity = '', custPostcode = '';
+  if (custParts.length >= 4) {
+    custLine2 = custParts.slice(1, -2).join(', ');
+    custCity = custParts[custParts.length - 2] || '';
+    custPostcode = custParts[custParts.length - 1] || '';
+  } else if (custParts.length === 3) {
+    custCity = custParts[1] || '';
+    custPostcode = custParts[2] || '';
+  } else if (custParts.length === 2) {
+    custPostcode = custParts[1] || '';
+  }
 
   // ── Build appliance detail block (single appliance) ──
   const applianceBlocks = appliance ? (() => {
@@ -345,7 +355,9 @@ function buildHtml(
           <td class="label-cell" rowspan="2" style="vertical-align:top;border-bottom:none;">Address</td>
           <td class="value-cell" style="border-bottom:none;">${esc(custLine1)}</td>
         </tr>
-        <tr><td class="value-cell" style="border-top:none;">${esc(custLine2)}</td></tr>
+        <tr><td class="value-cell" style="border-top:none;min-height:14px;">${esc(custLine2)}&nbsp;</td></tr>
+        <tr><td class="label-cell">City</td><td class="value-cell">${esc(custCity)}</td></tr>
+        <tr><td class="label-cell">Postcode</td><td class="value-cell">${esc(custPostcode)}</td></tr>
         <tr><td class="label-cell">Email</td><td class="value-cell">${esc(data.customerEmail)}</td></tr>
         <tr><td class="label-cell">Phone</td><td class="value-cell">${esc(data.customerPhone)}</td></tr>
       </table>

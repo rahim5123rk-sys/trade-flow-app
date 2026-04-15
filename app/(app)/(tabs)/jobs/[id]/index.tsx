@@ -88,12 +88,7 @@ export default function JobDetailScreen() {
       return;
     }
 
-    if (from === 'calendar') {
-      router.replace('/(app)/calendar' as any);
-      return;
-    }
-
-    // Use router.back() to preserve tab state (e.g. completed jobs list)
+    // router.back() works for all cases including cross-tab navigation (calendar → jobs)
     router.back();
   };
 

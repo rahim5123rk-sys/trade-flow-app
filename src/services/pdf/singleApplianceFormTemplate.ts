@@ -184,7 +184,9 @@ export function buildSingleApplianceFormHtml({
             <td class="label-cell" rowspan="2" style="vertical-align:top;border-bottom:none;">Address</td>
             <td class="value-cell" style="border-bottom:none;">${esc(customerAddressParts.line1)}</td>
           </tr>
-          <tr><td class="value-cell" style="border-top:none;">${esc([customerAddressParts.line2, customerAddressParts.city, customerAddressParts.postcode].filter(Boolean).join(', '))}</td></tr>
+          <tr><td class="value-cell" style="border-top:none;min-height:12px;">${esc(customerAddressParts.line2)}&nbsp;</td></tr>
+          <tr><td class="label-cell">City</td><td class="value-cell">${esc(customerAddressParts.city)}</td></tr>
+          <tr><td class="label-cell">Postcode</td><td class="value-cell">${esc(customerAddressParts.postcode)}</td></tr>
           <tr><td class="label-cell">Email</td><td class="value-cell">${esc(customerEmail || '')}</td></tr>
           <tr><td class="label-cell">Phone</td><td class="value-cell">${esc(customerPhone || '')}</td></tr>
         </table>

@@ -22,6 +22,12 @@ import {
     View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import {
+    buildCustomerSnapshot,
+    CustomerFormData,
+    CustomerSelector,
+    EMPTY_CUSTOMER_FORM,
+} from '../../../../../components/CustomerSelector';
 import { WorkerPicker } from '../../../../../components/WorkerPicker';
 import { Colors, UI } from '../../../../../constants/theme';
 import { supabase } from '../../../../../src/config/supabase';
@@ -38,6 +44,7 @@ const DURATIONS = ['30 mins', '1 hour', '2 hours', '3 hours', '4 hours', 'Full d
 export default function EditJobScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userProfile } = useAuth();
+  const isAdmin = userProfile?.role === 'admin';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -51,6 +58,8 @@ export default function EditJobScreen() {
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [hasWorkers, setHasWorkers] = useState(false);
   const [jobAddress, setJobAddress] = useState('');
+  const [status, setStatus] = useState('pending');
+  const [customerForm, setCustomerForm] = useState<CustomerFormData>(EMPTY_CUSTOMER_FORM);
 
   // Picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -77,8 +86,42 @@ export default function EditJobScreen() {
       setScheduledDate(new Date(data.scheduled_date));
       setEstimatedDuration(data.estimated_duration || '1 hour');
       setAssignedTo(data.assigned_to || []);
+      setStatus(data.status || 'pending');
       const snap = data.customer_snapshot as any;
       setJobAddress(snap?.addressLine1 || snap?.address_line_1 || '');
+
+      // Populate customer form from customer record
+      if (data.customer_id) {
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('id', data.customer_id)
+          .single();
+
+        if (customer) {
+          setCustomerForm({
+            customerId: customer.id,
+            customerName: customer.name || '',
+            customerCompany: customer.company_name || '',
+            email: customer.email || '',
+            phone: customer.phone || '',
+            addressLine1: customer.address_line_1 || '',
+            addressLine2: customer.address_line_2 || '',
+            city: customer.city || '',
+            region: customer.region || '',
+            postCode: customer.post_code || customer.postcode || '',
+            sameAsBilling: true,
+            jobAddressLine1: '',
+            jobAddressLine2: '',
+            jobCity: '',
+            jobPostCode: '',
+            siteContactName: '',
+            siteContactEmail: '',
+            siteContactPhone: '',
+            siteContactTitle: '',
+          });
+        }
+      }
     }
     setLoading(false);
   };
@@ -127,6 +170,9 @@ export default function EditJobScreen() {
           scheduled_date: scheduledDate.getTime(),
           estimated_duration: estimatedDuration,
           assigned_to: assignedTo.length > 0 ? assignedTo : null,
+          status,
+          customer_id: customerForm.customerId || undefined,
+          customer_snapshot: buildCustomerSnapshot(customerForm),
         })
         .eq('id', id);
 
@@ -201,8 +247,28 @@ export default function EditJobScreen() {
             </View>
           </Animated.View>
 
-          {/* ─── Schedule ─── */}
+          {/* ─── Customer ─── */}
           <Animated.View entering={FadeInDown.delay(100).duration(350)}>
+            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.iconWrap, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
+                  <Ionicons name="person" size={15} color={isDark ? theme.brand.primary : UI.brand.primary} />
+                </View>
+                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Customer</Text>
+              </View>
+              <CustomerSelector
+                value={customerForm}
+                onChange={setCustomerForm}
+                mode="full"
+                showQuickToggle={false}
+                quickEntry={false}
+                showJobAddress={true}
+              />
+            </View>
+          </Animated.View>
+
+          {/* ─── Schedule ─── */}
+          <Animated.View entering={FadeInDown.delay(140).duration(350)}>
             <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
@@ -254,7 +320,7 @@ export default function EditJobScreen() {
           </Animated.View>
 
           {/* ─── Price & Duration ─── */}
-          <Animated.View entering={FadeInDown.delay(140).duration(350)}>
+          <Animated.View entering={FadeInDown.delay(180).duration(350)}>
             <View style={styles.twoCol}>
               {/* Price */}
               <View style={[styles.glassCard, { flex: 1, marginRight: 6 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
@@ -301,7 +367,7 @@ export default function EditJobScreen() {
           </Animated.View>
 
           {/* ─── Notes ─── */}
-          <Animated.View entering={FadeInDown.delay(180).duration(350)}>
+          <Animated.View entering={FadeInDown.delay(220).duration(350)}>
             <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
               <View style={styles.sectionHeader}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(245,158,11,0.1)' }]}>
@@ -322,9 +388,49 @@ export default function EditJobScreen() {
             </View>
           </Animated.View>
 
+          {/* ─── Status ─── */}
+          <Animated.View entering={FadeInDown.delay(260).duration(350)}>
+            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.iconWrap, { backgroundColor: 'rgba(139,92,246,0.1)' }]}>
+                  <Ionicons name="flag" size={15} color={UI.status.paid} />
+                </View>
+                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Status</Text>
+              </View>
+              <View style={styles.statusRow}>
+                {(['pending', 'in_progress', 'completed'] as const).map((s) => {
+                  const labels: Record<string, string> = { pending: 'Pending', in_progress: 'In Progress', completed: 'Completed' };
+                  const isSelected = status === s;
+                  return (
+                    <TouchableOpacity
+                      key={s}
+                      style={[
+                        styles.statusChip,
+                        isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border },
+                        isSelected && styles.statusChipActive,
+                      ]}
+                      onPress={() => setStatus(s)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.statusChipText,
+                          isDark && { color: theme.text.muted },
+                          isSelected && styles.statusChipTextActive,
+                        ]}
+                      >
+                        {labels[s]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </Animated.View>
+
           {/* ─── Assign Workers ─── */}
-          {hasWorkers && (
-            <Animated.View entering={FadeInDown.delay(220).duration(350)}>
+          {hasWorkers && isAdmin && (
+            <Animated.View entering={FadeInDown.delay(300).duration(350)}>
               <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.iconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
@@ -342,7 +448,7 @@ export default function EditJobScreen() {
           )}
 
           {/* ─── Save button ─── */}
-          <Animated.View entering={FadeInDown.delay(260).duration(350)}>
+          <Animated.View entering={FadeInDown.delay(340).duration(350)}>
             <TouchableOpacity onPress={handleSave} disabled={saving} activeOpacity={0.85}>
               <LinearGradient
                 colors={UI.gradients.primary}
@@ -367,9 +473,9 @@ export default function EditJobScreen() {
       {/* ─── Date/Time Picker Modal ─── */}
       <Modal transparent visible={showDatePicker} animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.pickerModal]}>
+          <View style={[styles.pickerModal, isDark && { backgroundColor: theme.surface.card }]}>
             <View style={styles.pickerHeader}>
-              <Text style={[styles.pickerTitle]}>
+              <Text style={[styles.pickerTitle, isDark && { color: theme.text.title }]}>
                 {pickerMode === 'date' ? 'Select Date' : 'Select Time'}
               </Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)} activeOpacity={0.7}>
@@ -383,8 +489,8 @@ export default function EditJobScreen() {
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={onDateChange}
               minuteInterval={15}
-              textColor="#000000"
-              themeVariant="light"
+              textColor={isDark ? '#ffffff' : '#000000'}
+              themeVariant={isDark ? 'dark' : 'light'}
             />
             <TouchableOpacity onPress={() => setShowDatePicker(false)} activeOpacity={0.85}>
               <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.confirmBtn}>
@@ -560,4 +666,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   confirmBtnText: { color: UI.text.white, fontWeight: '700', fontSize: 15 },
+
+  // ── Status chips ──
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statusChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.2)',
+    alignItems: 'center',
+  },
+  statusChipActive: {
+    backgroundColor: UI.brand.primary,
+    borderColor: UI.brand.primary,
+  },
+  statusChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: UI.text.muted,
+  },
+  statusChipTextActive: {
+    color: '#fff',
+  },
 });
