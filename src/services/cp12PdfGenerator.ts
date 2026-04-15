@@ -32,6 +32,7 @@ export interface CP12PdfData {
   landlordName: string;
   landlordCompany?: string;
   landlordAddress: string;
+  landlordCity?: string;
   landlordPostcode?: string;
   landlordEmail: string;
   landlordPhone: string;
@@ -235,6 +236,7 @@ function buildHtml(
           <td class="value-cell" style="border-bottom:none;">${esc(landlordAddressLine1)}</td>
         </tr>
         <tr><td class="value-cell" style="border-top:none;">${esc(landlordAddressLine2)}</td></tr>
+        <tr><td class="label-cell">City</td><td class="value-cell">${esc(data.landlordCity || '')}</td></tr>
         <tr><td class="label-cell">Postcode</td><td class="value-cell">${esc(data.landlordPostcode || '')}</td></tr>
         <tr><td class="label-cell">Email</td><td class="value-cell">${esc(data.landlordEmail)}</td></tr>
         <tr><td class="label-cell">Phone / Mobile</td><td class="value-cell">${esc(data.landlordPhone)}</td></tr>

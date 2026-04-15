@@ -199,14 +199,14 @@ function buildDocumentHtml(data: DocumentData, company: CompanyInfo): string {
   .notes-content { font-size: 10px; color: #334155; }
 
   /* FOOTER */
-  .footer { position: fixed; bottom: 15mm; left: 20mm; right: 20mm; height: 35mm; background: #fff; border-top: 1px solid #0f172a; padding-top: 10px; display: flex; justify-content: space-between; gap: 20px; }
+  .footer { margin-top: 30px; border-top: 1px solid #0f172a; padding-top: 10px; display: flex; justify-content: space-between; gap: 20px; page-break-inside: avoid; }
   .left-box { flex: 1; font-size: 9px; line-height: 1.4; color: #475569; }
   .box-title { font-weight: 700; font-size: 9px; color: #0f172a; text-transform: uppercase; margin-bottom: 3px; }
 
   .sig-box { width: 140px; text-align: right; display: flex; flex-direction: column; justify-content: flex-end; }
   .sig-img { height: 35px; width: auto; object-fit: contain; align-self: flex-end; margin-bottom: 2px; }
   .sig-line { border-top: 1px solid #cbd5e1; font-size: 8px; color: #94a3b8; padding-top: 2px; text-transform: uppercase; text-align: center; }
-  .terms { position: fixed; bottom: 8mm; left: 0; right: 0; text-align: center; font-size: 8px; color: #94a3b8; }
+  .terms { margin-top: 15px; text-align: center; font-size: 8px; color: #94a3b8; }
 </style>
 </head>
 <body>

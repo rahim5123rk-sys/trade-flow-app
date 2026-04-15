@@ -203,7 +203,8 @@ export default function ReviewSign() {
     const pdfData: CP12PdfData = {
       landlordName: landlordForm.customerName || '',
       landlordCompany: landlordForm.customerCompany || '',
-      landlordAddress: [landlordForm.addressLine1, landlordForm.addressLine2, landlordForm.city, landlordForm.postCode].filter(Boolean).join(', '),
+      landlordAddress: [landlordForm.addressLine1, landlordForm.addressLine2].filter(Boolean).join(', '),
+      landlordCity: landlordForm.city || '',
       landlordPostcode: landlordForm.postCode || '',
       landlordEmail: landlordForm.email || '',
       landlordPhone: landlordForm.phone || '',

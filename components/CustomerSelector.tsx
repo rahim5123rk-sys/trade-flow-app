@@ -148,8 +148,16 @@ export function CustomerSelector({
   const [updateSuccess, setUpdateSuccess] = useState(false);
 
   useEffect(() => {
-    if (value.customerId) setCustomerMode('existing');
-    else setCustomerMode('new');
+    if (value.customerId) {
+      setCustomerMode('existing');
+      // Auto-enter editing mode for existing customers so Update/Save buttons appear
+      if (!isEditing && prefillMode !== 'locked') {
+        setOriginalData({ ...value });
+        setIsEditing(true);
+      }
+    } else {
+      setCustomerMode('new');
+    }
   }, [value.customerId]);
 
   useEffect(() => {
