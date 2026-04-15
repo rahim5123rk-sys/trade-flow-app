@@ -125,10 +125,41 @@ Deno.serve(async (req) => {
   const customerName = (doc?.customer_snapshot as any)?.name || 'Customer'
   const total = doc?.total ? `£${Number(doc.total).toFixed(2)}` : ''
 
+  // Fetch company details (name + logo) for branding
+  let companyName = ''
+  let companyLogoUrl = ''
+  if (doc?.company_id) {
+    const { data: company } = await supabaseAdmin
+      .from('companies')
+      .select('name, logo_url')
+      .eq('id', doc.company_id)
+      .single()
+    if (company) {
+      companyName = company.name || ''
+      if (company.logo_url) {
+        // Parse storage ref (format: "bucket:path" or just path in logos bucket)
+        const ref = company.logo_url as string
+        const colonIdx = ref.indexOf(':')
+        let bucket = 'logos'
+        let path = ref
+        if (colonIdx !== -1 && !ref.includes('://')) {
+          bucket = ref.slice(0, colonIdx)
+          path = ref.slice(colonIdx + 1)
+        }
+        const { data: signedData } = await supabaseAdmin.storage
+          .from(bucket)
+          .createSignedUrl(path, 3600) // 1 hour expiry
+        if (signedData?.signedUrl) {
+          companyLogoUrl = signedData.signedUrl
+        }
+      }
+    }
+  }
+
   // ── GET → Show accept/decline form ──
   if (req.method === 'GET') {
     if (wantJson) {
-      return new Response(JSON.stringify({ reference, customerName, total }), {
+      return new Response(JSON.stringify({ reference, customerName, total, companyName, companyLogoUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
