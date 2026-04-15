@@ -106,13 +106,15 @@ Deno.serve(async (req) => {
 
   // ── GET → Show accept/decline form ──
   if (req.method === 'GET') {
-    const formAction = url.pathname + `?token=${encodeURIComponent(token)}`
+    // Build form action from env (Deno runtime URL may lack /functions/v1/ prefix and use http)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || url.origin
+    const formAction = `${supabaseUrl}/functions/v1/quote-response?token=${encodeURIComponent(token)}`
     const page = htmlPage('Quote Response',
       `<div class="logo">GasPilot</div>
-       <h1>Quote ${reference}</h1>
+       <h1>Quote ${escapeHtml(reference)}</h1>
        <div class="ref">
          <strong>Customer:</strong> ${escapeHtml(customerName)}
-         ${total ? `<br/><strong>Total:</strong> ${total}` : ''}
+         ${total ? `<br/><strong>Total:</strong> ${escapeHtml(total)}` : ''}
        </div>
        <p>Please review your quote and respond below.</p>
        <form method="POST" action="${formAction}">

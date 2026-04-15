@@ -422,3 +422,13 @@ entrypoint = "./functions/assign-job-workers/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/notify-admin-decline/index.ts"
+
+[functions.resend-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/resend-webhook/index.ts"
+
+[functions.quote-response]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/quote-response/index.ts"
