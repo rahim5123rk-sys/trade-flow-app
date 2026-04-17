@@ -8,7 +8,7 @@
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -112,6 +112,15 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
   const handleSelectValue = useCallback((value: string, charUUID: string) => {
     onSelectValue?.(value, charUUID);
   }, [onSelectValue]);
+
+  // Auto-close modal when a recognized TPI device connects.
+  // Production mode subscriptions in TpiDeviceContext handle data streaming,
+  // so the characteristics explorer isn't needed for known devices.
+  useEffect(() => {
+    if (isConnected && connectedDevice?.model && visible) {
+      onClose();
+    }
+  }, [isConnected, connectedDevice?.model, visible, onClose]);
 
   // ─── Styles ─────────────────────────────────────────────────
 
