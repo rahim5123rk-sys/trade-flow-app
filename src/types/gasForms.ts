@@ -22,7 +22,34 @@ export type FlueType =
   | 'Conventional Flue'
   | 'Fanned Flue';
 
-export type FuelType = '' | 'Natural Gas' | 'LPG';
+export type FuelType =
+  | ''
+  | 'Natural Gas'
+  | 'LPG'
+  | 'Butane'
+  | 'Light Oil'
+  | 'Heavy Oil'
+  | 'Bituminous Coal'
+  | 'Anthracite Coal'
+  | 'Coke'
+  | 'Wood'
+  | 'Bagasse'
+  | 'Wood Pellet';
+
+/** All fuel types as an array — used by form dropdowns */
+export const ALL_FUEL_TYPES: FuelType[] = [
+  'Natural Gas',
+  'LPG',
+  'Butane',
+  'Light Oil',
+  'Heavy Oil',
+  'Bituminous Coal',
+  'Anthracite Coal',
+  'Coke',
+  'Wood',
+  'Bagasse',
+  'Wood Pellet',
+];
 
 export type BoilerType = '' | 'Combi' | 'System' | 'Regular (Heat Only)' | 'Back Boiler';
 

@@ -8,7 +8,7 @@
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -59,6 +59,17 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
   const isScanning = connectionStatus === 'scanning';
   const isConnected = connectionStatus === 'connected';
   const isConnecting = connectionStatus === 'connecting';
+
+  // Sort TPI devices to the top, strongest signal first within each group
+  const sortedDevices = useMemo(() => {
+    return [...discoveredDevices].sort((a, b) => {
+      // TPI devices (those with a recognised model) come first
+      if (a.model && !b.model) return -1;
+      if (!a.model && b.model) return 1;
+      // Within the same group, sort by signal strength (higher = closer)
+      return (b.rssi ?? -999) - (a.rssi ?? -999);
+    });
+  }, [discoveredDevices]);
 
   // ─── Handlers ───────────────────────────────────────────────
 
@@ -187,13 +198,13 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
                 )}
               </TouchableOpacity>
 
-              {/* Device list */}
-              {discoveredDevices.length > 0 && (
+              {/* Device list — TPI devices sorted to top */}
+              {sortedDevices.length > 0 && (
                 <View style={styles.section}>
                   <Text style={[styles.sectionTitle, { color: textSecondary }]}>
-                    Nearby Devices ({discoveredDevices.length})
+                    Nearby Devices ({sortedDevices.length})
                   </Text>
-                  {discoveredDevices.map((device) => (
+                  {sortedDevices.map((device) => (
                     <TouchableOpacity
                       key={device.id}
                       style={[styles.deviceRow, { backgroundColor: cardBg, borderColor: border }]}
@@ -232,7 +243,7 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
                 </View>
               )}
 
-              {isScanning && discoveredDevices.length === 0 && (
+              {isScanning && sortedDevices.length === 0 && (
                 <View style={styles.emptyState}>
                   <ActivityIndicator size="large" color={accent} />
                   <Text style={[styles.emptyText, { color: textSecondary }]}>
@@ -244,7 +255,7 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
                 </View>
               )}
 
-              {!isScanning && discoveredDevices.length === 0 && (
+              {!isScanning && sortedDevices.length === 0 && (
                 <View style={styles.emptyState}>
                   <Ionicons name="bluetooth-outline" size={48} color={textMuted} />
                   <Text style={[styles.emptyText, { color: textSecondary }]}>

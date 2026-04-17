@@ -13,12 +13,13 @@ import {Button} from '../../../../components/ui/Button';
 import {useBreakdownReport} from '../../../../src/context/BreakdownReportContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
 import {ApplianceCategory, BoilerType, BreakdownReportAppliance, EMPTY_BREAKDOWN_REPORT_APPLIANCE, FlueType, FuelType, PassFailNA, SafeUnsafe, YesNoNA} from '../../../../src/types/breakdownReport';
+import {ALL_FUEL_TYPES} from '../../../../src/types/gasForms';
 
 const STEPS = ['Details', 'Repair', 'Review'];
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 const APPLIANCE_CATEGORIES: ApplianceCategory[] = ['Boiler', 'Fire', 'Cooker', 'Hob', 'Other'];
 const BOILER_TYPES: BoilerType[] = ['Combi', 'System', 'Regular (Heat Only)', 'Back Boiler'];
-const FUEL_TYPES: FuelType[] = ['Natural Gas', 'LPG'];
+const FUEL_TYPES = ALL_FUEL_TYPES;
 const FLUE_TYPES: FlueType[] = ['Balanced Flue', 'Room Sealed', 'Open Flue', 'Flu-less', 'Conventional Flue', 'Fanned Flue'];
 const YES_NO_NA: YesNoNA[] = ['Yes', 'No', 'N/A'];
 const PASS_FAIL_NA: PassFailNA[] = ['Pass', 'Fail', 'N/A'];

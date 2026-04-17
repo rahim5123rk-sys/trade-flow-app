@@ -14,13 +14,14 @@ import {Button} from '../../../../components/ui/Button';
 import {useInstallationCert} from '../../../../src/context/InstallationCertContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
 import {ApplianceCategory, BoilerType, EMPTY_FGA, EMPTY_INSTALLATION_CERT_APPLIANCE, FlueType, FuelType, InstallationCertAppliance, InstallationType, PassFailNA, SafeUnsafe, YesNoNA} from '../../../../src/types/installationCert';
+import {ALL_FUEL_TYPES} from '../../../../src/types/gasForms';
 
 const STEPS = ['Details', 'Installation', 'Review'];
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 const APPLIANCE_CATEGORIES: ApplianceCategory[] = ['Boiler', 'Fire', 'Cooker', 'Hob', 'Other'];
 const BOILER_TYPES: BoilerType[] = ['Combi', 'System', 'Regular (Heat Only)', 'Back Boiler'];
 const INSTALLATION_TYPES: InstallationType[] = ['New Installation', 'Replacement'];
-const FUEL_TYPES: FuelType[] = ['Natural Gas', 'LPG'];
+const FUEL_TYPES = ALL_FUEL_TYPES;
 const FLUE_TYPES: FlueType[] = ['Balanced Flue', 'Room Sealed', 'Open Flue', 'Flu-less', 'Conventional Flue', 'Fanned Flue'];
 const YES_NO_NA: YesNoNA[] = ['Yes', 'No', 'N/A'];
 const PASS_FAIL_NA: PassFailNA[] = ['Pass', 'Fail', 'N/A'];

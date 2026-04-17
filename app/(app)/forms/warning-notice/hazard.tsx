@@ -13,12 +13,13 @@ import {Button} from '../../../../components/ui/Button';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
 import {useWarningNotice} from '../../../../src/context/WarningNoticeContext';
 import {ApplianceCategory, BoilerType, EMPTY_WARNING_NOTICE_APPLIANCE, FlueType, FuelType, SafeUnsafe, WarningClassification, YesNoNA} from '../../../../src/types/warningNotice';
+import {ALL_FUEL_TYPES} from '../../../../src/types/gasForms';
 
 const STEPS = ['Details', 'Hazard', 'Review'];
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 const APPLIANCE_CATEGORIES: ApplianceCategory[] = ['Boiler', 'Fire', 'Cooker', 'Hob', 'Other'];
 const BOILER_TYPES: BoilerType[] = ['Combi', 'System', 'Regular (Heat Only)', 'Back Boiler'];
-const FUEL_TYPES: FuelType[] = ['Natural Gas', 'LPG'];
+const FUEL_TYPES = ALL_FUEL_TYPES;
 const FLUE_TYPES: FlueType[] = ['Balanced Flue', 'Room Sealed', 'Open Flue', 'Flu-less', 'Conventional Flue', 'Fanned Flue'];
 const CLASSIFICATIONS: WarningClassification[] = ['Not to Current Standards', 'At Risk', 'Immediately Dangerous'];
 const YES_NO_NA: YesNoNA[] = ['Yes', 'No', 'N/A'];

@@ -7,12 +7,15 @@
 //
 // Standard combustion formulas for UK gas engineering:
 //   CO2% = CO2max × (1 − O2% / 20.9)
-//   Ratio = CO ÷ CO2
+//   Ratio = CO_ppm ÷ (CO2% × 10,000)
 //
-// CO2max values (theoretical max CO2 at 0% O2):
-//   Natural Gas: 11.7%
-//   LPG (Propane): 14.0%
-//   LPG (Butane): 14.1%
+// CO2max values (theoretical max CO2 at 0% excess O2):
+//   Natural Gas: 11.7%       Butane: 14.1%
+//   LPG (Propane): 14.0%     Light Oil: 15.4%
+//   Heavy Oil: 16.0%         Bituminous Coal: 18.2%
+//   Anthracite Coal: 19.2%   Coke: 20.5%
+//   Wood: 20.3%              Bagasse: 20.0%
+//   Wood Pellet: 20.3%
 // ============================================
 
 import type { FuelType } from '../types/gasForms';
@@ -22,12 +25,45 @@ import type { FuelType } from '../types/gasForms';
 /** O2 percentage in fresh air */
 const O2_IN_AIR = 20.9;
 
-/** Maximum CO2 at 0% excess O2, by fuel type */
+/**
+ * Maximum CO2 at 0% excess O2, by fuel type.
+ * Source: BS 7967 / IGEM standards / manufacturer datasheets
+ */
 const CO2_MAX: Record<string, number> = {
-  'Natural Gas': 11.7,
-  'LPG': 14.0,
-  // Defaults used when fuel type is unknown
-  default: 11.7,
+  'Natural Gas':    11.7,
+  'LPG':            14.0,
+  'Butane':         14.1,
+  'Light Oil':      15.4,
+  'Heavy Oil':      16.0,
+  'Bituminous Coal': 18.2,
+  'Anthracite Coal': 19.2,
+  'Coke':           20.5,
+  'Wood':           20.3,
+  'Bagasse':        20.0,
+  'Wood Pellet':    20.3,
+  default:          11.7,
+};
+
+/**
+ * Siegert K factor by fuel type.
+ * Used in simplified combustion efficiency formula:
+ *   η ≈ 100 − (K × ΔT / CO2%)
+ *
+ * Source: BS 7967 / Siegert equation reference tables
+ */
+const SIEGERT_K: Record<string, number> = {
+  'Natural Gas':    0.56,
+  'LPG':            0.63,
+  'Butane':         0.63,
+  'Light Oil':      0.68,
+  'Heavy Oil':      0.68,
+  'Bituminous Coal': 0.63,
+  'Anthracite Coal': 0.63,
+  'Coke':           0.63,
+  'Wood':           0.68,
+  'Bagasse':        0.68,
+  'Wood Pellet':    0.68,
+  default:          0.56,
 };
 
 // ─── Exported Functions ─────────────────────────────────────────
@@ -133,7 +169,7 @@ export function estimateCombustionEfficiency(
   if (!isFinite(co2Percent) || !isFinite(flueTempC) || !isFinite(ambientTempC)) return null;
   if (co2Percent <= 0) return null;
 
-  const K = fuelType === 'LPG' ? 0.63 : 0.56;
+  const K = SIEGERT_K[fuelType] ?? SIEGERT_K.default;
   const deltaT = flueTempC - ambientTempC;
 
   if (deltaT <= 0) return null;

@@ -40,6 +40,7 @@ import {
   ServiceFinalInfo,
   YesNoNA
 } from '../../../../src/types/serviceRecord';
+import {ALL_FUEL_TYPES} from '../../../../src/types/gasForms';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -49,7 +50,7 @@ const ACCENT = '#059669';
 
 const APPLIANCE_CATEGORIES: ApplianceCategory[] = ['Boiler', 'Fire', 'Cooker', 'Hob', 'Other'];
 const BOILER_TYPES: BoilerType[] = ['Combi', 'System', 'Regular (Heat Only)', 'Back Boiler'];
-const FUEL_TYPES: FuelType[] = ['Natural Gas', 'LPG'];
+const FUEL_TYPES = ALL_FUEL_TYPES;
 const FLUE_TYPES: FlueType[] = ['Balanced Flue', 'Room Sealed', 'Open Flue', 'Flu-less', 'Conventional Flue', 'Fanned Flue'];
 
 // ─── Step indicator ─────────────────────────────────────────────
