@@ -102,9 +102,9 @@ export default function AddCustomerScreen() {
 
     // Starter plan: max 10 customers
     if (!isPro && userProfile?.company_id) {
-      const { count } = await supabase
+      const {count} = await supabase
         .from('customers')
-        .select('id', { count: 'exact', head: true })
+        .select('id', {count: 'exact', head: true})
         .eq('company_id', userProfile.company_id);
       if (count !== null && count >= 10) {
         setShowPaywall(true);

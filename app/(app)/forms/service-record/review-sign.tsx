@@ -17,15 +17,15 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import EmailRecipientsList from '../../../../components/EmailRecipientsList';
 import {upsertSiteAddress} from '../../../../components/forms/SiteAddressPicker';
+import {GlassIconButton} from '../../../../components/GlassIconButton';
 import ReminderSection from '../../../../components/ReminderSection';
 import {SignaturePad} from '../../../../components/SignaturePad';
 import {UI} from '../../../../constants/theme';
@@ -198,7 +198,7 @@ export default function ServiceRecordReviewSign() {
 
     if (editingDocumentId) {
       const payloadToSave = oneTimeEmails.length > 0
-        ? { ...lockedPayload, oneTimeReminderEmails: oneTimeEmails }
+        ? {...lockedPayload, oneTimeReminderEmails: oneTimeEmails}
         : lockedPayload;
       const {error: updateError} = await supabase
         .from('documents')
@@ -216,7 +216,7 @@ export default function ServiceRecordReviewSign() {
 
     const docNumber = Number(String(Date.now()).slice(-8));
     const insertPayloadToSave = oneTimeEmails.length > 0
-      ? { ...lockedPayload, oneTimeReminderEmails: oneTimeEmails }
+      ? {...lockedPayload, oneTimeReminderEmails: oneTimeEmails}
       : lockedPayload;
     const documentBase = {
       company_id: userProfile.company_id,
@@ -307,7 +307,7 @@ export default function ServiceRecordReviewSign() {
             if (inserted?.id && documentId) {
               await supabase.from('documents').update({customer_id: inserted.id}).eq('id', documentId);
             }
-          } catch { /* silently fail — customer snapshot is already saved */ }
+          } catch { /* silently fail — customer snapshot is already saved */}
         })();
       }
 
@@ -375,13 +375,7 @@ export default function ServiceRecordReviewSign() {
         >
           {/* Header */}
           <Animated.View entering={FadeIn.duration(300)} style={s.header}>
-            <TouchableOpacity
-              style={[s.backBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="chevron-back" size={20} color={ACCENT} />
-            </TouchableOpacity>
+            <GlassIconButton onPress={() => router.back()} />
             <View>
               <Text style={[s.title, {color: theme.text.title}]}>{editingDocumentId ? 'Edit & Update' : 'Review & Sign'}</Text>
               <Text style={[s.subtitleText, {color: theme.text.muted}]}>

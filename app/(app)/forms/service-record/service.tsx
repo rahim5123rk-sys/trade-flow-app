@@ -21,10 +21,12 @@ import {
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown, FadeInUp} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {AutocompleteSuggestions} from '../../../../components/forms/AutocompleteInput';
+import {FgaReadingsGroup} from '../../../../components/forms/FgaReadingsGroup';
+import {GlassIconButton} from '../../../../components/GlassIconButton';
 import {UI} from '../../../../constants/theme';
 import {useServiceRecord} from '../../../../src/context/ServiceRecordContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
-import {AutocompleteSuggestions} from '../../../../components/forms/AutocompleteInput';
 import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {
   ApplianceCategory,
@@ -106,53 +108,6 @@ function TriChips({
           </TouchableOpacity>
         );
       })}
-    </View>
-  );
-}
-
-// ─── FGA Row ────────────────────────────────────────────────────
-
-function FGARow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: {co: string; co2: string; ratio: string};
-  onChange: (v: {co: string; co2: string; ratio: string}) => void;
-}) {
-  const {isDark, theme} = useAppTheme();
-  return (
-    <View style={s.fgaSection}>
-      <Text style={[s.fgaLabel, isDark && {color: theme.text.bodyLight}]}>{label}</Text>
-      <View style={s.fgaGrid}>
-        {(['co', 'co2', 'ratio'] as const).map((field) => {
-          const labels = {co: 'CO (ppm)', co2: 'CO₂ (%)', ratio: 'Ratio'};
-          return (
-            <View key={field} style={s.fgaField}>
-              <Text style={[s.fgaFieldLabel, isDark && {color: theme.text.muted}]}>{labels[field]}</Text>
-              <View style={s.fgaInputRow}>
-                <TextInput
-                  style={[s.fgaInput, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
-                  value={value[field]}
-                  onChangeText={(t) => onChange({...value, [field]: t})}
-                  placeholder="–"
-                  placeholderTextColor={isDark ? '#64748B' : '#CBD5E1'}
-                  keyboardType="decimal-pad"
-                  keyboardAppearance={isDark ? 'dark' : 'light'}
-                  editable={value[field] !== 'N/A'}
-                />
-                <TouchableOpacity
-                  style={[s.naBtn, value[field] === 'N/A' && s.naBtnActive]}
-                  onPress={() => onChange({...value, [field]: value[field] === 'N/A' ? '' : 'N/A'})}
-                >
-                  <Text style={[s.naBtnText, value[field] === 'N/A' && s.naBtnTextActive]}>N/A</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-      </View>
     </View>
   );
 }
@@ -290,7 +245,7 @@ export default function ServiceScreen() {
       const {id, ...rest} = appliances[0];
       setForm({...rest});
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleNext = () => {
@@ -341,13 +296,7 @@ export default function ServiceScreen() {
         >
           {/* Header */}
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={[s.backBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={22} color={theme.text.title} />
-            </TouchableOpacity>
+            <GlassIconButton onPress={() => router.back()} />
             <View style={{flex: 1}}>
               <Text style={[s.title, {color: theme.text.title}]}>Service Details</Text>
               <Text style={[s.subtitle, {color: theme.text.muted}]}>Step 2 of 3</Text>
@@ -370,8 +319,8 @@ export default function ServiceScreen() {
             />
 
             <FormInput label="Location *" value={form.location} onChange={(v) => updateField('location', v)} placeholder="e.g. Kitchen" />
-            <FormInput label="Make" value={form.make} onChange={(v) => { updateField('make', v); setShowMakeSuggestions(true); }} placeholder="e.g. Worcester" />
-            <AutocompleteSuggestions value={form.make} suggestions={getBrandsForCategory(form.category)} visible={showMakeSuggestions} onSelect={(v) => { updateField('make', v); setShowMakeSuggestions(false); }} />
+            <FormInput label="Make" value={form.make} onChange={(v) => {updateField('make', v); setShowMakeSuggestions(true);}} placeholder="e.g. Worcester" />
+            <AutocompleteSuggestions value={form.make} suggestions={getBrandsForCategory(form.category)} visible={showMakeSuggestions} onSelect={(v) => {updateField('make', v); setShowMakeSuggestions(false);}} />
             <FormInput label="Model" value={form.model} onChange={(v) => updateField('model', v)} placeholder="e.g. Greenstar 30i" />
             <FormInput label="Serial Number" value={form.serialNumber} onChange={(v) => updateField('serialNumber', v)} placeholder="Serial number" />
             <FormInput label="GC Number" value={form.gcNumber} onChange={(v) => updateField('gcNumber', v)} placeholder="GC number" />
@@ -436,12 +385,12 @@ export default function ServiceScreen() {
             {/* ── FGA Readings ── */}
             <SectionDivider title="FGA Readings" />
 
-            <FGARow
+            <FgaReadingsGroup
               label="FGA Low Fire"
               value={form.fgaLow}
               onChange={(v) => updateField('fgaLow', v)}
             />
-            <FGARow
+            <FgaReadingsGroup
               label="FGA High Fire"
               value={form.fgaHigh}
               onChange={(v) => updateField('fgaHigh', v)}

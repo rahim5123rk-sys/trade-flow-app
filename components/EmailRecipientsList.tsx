@@ -1,6 +1,6 @@
 // components/EmailRecipientsList.tsx
-import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import React, {useState} from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useAppTheme } from '../src/context/ThemeContext';
+import {useAppTheme} from '../src/context/ThemeContext';
 
 interface Props {
   defaultEmails: string[];
@@ -27,7 +27,7 @@ export default function EmailRecipientsList({
   title = "Email Recipients",
   subtitle = "Document will be sent to these addresses"
 }: Props) {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   const [inputValue, setInputValue] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -51,16 +51,16 @@ export default function EmailRecipientsList({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? theme.surface.elevated : '#F8F9FA', borderColor: isDark ? theme.surface.border : '#E5E7EB' }]}>
+    <View style={[styles.container, {backgroundColor: isDark ? theme.surface.elevated : '#F8F9FA', borderColor: isDark ? theme.surface.border : '#E5E7EB'}]}>
       <View style={styles.header}>
         <Ionicons name="mail-unread-outline" size={18} color={theme.brand.primary} />
-        <View style={{ marginLeft: 10 }}>
-          <Text style={[styles.title, { color: theme.text.title }]}>{title}</Text>
-          <Text style={[styles.subtitle, { color: theme.text.muted }]}>{subtitle}</Text>
+        <View style={{marginLeft: 10}}>
+          <Text style={[styles.title, {color: theme.text.title}]}>{title}</Text>
+          <Text style={[styles.subtitle, {color: theme.text.muted}]}>{subtitle}</Text>
         </View>
       </View>
 
-      <View style={[styles.divider, { backgroundColor: isDark ? theme.surface.border : '#E5E7EB' }]} />
+      <View style={[styles.divider, {backgroundColor: isDark ? theme.surface.border : '#E5E7EB'}]} />
 
       {/* Default emails — tap pencil to edit */}
       {defaultEmails.map((email, idx) => (
@@ -68,7 +68,7 @@ export default function EmailRecipientsList({
           <Ionicons name="person-outline" size={14} color={theme.text.muted} />
           {editingIndex === idx ? (
             <TextInput
-              style={[styles.emailText, { color: theme.text.body, borderBottomWidth: 1, borderBottomColor: theme.brand.primary }]}
+              style={[styles.emailText, {color: theme.text.body, borderBottomWidth: 1, borderBottomColor: theme.brand.primary}]}
               value={editValue}
               onChangeText={setEditValue}
               autoFocus
@@ -91,11 +91,11 @@ export default function EmailRecipientsList({
             />
           ) : (
             <>
-              <Text style={[styles.emailText, { color: theme.text.body }]}>{email}</Text>
+              <Text style={[styles.emailText, {color: theme.text.body}]}>{email}</Text>
               {onDefaultEmailsChange && (
                 <TouchableOpacity
-                  onPress={() => { setEditingIndex(idx); setEditValue(email); }}
-                  style={{ marginLeft: 'auto' }}
+                  onPress={() => {setEditingIndex(idx); setEditValue(email);}}
+                  style={{marginLeft: 'auto'}}
                 >
                   <Ionicons name="pencil-outline" size={14} color={theme.text.muted} />
                 </TouchableOpacity>
@@ -104,26 +104,26 @@ export default function EmailRecipientsList({
           )}
         </View>
       ))}
-      
+
       {defaultEmails.length === 0 && (
-        <Text style={[styles.noEmailText, { color: theme.brand.danger }]}>No default email found.</Text>
+        <Text style={[styles.noEmailText, {color: theme.brand.danger}]}>No default email found.</Text>
       )}
 
       {/* Additional emails */}
       {additionalEmails.map((email) => (
         <View key={email} style={styles.emailRow}>
           <Ionicons name="mail-outline" size={14} color={theme.brand.primary} />
-          <Text style={[styles.emailText, { color: theme.text.body }]}>{email}</Text>
-          <TouchableOpacity onPress={() => removeAdditional(email)} style={{ marginLeft: 'auto' }}>
+          <Text style={[styles.emailText, {color: theme.text.body}]}>{email}</Text>
+          <TouchableOpacity onPress={() => removeAdditional(email)} style={{marginLeft: 'auto'}}>
             <Ionicons name="close-circle" size={16} color={theme.text.muted} />
           </TouchableOpacity>
         </View>
       ))}
 
       {/* Add additional email input */}
-      <View style={[styles.addRow, { borderColor: isDark ? theme.surface.border : '#D1D5DB' }]}>
+      <View style={[styles.addRow, {borderColor: isDark ? theme.surface.border : '#D1D5DB'}]}>
         <TextInput
-          style={[styles.emailInput, { color: theme.text.body }]}
+          style={[styles.emailInput, {color: theme.text.body}]}
           placeholder="+ Add another email address"
           placeholderTextColor={theme.text.muted}
           value={inputValue}
@@ -144,14 +144,14 @@ export default function EmailRecipientsList({
 }
 
 const styles = StyleSheet.create({
-  container: { borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 20 },
-  header: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 15, fontWeight: '700' },
-  subtitle: { fontSize: 12, marginTop: 1 },
-  divider: { height: 1, marginVertical: 12 },
-  emailRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  emailText: { fontSize: 13, flex: 1 },
-  noEmailText: { fontSize: 13, marginBottom: 8, fontStyle: 'italic' },
-  addRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginTop: 4 },
-  emailInput: { flex: 1, fontSize: 13 },
+  container: {borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 20},
+  header: {flexDirection: 'row', alignItems: 'center'},
+  title: {fontSize: 15, fontWeight: '700'},
+  subtitle: {fontSize: 12, marginTop: 1},
+  divider: {height: 1, marginVertical: 12},
+  emailRow: {flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8},
+  emailText: {fontSize: 13, flex: 1},
+  noEmailText: {fontSize: 13, marginBottom: 8, fontStyle: 'italic'},
+  addRow: {flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginTop: 4},
+  emailInput: {flex: 1, fontSize: 13},
 });

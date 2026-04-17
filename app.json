@@ -23,6 +23,7 @@
         "NSPhotoLibraryUsageDescription": "GasPilot needs photo library access to attach existing photos to job records.",
         "NSContactsUsageDescription": "GasPilot can import customer details from your contacts to save you typing.",
         "NSCalendarsUsageDescription": "GasPilot can sync your scheduled jobs to your iOS Calendar so you never miss an appointment.",
+        "NSBluetoothAlwaysUsageDescription": "GasPilot connects to TPI gas analysers via Bluetooth to automatically capture flue gas readings.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -39,8 +40,9 @@
       "permissions": [
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR",
-        "android.permission.READ_CALENDAR",
-        "android.permission.WRITE_CALENDAR"
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -65,7 +67,8 @@
       "@react-native-community/datetimepicker",
       "expo-secure-store",
       "expo-calendar",
-      "react-native-bottom-tabs"
+      "react-native-bottom-tabs",
+      "react-native-ble-plx"
     ],
     "experiments": {
       "typedRoutes": true,

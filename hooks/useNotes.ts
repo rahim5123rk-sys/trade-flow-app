@@ -1,7 +1,7 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
-import {supabase} from '../src/config/supabase';
-import {useAuth} from '../src/context/AuthContext';
-import {withQueryTimeout} from '../src/utils/withTimeout';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { supabase } from '../src/config/supabase';
+import { useAuth } from '../src/context/AuthContext';
+import { withQueryTimeout } from '../src/utils/withTimeout';
 
 export interface Note {
   id: string;

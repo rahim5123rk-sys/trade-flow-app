@@ -22,19 +22,24 @@ import {
 } from 'react-native';
 import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import EmailRecipientsList from '../../../../components/EmailRecipientsList';
+import {GlassIconButton} from '../../../../components/GlassIconButton';
+import {stripHtml} from '../../../../components/RichTextLineInput';
+import {styles} from '../../../../components/documents/DocumentDetailStyles';
+import GasFormDetails from '../../../../components/documents/GasFormDetails';
 import {Colors, UI} from '../../../../constants/theme';
 import {supabase} from '../../../../src/config/supabase';
 import {useAuth} from '../../../../src/context/AuthContext';
 import {useOfflineMode} from '../../../../src/context/OfflineContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
 import {generateDocument, generateDocumentBase64, generateDocumentUrl} from '../../../../src/services/DocumentGenerator';
-import type {CP12LockedPayload} from '../../../../src/services/cp12PdfGenerator';
-import {sanitizeRecipients, sendCp12CertificateEmail, createQuoteResponseToken} from '../../../../src/services/email';
 import type {BreakdownReportLockedPayload} from '../../../../src/services/breakdownReportPdfGenerator';
 import type {CommissioningLockedPayload} from '../../../../src/services/commissioningPdfGenerator';
+import type {CP12LockedPayload} from '../../../../src/services/cp12PdfGenerator';
 import type {DecommissioningLockedPayload} from '../../../../src/services/decommissioningPdfGenerator';
+import {duplicateDocument, editDocument, formatDisplayDate} from '../../../../src/services/documentActions';
+import {createQuoteResponseToken, sanitizeRecipients, sendCp12CertificateEmail} from '../../../../src/services/email';
 import type {InstallationCertLockedPayload} from '../../../../src/services/installationCertPdfGenerator';
-import {stripHtml} from '../../../../components/RichTextLineInput';
 import {
   generateRegisteredPdf,
   generateRegisteredPdfBase64,
@@ -44,10 +49,6 @@ import {
 import type {ServiceRecordLockedPayload} from '../../../../src/services/serviceRecordPdfGenerator';
 import type {WarningNoticeLockedPayload} from '../../../../src/services/warningNoticePdfGenerator';
 import {Document} from '../../../../src/types';
-import EmailRecipientsList from '../../../../components/EmailRecipientsList';
-import GasFormDetails from '../../../../components/documents/GasFormDetails';
-import {styles} from '../../../../components/documents/DocumentDetailStyles';
-import {formatDisplayDate, duplicateDocument, editDocument} from '../../../../src/services/documentActions';
 
 const INVOICE_STATUSES = ['Draft', 'Sent', 'Unpaid', 'Paid', 'Overdue'];
 const QUOTE_STATUSES = ['Draft', 'Sent', 'Accepted', 'Declined'];
@@ -284,16 +285,16 @@ export default function DocumentDetailScreen() {
     if (!currentPayload) return;
 
     const updated = oneTimeEmails.length > 0
-      ? { ...currentPayload, oneTimeReminderEmails: oneTimeEmails }
-      : (() => { const p = { ...currentPayload }; delete p.oneTimeReminderEmails; return p; })();
+      ? {...currentPayload, oneTimeReminderEmails: oneTimeEmails}
+      : (() => {const p = {...currentPayload}; delete p.oneTimeReminderEmails; return p;})();
 
-    const { error } = await supabase
+    const {error} = await supabase
       .from('documents')
-      .update({ payment_info: JSON.stringify(updated) })
+      .update({payment_info: JSON.stringify(updated)})
       .eq('id', doc.id);
 
     if (!error) {
-      setDoc({ ...doc, payment_info: JSON.stringify(updated) });
+      setDoc({...doc, payment_info: JSON.stringify(updated)});
       setHasUnsavedEmails(false);
     } else {
       Alert.alert('Error', 'Could not save emails.');
@@ -596,21 +597,8 @@ export default function DocumentDetailScreen() {
     <ScrollView style={[styles.container, isDark && {backgroundColor: theme.surface.base}]} contentContainerStyle={{paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40}}>
       {/* Top nav row */}
       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
-        <TouchableOpacity
-          onPress={() => router.replace('/(app)/documents' as any)}
-          style={[styles.backBtn, {marginBottom: 0}, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={20} color={isDark ? theme.text.title : UI.text.title} />
-          <Text style={[styles.backBtnText, isDark && {color: theme.text.title}]}>Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setShowOverflowMenu(true)}
-          style={[styles.backBtn, {marginBottom: 0, paddingHorizontal: 10}, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="ellipsis-vertical" size={20} color={isDark ? theme.text.title : UI.text.title} />
-        </TouchableOpacity>
+        <GlassIconButton onPress={() => router.replace('/(app)/documents' as any)} />
+        <GlassIconButton icon="ellipsis-vertical" onPress={() => setShowOverflowMenu(true)} />
       </View>
 
       {/* Header Card */}
@@ -855,7 +843,7 @@ export default function DocumentDetailScreen() {
               </TouchableOpacity>
             ) : null}
             <View style={{height: 1, backgroundColor: isDark ? theme.surface.divider : UI.surface.elevated, marginHorizontal: 12}} />
-            <TouchableOpacity style={{flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12}} onPress={() => { setShowOverflowMenu(false); handleDelete(); }}>
+            <TouchableOpacity style={{flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12}} onPress={() => {setShowOverflowMenu(false); handleDelete();}}>
               <Ionicons name="trash-outline" size={18} color={Colors.danger} />
               <Text style={{fontSize: 15, fontWeight: '600', color: Colors.danger}}>Delete</Text>
             </TouchableOpacity>

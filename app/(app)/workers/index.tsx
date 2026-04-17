@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../components/GlassIconButton';
 import ProPaywallModal from '../../../components/ProPaywallModal';
 import {Colors, UI} from '../../../constants/theme';
 import {supabase} from '../../../src/config/supabase';
@@ -95,14 +96,12 @@ export default function WorkersListScreen() {
     <View style={[styles.container, {paddingTop: insets.top, backgroundColor: theme.surface.base}]}>
       <ProPaywallModal
         visible={showPaywall && !isPro}
-        onDismiss={() => { setShowPaywall(false); router.replace('/(app)/dashboard' as any); }}
+        onDismiss={() => {setShowPaywall(false); router.replace('/(app)/dashboard' as any);}}
         featureTitle="Team Management"
         featureDescription="Invite workers, assign jobs, and manage your team all from one place."
       />
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, {backgroundColor: theme.surface.card}, isDark && {borderWidth: 1, borderColor: theme.glass.border}]}>
-          <Ionicons name="arrow-back" size={24} color={theme.text.title} />
-        </TouchableOpacity>
+        <GlassIconButton onPress={() => router.back()} />
         <Text style={[styles.screenTitle, {color: theme.text.title}]}>Team</Text>
         <TouchableOpacity
           onPress={handleAddWorker}

@@ -3,27 +3,28 @@
 // Step 3 – Final checks, alarms, faults
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router} from 'expo-router';
 import React from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UI } from '../../../constants/theme';
-import { useCP12 } from '../../../src/context/CP12Context';
-import { useAppTheme } from '../../../src/context/ThemeContext';
-import { CP12FinalChecks, YesNoNA } from '../../../src/types/cp12';
+import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../components/GlassIconButton';
+import {UI} from '../../../constants/theme';
+import {useCP12} from '../../../src/context/CP12Context';
+import {useAppTheme} from '../../../src/context/ThemeContext';
+import {CP12FinalChecks, YesNoNA} from '../../../src/types/cp12';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -31,10 +32,10 @@ const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
 // ─── Step indicator ─────────────────────────────────────────────
 
-const StepIndicator = ({ current }: { current: number }) => {
-  const { isDark, theme } = useAppTheme();
+const StepIndicator = ({current}: {current: number}) => {
+  const {isDark, theme} = useAppTheme();
   return (
-    <View style={[s.stepRow, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+    <View style={[s.stepRow, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
       {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
         const step = i + 1;
         const isActive = step === current;
@@ -47,12 +48,12 @@ const StepIndicator = ({ current }: { current: number }) => {
               {isDone ? (
                 <Ionicons name="checkmark" size={12} color={UI.text.white} />
               ) : (
-                <Text style={[s.stepDotText, (isActive || isDone) && { color: UI.text.white }, isDark && !isActive && !isDone && { color: theme.text.muted }]}>
+                <Text style={[s.stepDotText, (isActive || isDone) && {color: UI.text.white}, isDark && !isActive && !isDone && {color: theme.text.muted}]}>
                   {step}
                 </Text>
               )}
             </View>
-            <Text style={[s.stepLabel, isActive ? { color: theme.brand.primary } : isDark && { color: theme.text.muted }]}>{label}</Text>
+            <Text style={[s.stepLabel, isActive ? {color: theme.brand.primary} : isDark && {color: theme.text.muted}]}>{label}</Text>
           </View>
         );
       })}
@@ -90,7 +91,7 @@ function TriChips({
 
 // ─── Section divider ────────────────────────────────────────────
 
-const SectionDivider = ({ title, icon }: { title: string; icon?: keyof typeof Ionicons.glyphMap }) => (
+const SectionDivider = ({title, icon}: {title: string; icon?: keyof typeof Ionicons.glyphMap}) => (
   <View style={s.sectionHeader}>
     {icon && (
       <View style={s.sectionIconWrap}>
@@ -104,7 +105,7 @@ const SectionDivider = ({ title, icon }: { title: string; icon?: keyof typeof Io
 // ─── Main ───────────────────────────────────────────────────────
 
 export default function FinalChecksScreen() {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const {
     finalChecks,
@@ -116,7 +117,7 @@ export default function FinalChecksScreen() {
   } = useCP12();
 
   const update = <K extends keyof CP12FinalChecks>(key: K, val: CP12FinalChecks[K]) =>
-    setFinalChecks({ ...finalChecks, [key]: val });
+    setFinalChecks({...finalChecks, [key]: val});
 
   const handleNext = () => {
     // Basic validation
@@ -139,35 +140,29 @@ export default function FinalChecksScreen() {
     <View style={s.root}>
       <LinearGradient
         colors={theme.gradients.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
         style={StyleSheet.absoluteFill}
       />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{flex: 1}}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={[
             s.scroll,
-            { paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + 120 },
+            {paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + 120},
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={[s.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={22} color={theme.text.title} />
-            </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.title, { color: theme.text.title }]}>Final Checks</Text>
-              <Text style={[s.subtitleText, { color: theme.text.muted }]}>
+            <GlassIconButton onPress={() => router.back()} />
+            <View style={{flex: 1}}>
+              <Text style={[s.title, {color: theme.text.title}]}>Final Checks</Text>
+              <Text style={[s.subtitleText, {color: theme.text.muted}]}>
                 {appliances.length} appliance(s) inspected
               </Text>
             </View>
@@ -176,7 +171,7 @@ export default function FinalChecksScreen() {
           <StepIndicator current={3} />
 
           {/* Summary banner */}
-          <Animated.View entering={FadeInDown.delay(150).springify()} style={[s.summaryBanner, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <Animated.View entering={FadeInDown.delay(150).springify()} style={[s.summaryBanner, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <View style={s.summaryRow}>
               <Ionicons name="person" size={14} color={UI.brand.primary} />
               <Text style={s.summaryText}>
@@ -200,7 +195,7 @@ export default function FinalChecksScreen() {
           </Animated.View>
 
           {/* ── Installation Checks ── */}
-          <Animated.View entering={FadeInDown.delay(200).springify()} style={[s.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <Animated.View entering={FadeInDown.delay(200).springify()} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <SectionDivider title="Installation Checks" icon="shield-checkmark" />
 
             <CheckRow
@@ -226,7 +221,7 @@ export default function FinalChecksScreen() {
           </Animated.View>
 
           {/* ── CO Alarm ── */}
-          <Animated.View entering={FadeInDown.delay(300).springify()} style={[s.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <Animated.View entering={FadeInDown.delay(300).springify()} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <SectionDivider title="CO Alarm" icon="alert-circle" />
 
             <CheckRow
@@ -249,7 +244,7 @@ export default function FinalChecksScreen() {
           </Animated.View>
 
           {/* ── Smoke Alarm ── */}
-          <Animated.View entering={FadeInDown.delay(400).springify()} style={[s.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <Animated.View entering={FadeInDown.delay(400).springify()} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <SectionDivider title="Smoke Alarm" icon="flame" />
 
             <CheckRow
@@ -265,14 +260,14 @@ export default function FinalChecksScreen() {
           </Animated.View>
 
           {/* ── Notes & Faults ── */}
-          <Animated.View entering={FadeInDown.delay(500).springify()} style={[s.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <Animated.View entering={FadeInDown.delay(500).springify()} style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <SectionDivider title="Notes & Observations" icon="document-text" />
 
             <View style={s.inputContainer}>
-              <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>Faults Identified</Text>
-              <View style={[s.inputWrapper, s.textAreaWrapper, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
+              <Text style={[s.inputLabel, isDark && {color: theme.text.bodyLight}]}>Faults Identified</Text>
+              <View style={[s.inputWrapper, s.textAreaWrapper, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
                 <TextInput
-                  style={[s.input, s.textArea, isDark && { color: theme.text.title }]}
+                  style={[s.input, s.textArea, isDark && {color: theme.text.title}]}
                   value={finalChecks.faults}
                   onChangeText={(v) => update('faults', v)}
                   placeholder="Record any faults found…"
@@ -286,10 +281,10 @@ export default function FinalChecksScreen() {
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>Rectification Work Carried Out</Text>
-              <View style={[s.inputWrapper, s.textAreaWrapper, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
+              <Text style={[s.inputLabel, isDark && {color: theme.text.bodyLight}]}>Rectification Work Carried Out</Text>
+              <View style={[s.inputWrapper, s.textAreaWrapper, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
                 <TextInput
-                  style={[s.input, s.textArea, isDark && { color: theme.text.title }]}
+                  style={[s.input, s.textArea, isDark && {color: theme.text.title}]}
                   value={finalChecks.rectificationWork}
                   onChangeText={(v) => update('rectificationWork', v)}
                   placeholder="Describe any rectification work…"
@@ -303,10 +298,10 @@ export default function FinalChecksScreen() {
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>Details of Work Carried Out</Text>
-              <View style={[s.inputWrapper, s.textAreaWrapper, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
+              <Text style={[s.inputLabel, isDark && {color: theme.text.bodyLight}]}>Details of Work Carried Out</Text>
+              <View style={[s.inputWrapper, s.textAreaWrapper, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
                 <TextInput
-                  style={[s.input, s.textArea, isDark && { color: theme.text.title }]}
+                  style={[s.input, s.textArea, isDark && {color: theme.text.title}]}
                   value={finalChecks.workCarriedOut}
                   onChangeText={(v) => update('workCarriedOut', v)}
                   placeholder="Describe the work carried out…"
@@ -324,7 +319,7 @@ export default function FinalChecksScreen() {
         {/* Bottom CTA */}
         <Animated.View
           entering={FadeIn.delay(600)}
-          style={[s.bottomBar, { bottom: TAB_BAR_HEIGHT, paddingBottom: 12 }, isDark && { backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)' }]}
+          style={[s.bottomBar, {bottom: TAB_BAR_HEIGHT, paddingBottom: 12}, isDark && {backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)'}]}
         >
           <TouchableOpacity
             style={s.completeBtn}
@@ -333,8 +328,8 @@ export default function FinalChecksScreen() {
           >
             <LinearGradient
               colors={UI.gradients.primaryDark}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 0}}
               style={s.completeGradient}
             >
               <Text style={s.completeText}>Next: Review & Sign</Text>
@@ -358,21 +353,21 @@ function CheckRow({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { isDark, theme } = useAppTheme();
+  const {isDark, theme} = useAppTheme();
   return (
     <View style={s.checkRow}>
-      <Text style={[s.checkLabel, isDark && { color: theme.text.bodyLight }]}>{label}</Text>
+      <Text style={[s.checkLabel, isDark && {color: theme.text.bodyLight}]}>{label}</Text>
       <View style={s.chipRow}>
         {['Yes', 'No', 'N/A'].map((opt) => {
           const active = value === opt;
           return (
             <TouchableOpacity
               key={opt}
-              style={[s.chip, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, active && s.chipActive]}
+              style={[s.chip, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, active && s.chipActive]}
               onPress={() => onChange(opt)}
               activeOpacity={0.7}
             >
-              <Text style={[s.chipText, isDark && { color: theme.text.muted }, active && s.chipTextActive]}>{opt}</Text>
+              <Text style={[s.chipText, isDark && {color: theme.text.muted}, active && s.chipTextActive]}>{opt}</Text>
             </TouchableOpacity>
           );
         })}
@@ -384,74 +379,74 @@ function CheckRow({
 // ─── Styles ─────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { paddingHorizontal: 20 },
+  root: {flex: 1},
+  scroll: {paddingHorizontal: 20},
 
   // Header
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
+  header: {flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12},
   backBtn: {
     width: 40, height: 40, borderRadius: 14,
     backgroundColor: GLASS_BG, borderWidth: 1, borderColor: GLASS_BORDER,
     justifyContent: 'center', alignItems: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
-  subtitleText: { fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2 },
+  title: {fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5},
+  subtitleText: {fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2},
 
   // Steps
-  stepRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 24, paddingVertical: 14, backgroundColor: GLASS_BG, borderRadius: 16, borderWidth: 1, borderColor: GLASS_BORDER },
-  stepItem: { alignItems: 'center', gap: 6 },
-  stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: UI.surface.divider, justifyContent: 'center', alignItems: 'center' },
-  stepDotActive: { backgroundColor: UI.brand.primary },
-  stepDotDone: { backgroundColor: UI.status.complete },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: UI.text.muted },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted },
-  stepLabelActive: { color: UI.brand.primary },
+  stepRow: {flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 24, paddingVertical: 14, backgroundColor: GLASS_BG, borderRadius: 16, borderWidth: 1, borderColor: GLASS_BORDER},
+  stepItem: {alignItems: 'center', gap: 6},
+  stepDot: {width: 28, height: 28, borderRadius: 14, backgroundColor: UI.surface.divider, justifyContent: 'center', alignItems: 'center'},
+  stepDotActive: {backgroundColor: UI.brand.primary},
+  stepDotDone: {backgroundColor: UI.status.complete},
+  stepDotText: {fontSize: 12, fontWeight: '700', color: UI.text.muted},
+  stepLabel: {fontSize: 11, fontWeight: '600', color: UI.text.muted},
+  stepLabelActive: {color: UI.brand.primary},
 
   // Summary banner
   summaryBanner: {
     backgroundColor: GLASS_BG, borderRadius: 16, borderWidth: 1, borderColor: GLASS_BORDER,
     padding: 14, marginBottom: 20, gap: 8,
   },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  summaryText: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, flex: 1 },
+  summaryRow: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  summaryText: {fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, flex: 1},
 
   // Card
   card: {
     backgroundColor: GLASS_BG, borderRadius: 18, borderWidth: 1, borderColor: GLASS_BORDER,
     padding: 18, marginBottom: 16,
-    shadowColor: UI.text.muted, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
+    shadowColor: UI.text.muted, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
 
   // Section header
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  sectionIconWrap: { width: 28, height: 28, borderRadius: 8, backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: UI.text.title },
+  sectionHeader: {flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16},
+  sectionIconWrap: {width: 28, height: 28, borderRadius: 8, backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center'},
+  sectionTitle: {fontSize: 16, fontWeight: '700', color: UI.text.title},
 
   // Check rows
-  checkRow: { marginBottom: 16 },
-  checkLabel: { fontSize: 14, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 8 },
+  checkRow: {marginBottom: 16},
+  checkLabel: {fontSize: 14, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 8},
 
   // Chips
-  chipRow: { flexDirection: 'row', gap: 8 },
+  chipRow: {flexDirection: 'row', gap: 8},
   chip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
     backgroundColor: UI.surface.elevated, borderWidth: 1, borderColor: UI.surface.divider,
   },
-  chipActive: { backgroundColor: UI.surface.primaryLight, borderColor: UI.brand.primary },
-  chipText: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
-  chipTextActive: { color: UI.brand.primary },
+  chipActive: {backgroundColor: UI.surface.primaryLight, borderColor: UI.brand.primary},
+  chipText: {fontSize: 13, fontWeight: '600', color: UI.text.muted},
+  chipTextActive: {color: UI.brand.primary},
 
   // Inputs
-  inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6 },
+  inputContainer: {marginBottom: 14},
+  inputLabel: {fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6},
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: UI.surface.base, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
-  input: { flex: 1, fontSize: 15, color: UI.text.title, padding: 0 },
-  textAreaWrapper: { alignItems: 'flex-start', minHeight: 100 },
-  textArea: { minHeight: 88, textAlignVertical: 'top' },
+  input: {flex: 1, fontSize: 15, color: UI.text.title, padding: 0},
+  textAreaWrapper: {alignItems: 'flex-start', minHeight: 100},
+  textArea: {minHeight: 88, textAlignVertical: 'top'},
 
   // Bottom
   bottomBar: {
@@ -460,10 +455,10 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(248,250,252,0.92)',
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.06)',
   },
-  completeBtn: { borderRadius: 16, overflow: 'hidden' },
+  completeBtn: {borderRadius: 16, overflow: 'hidden'},
   completeGradient: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 16, gap: 8,
   },
-  completeText: { fontSize: 16, fontWeight: '700', color: UI.text.white },
+  completeText: {fontSize: 16, fontWeight: '700', color: UI.text.white},
 });

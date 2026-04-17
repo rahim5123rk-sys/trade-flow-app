@@ -4,8 +4,8 @@
 // Uses WebView contentEditable for WYSIWYG formatting
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import React, {useCallback, useEffect, useImperativeHandle, useRef, useState} from 'react';
 import {
   Keyboard,
   Platform,
@@ -19,7 +19,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import {WebView, WebViewMessageEvent} from 'react-native-webview';
 
 // ─── Constants ──────────────────────────────────────────────
 const COLLAPSED_HEIGHT = 48;
@@ -221,7 +221,7 @@ function ToolbarButton({
       style={[
         styles.toolbarBtn,
         active && styles.toolbarBtnActive,
-        isDark && !active && { backgroundColor: 'rgba(255,255,255,0.08)' },
+        isDark && !active && {backgroundColor: 'rgba(255,255,255,0.08)'},
       ]}
       onPress={onPress}
       activeOpacity={0.6}
@@ -237,7 +237,7 @@ function ToolbarButton({
 
 // ─── Component ──────────────────────────────────────────────
 const RichTextLineInput = React.forwardRef<RichTextLineInputRef, RichTextLineInputProps>(
-  ({ value, onChangeText, placeholder, isFocused, onFocus, onBlur, isDark = false, theme }, ref) => {
+  ({value, onChangeText, placeholder, isFocused, onFocus, onBlur, isDark = false, theme}, ref) => {
     const webViewRef = useRef<WebView>(null);
     const [contentHeight, setContentHeight] = useState(60);
     const [formatState, setFormatState] = useState({
@@ -282,9 +282,9 @@ const RichTextLineInput = React.forwardRef<RichTextLineInputRef, RichTextLineInp
     useEffect(() => {
       if (isFocused) {
         // Use a fixed expanded height — content scrolls inside the WebView
-        heightAnim.value = withTiming(MIN_EXPANDED_HEIGHT + TOOLBAR_HEIGHT, { duration: 250 });
+        heightAnim.value = withTiming(MIN_EXPANDED_HEIGHT + TOOLBAR_HEIGHT, {duration: 250});
       } else {
-        heightAnim.value = withTiming(COLLAPSED_HEIGHT, { duration: 200 });
+        heightAnim.value = withTiming(COLLAPSED_HEIGHT, {duration: 200});
       }
     }, [isFocused, heightAnim]);
 
@@ -316,7 +316,7 @@ const RichTextLineInput = React.forwardRef<RichTextLineInputRef, RichTextLineInp
             unorderedList: msg.unorderedList,
           });
         }
-      } catch { /* ignore */ }
+      } catch { /* ignore */}
     }, [onChangeText, onFocus, onBlur]);
 
     const execCommand = useCallback((command: string) => {
@@ -361,7 +361,7 @@ const RichTextLineInput = React.forwardRef<RichTextLineInputRef, RichTextLineInp
       : '#E2E8F0';
 
     return (
-      <Animated.View style={[styles.container, animatedContainerStyle, { backgroundColor: bgColor, borderColor }]}>
+      <Animated.View style={[styles.container, animatedContainerStyle, {backgroundColor: bgColor, borderColor}]}>
         {/* Collapsed preview — shown when NOT focused */}
         {!isFocused && (
           <TouchableOpacity
@@ -373,7 +373,7 @@ const RichTextLineInput = React.forwardRef<RichTextLineInputRef, RichTextLineInp
               style={[
                 styles.previewText,
                 !plainPreview && styles.placeholderText,
-                isDark && { color: plainPreview ? (theme?.text?.title || '#F1F5F9') : (theme?.text?.placeholder || '#64748B') },
+                isDark && {color: plainPreview ? (theme?.text?.title || '#F1F5F9') : (theme?.text?.placeholder || '#64748B')},
               ]}
               numberOfLines={2}
               ellipsizeMode="tail"
@@ -393,7 +393,7 @@ const RichTextLineInput = React.forwardRef<RichTextLineInputRef, RichTextLineInp
         <View style={[styles.editorWrap, !isFocused && styles.hidden]}>
           <WebView
             ref={webViewRef}
-            source={{ html: buildEditorHtml(isDark) }}
+            source={{html: buildEditorHtml(isDark)}}
             onLoad={handleLoad}
             onMessage={handleMessage}
             scrollEnabled={true}
@@ -401,13 +401,13 @@ const RichTextLineInput = React.forwardRef<RichTextLineInputRef, RichTextLineInp
             keyboardDisplayRequiresUserAction={false}
             hideKeyboardAccessoryView={true}
             showsVerticalScrollIndicator={false}
-            style={[styles.webView, { backgroundColor: bgColor }]}
+            style={[styles.webView, {backgroundColor: bgColor}]}
             originWhitelist={['*']}
             javaScriptEnabled={true}
           />
 
           {/* Formatting toolbar */}
-          <View style={[styles.toolbar, isDark && { backgroundColor: theme?.surface?.card || '#0F172A', borderTopColor: theme?.surface?.border || '#334155' }]}>
+          <View style={[styles.toolbar, isDark && {backgroundColor: theme?.surface?.card || '#0F172A', borderTopColor: theme?.surface?.border || '#334155'}]}>
             <ToolbarButton
               icon="text"
               active={formatState.bold}
@@ -418,7 +418,7 @@ const RichTextLineInput = React.forwardRef<RichTextLineInputRef, RichTextLineInp
               style={[
                 styles.toolbarBtn,
                 formatState.italic && styles.toolbarBtnActive,
-                isDark && !formatState.italic && { backgroundColor: 'rgba(255,255,255,0.08)' },
+                isDark && !formatState.italic && {backgroundColor: 'rgba(255,255,255,0.08)'},
               ]}
               onPress={() => execCommand('italic')}
               activeOpacity={0.6}
@@ -458,7 +458,7 @@ const RichTextLineInput = React.forwardRef<RichTextLineInputRef, RichTextLineInp
               onPress={handleOutdent}
               isDark={isDark}
             />
-            <View style={{ flex: 1 }} />
+            <View style={{flex: 1}} />
             <TouchableOpacity
               style={styles.doneBtn}
               onPress={() => {

@@ -5,19 +5,19 @@ import {router} from 'expo-router';
 import React, {useEffect, useMemo, useState} from 'react';
 import {ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import EmailRecipientsList from '../../../../components/EmailRecipientsList';
 import {SignaturePad} from '../../../../components/SignaturePad';
 import {FormHeader} from '../../../../components/forms/FormHeader';
 import {FormStepIndicator} from '../../../../components/forms/FormStepIndicator';
-import EmailRecipientsList from '../../../../components/EmailRecipientsList';
 import {upsertSiteAddress} from '../../../../components/forms/SiteAddressPicker';
+import {UI} from '../../../../constants/theme';
 import {useAuth} from '../../../../src/context/AuthContext';
 import {useInstallationCert} from '../../../../src/context/InstallationCertContext';
 import {useOfflineMode} from '../../../../src/context/OfflineContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
-import {UI} from '../../../../constants/theme';
 import {sanitizeRecipients} from '../../../../src/services/email';
 import {buildCustomerAddress, buildCustomerSnapshot, completeFormAction, getNextCertReference} from '../../../../src/services/formDocumentService';
-import {parseGBDate, formatGBDate} from '../../../../src/utils/dates';
+import {formatGBDate, parseGBDate} from '../../../../src/utils/dates';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 const STEPS = ['Details', 'Installation', 'Review'];
@@ -81,7 +81,7 @@ export default function InstallationReviewSignScreen() {
           <Image source={{uri: customerSignature}} style={styles.sigImage} resizeMode="contain" />
           <TouchableOpacity
             style={styles.resignBtn}
-            onPress={() => { setCustomerSignature(''); setShowSigPad(true); }}
+            onPress={() => {setCustomerSignature(''); setShowSigPad(true);}}
             activeOpacity={0.7}
           >
             <Ionicons name="refresh" size={16} color={UI.brand.primary} />

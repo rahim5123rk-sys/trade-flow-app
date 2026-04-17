@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../components/GlassIconButton';
 import ProPaywallModal from '../../../components/ProPaywallModal';
 import {UI} from '../../../constants/theme';
 import {useSubscription} from '../../../src/context/SubscriptionContext';
@@ -46,7 +47,7 @@ function FormCard({
 }) {
   const handlePress = () => {
     if (!form.available) return;
-    if (isLocked) { onLockedPress(); return; }
+    if (isLocked) {onLockedPress(); return;}
     router.push(form.route as any);
   };
 
@@ -171,16 +172,7 @@ export default function FormsHubScreen() {
       >
         {/* Header */}
         <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
-          <TouchableOpacity
-            style={[
-              styles.backBtn,
-              isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border},
-            ]}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-back" size={20} color={theme.brand.primary} />
-          </TouchableOpacity>
+          <GlassIconButton onPress={() => router.back()} />
           <View>
             <Text style={[styles.title, {color: theme.text.title}]}>Gas Forms</Text>
             <Text style={[styles.subtitle, {color: theme.text.muted}]}>
@@ -223,7 +215,7 @@ export default function FormsHubScreen() {
                 isDark={isDark}
                 theme={theme}
                 isLocked={false}
-                onLockedPress={() => {}}
+                onLockedPress={() => { }}
               />
             ))}
           </View>

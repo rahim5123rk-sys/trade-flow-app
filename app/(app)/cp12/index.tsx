@@ -7,7 +7,7 @@ import {Ionicons} from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router} from 'expo-router';
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -20,11 +20,11 @@ import {
 } from 'react-native';
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useState} from 'react';
 import {CustomerSelector} from '../../../components/CustomerSelector';
-import {SiteAddressSelector, SiteAddressData} from '../../../components/forms/SiteAddressSelector';
+import {SiteAddressData, SiteAddressSelector} from '../../../components/forms/SiteAddressSelector';
+import {GlassIconButton} from '../../../components/GlassIconButton';
 import ProPaywallModal from '../../../components/ProPaywallModal';
-import {Colors, UI} from '../../../constants/theme';
+import {UI} from '../../../constants/theme';
 import {supabase} from '../../../src/config/supabase';
 import {useAuth} from '../../../src/context/AuthContext';
 import {useCP12} from '../../../src/context/CP12Context';
@@ -97,9 +97,9 @@ export default function CP12DetailsScreen() {
     const checkLimit = async () => {
       const now = new Date();
       const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { count } = await supabase
+      const {count} = await supabase
         .from('documents')
-        .select('id', { count: 'exact', head: true })
+        .select('id', {count: 'exact', head: true})
         .eq('company_id', userProfile.company_id)
         .eq('type', 'cp12')
         .gte('created_at', firstOfMonth);
@@ -215,7 +215,7 @@ export default function CP12DetailsScreen() {
     <View style={s.root}>
       <ProPaywallModal
         visible={showPaywall}
-        onDismiss={() => { setShowPaywall(false); router.back(); }}
+        onDismiss={() => {setShowPaywall(false); router.back();}}
         featureTitle="Unlimited Gas Certificates"
         featureDescription="You've reached your monthly limit of 10 gas safety certificates on the Starter plan. Upgrade to Pro for unlimited."
       />
@@ -240,13 +240,7 @@ export default function CP12DetailsScreen() {
         >
           {/* Header */}
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={[s.backBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={22} color={theme.text.title} />
-            </TouchableOpacity>
+            <GlassIconButton onPress={() => router.back()} />
             <View style={{flex: 1}}>
               <Text style={[s.title, {color: theme.text.title}]}>Landlord Gas Safety Record</Text>
             </View>

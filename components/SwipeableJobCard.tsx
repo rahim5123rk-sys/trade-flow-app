@@ -4,13 +4,11 @@
 // and haptic feedback.
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
+import {Ionicons} from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import React, { useCallback, useRef } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-
-const IS_IOS = Platform.OS === 'ios';
+import React, {useCallback, useRef} from 'react';
+import {Platform, StyleSheet, Text, View} from 'react-native';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -21,11 +19,13 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
+const IS_IOS = Platform.OS === 'ios';
+
 // ─── Status flow ────────────────────────────────
 type JobStatus = 'pending' | 'in_progress' | 'complete' | 'paid' | 'cancelled';
 
 const SWIPE_THRESHOLD = 90;
-const SPRING_CONFIG = { damping: 18, stiffness: 220, mass: 0.7 };
+const SPRING_CONFIG = {damping: 18, stiffness: 220, mass: 0.7};
 
 interface StatusMeta {
   label: string;
@@ -35,16 +35,16 @@ interface StatusMeta {
 }
 
 const NEXT_STATUS_META: Record<string, StatusMeta> = {
-  pending:      { label: 'Start',  icon: 'play',             color: '#3B82F6', glowBg: '#DBEAFE' },
-  in_progress:  { label: 'Done',   icon: 'checkmark-circle', color: '#10B981', glowBg: '#D1FAE5' },
-  complete:     { label: 'Paid',   icon: 'cash',             color: '#8B5CF6', glowBg: '#EDE9FE' },
+  pending: {label: 'Start', icon: 'play', color: '#3B82F6', glowBg: '#DBEAFE'},
+  in_progress: {label: 'Done', icon: 'checkmark-circle', color: '#10B981', glowBg: '#D1FAE5'},
+  complete: {label: 'Paid', icon: 'cash', color: '#8B5CF6', glowBg: '#EDE9FE'},
 };
 
 const PREV_STATUS_META: Record<string, StatusMeta> = {
-  in_progress:  { label: 'Reopen', icon: 'arrow-undo', color: '#F59E0B', glowBg: '#FEF3C7' },
-  complete:     { label: 'Reopen', icon: 'arrow-undo', color: '#F59E0B', glowBg: '#FEF3C7' },
-  paid:         { label: 'Reopen', icon: 'arrow-undo', color: '#F59E0B', glowBg: '#FEF3C7' },
-  pending:      { label: 'Delete', icon: 'trash',      color: '#EF4444', glowBg: '#FEE2E2' },
+  in_progress: {label: 'Reopen', icon: 'arrow-undo', color: '#F59E0B', glowBg: '#FEF3C7'},
+  complete: {label: 'Reopen', icon: 'arrow-undo', color: '#F59E0B', glowBg: '#FEF3C7'},
+  paid: {label: 'Reopen', icon: 'arrow-undo', color: '#F59E0B', glowBg: '#FEF3C7'},
+  pending: {label: 'Delete', icon: 'trash', color: '#EF4444', glowBg: '#FEE2E2'},
 };
 
 // ─── Props ──────────────────────────────────────
@@ -147,13 +147,13 @@ export function SwipeableJobCard({
       if (x >= SWIPE_THRESHOLD && canAdvance) {
         translateX.value = withSequence(
           withSpring(SWIPE_THRESHOLD * 1.15, SPRING_CONFIG),
-          withSpring(0, { ...SPRING_CONFIG, damping: 22 }),
+          withSpring(0, {...SPRING_CONFIG, damping: 22}),
         );
         runOnJS(handleAdvance)();
       } else if (x <= -SWIPE_THRESHOLD && canRevert) {
         translateX.value = withSequence(
           withSpring(-SWIPE_THRESHOLD * 1.15, SPRING_CONFIG),
-          withSpring(0, { ...SPRING_CONFIG, damping: 22 }),
+          withSpring(0, {...SPRING_CONFIG, damping: 22}),
         );
         runOnJS(handleRevert)();
       } else {
@@ -164,7 +164,7 @@ export function SwipeableJobCard({
   // ─── Animated styles ───────────────────────────
 
   const cardStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
+    transform: [{translateX: translateX.value}],
   }));
 
   // Right action (advance) — slides in from left
@@ -175,7 +175,7 @@ export function SwipeableJobCard({
     return {
       opacity: progress,
       transform: [
-        { translateX: interpolate(progress, [0, 1], [-20, 0], Extrapolation.CLAMP) },
+        {translateX: interpolate(progress, [0, 1], [-20, 0], Extrapolation.CLAMP)},
       ],
     };
   });
@@ -188,7 +188,7 @@ export function SwipeableJobCard({
     return {
       opacity: progress,
       transform: [
-        { translateX: interpolate(progress, [0, 1], [20, 0], Extrapolation.CLAMP) },
+        {translateX: interpolate(progress, [0, 1], [20, 0], Extrapolation.CLAMP)},
       ],
     };
   });
@@ -197,17 +197,17 @@ export function SwipeableJobCard({
   const rightIconPulse = useAnimatedStyle(() => {
     const past = translateX.value >= SWIPE_THRESHOLD;
     const s = past
-      ? withSpring(1.3, { damping: 8, stiffness: 300 })
-      : withSpring(1, { damping: 12, stiffness: 200 });
-    return { transform: [{ scale: s }] };
+      ? withSpring(1.3, {damping: 8, stiffness: 300})
+      : withSpring(1, {damping: 12, stiffness: 200});
+    return {transform: [{scale: s}]};
   });
 
   const leftIconPulse = useAnimatedStyle(() => {
     const past = translateX.value <= -SWIPE_THRESHOLD;
     const s = past
-      ? withSpring(1.3, { damping: 8, stiffness: 300 })
-      : withSpring(1, { damping: 12, stiffness: 200 });
-    return { transform: [{ scale: s }] };
+      ? withSpring(1.3, {damping: 8, stiffness: 300})
+      : withSpring(1, {damping: 12, stiffness: 200});
+    return {transform: [{scale: s}]};
   });
 
   // Glow border + shadow on the card as you drag
@@ -237,7 +237,7 @@ export function SwipeableJobCard({
       shadowColor: glowColor,
       shadowOpacity: sOpacity,
       shadowRadius: sRadius,
-      shadowOffset: { width: 0, height: 0 },
+      shadowOffset: {width: 0, height: 0},
       elevation: elev,
     };
   });
@@ -247,13 +247,13 @@ export function SwipeableJobCard({
       {/* Right action indicator (advance) */}
       {canAdvance && nextMeta && (
         <Animated.View style={[styles.actionContainer, styles.actionLeft, rightActionStyle]}>
-          <View style={[styles.actionPill, { backgroundColor: nextMeta.glowBg }]}>
+          <View style={[styles.actionPill, {backgroundColor: nextMeta.glowBg}]}>
             <Animated.View style={rightIconPulse}>
-              <View style={[styles.iconCircle, { backgroundColor: nextMeta.color }]}>
+              <View style={[styles.iconCircle, {backgroundColor: nextMeta.color}]}>
                 <Ionicons name={nextMeta.icon} size={18} color="#FFFFFF" />
               </View>
             </Animated.View>
-            <Text style={[styles.actionLabel, { color: nextMeta.color }]}>{nextMeta.label}</Text>
+            <Text style={[styles.actionLabel, {color: nextMeta.color}]}>{nextMeta.label}</Text>
           </View>
         </Animated.View>
       )}
@@ -261,10 +261,10 @@ export function SwipeableJobCard({
       {/* Left action indicator (revert/delete) */}
       {canRevert && prevMeta && (
         <Animated.View style={[styles.actionContainer, styles.actionRight, leftActionStyle]}>
-          <View style={[styles.actionPill, { backgroundColor: prevMeta.glowBg }]}>
-            <Text style={[styles.actionLabel, { color: prevMeta.color }]}>{prevMeta.label}</Text>
+          <View style={[styles.actionPill, {backgroundColor: prevMeta.glowBg}]}>
+            <Text style={[styles.actionLabel, {color: prevMeta.color}]}>{prevMeta.label}</Text>
             <Animated.View style={leftIconPulse}>
-              <View style={[styles.iconCircle, { backgroundColor: prevMeta.color }]}>
+              <View style={[styles.iconCircle, {backgroundColor: prevMeta.color}]}>
                 <Ionicons name={prevMeta.icon} size={18} color="#FFFFFF" />
               </View>
             </Animated.View>

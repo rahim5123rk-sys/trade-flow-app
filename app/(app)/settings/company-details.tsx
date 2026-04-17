@@ -1,24 +1,25 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router} from 'expo-router';
+import React, {useEffect, useState} from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI } from '../../../constants/theme';
-import { supabase } from '../../../src/config/supabase';
-import { useAuth } from '../../../src/context/AuthContext';
-import { useAppTheme } from '../../../src/context/ThemeContext';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../components/GlassIconButton';
+import {Colors, UI} from '../../../constants/theme';
+import {supabase} from '../../../src/config/supabase';
+import {useAuth} from '../../../src/context/AuthContext';
+import {useAppTheme} from '../../../src/context/ThemeContext';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -57,8 +58,8 @@ const InputField = ({
 }) => (
   <View style={styles.inputContainer}>
     <Text style={styles.inputLabel}>{label}</Text>
-    <View style={[styles.inputWrapper, multiline && { alignItems: 'flex-start' }]}>
-      {icon ? <Ionicons name={icon} size={20} color={UI.text.muted} style={{ marginRight: 10, marginTop: multiline ? 8 : 0 }} /> : null}
+    <View style={[styles.inputWrapper, multiline && {alignItems: 'flex-start'}]}>
+      {icon ? <Ionicons name={icon} size={20} color={UI.text.muted} style={{marginRight: 10, marginTop: multiline ? 8 : 0}} /> : null}
       <TextInput
         style={[styles.input, multiline && styles.textArea]}
         value={value}
@@ -73,8 +74,8 @@ const InputField = ({
 );
 
 export default function CompanyDetailsScreen() {
-  const { userProfile } = useAuth();
-  const { theme, isDark } = useAppTheme();
+  const {userProfile} = useAuth();
+  const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -90,7 +91,7 @@ export default function CompanyDetailsScreen() {
     const load = async () => {
       if (!userProfile?.company_id) return;
 
-      const { data } = await supabase
+      const {data} = await supabase
         .from('companies')
         .select('name, address, email, phone, trade')
         .eq('id', userProfile.company_id)
@@ -135,29 +136,27 @@ export default function CompanyDetailsScreen() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <LinearGradient colors={theme.gradients.appBackground} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+      <LinearGradient colors={theme.gradients.appBackground} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 40 }}
+        contentContainerStyle={{paddingTop: insets.top + 16, paddingBottom: 40}}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity style={[styles.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={theme.text.title} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.screenTitle, { color: theme.text.title }]}>Company Details</Text>
-            <Text style={[styles.screenSubtitle, { color: theme.text.muted }]}>Business details used across documents</Text>
+          <GlassIconButton onPress={() => router.back()} />
+          <View style={{flex: 1}}>
+            <Text style={[styles.screenTitle, {color: theme.text.title}]}>Company Details</Text>
+            <Text style={[styles.screenSubtitle, {color: theme.text.muted}]}>Business details used across documents</Text>
           </View>
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={theme.brand.primary} style={{ marginTop: 24 }} />
+          <ActivityIndicator color={theme.brand.primary} style={{marginTop: 24}} />
         ) : (
-          <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <InputField
               label="Company Name"
               value={companyName}
@@ -165,7 +164,7 @@ export default function CompanyDetailsScreen() {
               icon="briefcase-outline"
               placeholder="e.g. Acme Plumbing"
             />
-            <View style={{ height: 16 }} />
+            <View style={{height: 16}} />
             <InputField
               label="Address"
               value={companyAddress}
@@ -174,7 +173,7 @@ export default function CompanyDetailsScreen() {
               placeholder="Full business address"
               multiline
             />
-            <View style={{ height: 16 }} />
+            <View style={{height: 16}} />
             <InputField
               label="Telephone"
               value={companyPhone}
@@ -183,23 +182,23 @@ export default function CompanyDetailsScreen() {
               placeholder="+44 7000 000000"
               keyboardType="phone-pad"
             />
-            <View style={{ height: 16 }} />
+            <View style={{height: 16}} />
 
-            <Text style={[styles.inputLabel, { color: theme.text.body }]}>Trade</Text>
+            <Text style={[styles.inputLabel, {color: theme.text.body}]}>Trade</Text>
             <View style={styles.tradeGrid}>
               {TRADES.map((t) => (
                 <TouchableOpacity
                   key={t}
-                  style={[styles.tradeChip, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, companyTrade === t && styles.tradeChipActive]}
+                  style={[styles.tradeChip, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, companyTrade === t && styles.tradeChipActive]}
                   onPress={() => setCompanyTrade(t)}
                   activeOpacity={0.85}
                 >
-                  <Text style={[styles.tradeChipText, { color: theme.text.muted }, companyTrade === t && styles.tradeChipTextActive]}>{t}</Text>
+                  <Text style={[styles.tradeChipText, {color: theme.text.muted}, companyTrade === t && styles.tradeChipTextActive]}>{t}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <View style={{ height: 16 }} />
+            <View style={{height: 16}} />
             <InputField
               label="Company Email"
               value={companyEmail}
@@ -211,8 +210,8 @@ export default function CompanyDetailsScreen() {
           </View>
         )}
 
-        <TouchableOpacity style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} onPress={handleSave} disabled={isSaving || isLoading}>
-          <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveBtnGradient}>
+        <TouchableOpacity style={[styles.saveBtn, isSaving && {opacity: 0.7}]} onPress={handleSave} disabled={isSaving || isLoading}>
+          <LinearGradient colors={UI.gradients.primary} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={styles.saveBtnGradient}>
             {isSaving ? <ActivityIndicator color={UI.text.white} /> : <Text style={styles.saveBtnText}>Save Company Details</Text>}
           </LinearGradient>
         </TouchableOpacity>
@@ -222,8 +221,8 @@ export default function CompanyDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  container: {flex: 1, paddingHorizontal: 16},
+  headerRow: {flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18},
   backBtn: {
     width: 36,
     height: 36,
@@ -234,8 +233,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: GLASS_BORDER,
   },
-  screenTitle: { fontSize: 26, fontWeight: '800', color: UI.text.title },
-  screenSubtitle: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
+  screenTitle: {fontSize: 26, fontWeight: '800', color: UI.text.title},
+  screenSubtitle: {fontSize: 13, color: UI.text.muted, marginTop: 2},
   card: {
     backgroundColor: GLASS_BG,
     borderWidth: 1,
@@ -245,8 +244,8 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     ...Colors.shadow,
   },
-  inputContainer: { gap: 6 },
-  inputLabel: { fontSize: 12, fontWeight: '700', color: UI.text.body, marginLeft: 4, marginBottom: 4 },
+  inputContainer: {gap: 6},
+  inputLabel: {fontSize: 12, fontWeight: '700', color: UI.text.body, marginLeft: 4, marginBottom: 4},
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -256,10 +255,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
   },
-  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: UI.text.title, fontWeight: '500' },
-  textArea: { minHeight: 86, textAlignVertical: 'top', paddingTop: 12 },
+  input: {flex: 1, paddingVertical: 12, fontSize: 15, color: UI.text.title, fontWeight: '500'},
+  textArea: {minHeight: 86, textAlignVertical: 'top', paddingTop: 12},
 
-  tradeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tradeGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
   tradeChip: {
     paddingHorizontal: 12,
     paddingVertical: 9,
@@ -268,11 +267,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: UI.surface.divider,
   },
-  tradeChipActive: { backgroundColor: 'rgba(99,102,241,0.12)', borderColor: UI.brand.primary },
-  tradeChipText: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
-  tradeChipTextActive: { color: UI.brand.primary, fontWeight: '700' },
+  tradeChipActive: {backgroundColor: 'rgba(99,102,241,0.12)', borderColor: UI.brand.primary},
+  tradeChipText: {fontSize: 13, fontWeight: '600', color: UI.text.muted},
+  tradeChipTextActive: {color: UI.brand.primary, fontWeight: '700'},
 
-  saveBtn: { borderRadius: 14, overflow: 'hidden', ...Colors.shadow },
-  saveBtnGradient: { paddingVertical: 16, alignItems: 'center' },
-  saveBtnText: { color: UI.text.white, fontSize: 16, fontWeight: '700' },
+  saveBtn: {borderRadius: 14, overflow: 'hidden', ...Colors.shadow},
+  saveBtnGradient: {paddingVertical: 16, alignItems: 'center'},
+  saveBtnText: {color: UI.text.white, fontSize: 16, fontWeight: '700'},
 });

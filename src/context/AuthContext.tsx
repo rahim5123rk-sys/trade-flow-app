@@ -70,14 +70,14 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
   const isMountedRef = useRef(true);
 
   // Keep sessionRef in sync
-  useEffect(() => { sessionRef.current = session; }, [session]);
+  useEffect(() => {sessionRef.current = session;}, [session]);
 
   // Persist profile to AsyncStorage whenever it changes
   const setAndCacheProfile = useCallback((profile: UserProfile | null) => {
     if (!isMountedRef.current) return;
     setUserProfile(profile);
     if (profile) {
-      AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile)).catch(() => {});
+      AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile)).catch(() => { });
     }
   }, []);
 
@@ -111,7 +111,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
             signal,
           }
         ),
-      { timeoutMs: PROFILE_FETCH_TIMEOUT_MS, label: 'Profile fetch' }
+      {timeoutMs: PROFILE_FETCH_TIMEOUT_MS, label: 'Profile fetch'}
     );
 
     if (!response.ok) {
@@ -146,10 +146,10 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
             .eq('id', profile.company_id)
             .single()
         )
-          .then(({ data }) => {
+          .then(({data}) => {
             if (isMountedRef.current) setReminderDaysBefore(data?.reminder_days_before ?? 30);
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     }
 
@@ -229,7 +229,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
               },
             },
           });
-          await supabase.from('profiles').update({ accepted_gas_safe_terms: true }).eq('id', userId);
+          await supabase.from('profiles').update({accepted_gas_safe_terms: true}).eq('id', userId);
         }
         console.log('[Auth] Pending create RPC succeeded');
       } else {
@@ -336,7 +336,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     // ── Start cached profile restore early (AsyncStorage = fast, ~10-50ms) ──
     const cachePromise = AsyncStorage.getItem(PROFILE_CACHE_KEY).then(raw => {
       if (raw) {
-        try { return JSON.parse(raw) as UserProfile; } catch {}
+        try {return JSON.parse(raw) as UserProfile;} catch { }
       }
       return null;
     }).catch(() => null);
@@ -396,7 +396,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
             // No cache AND no profile in DB → orphaned user
             console.log('[Auth] No profile found — signing out orphaned user');
             await supabase.auth.signOut();
-            if (isMountedRef.current) { setSession(null); setUserProfile(null); }
+            if (isMountedRef.current) {setSession(null); setUserProfile(null);}
           }
         }
       } catch (fetchError) {
@@ -483,7 +483,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
       await Promise.all([
         AsyncStorage.removeItem(PROFILE_CACHE_KEY),
         AsyncStorage.removeItem('@gaspilot_is_pro_cached'),
-      ]).catch(() => {});
+      ]).catch(() => { });
     } catch (e) {
       console.error('Sign out error:', e);
     }

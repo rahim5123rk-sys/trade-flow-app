@@ -4,51 +4,52 @@
 // Uses shared CustomerSelector + auto-prefills from job
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router, useLocalSearchParams} from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {FadeIn, FadeInDown, FadeInUp} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {
-    buildCustomerInsert,
-    buildCustomerSnapshot,
-    CustomerFormData,
-    CustomerSelector,
-    EMPTY_CUSTOMER_FORM,
-    getJobAddress,
-    prefillFromJob,
+  buildCustomerInsert,
+  buildCustomerSnapshot,
+  CustomerFormData,
+  CustomerSelector,
+  EMPTY_CUSTOMER_FORM,
+  getJobAddress,
+  prefillFromJob,
 } from '../../components/CustomerSelector';
-import { upsertSiteAddress } from '../../components/forms';
+import {upsertSiteAddress} from '../../components/forms';
+import {GlassIconButton} from '../../components/GlassIconButton';
 import ProPaywallModal from '../../components/ProPaywallModal';
 import RichTextLineInput from '../../components/RichTextLineInput';
-import { UI } from '../../constants/theme';
-import { supabase } from '../../src/config/supabase';
-import { useAuth } from '../../src/context/AuthContext';
-import { useSubscription } from '../../src/context/SubscriptionContext';
-import { useAppTheme } from '../../src/context/ThemeContext';
+import {UI} from '../../constants/theme';
+import {supabase} from '../../src/config/supabase';
+import {useAuth} from '../../src/context/AuthContext';
+import {useSubscription} from '../../src/context/SubscriptionContext';
+import {useAppTheme} from '../../src/context/ThemeContext';
 import {
-    DocumentData,
-    generateDocument,
-    generateDocumentBase64,
-    generateDocumentUrl,
-    LineItem,
+  DocumentData,
+  generateDocument,
+  generateDocumentBase64,
+  generateDocumentUrl,
+  LineItem,
 } from '../../src/services/DocumentGenerator';
-import { sanitizeRecipients, sendCp12CertificateEmail } from '../../src/services/email';
-import { getNextInvoiceReference } from '../../src/services/formDocumentService';
+import {sanitizeRecipients, sendCp12CertificateEmail} from '../../src/services/email';
+import {getNextInvoiceReference} from '../../src/services/formDocumentService';
 
 // ─── Design tokens ──────────────────────────────────────────────────
 const GLASS_BG =
@@ -59,9 +60,9 @@ const fmtCurrency = (n: number) =>
   `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 export default function CreateInvoiceScreen() {
-  const { id, editId } = useLocalSearchParams<{ id?: string; editId?: string }>();
-  const { userProfile } = useAuth();
-  const { isPro } = useSubscription();
+  const {id, editId} = useLocalSearchParams<{id?: string; editId?: string}>();
+  const {userProfile} = useAuth();
+  const {isPro} = useSubscription();
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
@@ -78,7 +79,7 @@ export default function CreateInvoiceScreen() {
   const [invoiceRef, setInvoiceRef] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [items, setItems] = useState<LineItem[]>([
-    { description: '', quantity: 1, unitPrice: 0, vatPercent: 0 },
+    {description: '', quantity: 1, unitPrice: 0, vatPercent: 0},
   ]);
   const [discountPercent, setDiscountPercent] = useState('0');
   const [notes, setNotes] = useState('');
@@ -94,7 +95,7 @@ export default function CreateInvoiceScreen() {
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [savedDocId, setSavedDocId] = useState<string | null>(null);
   const [originalStatus, setOriginalStatus] = useState<string | null>(null);
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
 
   useEffect(() => {
     loadInitialData();
@@ -106,7 +107,7 @@ export default function CreateInvoiceScreen() {
 
     // ─── Edit mode: load existing document ─────────────────────
     if (editId) {
-      const { data: existingDoc } = await supabase
+      const {data: existingDoc} = await supabase
         .from('documents')
         .select('*')
         .eq('id', editId)
@@ -124,7 +125,7 @@ export default function CreateInvoiceScreen() {
           if (ref) setInvoiceRef(ref);
         }
         setDueDate(existingDoc.expiry_date || '');
-        setItems(existingDoc.items?.length ? existingDoc.items : [{ description: '', quantity: 1, unitPrice: 0, vatPercent: 0 }]);
+        setItems(existingDoc.items?.length ? existingDoc.items : [{description: '', quantity: 1, unitPrice: 0, vatPercent: 0}]);
         setDiscountPercent(String(existingDoc.discount_percent || 0));
         setNotes(existingDoc.notes || '');
         setPaymentInfo(existingDoc.payment_info || '');
@@ -162,7 +163,7 @@ export default function CreateInvoiceScreen() {
     }
 
     // ─── New invoice mode ──────────────────────────────────────
-    const { data: companyData } = await supabase
+    const {data: companyData} = await supabase
       .from('companies')
       .select('settings')
       .eq('id', userProfile.company_id)
@@ -193,7 +194,7 @@ export default function CreateInvoiceScreen() {
     );
 
     if (id && id !== 'new' && id !== '[id]') {
-      const { data: jobData } = await supabase
+      const {data: jobData} = await supabase
         .from('jobs')
         .select('*')
         .eq('id', id)
@@ -226,7 +227,7 @@ export default function CreateInvoiceScreen() {
   const addLineItem = () =>
     setItems([
       ...items,
-      { description: '', quantity: 1, unitPrice: 0, vatPercent: 0 },
+      {description: '', quantity: 1, unitPrice: 0, vatPercent: 0},
     ]);
   const removeLineItem = (index: number) =>
     setItems(items.filter((_, i) => i !== index));
@@ -275,7 +276,7 @@ export default function CreateInvoiceScreen() {
     });
     const snapshot = buildCustomerSnapshot(customerForm);
     const jobAddr = getJobAddress(customerForm);
-    return { snapshot, jobAddr, today };
+    return {snapshot, jobAddr, today};
   };
 
   // ─── Save (shared for draft & generate) ──────────────────────
@@ -287,7 +288,7 @@ export default function CreateInvoiceScreen() {
     if (isSavingDraft) setSaving(true); else setGenerating(true);
 
     try {
-      const { snapshot, jobAddr } = buildDocData();
+      const {snapshot, jobAddr} = buildDocData();
 
       let finalCustomerId = customerForm.customerId;
       if (!finalCustomerId) {
@@ -295,7 +296,7 @@ export default function CreateInvoiceScreen() {
           customerForm,
           userProfile.company_id,
         );
-        const { data: newCust, error: custErr } = await supabase
+        const {data: newCust, error: custErr} = await supabase
           .from('customers')
           .insert(insertData)
           .select('id')
@@ -343,14 +344,14 @@ export default function CreateInvoiceScreen() {
 
       if (editingDocId) {
         // Update existing document
-        const { error } = await supabase
+        const {error} = await supabase
           .from('documents')
           .update(docPayload)
           .eq('id', editingDocId);
         if (error) throw error;
       } else {
         // Insert new document
-        const { data: insertedDoc, error } = await supabase.from('documents').insert({
+        const {data: insertedDoc, error} = await supabase.from('documents').insert({
           ...docPayload,
           date: new Date().toISOString(),
         }).select('id').single();
@@ -376,7 +377,7 @@ export default function CreateInvoiceScreen() {
       const msg = editingDocId ? 'Invoice updated.' : (isSavingDraft ? 'Invoice saved as draft.' : 'Invoice saved.');
       if (editingDocId) {
         Alert.alert('Saved', msg, [
-          { text: 'OK', onPress: () => router.back() },
+          {text: 'OK', onPress: () => router.back()},
         ]);
       } else {
         Alert.alert('Saved', msg);
@@ -402,7 +403,7 @@ export default function CreateInvoiceScreen() {
     // Generate PDF after save
     try {
       if (!userProfile?.company_id) return;
-      const { jobAddr, today } = buildDocData();
+      const {jobAddr, today} = buildDocData();
       const docData: DocumentData = {
         type: 'invoice',
         number: parseInt(invoiceNumber.replace(/\D/g, '')) || 1,
@@ -458,7 +459,7 @@ export default function CreateInvoiceScreen() {
       if (!docId) throw new Error('Failed to save invoice.');
 
       // Build PDF data
-      const { jobAddr, today } = buildDocData();
+      const {jobAddr, today} = buildDocData();
       const docData: DocumentData = {
         type: 'invoice',
         number: parseInt(invoiceNumber.replace(/\D/g, '')) || 1,
@@ -501,7 +502,7 @@ export default function CreateInvoiceScreen() {
       });
 
       Alert.alert('Sent', `Invoice emailed to ${recipients.join(', ')}.`, [
-        { text: 'OK', onPress: () => router.back() },
+        {text: 'OK', onPress: () => router.back()},
       ]);
     } catch (e: any) {
       // Save already succeeded; only email failed
@@ -518,7 +519,7 @@ export default function CreateInvoiceScreen() {
     if (!userProfile?.company_id) return;
     setViewingPdf(true);
     try {
-      const { jobAddr, today } = buildDocData();
+      const {jobAddr, today} = buildDocData();
       const docData: DocumentData = {
         type: 'invoice',
         number: parseInt(invoiceNumber.replace(/\D/g, '')) || 1,
@@ -558,7 +559,7 @@ export default function CreateInvoiceScreen() {
     if (!userProfile?.company_id) return;
     setViewingPdf(true);
     try {
-      const { jobAddr, today } = buildDocData();
+      const {jobAddr, today} = buildDocData();
       const docData: DocumentData = {
         type: 'invoice',
         number: parseInt(invoiceNumber.replace(/\D/g, '')) || 1,
@@ -606,7 +607,7 @@ export default function CreateInvoiceScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={{flex: 1}}
     >
       <ProPaywallModal
         visible={!isPro}
@@ -616,7 +617,7 @@ export default function CreateInvoiceScreen() {
       />
       <LinearGradient
         colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground}
-        style={{ flex: 1 }}
+        style={{flex: 1}}
       >
         <ScrollView
           style={st.container}
@@ -631,46 +632,41 @@ export default function CreateInvoiceScreen() {
             entering={FadeInDown.duration(350).springify()}
             style={st.headerRow}
           >
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={[st.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
-            >
-              <Ionicons name="arrow-back" size={22} color={isDark ? theme.text.body : UI.text.bodyLight} />
-            </TouchableOpacity>
+            <GlassIconButton onPress={() => router.back()} />
             <View style={st.headerCenter}>
-              <Text style={[st.screenTitle, isDark && { color: theme.text.title }]}>{editingDocId ? 'Edit Invoice' : 'New Invoice'}</Text>
-              <Text style={[st.screenSubtitle, isDark && { color: theme.text.muted }]}>
+              <Text style={[st.screenTitle, isDark && {color: theme.text.title}]}>{editingDocId ? 'Edit Invoice' : 'New Invoice'}</Text>
+              <Text style={[st.screenSubtitle, isDark && {color: theme.text.muted}]}>
                 {editingDocId ? 'Update invoice details' : 'Create and send a professional invoice'}
               </Text>
             </View>
-            <View style={{ width: 42 }} />
+            <View style={{width: 42}} />
           </Animated.View>
 
           {/* ─── Invoice Meta ─── */}
           <Animated.View
             entering={FadeInDown.delay(50).duration(350).springify()}
-            style={[st.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+            style={[st.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
           >
             <View style={st.cardHeader}>
               <View style={st.cardIconWrap}>
                 <Ionicons name="document-text" size={18} color={UI.status.pending} />
               </View>
-              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Invoice Details</Text>
+              <Text style={[st.cardTitle, isDark && {color: theme.text.title}]}>Invoice Details</Text>
             </View>
 
             <View style={st.row}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[st.label, isDark && { color: theme.text.muted }]}>Invoice #</Text>
+              <View style={{flex: 1, marginRight: 8}}>
+                <Text style={[st.label, isDark && {color: theme.text.muted}]}>Invoice #</Text>
                 <TextInput
-                  style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                  style={[st.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                   value={invoiceNumber}
                   editable={false}
                 />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[st.label, isDark && { color: theme.text.muted }]}>Due Date</Text>
+              <View style={{flex: 1}}>
+                <Text style={[st.label, isDark && {color: theme.text.muted}]}>Due Date</Text>
                 <TextInput
-                  style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                  style={[st.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                   value={dueDate}
                   onChangeText={setDueDate}
                 />
@@ -729,7 +725,7 @@ export default function CreateInvoiceScreen() {
             style={st.sectionHeader}
           >
             <View style={st.sectionLeft}>
-              <View style={[st.cardIconWrap, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
+              <View style={[st.cardIconWrap, {backgroundColor: 'rgba(99,102,241,0.1)'}]}>
                 <Ionicons name="list" size={16} color={UI.brand.primary} />
               </View>
               <Text style={st.sectionTitle}>Line Items</Text>
@@ -746,7 +742,7 @@ export default function CreateInvoiceScreen() {
               entering={FadeInDown.delay(180 + index * 50)
                 .duration(300)
                 .springify()}
-              style={[st.lineCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+              style={[st.lineCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
             >
               <View style={st.lineHeader}>
                 <View style={st.lineBadge}>
@@ -771,25 +767,25 @@ export default function CreateInvoiceScreen() {
                 placeholder="Description"
                 isFocused={focusedDescIdx === index}
                 onFocus={() => setFocusedDescIdx(index)}
-                onBlur={() => { if (focusedDescIdx === index) setFocusedDescIdx(null); }}
+                onBlur={() => {if (focusedDescIdx === index) setFocusedDescIdx(null);}}
                 isDark={isDark}
                 theme={theme}
               />
 
               <View style={st.row}>
-                <View style={{ flex: 1, marginRight: 6 }}>
-                  <Text style={[st.label, isDark && { color: theme.text.muted }]}>Qty</Text>
+                <View style={{flex: 1, marginRight: 6}}>
+                  <Text style={[st.label, isDark && {color: theme.text.muted}]}>Qty</Text>
                   <TextInput
-                    style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                    style={[st.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                     value={String(item.quantity)}
                     onChangeText={(v) => updateItem(index, 'quantity', v)}
                     keyboardType="numeric"
                   />
                 </View>
-                <View style={{ flex: 1, marginRight: 6 }}>
-                  <Text style={[st.label, isDark && { color: theme.text.muted }]}>Unit Price</Text>
+                <View style={{flex: 1, marginRight: 6}}>
+                  <Text style={[st.label, isDark && {color: theme.text.muted}]}>Unit Price</Text>
                   <TextInput
-                    style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                    style={[st.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                     value={String(item.unitPrice)}
                     onChangeText={(v) =>
                       updateItem(index, 'unitPrice', v)
@@ -797,10 +793,10 @@ export default function CreateInvoiceScreen() {
                     keyboardType="numeric"
                   />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[st.label, isDark && { color: theme.text.muted }]}>VAT %</Text>
+                <View style={{flex: 1}}>
+                  <Text style={[st.label, isDark && {color: theme.text.muted}]}>VAT %</Text>
                   <TextInput
-                    style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                    style={[st.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                     value={String(item.vatPercent)}
                     onChangeText={(v) =>
                       updateItem(index, 'vatPercent', v)
@@ -815,21 +811,21 @@ export default function CreateInvoiceScreen() {
           {/* ─── Discount ─── */}
           <Animated.View
             entering={FadeInDown.delay(200).duration(350).springify()}
-            style={[st.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+            style={[st.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
           >
             <View style={st.cardHeader}>
               <View
                 style={[
                   st.cardIconWrap,
-                  { backgroundColor: 'rgba(239,68,68,0.1)' },
+                  {backgroundColor: 'rgba(239,68,68,0.1)'},
                 ]}
               >
                 <Ionicons name="pricetag" size={16} color={UI.brand.danger} />
               </View>
-              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Discount</Text>
+              <Text style={[st.cardTitle, isDark && {color: theme.text.title}]}>Discount</Text>
             </View>
             <TextInput
-              style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+              style={[st.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
               value={discountPercent}
               onChangeText={setDiscountPercent}
               keyboardType="numeric"
@@ -841,12 +837,12 @@ export default function CreateInvoiceScreen() {
           {/* ─── Totals ─── */}
           <Animated.View
             entering={FadeInDown.delay(250).duration(350).springify()}
-            style={[st.totalsCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+            style={[st.totalsCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
           >
             <LinearGradient
               colors={UI.gradients.amberLight}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
+              start={{x: 0, y: 0}}
+              end={{x: 0, y: 1}}
               style={st.totalsAccent}
             />
             <View style={st.totalsBody}>
@@ -859,7 +855,7 @@ export default function CreateInvoiceScreen() {
                   <Text style={st.totalLabel}>
                     Discount ({discountPercent}%)
                   </Text>
-                  <Text style={[st.totalValue, { color: UI.brand.danger }]}>
+                  <Text style={[st.totalValue, {color: UI.brand.danger}]}>
                     -{fmtCurrency(discount)}
                   </Text>
                 </View>
@@ -875,21 +871,21 @@ export default function CreateInvoiceScreen() {
           {/* ─── Notes ─── */}
           <Animated.View
             entering={FadeInDown.delay(300).duration(350).springify()}
-            style={[st.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+            style={[st.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
           >
             <View style={st.cardHeader}>
               <View
                 style={[
                   st.cardIconWrap,
-                  { backgroundColor: 'rgba(59,130,246,0.1)' },
+                  {backgroundColor: 'rgba(59,130,246,0.1)'},
                 ]}
               >
                 <Ionicons name="chatbox-ellipses" size={16} color={UI.status.inProgress} />
               </View>
-              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Notes</Text>
+              <Text style={[st.cardTitle, isDark && {color: theme.text.title}]}>Notes</Text>
             </View>
             <TextInput
-              style={[st.input, { minHeight: 60 }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+              style={[st.input, {minHeight: 60}, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Any additional notes..."
@@ -904,7 +900,7 @@ export default function CreateInvoiceScreen() {
             style={st.actions}
           >
             <TouchableOpacity
-              style={[st.draftBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+              style={[st.draftBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
               onPress={handleSaveDraft}
               disabled={saving || generating}
               activeOpacity={0.7}
@@ -927,8 +923,8 @@ export default function CreateInvoiceScreen() {
             >
               <LinearGradient
                 colors={[UI.brand.primary, '#6366f1']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
                 style={st.generateBtn}
               >
                 {emailing ? (
@@ -956,8 +952,8 @@ export default function CreateInvoiceScreen() {
             >
               <LinearGradient
                 colors={UI.gradients.amberOrange}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
                 style={st.generateBtn}
               >
                 {generating ? (
@@ -983,14 +979,14 @@ export default function CreateInvoiceScreen() {
                   activeOpacity={0.7}
                   onPress={handleViewPdf}
                   disabled={viewingPdf}
-                  style={[st.draftBtn, { borderColor: UI.brand.primary, borderWidth: 1.5 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.brand?.primary || UI.brand.primary }]}
+                  style={[st.draftBtn, {borderColor: UI.brand.primary, borderWidth: 1.5}, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.brand?.primary || UI.brand.primary}]}
                 >
                   {viewingPdf ? (
                     <ActivityIndicator color={UI.brand.primary} />
                   ) : (
                     <>
                       <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
-                      <Text style={[st.draftBtnText, { color: UI.brand.primary }]}>View Invoice PDF</Text>
+                      <Text style={[st.draftBtnText, {color: UI.brand.primary}]}>View Invoice PDF</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -999,10 +995,10 @@ export default function CreateInvoiceScreen() {
                   activeOpacity={0.7}
                   onPress={handleSharePdf}
                   disabled={viewingPdf}
-                  style={[st.draftBtn, { borderColor: '#059669', borderWidth: 1.5 }, isDark && { backgroundColor: theme.glass.bg, borderColor: '#059669' }]}
+                  style={[st.draftBtn, {borderColor: '#059669', borderWidth: 1.5}, isDark && {backgroundColor: theme.glass.bg, borderColor: '#059669'}]}
                 >
                   <Ionicons name="share-outline" size={18} color="#059669" />
-                  <Text style={[st.draftBtnText, { color: '#059669' }]}>Share</Text>
+                  <Text style={[st.draftBtnText, {color: '#059669'}]}>Share</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -1011,30 +1007,30 @@ export default function CreateInvoiceScreen() {
           {/* ─── Payment Terms & Instructions (at the bottom) ─── */}
           <Animated.View
             entering={FadeInDown.delay(400).duration(350).springify()}
-            style={[st.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }, { marginTop: 8 }]}
+            style={[st.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}, {marginTop: 8}]}
           >
             <View style={st.cardHeader}>
               <View
                 style={[
                   st.cardIconWrap,
-                  { backgroundColor: 'rgba(16,185,129,0.1)' },
+                  {backgroundColor: 'rgba(16,185,129,0.1)'},
                 ]}
               >
                 <Ionicons name="shield-checkmark" size={16} color={UI.status.complete} />
               </View>
-              <Text style={[st.cardTitle, isDark && { color: theme.text.title }]}>Payment Terms</Text>
+              <Text style={[st.cardTitle, isDark && {color: theme.text.title}]}>Payment Terms</Text>
             </View>
-            <Text style={[st.label, isDark && { color: theme.text.muted }]}>Terms</Text>
+            <Text style={[st.label, isDark && {color: theme.text.muted}]}>Terms</Text>
             <TextInput
-              style={[st.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+              style={[st.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
               value={paymentTerms}
               onChangeText={setPaymentTerms}
               placeholder="e.g. 14 days, Net 30..."
               placeholderTextColor={isDark ? theme.text.placeholder : '#94a3b8'}
             />
-            <Text style={[st.label, { marginTop: 8 }, isDark && { color: theme.text.muted }]}>Payment Instructions</Text>
+            <Text style={[st.label, {marginTop: 8}, isDark && {color: theme.text.muted}]}>Payment Instructions</Text>
             <TextInput
-              style={[st.input, { minHeight: 80 }, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+              style={[st.input, {minHeight: 80}, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
               value={paymentInfo}
               onChangeText={setPaymentInfo}
               placeholder="Bank details, payment instructions..."
@@ -1051,8 +1047,8 @@ export default function CreateInvoiceScreen() {
 // ─── Styles ─────────────────────────────────────────────────────────
 
 const st = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: UI.surface.base },
+  container: {flex: 1, paddingHorizontal: 16},
+  center: {flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: UI.surface.base},
 
   // Header
   headerRow: {
@@ -1070,9 +1066,9 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerCenter: { flex: 1, marginLeft: 12 },
-  screenTitle: { fontSize: 22, fontWeight: '800', color: UI.text.title },
-  screenSubtitle: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
+  headerCenter: {flex: 1, marginLeft: 12},
+  screenTitle: {fontSize: 22, fontWeight: '800', color: UI.text.title},
+  screenSubtitle: {fontSize: 13, color: UI.text.muted, marginTop: 2},
 
   // Glass card
   card: {
@@ -1083,7 +1079,7 @@ const st = StyleSheet.create({
     borderRadius: 18,
     marginBottom: 12,
     shadowColor: UI.text.muted,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
@@ -1102,7 +1098,7 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: UI.text.bodyLight },
+  cardTitle: {fontSize: 15, fontWeight: '700', color: UI.text.bodyLight},
 
   // Labels & inputs
   label: {
@@ -1124,7 +1120,7 @@ const st = StyleSheet.create({
     color: UI.text.title,
     marginBottom: 8,
   },
-  row: { flexDirection: 'row' },
+  row: {flexDirection: 'row'},
 
   // Ref badge
   refRow: {
@@ -1137,8 +1133,8 @@ const st = StyleSheet.create({
     borderRadius: 10,
     marginTop: 4,
   },
-  refLabel: { fontSize: 12, fontWeight: '600', color: UI.text.muted },
-  refValue: { fontSize: 14, fontWeight: '700', color: UI.brand.primary },
+  refLabel: {fontSize: 12, fontWeight: '600', color: UI.text.muted},
+  refValue: {fontSize: 14, fontWeight: '700', color: UI.brand.primary},
 
   // Prefill
   prefillBanner: {
@@ -1160,7 +1156,7 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  prefillText: { fontSize: 13, fontWeight: '600', color: UI.brand.success },
+  prefillText: {fontSize: 13, fontWeight: '600', color: UI.brand.success},
   editPrefillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1169,7 +1165,7 @@ const st = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 12,
   },
-  editPrefillText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
+  editPrefillText: {fontSize: 13, fontWeight: '600', color: UI.brand.primary},
 
   // Section header
   sectionHeader: {
@@ -1179,8 +1175,8 @@ const st = StyleSheet.create({
     marginBottom: 10,
     marginTop: 8,
   },
-  sectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: UI.text.bodyLight },
+  sectionLeft: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  sectionTitle: {fontSize: 15, fontWeight: '700', color: UI.text.bodyLight},
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1190,7 +1186,7 @@ const st = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 10,
   },
-  addBtnText: { fontSize: 13, fontWeight: '700', color: UI.brand.primary },
+  addBtnText: {fontSize: 13, fontWeight: '700', color: UI.brand.primary},
 
   // Line item card
   lineCard: {
@@ -1201,7 +1197,7 @@ const st = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 8,
     shadowColor: UI.text.muted,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
@@ -1217,7 +1213,7 @@ const st = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
-  lineBadgeText: { fontSize: 11, fontWeight: '800', color: UI.brand.primary },
+  lineBadgeText: {fontSize: 11, fontWeight: '800', color: UI.brand.primary},
   lineTotal: {
     flex: 1,
     textAlign: 'right',
@@ -1245,32 +1241,32 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     shadowColor: UI.text.muted,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
   },
-  totalsAccent: { width: 5 },
-  totalsBody: { flex: 1, padding: 16 },
+  totalsAccent: {width: 5},
+  totalsBody: {flex: 1, padding: 16},
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
   },
-  totalLabel: { fontSize: 15, fontWeight: '600', color: UI.text.muted },
-  totalValue: { fontSize: 16, fontWeight: '700', color: UI.text.bodyLight },
+  totalLabel: {fontSize: 15, fontWeight: '600', color: UI.text.muted},
+  totalValue: {fontSize: 16, fontWeight: '700', color: UI.text.bodyLight},
   totalDivider: {
     height: 2,
     backgroundColor: UI.surface.divider,
     borderRadius: 1,
     marginVertical: 8,
   },
-  grandTotalLabel: { fontSize: 18, fontWeight: '800', color: UI.text.title },
-  grandTotalValue: { fontSize: 22, fontWeight: '800', color: UI.status.pending },
+  grandTotalLabel: {fontSize: 18, fontWeight: '800', color: UI.text.title},
+  grandTotalValue: {fontSize: 22, fontWeight: '800', color: UI.status.pending},
 
   // Actions
-  actions: { marginTop: 8, gap: 10 },
+  actions: {marginTop: 8, gap: 10},
   draftBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1282,8 +1278,8 @@ const st = StyleSheet.create({
     padding: 16,
     borderRadius: 14,
   },
-  draftBtnText: { color: UI.text.muted, fontWeight: '700', fontSize: 16 },
-  generateWrap: { borderRadius: 14, overflow: 'hidden' },
+  draftBtnText: {color: UI.text.muted, fontWeight: '700', fontSize: 16},
+  generateWrap: {borderRadius: 14, overflow: 'hidden'},
   generateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1291,5 +1287,5 @@ const st = StyleSheet.create({
     gap: 8,
     padding: 16,
   },
-  generateBtnText: { color: UI.text.white, fontWeight: '700', fontSize: 16 },
+  generateBtnText: {color: UI.text.white, fontWeight: '700', fontSize: 16},
 });

@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
-import Purchases, { CustomerInfo, LOG_LEVEL, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
-import { supabase } from '../config/supabase';
-import { useAuth } from './AuthContext';
+import React, {createContext, useCallback, useContext, useEffect, useState} from 'react';
+import {Platform} from 'react-native';
+import Purchases, {CustomerInfo, LOG_LEVEL, PurchasesOffering, PurchasesPackage} from 'react-native-purchases';
+import {supabase} from '../config/supabase';
+import {useAuth} from './AuthContext';
 
 const DEV_OVERRIDE_KEY = '@gaspilot_dev_starter_override';
 const PRO_CACHE_KEY = '@gaspilot_is_pro_cached';
@@ -22,10 +22,10 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
   isPro: false,
   isLoading: true,
   currentOffering: null,
-  purchasePackage: async () => {},
-  purchaseWorkerSeat: async () => {},
-  restorePurchases: async () => {},
-  devResetToStarter: async () => {},
+  purchasePackage: async () => { },
+  purchaseWorkerSeat: async () => { },
+  restorePurchases: async () => { },
+  devResetToStarter: async () => { },
 });
 
 function getSubscriptionType(info: CustomerInfo): string | null {
@@ -37,8 +37,8 @@ function getSubscriptionType(info: CustomerInfo): string | null {
   return 'monthly';
 }
 
-export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
-  const { session, userProfile } = useAuth();
+export function SubscriptionProvider({children}: {children: React.ReactNode}) {
+  const {session, userProfile} = useAuth();
   const [isPro, setIsPro] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentOffering, setCurrentOffering] = useState<PurchasesOffering | null>(null);
@@ -49,13 +49,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     AsyncStorage.getItem(PRO_CACHE_KEY).then((cached) => {
       if (cached === 'true') setIsPro(true);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // Persist Pro status to cache whenever it changes
   const updateIsPro = useCallback((value: boolean) => {
     setIsPro(value);
-    AsyncStorage.setItem(PRO_CACHE_KEY, value ? 'true' : 'false').catch(() => {});
+    AsyncStorage.setItem(PRO_CACHE_KEY, value ? 'true' : 'false').catch(() => { });
   }, []);
 
   // Sync admin's subscription to Supabase (admin + all company members)
@@ -82,7 +82,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       if (userProfile?.company_id) {
         await supabase
           .from('profiles')
-          .update({ subscription_tier: tier })
+          .update({subscription_tier: tier})
           .eq('company_id', userProfile.company_id)
           .neq('id', session.user.id);
       }
@@ -107,7 +107,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     if (Platform.OS === 'web') {
       const checkProfile = async () => {
         try {
-          const { data, error } = await supabase
+          const {data, error} = await supabase
             .from('profiles')
             .select('subscription_tier')
             .eq('id', session.user.id)
@@ -136,7 +136,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
 
     Purchases.setLogLevel(LOG_LEVEL.DEBUG);
-    Purchases.configure({ apiKey, appUserID: session.user.id });
+    Purchases.configure({apiKey, appUserID: session.user.id});
 
     const listener = Purchases.addCustomerInfoUpdateListener(async (info) => {
       if (__DEV__) {
@@ -177,12 +177,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     init();
 
-    return () => { (listener as any)?.remove?.(); };
+    return () => {(listener as any)?.remove?.();};
   }, [session?.user.id, isAdmin, syncToSupabase]);
 
   const purchasePackage = useCallback(async (pkg: PurchasesPackage) => {
     await AsyncStorage.removeItem(DEV_OVERRIDE_KEY);
-    const { customerInfo } = await Purchases.purchasePackage(pkg);
+    const {customerInfo} = await Purchases.purchasePackage(pkg);
     updateIsPro(typeof customerInfo.entitlements.active['pro'] !== 'undefined');
     await syncToSupabase(customerInfo);
   }, [syncToSupabase, updateIsPro]);
@@ -193,7 +193,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       (p) => p.identifier === '$rc_custom' || p.identifier === 'worker_seat' || p.product.identifier.includes('worker.seat'),
     );
     if (!seatPkg) throw new Error('Worker seat package not found');
-    const { customerInfo } = await Purchases.purchasePackage(seatPkg);
+    const {customerInfo} = await Purchases.purchasePackage(seatPkg);
     // Only increment seat limit if purchase actually went through
     if (customerInfo.entitlements.active['worker_seat'] || customerInfo.allPurchasedProductIdentifiers.includes(seatPkg.product.identifier)) {
       await supabase.rpc('increment_worker_seat', {
@@ -215,7 +215,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }, [syncToSupabase, updateIsPro]);
 
   return (
-    <SubscriptionContext.Provider value={{ isPro, isLoading, currentOffering, purchasePackage, purchaseWorkerSeat, restorePurchases, devResetToStarter }}>
+    <SubscriptionContext.Provider value={{isPro, isLoading, currentOffering, purchasePackage, purchaseWorkerSeat, restorePurchases, devResetToStarter}}>
       {children}
     </SubscriptionContext.Provider>
   );

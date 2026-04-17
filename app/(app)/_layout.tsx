@@ -11,6 +11,7 @@ import {useCalendarSync} from '../../hooks/useCalendarSync';
 import {useAuth} from '../../src/context/AuthContext';
 import {useOfflineMode} from '../../src/context/OfflineContext';
 import {useAppTheme} from '../../src/context/ThemeContext';
+import {TpiDeviceProvider} from '../../src/context/TpiDeviceContext';
 import {registerForPushNotifications, setupNotificationListeners} from '../../src/services/notifications';
 
 const ADMIN_FAB_ACTIONS = [
@@ -177,7 +178,7 @@ export default function AppLayout() {
   }
 
   return (
-    <>
+    <TpiDeviceProvider>
       <Stack screenOptions={{headerShown: false, gestureEnabled: false}}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />
@@ -195,56 +196,56 @@ export default function AppLayout() {
         const fabActions = isAdmin ? ADMIN_FAB_ACTIONS : WORKER_FAB_ACTIONS;
         const overlayHeight = fabActions.length * 72 + 20;
         return (
-        <>
-          {overlayVisible ? (
-            <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-              <Pressable style={StyleSheet.absoluteFill} onPress={closeFab}>
-                <BlurView
-                  intensity={isDark ? 24 : 32}
-                  tint={isDark ? 'dark' : 'light'}
-                  style={StyleSheet.absoluteFill}
-                />
-              </Pressable>
-
-              <View
-                pointerEvents="box-none"
-                style={[
-                  styles.fabOverlay,
-                  {bottom: fabBottomOffset, height: overlayHeight},
-                ]}
-              >
-                {fabActions.map((action, index) => (
-                  <FabMenuItem
-                    key={action.key}
-                    action={action}
-                    index={index}
-                    progress={progress}
-                    cardColor="#FFFFFF"
-                    onPress={() => {
-                      closeFab();
-                      router.push(action.route as any);
-                    }}
+          <>
+            {overlayVisible ? (
+              <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+                <Pressable style={StyleSheet.absoluteFill} onPress={closeFab}>
+                  <BlurView
+                    intensity={isDark ? 24 : 32}
+                    tint={isDark ? 'dark' : 'light'}
+                    style={StyleSheet.absoluteFill}
                   />
-                ))}
-              </View>
-            </View>
-          ) : null}
+                </Pressable>
 
-          <View
-            pointerEvents="box-none"
-            style={[
-              styles.globalFabWrap,
-              {bottom: fabBottomOffset},
-            ]}
-          >
-            <Animated.View style={mainFabStyle}>
-              <TouchableOpacity activeOpacity={0.9} style={styles.globalFab} onPress={toggleFab}>
-                <Ionicons name="add" size={28} color="#FFFFFF" />
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        </>
-      );
+                <View
+                  pointerEvents="box-none"
+                  style={[
+                    styles.fabOverlay,
+                    {bottom: fabBottomOffset, height: overlayHeight},
+                  ]}
+                >
+                  {fabActions.map((action, index) => (
+                    <FabMenuItem
+                      key={action.key}
+                      action={action}
+                      index={index}
+                      progress={progress}
+                      cardColor="#FFFFFF"
+                      onPress={() => {
+                        closeFab();
+                        router.push(action.route as any);
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            <View
+              pointerEvents="box-none"
+              style={[
+                styles.globalFabWrap,
+                {bottom: fabBottomOffset},
+              ]}
+            >
+              <Animated.View style={mainFabStyle}>
+                <TouchableOpacity activeOpacity={0.9} style={styles.globalFab} onPress={toggleFab}>
+                  <Ionicons name="add" size={28} color="#FFFFFF" />
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+          </>
+        );
       })() : null}
 
       {offlineModeEnabled ? (
@@ -253,7 +254,7 @@ export default function AppLayout() {
           <Text style={[styles.offlineBannerText, {color: theme.text.white}]}>Offline Mode Enabled</Text>
         </View>
       ) : null}
-    </>
+    </TpiDeviceProvider>
   );
 }
 

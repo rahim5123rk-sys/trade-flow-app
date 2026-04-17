@@ -6,7 +6,7 @@
 import {Ionicons} from '@expo/vector-icons';
 import {LinearGradient} from 'expo-linear-gradient';
 import {router} from 'expo-router';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,6 +24,7 @@ import {
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, {FadeInDown, FadeInRight} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../../components/GlassIconButton';
 import {Colors, UI} from '../../../../constants/theme';
 import {useDocuments} from '../../../../hooks/useDocuments';
 import {supabase} from '../../../../src/config/supabase';
@@ -646,9 +647,7 @@ export default function DocumentsHubScreen() {
     <>
       {/* List Header with Back */}
       <Animated.View entering={FadeInDown.delay(50).springify()} style={st.listHeader}>
-        <TouchableOpacity onPress={handleBackToLanding} style={st.backButton} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={24} color={theme.text.title} />
-        </TouchableOpacity>
+        <GlassIconButton onPress={handleBackToLanding} />
         <Text style={[st.screenTitle, {color: theme.text.title}]}>{listViewTitle}</Text>
       </Animated.View>
 
@@ -738,12 +737,12 @@ export default function DocumentsHubScreen() {
                 ) : (
                   <>
                     <Ionicons name="chevron-down-outline" size={18} color={UI.brand.primary} />
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: UI.brand.primary }}>Load more</Text>
+                    <Text style={{fontSize: 14, fontWeight: '600', color: UI.brand.primary}}>Load more</Text>
                   </>
                 )}
               </TouchableOpacity>
             ) : documents.length > 0 ? (
-              <Text style={{ textAlign: 'center', color: theme.text.muted, fontSize: 13, paddingVertical: 16 }}>
+              <Text style={{textAlign: 'center', color: theme.text.muted, fontSize: 13, paddingVertical: 16}}>
                 All documents loaded
               </Text>
             ) : null

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../components/GlassIconButton';
 import {Colors, UI} from '../../../constants/theme';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 import {
@@ -22,8 +23,8 @@ import {
   calculateGeneralOpenFlueVentilation,
   calculateOpenFlueCompartmentVentilation,
   calculateRoomSealedCompartmentVentilation,
-  GasRateMode,
   FuelType,
+  GasRateMode,
   lookupWaterHardness,
   VentilationDestination,
   VentilationMode,
@@ -66,7 +67,7 @@ const ToolRow = ({
     activeOpacity={0.75}
     onPress={onPress}
   >
-    <View style={[s.toolRowIcon, isDark && {backgroundColor: theme.surface.elevated}]}> 
+    <View style={[s.toolRowIcon, isDark && {backgroundColor: theme.surface.elevated}]}>
       <Ionicons name={icon} size={18} color={theme.brand.primary} />
     </View>
     <View style={{flex: 1}}>
@@ -90,7 +91,7 @@ const ModeToggle = ({
   theme: ReturnType<typeof useAppTheme>['theme'];
   isDark: boolean;
 }) => (
-  <View style={[s.segmentWrap, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+  <View style={[s.segmentWrap, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
     {options.map((option) => {
       const active = option.value === value;
       return (
@@ -127,7 +128,7 @@ const ResultCard = ({
   theme: ReturnType<typeof useAppTheme>['theme'];
   isDark: boolean;
 }) => (
-  <View style={[s.resultCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+  <View style={[s.resultCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
     <Text style={[s.resultLabel, {color: theme.text.muted}]}>{label}</Text>
     <Text style={[s.resultValue, {color: accent || theme.text.title}]}>{value}</Text>
     {hint ? <Text style={[s.resultHint, {color: theme.text.muted}]}>{hint}</Text> : null}
@@ -188,7 +189,7 @@ export default function ToolboxScreen() {
   const hardnessResult = useMemo(() => lookupWaterHardness(postcode), [postcode]);
 
   return (
-    <View style={[s.root, {paddingTop: insets.top}]}> 
+    <View style={[s.root, {paddingTop: insets.top}]}>
       <LinearGradient colors={theme.gradients.appBackground} style={StyleSheet.absoluteFill} />
 
       <KeyboardAvoidingView style={{flex: 1}} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -198,13 +199,7 @@ export default function ToolboxScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeInDown.delay(40).springify()} style={s.header}>
-            <TouchableOpacity
-              style={[s.backBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
-              onPress={() => router.back()}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="chevron-back" size={20} color={theme.text.title} />
-            </TouchableOpacity>
+            <GlassIconButton onPress={() => router.back()} />
             <View style={{flex: 1}}>
               <Text style={[s.title, {color: theme.text.title}]}>Tools</Text>
               <Text style={[s.subtitle, {color: theme.text.muted}]}>Gas calculators and field lookup tools</Text>
@@ -261,7 +256,7 @@ export default function ToolboxScreen() {
 
           {activeTool === 'gas-rate' ? (
             <Animated.View entering={FadeInDown.delay(120).springify()}>
-              <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+              <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                 <View style={s.cardHeader}>
                   <View style={[s.iconWrap, {backgroundColor: isDark ? 'rgba(59,130,246,0.18)' : '#EEF5FF'}]}>
                     <Ionicons name="flame-outline" size={18} color={theme.brand.primary} />
@@ -315,7 +310,7 @@ export default function ToolboxScreen() {
                       isDark={isDark}
                     />
 
-                    <View style={[s.stopwatchCard, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}> 
+                    <View style={[s.stopwatchCard, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
                       <View style={s.stopwatchHeader}>
                         <Text style={[s.stopwatchTitle, {color: theme.text.title}]}>Stopwatch</Text>
                         <Text style={[s.stopwatchSubtitle, {color: theme.text.muted}]}>Use this to time the reading, then leave the selector on 1 or 2 minutes.</Text>
@@ -384,7 +379,7 @@ export default function ToolboxScreen() {
 
           {activeTool === 'ventilation' ? (
             <Animated.View entering={FadeInDown.delay(120).springify()}>
-              <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+              <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                 <View style={s.cardHeader}>
                   <View style={[s.iconWrap, {backgroundColor: isDark ? 'rgba(16,185,129,0.18)' : '#ECFDF5'}]}>
                     <Ionicons name="resize-outline" size={18} color="#059669" />
@@ -395,7 +390,7 @@ export default function ToolboxScreen() {
                   </View>
                 </View>
 
-                    <Text style={[s.fieldLabel, {color: theme.text.body}]}>Appliance input (kW)</Text>
+                <Text style={[s.fieldLabel, {color: theme.text.body}]}>Appliance input (kW)</Text>
                 <TextInput
                   style={[s.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                   value={ventilationKw}
@@ -480,7 +475,7 @@ export default function ToolboxScreen() {
                 </View>
               ) : null}
 
-              <View style={[s.infoCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+              <View style={[s.infoCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                 <Ionicons name="information-circle-outline" size={18} color={theme.text.muted} />
                 <Text style={[s.infoText, {color: theme.text.muted}]}>Figures use standard domestic free-area rules: general open flue uses 5 cm² per kW above 7 kW, and compartment sizing varies depending on whether the vents open to the room or directly outside. Always confirm against the current standard and manufacturer instructions.</Text>
               </View>
@@ -489,7 +484,7 @@ export default function ToolboxScreen() {
 
           {activeTool === 'hardness' ? (
             <Animated.View entering={FadeInDown.delay(120).springify()}>
-              <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+              <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                 <View style={s.cardHeader}>
                   <View style={[s.iconWrap, {backgroundColor: isDark ? 'rgba(14,165,233,0.18)' : '#EFF6FF'}]}>
                     <Ionicons name="water-outline" size={18} color="#0284C7" />
@@ -521,7 +516,7 @@ export default function ToolboxScreen() {
                     <ResultCard label="°Clark" value={`${formatNumber(hardnessResult.clarkRange[0], 1)}–${formatNumber(hardnessResult.clarkRange[1], 1)}`} hint={`Typical ${formatNumber(hardnessResult.typicalClark, 1)} °Clark`} theme={theme} isDark={isDark} />
                   </View>
 
-                  <View style={[s.infoCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+                  <View style={[s.infoCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                     <Ionicons name="bookmark-outline" size={18} color={theme.text.muted} />
                     <Text style={[s.infoText, {color: theme.text.muted}]}>{hardnessResult.note}</Text>
                   </View>
@@ -539,13 +534,13 @@ export default function ToolboxScreen() {
                   </TouchableOpacity>
                 </>
               ) : postcode.trim().length > 0 ? (
-                <View style={[s.infoCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+                <View style={[s.infoCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                   <Ionicons name="alert-circle-outline" size={18} color="#B45309" />
                   <Text style={[s.infoText, {color: theme.text.muted}]}>No static match found for that outward postcode yet. Use one of the official links below to verify hardness directly.</Text>
                 </View>
               ) : null}
 
-              <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+              <View style={[s.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                 <Text style={[s.cardTitle, {color: theme.text.title}]}>Official supplier links</Text>
                 <Text style={[s.cardSubtitle, {color: theme.text.muted}]}>Quick access to major UK water-quality and hardness pages.</Text>
                 <View style={s.linkList}>

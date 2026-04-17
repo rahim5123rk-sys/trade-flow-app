@@ -3,7 +3,7 @@ import {
     type EngineerInfo,
     esc,
     getBaseCss,
-  parseAddress,
+    parseAddress,
 } from './shared';
 
 interface DetailRow {

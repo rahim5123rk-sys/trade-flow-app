@@ -27,6 +27,7 @@ import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import EmailRecipientsList from '../../../components/EmailRecipientsList';
 import {upsertSiteAddress} from '../../../components/forms/SiteAddressPicker';
+import {GlassIconButton} from '../../../components/GlassIconButton';
 import ReminderSection from '../../../components/ReminderSection';
 import {SignaturePad} from '../../../components/SignaturePad';
 import {UI} from '../../../constants/theme';
@@ -244,7 +245,7 @@ export default function ReviewSign() {
     // ── EDIT MODE: Update existing document ──
     if (editingDocumentId) {
       const payloadToSave = oneTimeEmails.length > 0
-        ? { ...lockedPayload, oneTimeReminderEmails: oneTimeEmails }
+        ? {...lockedPayload, oneTimeReminderEmails: oneTimeEmails}
         : lockedPayload;
 
       const {error: updateError} = await supabase
@@ -270,7 +271,7 @@ export default function ReviewSign() {
     const cp12Number = Number(String(Date.now()).slice(-8));
 
     const insertPayloadToSave = oneTimeEmails.length > 0
-      ? { ...lockedPayload, oneTimeReminderEmails: oneTimeEmails }
+      ? {...lockedPayload, oneTimeReminderEmails: oneTimeEmails}
       : lockedPayload;
 
     const documentBase = {
@@ -384,7 +385,7 @@ export default function ReviewSign() {
             if (inserted?.id && documentId) {
               await supabase.from('documents').update({customer_id: inserted.id}).eq('id', documentId);
             }
-          } catch { /* silently fail — customer snapshot already saved */ }
+          } catch { /* silently fail — customer snapshot already saved */}
         })();
       }
 
@@ -410,9 +411,9 @@ export default function ReviewSign() {
         await WebBrowser.openBrowserAsync(pdfUrl);
         return;
       }
-// Send email
-const recipients = sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]);
-if (!recipients.length) {
+      // Send email
+      const recipients = sanitizeRecipients([...defaultSendEmails, ...additionalSendEmails]);
+      if (!recipients.length) {
         Alert.alert('No Email Found', 'Add a landlord or tenant email before using Save & Send Email.');
         return;
       }
@@ -479,13 +480,7 @@ if (!recipients.length) {
         >
           {/* Header */}
           <Animated.View entering={FadeIn.duration(300)} style={s.header}>
-            <TouchableOpacity
-              style={[s.backBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="chevron-back" size={20} color={theme.brand.primary} />
-            </TouchableOpacity>
+            <GlassIconButton onPress={() => router.back()} />
             <View>
               <Text style={[s.title, {color: theme.text.title}]}>{editingDocumentId ? 'Edit & Update' : 'Review & Sign'}</Text>
               <Text style={[s.subtitleText, {color: theme.text.muted}]}>{editingDocumentId ? 'Editing existing certificate' : 'Step 4 of 4'}</Text>

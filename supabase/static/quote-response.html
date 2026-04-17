@@ -1,341 +1,422 @@
 <!DOCTYPE html>
 <html lang="en-GB">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quote Response — GasPilot</title>
-<link rel="icon" type="image/png" href="https://gaspilotapp.com/favicon.png" />
-<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
-<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=switzer@400,500,600&display=swap" />
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { background: #09090b; }
-  body {
-    font-family: 'Switzer', system-ui, -apple-system, sans-serif;
-    background: #09090b;
-    color: #fafafa;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    letter-spacing: -0.01em;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-  .page-wrapper { width: 100%; max-width: 520px; }
-
-  /* Header */
-  .header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 32px;
-  }
-  .header img { height: 28px; width: auto; }
-  .header-text {
-    font-family: 'Clash Display', system-ui, sans-serif;
-    font-weight: 700;
-    font-size: 20px;
-    letter-spacing: -0.03em;
-    color: #fafafa;
-  }
-
-  /* Card */
-  .card {
-    background: #111113;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 16px;
-    padding: 36px 28px;
-    text-align: center;
-  }
-
-  /* Company logo */
-  .company-logo-wrap {
-    margin-bottom: 20px;
-  }
-  .company-logo-wrap img {
-    max-height: 56px;
-    max-width: 180px;
-    display: block;
-    margin: 0 auto;
-    border-radius: 8px;
-  }
-
-  /* Title */
-  h1 {
-    font-family: 'Clash Display', system-ui, sans-serif;
-    font-size: 24px;
-    font-weight: 700;
-    color: #fafafa;
-    letter-spacing: -0.03em;
-    margin: 8px 0 6px;
-  }
-  .company-from {
-    font-size: 14px;
-    color: #a1a1aa;
-    margin-bottom: 16px;
-    font-weight: 500;
-  }
-
-  /* Info block */
-  .ref {
-    background: #18181b;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin: 16px 0;
-    font-size: 14px;
-    color: #a1a1aa;
-    text-align: left;
-  }
-  .ref strong { color: #fafafa; font-weight: 600; }
-  .ref-row { display: flex; justify-content: space-between; padding: 4px 0; }
-
-  p { font-size: 15px; color: #a1a1aa; line-height: 1.6; margin-bottom: 16px; }
-
-  /* Textarea */
-  label.field-label {
-    display: block;
-    text-align: left;
-    font-size: 13px;
-    font-weight: 600;
-    color: #a1a1aa;
-    margin-bottom: 6px;
-  }
-  textarea {
-    width: 100%;
-    background: #18181b;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-    padding: 12px;
-    font-size: 14px;
-    color: #fafafa;
-    resize: vertical;
-    min-height: 80px;
-    margin-bottom: 20px;
-    font-family: inherit;
-    transition: border-color 0.2s;
-  }
-  textarea:focus {
-    outline: none;
-    border-color: rgba(255,255,255,0.2);
-  }
-  textarea::placeholder { color: #52525b; }
-
-  /* Buttons */
-  .btn-row { display: flex; gap: 12px; justify-content: center; }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 14px 28px;
-    border-radius: 12px;
-    font-size: 15px;
-    font-weight: 600;
-    font-family: inherit;
-    border: none;
-    cursor: pointer;
-    min-width: 150px;
-    transition: all 0.2s;
-  }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-accept {
-    background: #22c55e;
-    color: #fff;
-  }
-  .btn-accept:hover:not(:disabled) { background: #16a34a; }
-  .btn-decline {
-    background: #18181b;
-    color: #a1a1aa;
-    border: 1px solid rgba(255,255,255,0.08);
-  }
-  .btn-decline:hover:not(:disabled) { background: #27272a; color: #fafafa; }
-
-  /* Footer */
-  .footer {
-    margin-top: 24px;
-    font-size: 12px;
-    color: #52525b;
-    text-align: center;
-  }
-  .footer a {
-    color: #a1a1aa;
-    text-decoration: none;
-    font-weight: 500;
-  }
-  .footer a:hover { color: #fafafa; }
-
-  /* States */
-  .success-icon { font-size: 48px; margin-bottom: 12px; }
-  .error-text { color: #f87171; font-size: 14px; margin-top: 8px; }
-  .spinner {
-    display: inline-block;
-    width: 18px; height: 18px;
-    border: 2px solid rgba(255,255,255,0.25);
-    border-radius: 50%;
-    border-top-color: #fff;
-    animation: spin 0.6s linear infinite;
-    margin-right: 8px;
-    vertical-align: middle;
-  }
-  .loading-spinner {
-    width: 36px; height: 36px;
-    border: 3px solid rgba(255,255,255,0.08);
-    border-radius: 50%;
-    border-top-color: #22c55e;
-    animation: spin 0.8s linear infinite;
-    margin: 28px auto;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-</style>
-</head>
-<body>
-<div class="page-wrapper">
-  <!-- GasPilot header -->
-  <div class="header">
-    <img src="https://gaspilotapp.com/logowebsite.png" alt="GasPilot" />
-  </div>
-
-  <!-- Main card -->
-  <div class="card" id="card">
-    <div class="loading-spinner"></div>
-    <p style="margin-top:8px;">Loading quote details…</p>
-  </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    Powered by <a href="https://gaspilotapp.com">GasPilot</a>
-  </div>
-</div>
-
-<script>
-(function() {
-  var API_BASE = 'https://fmgppkuldqjgjivkqxce.supabase.co/functions/v1/quote-response';
-  var params = new URLSearchParams(window.location.search);
-  var token = params.get('token');
-  var card = document.getElementById('card');
-
-  function esc(s) {
-    var d = document.createElement('div');
-    d.textContent = s || '';
-    return d.innerHTML;
-  }
-
-  function showError(title, msg) {
-    card.innerHTML =
-      '<h1>' + esc(title) + '</h1>' +
-      '<p>' + esc(msg) + '</p>';
-  }
-
-  function showResult(action, reference, message) {
-    var isAccept = action === 'accept';
-    card.innerHTML =
-      '<div class="success-icon">' + (isAccept ? '✅' : '❌') + '</div>' +
-      '<h1>Quote ' + (isAccept ? 'Accepted' : 'Declined') + '</h1>' +
-      '<p>' + (isAccept
-        ? 'Thank you! You have accepted quote <strong>' + esc(reference) + '</strong>. The engineer has been notified and will be in touch shortly.'
-        : 'You have declined quote <strong>' + esc(reference) + '</strong>. The engineer has been notified.'
-      ) + '</p>' +
-      (message ? '<div class="ref"><strong>Your message:</strong> ' + esc(message) + '</div>' : '');
-  }
-
-  function showForm(data) {
-    var ref = data.reference || 'Quote';
-    var customer = data.customerName || 'Customer';
-    var total = data.total || '';
-    var companyName = data.companyName || '';
-    var companyLogoUrl = data.companyLogoUrl || '';
-
-    var logoHtml = companyLogoUrl
-      ? '<div class="company-logo-wrap"><img src="' + esc(companyLogoUrl) + '" alt="' + esc(companyName) + '" /></div>'
-      : '';
-
-    var fromHtml = companyName
-      ? '<div class="company-from">from <strong>' + esc(companyName) + '</strong></div>'
-      : '';
-
-    card.innerHTML =
-      logoHtml +
-      '<h1>Quote ' + esc(ref) + '</h1>' +
-      fromHtml +
-      '<div class="ref">' +
-        '<div class="ref-row"><span>Customer</span><strong>' + esc(customer) + '</strong></div>' +
-        (total ? '<div class="ref-row"><span>Total</span><strong>' + esc(total) + '</strong></div>' : '') +
-      '</div>' +
-      '<p>Please review your quote and respond below.</p>' +
-      '<div id="form-area">' +
-        '<label class="field-label" for="msg">Message (optional)</label>' +
-        '<textarea id="msg" placeholder="Any notes or comments…"></textarea>' +
-        '<div class="btn-row">' +
-          '<button class="btn btn-accept" id="btn-accept">✓ Accept</button>' +
-          '<button class="btn btn-decline" id="btn-decline">✗ Decline</button>' +
-        '</div>' +
-        '<div id="error-msg"></div>' +
-      '</div>';
-
-    var btnAccept = document.getElementById('btn-accept');
-    var btnDecline = document.getElementById('btn-decline');
-
-    function submit(action) {
-      var message = (document.getElementById('msg').value || '').trim();
-      btnAccept.disabled = true;
-      btnDecline.disabled = true;
-      btnAccept.innerHTML = action === 'accept' ? '<span class="spinner"></span>Processing…' : '✓ Accept';
-      btnDecline.innerHTML = action === 'decline' ? '<span class="spinner"></span>Processing…' : '✗ Decline';
-
-      fetch(API_BASE + '?token=' + encodeURIComponent(token) + '&format=json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action, message: message })
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(result) {
-        if (result.error) {
-          showError('Error', result.error);
-        } else {
-          showResult(result.action || action, result.reference || ref, message);
-        }
-      })
-      .catch(function() {
-        document.getElementById('error-msg').innerHTML = '<p class="error-text">Something went wrong. Please try again.</p>';
-        btnAccept.disabled = false;
-        btnDecline.disabled = false;
-        btnAccept.innerHTML = '✓ Accept';
-        btnDecline.innerHTML = '✗ Decline';
-      });
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quote Response — GasPilot</title>
+  <link rel="icon" type="image/png" href="https://gaspilotapp.com/favicon.png" />
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+  <link rel="stylesheet"
+    href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=switzer@400,500,600&display=swap" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    btnAccept.addEventListener('click', function() { submit('accept'); });
-    btnDecline.addEventListener('click', function() { submit('decline'); });
-  }
+    html {
+      background: #09090b;
+    }
 
-  // ── Init ──
-  if (!token) {
-    showError('Invalid Link', 'This link is missing the required token.');
-    return;
-  }
+    body {
+      font-family: 'Switzer', system-ui, -apple-system, sans-serif;
+      background: #09090b;
+      color: #fafafa;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      letter-spacing: -0.01em;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
 
-  fetch(API_BASE + '?token=' + encodeURIComponent(token) + '&format=json')
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.error) {
-        showError(data.title || 'Error', data.error);
-      } else if (data.alreadyUsed) {
-        var a = data.action === 'accept' ? 'accepted' : data.action === 'decline' ? 'declined' : 'responded to';
-        card.innerHTML =
-          '<div class="success-icon">' + (data.action === 'accept' ? '✅' : '❌') + '</div>' +
-          '<h1>Already Responded</h1>' +
-          '<p>This quote has already been ' + esc(a) + '.</p>';
-      } else {
-        showForm(data);
+    .page-wrapper {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .header img {
+      height: 28px;
+      width: auto;
+    }
+
+    .header-text {
+      font-family: 'Clash Display', system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: -0.03em;
+      color: #fafafa;
+    }
+
+    /* Card */
+    .card {
+      background: #111113;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 36px 28px;
+      text-align: center;
+    }
+
+    /* Company logo */
+    .company-logo-wrap {
+      margin-bottom: 20px;
+    }
+
+    .company-logo-wrap img {
+      max-height: 56px;
+      max-width: 180px;
+      display: block;
+      margin: 0 auto;
+      border-radius: 8px;
+    }
+
+    /* Title */
+    h1 {
+      font-family: 'Clash Display', system-ui, sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #fafafa;
+      letter-spacing: -0.03em;
+      margin: 8px 0 6px;
+    }
+
+    .company-from {
+      font-size: 14px;
+      color: #a1a1aa;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    /* Info block */
+    .ref {
+      background: #18181b;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin: 16px 0;
+      font-size: 14px;
+      color: #a1a1aa;
+      text-align: left;
+    }
+
+    .ref strong {
+      color: #fafafa;
+      font-weight: 600;
+    }
+
+    .ref-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+
+    p {
+      font-size: 15px;
+      color: #a1a1aa;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    /* Textarea */
+    label.field-label {
+      display: block;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+      color: #a1a1aa;
+      margin-bottom: 6px;
+    }
+
+    textarea {
+      width: 100%;
+      background: #18181b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 14px;
+      color: #fafafa;
+      resize: vertical;
+      min-height: 80px;
+      margin-bottom: 20px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    textarea::placeholder {
+      color: #52525b;
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      min-width: 150px;
+      transition: all 0.2s;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-accept {
+      background: #22c55e;
+      color: #fff;
+    }
+
+    .btn-accept:hover:not(:disabled) {
+      background: #16a34a;
+    }
+
+    .btn-decline {
+      background: #18181b;
+      color: #a1a1aa;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-decline:hover:not(:disabled) {
+      background: #27272a;
+      color: #fafafa;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #52525b;
+      text-align: center;
+    }
+
+    .footer a {
+      color: #a1a1aa;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .footer a:hover {
+      color: #fafafa;
+    }
+
+    /* States */
+    .success-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .error-text {
+      color: #f87171;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    .loading-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 255, 255, 0.08);
+      border-radius: 50%;
+      border-top-color: #22c55e;
+      animation: spin 0.8s linear infinite;
+      margin: 28px auto;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
       }
-    })
-    .catch(function() {
-      showError('Connection Error', 'Could not load quote details. Please check your internet connection and try again.');
-    });
-})();
-</script>
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrapper">
+    <!-- GasPilot header -->
+    <div class="header">
+      <img src="https://gaspilotapp.com/logowebsite.png" alt="GasPilot" />
+    </div>
+
+    <!-- Main card -->
+    <div class="card" id="card">
+      <div class="loading-spinner"></div>
+      <p style="margin-top:8px;">Loading quote details…</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      Powered by <a href="https://gaspilotapp.com">GasPilot</a>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var API_BASE = 'https://fmgppkuldqjgjivkqxce.supabase.co/functions/v1/quote-response';
+      var params = new URLSearchParams(window.location.search);
+      var token = params.get('token');
+      var card = document.getElementById('card');
+
+      function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s || '';
+        return d.innerHTML;
+      }
+
+      function showError(title, msg) {
+        card.innerHTML =
+          '<h1>' + esc(title) + '</h1>' +
+          '<p>' + esc(msg) + '</p>';
+      }
+
+      function showResult(action, reference, message) {
+        var isAccept = action === 'accept';
+        card.innerHTML =
+          '<div class="success-icon">' + (isAccept ? '✅' : '❌') + '</div>' +
+          '<h1>Quote ' + (isAccept ? 'Accepted' : 'Declined') + '</h1>' +
+          '<p>' + (isAccept
+            ? 'Thank you! You have accepted quote <strong>' + esc(reference) + '</strong>. The engineer has been notified and will be in touch shortly.'
+            : 'You have declined quote <strong>' + esc(reference) + '</strong>. The engineer has been notified.'
+          ) + '</p>' +
+          (message ? '<div class="ref"><strong>Your message:</strong> ' + esc(message) + '</div>' : '');
+      }
+
+      function showForm(data) {
+        var ref = data.reference || 'Quote';
+        var customer = data.customerName || 'Customer';
+        var total = data.total || '';
+        var companyName = data.companyName || '';
+        var companyLogoUrl = data.companyLogoUrl || '';
+
+        var logoHtml = companyLogoUrl
+          ? '<div class="company-logo-wrap"><img src="' + esc(companyLogoUrl) + '" alt="' + esc(companyName) + '" /></div>'
+          : '';
+
+        var fromHtml = companyName
+          ? '<div class="company-from">from <strong>' + esc(companyName) + '</strong></div>'
+          : '';
+
+        card.innerHTML =
+          logoHtml +
+          '<h1>Quote ' + esc(ref) + '</h1>' +
+          fromHtml +
+          '<div class="ref">' +
+          '<div class="ref-row"><span>Customer</span><strong>' + esc(customer) + '</strong></div>' +
+          (total ? '<div class="ref-row"><span>Total</span><strong>' + esc(total) + '</strong></div>' : '') +
+          '</div>' +
+          '<p>Please review your quote and respond below.</p>' +
+          '<div id="form-area">' +
+          '<label class="field-label" for="msg">Message (optional)</label>' +
+          '<textarea id="msg" placeholder="Any notes or comments…"></textarea>' +
+          '<div class="btn-row">' +
+          '<button class="btn btn-accept" id="btn-accept">✓ Accept</button>' +
+          '<button class="btn btn-decline" id="btn-decline">✗ Decline</button>' +
+          '</div>' +
+          '<div id="error-msg"></div>' +
+          '</div>';
+
+        var btnAccept = document.getElementById('btn-accept');
+        var btnDecline = document.getElementById('btn-decline');
+
+        function submit(action) {
+          var message = (document.getElementById('msg').value || '').trim();
+          btnAccept.disabled = true;
+          btnDecline.disabled = true;
+          btnAccept.innerHTML = action === 'accept' ? '<span class="spinner"></span>Processing…' : '✓ Accept';
+          btnDecline.innerHTML = action === 'decline' ? '<span class="spinner"></span>Processing…' : '✗ Decline';
+
+          fetch(API_BASE + '?token=' + encodeURIComponent(token) + '&format=json', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action, message: message })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (result) {
+              if (result.error) {
+                showError('Error', result.error);
+              } else {
+                showResult(result.action || action, result.reference || ref, message);
+              }
+            })
+            .catch(function () {
+              document.getElementById('error-msg').innerHTML = '<p class="error-text">Something went wrong. Please try again.</p>';
+              btnAccept.disabled = false;
+              btnDecline.disabled = false;
+              btnAccept.innerHTML = '✓ Accept';
+              btnDecline.innerHTML = '✗ Decline';
+            });
+        }
+
+        btnAccept.addEventListener('click', function () { submit('accept'); });
+        btnDecline.addEventListener('click', function () { submit('decline'); });
+      }
+
+      // ── Init ──
+      if (!token) {
+        showError('Invalid Link', 'This link is missing the required token.');
+        return;
+      }
+
+      fetch(API_BASE + '?token=' + encodeURIComponent(token) + '&format=json')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error) {
+            showError(data.title || 'Error', data.error);
+          } else if (data.alreadyUsed) {
+            var a = data.action === 'accept' ? 'accepted' : data.action === 'decline' ? 'declined' : 'responded to';
+            card.innerHTML =
+              '<div class="success-icon">' + (data.action === 'accept' ? '✅' : '❌') + '</div>' +
+              '<h1>Already Responded</h1>' +
+              '<p>This quote has already been ' + esc(a) + '.</p>';
+          } else {
+            showForm(data);
+          }
+        })
+        .catch(function () {
+          showError('Connection Error', 'Could not load quote details. Please check your internet connection and try again.');
+        });
+    })();
+  </script>
 </body>
+
 </html>

@@ -16,8 +16,9 @@ import {
 } from 'react-native';
 import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../components/GlassIconButton';
 import {UI} from '../../../constants/theme';
-import {useNotes, Note} from '../../../hooks/useNotes';
+import {Note, useNotes} from '../../../hooks/useNotes';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 
 function timeAgo(dateStr: string): string {
@@ -42,7 +43,7 @@ export default function NotesScreen() {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [noteText, setNoteText] = useState('');
 
-  useFocusEffect(useCallback(() => { fetchNotes(); }, [fetchNotes]));
+  useFocusEffect(useCallback(() => {fetchNotes();}, [fetchNotes]));
 
   const openNew = () => {
     setEditingNote(null);
@@ -106,9 +107,7 @@ export default function NotesScreen() {
     <View style={[s.container, {paddingTop: insets.top, backgroundColor: theme.surface.base}]}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color={theme.text.title} />
-        </TouchableOpacity>
+        <GlassIconButton onPress={() => router.back()} />
         <Text style={[s.screenTitle, {color: theme.text.title}]}>Notes</Text>
         <View style={{width: 36}} />
       </View>

@@ -21,6 +21,7 @@ import {
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UI } from '../../../constants/theme';
+import { FgaReadingsGroup } from '../../../components/forms/FgaReadingsGroup';
 import { useCP12 } from '../../../src/context/CP12Context';
 import { useAppTheme } from '../../../src/context/ThemeContext';
 import {AutocompleteSuggestions} from '../../../components/forms/AutocompleteInput';
@@ -106,68 +107,6 @@ function TriChips({
           </TouchableOpacity>
         );
       })}
-    </View>
-  );
-}
-
-// ─── FGA Row ────────────────────────────────────────────────────
-
-function FGARow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: { co: string; co2: string; ratio: string };
-  onChange: (v: { co: string; co2: string; ratio: string }) => void;
-}) {
-  const { isDark, theme } = useAppTheme();
-  return (
-    <View style={s.fgaSection}>
-      <Text style={[s.fgaLabel, isDark && { color: theme.text.bodyLight }]}>{label}</Text>
-      <View style={s.fgaGrid}>
-        {(['co', 'co2', 'ratio'] as const).map((field) => {
-          const labels = { co: 'CO', co2: 'CO₂', ratio: 'Ratio' };
-          return (
-            <View key={field} style={s.fgaField}>
-              <Text style={[s.fgaFieldLabel, isDark && { color: theme.text.muted }]}>{labels[field]}</Text>
-              <View style={s.fgaInputRow}>
-                <TextInput
-                  style={[s.fgaInput, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
-                  value={value[field]}
-                  onChangeText={(t) => onChange({ ...value, [field]: t })}
-                  placeholder="–"
-                  placeholderTextColor={isDark ? '#64748B' : '#CBD5E1'}
-                  keyboardType="decimal-pad"
-                  keyboardAppearance={isDark ? 'dark' : 'light'}
-                  editable={value[field] !== 'N/A'}
-                />
-                <TouchableOpacity
-                  style={[
-                    s.naBtn,
-                    value[field] === 'N/A' && s.naBtnActive,
-                  ]}
-                  onPress={() =>
-                    onChange({
-                      ...value,
-                      [field]: value[field] === 'N/A' ? '' : 'N/A',
-                    })
-                  }
-                >
-                  <Text
-                    style={[
-                      s.naBtnText,
-                      value[field] === 'N/A' && s.naBtnTextActive,
-                    ]}
-                  >
-                    N/A
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-      </View>
     </View>
   );
 }
@@ -531,12 +470,12 @@ export default function AppliancesScreen() {
               {/* ── FGA Readings ── */}
               <SectionDivider title="FGA Readings" />
 
-              <FGARow
+              <FgaReadingsGroup
                 label="FGA Low"
                 value={form.fgaLow}
                 onChange={(v) => updateField('fgaLow', v)}
               />
-              <FGARow
+              <FgaReadingsGroup
                 label="FGA High"
                 value={form.fgaHigh}
                 onChange={(v) => updateField('fgaHigh', v)}

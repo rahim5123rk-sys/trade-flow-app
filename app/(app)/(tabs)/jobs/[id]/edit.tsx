@@ -3,38 +3,38 @@
 // Glassmorphism edit job modal — full parity with create
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router, useLocalSearchParams} from 'expo-router';
+import React, {useEffect, useState} from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {FadeInDown} from 'react-native-reanimated';
 import {
-    buildCustomerSnapshot,
-    CustomerFormData,
-    CustomerSelector,
-    EMPTY_CUSTOMER_FORM,
+  buildCustomerSnapshot,
+  CustomerFormData,
+  CustomerSelector,
+  EMPTY_CUSTOMER_FORM,
 } from '../../../../../components/CustomerSelector';
-import { WorkerPicker } from '../../../../../components/WorkerPicker';
-import { Colors, UI } from '../../../../../constants/theme';
-import { supabase } from '../../../../../src/config/supabase';
-import { useAuth } from '../../../../../src/context/AuthContext';
-import { useAppTheme } from '../../../../../src/context/ThemeContext';
-import { scheduleJobReminders } from '../../../../../src/services/notifications';
-import { formatDateWithRelativeHint } from '../../../../../src/utils/dates';
+import {WorkerPicker} from '../../../../../components/WorkerPicker';
+import {Colors, UI} from '../../../../../constants/theme';
+import {supabase} from '../../../../../src/config/supabase';
+import {useAuth} from '../../../../../src/context/AuthContext';
+import {useAppTheme} from '../../../../../src/context/ThemeContext';
+import {scheduleJobReminders} from '../../../../../src/services/notifications';
+import {formatDateWithRelativeHint} from '../../../../../src/utils/dates';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -42,8 +42,8 @@ const GLASS_BORDER = UI.glass.border;
 const DURATIONS = ['30 mins', '1 hour', '2 hours', '3 hours', '4 hours', 'Full day', 'Multi-day'];
 
 export default function EditJobScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { userProfile } = useAuth();
+  const {id} = useLocalSearchParams<{id: string}>();
+  const {userProfile} = useAuth();
   const isAdmin = userProfile?.role === 'admin';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -64,8 +64,8 @@ export default function EditJobScreen() {
   // Picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
-  const { theme, isDark } = useAppTheme();
-  const scheduledDateLabel = formatDateWithRelativeHint(scheduledDate, { includeYear: true });
+  const {theme, isDark} = useAppTheme();
+  const scheduledDateLabel = formatDateWithRelativeHint(scheduledDate, {includeYear: true});
 
   useEffect(() => {
     if (!id) return;
@@ -77,7 +77,7 @@ export default function EditJobScreen() {
   }, [userProfile]);
 
   const fetchJob = async () => {
-    const { data } = await supabase.from('jobs').select('*').eq('id', id).single();
+    const {data} = await supabase.from('jobs').select('*').eq('id', id).single();
     if (data) {
       setTitle(data.title);
       setNotes(data.notes || '');
@@ -92,7 +92,7 @@ export default function EditJobScreen() {
 
       // Populate customer form from customer record
       if (data.customer_id) {
-        const { data: customer } = await supabase
+        const {data: customer} = await supabase
           .from('customers')
           .select('*')
           .eq('id', data.customer_id)
@@ -127,9 +127,9 @@ export default function EditJobScreen() {
   };
 
   const checkForWorkers = async () => {
-    const { count } = await supabase
+    const {count} = await supabase
       .from('profiles')
-      .select('id', { count: 'exact', head: true })
+      .select('id', {count: 'exact', head: true})
       .eq('company_id', userProfile?.company_id)
       .eq('role', 'worker');
     setHasWorkers((count || 0) > 0);
@@ -161,7 +161,7 @@ export default function EditJobScreen() {
     }
     setSaving(true);
     try {
-      const { error } = await supabase
+      const {error} = await supabase
         .from('jobs')
         .update({
           title: title.trim(),
@@ -206,15 +206,15 @@ export default function EditJobScreen() {
     <View style={styles.root}>
       <LinearGradient
         colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
         style={StyleSheet.absoluteFill}
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+          contentContainerStyle={{paddingHorizontal: 16, paddingBottom: 40}}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -230,15 +230,15 @@ export default function EditJobScreen() {
 
           {/* ─── Job Title ─── */}
           <Animated.View entering={FadeInDown.delay(60).duration(350)}>
-            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.iconWrap, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
+                <View style={[styles.iconWrap, {backgroundColor: 'rgba(99,102,241,0.1)'}]}>
                   <Ionicons name="briefcase" size={15} color={isDark ? theme.brand.primary : UI.brand.primary} />
                 </View>
-                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Job Title</Text>
+                <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Job Title</Text>
               </View>
               <TextInput
-                style={[styles.input, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                style={[styles.input, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                 value={title}
                 onChangeText={setTitle}
                 placeholder="e.g. Kitchen renovation"
@@ -249,12 +249,12 @@ export default function EditJobScreen() {
 
           {/* ─── Customer ─── */}
           <Animated.View entering={FadeInDown.delay(100).duration(350)}>
-            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.iconWrap, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
+                <View style={[styles.iconWrap, {backgroundColor: 'rgba(16,185,129,0.1)'}]}>
                   <Ionicons name="person" size={15} color={isDark ? theme.brand.primary : UI.brand.primary} />
                 </View>
-                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Customer</Text>
+                <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Customer</Text>
               </View>
               <CustomerSelector
                 value={customerForm}
@@ -269,12 +269,12 @@ export default function EditJobScreen() {
 
           {/* ─── Schedule ─── */}
           <Animated.View entering={FadeInDown.delay(140).duration(350)}>
-            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.iconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+                <View style={[styles.iconWrap, {backgroundColor: 'rgba(59,130,246,0.1)'}]}>
                   <Ionicons name="calendar" size={15} color={UI.status.inProgress} />
                 </View>
-                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Schedule</Text>
+                <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Schedule</Text>
               </View>
 
               {/* Date row */}
@@ -283,12 +283,12 @@ export default function EditJobScreen() {
                   <Ionicons name="chevron-back" size={18} color={UI.brand.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.dateDisplay, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
-                  onPress={() => { setPickerMode('date'); setShowDatePicker(true); }}
+                  style={[styles.dateDisplay, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
+                  onPress={() => {setPickerMode('date'); setShowDatePicker(true);}}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="calendar-outline" size={15} color={isDark ? theme.text.muted : UI.text.muted} />
-                  <Text style={[styles.dateText, isDark && { color: theme.text.title }]}>
+                  <Text style={[styles.dateText, isDark && {color: theme.text.title}]}>
                     {scheduledDateLabel}
                   </Text>
                 </TouchableOpacity>
@@ -298,18 +298,18 @@ export default function EditJobScreen() {
               </View>
 
               {/* Time row */}
-              <View style={[styles.dateRow, { marginTop: 8 }]}>
+              <View style={[styles.dateRow, {marginTop: 8}]}>
                 <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustHour(-1)}>
                   <Ionicons name="chevron-back" size={18} color={UI.brand.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.dateDisplay, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
-                  onPress={() => { setPickerMode('time'); setShowDatePicker(true); }}
+                  style={[styles.dateDisplay, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
+                  onPress={() => {setPickerMode('time'); setShowDatePicker(true);}}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="time-outline" size={15} color={isDark ? theme.text.muted : UI.text.muted} />
-                  <Text style={[styles.dateText, isDark && { color: theme.text.title }]}>
-                    {scheduledDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  <Text style={[styles.dateText, isDark && {color: theme.text.title}]}>
+                    {scheduledDate.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'})}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustHour(1)}>
@@ -323,17 +323,17 @@ export default function EditJobScreen() {
           <Animated.View entering={FadeInDown.delay(180).duration(350)}>
             <View style={styles.twoCol}>
               {/* Price */}
-              <View style={[styles.glassCard, { flex: 1, marginRight: 6 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <View style={[styles.glassCard, {flex: 1, marginRight: 6}, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.iconWrap, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
+                  <View style={[styles.iconWrap, {backgroundColor: 'rgba(16,185,129,0.1)'}]}>
                     <Ionicons name="cash" size={15} color={UI.status.complete} />
                   </View>
-                  <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Price</Text>
+                  <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Price</Text>
                 </View>
                 <View style={styles.priceInputRow}>
-                  <Text style={[styles.currencySymbol, isDark && { color: theme.text.muted }]}>£</Text>
+                  <Text style={[styles.currencySymbol, isDark && {color: theme.text.muted}]}>£</Text>
                   <TextInput
-                    style={[styles.input, styles.priceInput, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                    style={[styles.input, styles.priceInput, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                     value={price}
                     onChangeText={setPrice}
                     keyboardType="decimal-pad"
@@ -344,22 +344,22 @@ export default function EditJobScreen() {
               </View>
 
               {/* Duration */}
-              <View style={[styles.glassCard, { flex: 1, marginLeft: 6 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <View style={[styles.glassCard, {flex: 1, marginLeft: 6}, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.iconWrap, { backgroundColor: 'rgba(139,92,246,0.1)' }]}>
+                  <View style={[styles.iconWrap, {backgroundColor: 'rgba(139,92,246,0.1)'}]}>
                     <Ionicons name="hourglass" size={15} color={UI.status.paid} />
                   </View>
-                  <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Duration</Text>
+                  <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Duration</Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.durationBtn, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
+                  style={[styles.durationBtn, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
                   onPress={() => {
                     const idx = DURATIONS.indexOf(estimatedDuration);
                     setEstimatedDuration(DURATIONS[(idx + 1) % DURATIONS.length]);
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.durationText, isDark && { color: theme.text.title }]}>{estimatedDuration}</Text>
+                  <Text style={[styles.durationText, isDark && {color: theme.text.title}]}>{estimatedDuration}</Text>
                   <Ionicons name="swap-vertical" size={16} color={isDark ? theme.text.muted : UI.text.muted} />
                 </TouchableOpacity>
               </View>
@@ -368,15 +368,15 @@ export default function EditJobScreen() {
 
           {/* ─── Notes ─── */}
           <Animated.View entering={FadeInDown.delay(220).duration(350)}>
-            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.iconWrap, { backgroundColor: 'rgba(245,158,11,0.1)' }]}>
+                <View style={[styles.iconWrap, {backgroundColor: 'rgba(245,158,11,0.1)'}]}>
                   <Ionicons name="create" size={15} color={UI.status.pending} />
                 </View>
-                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Notes</Text>
+                <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Notes</Text>
               </View>
               <TextInput
-                style={[styles.input, styles.textArea, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title }]}
+                style={[styles.input, styles.textArea, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border, color: theme.text.title}]}
                 value={notes}
                 onChangeText={setNotes}
                 multiline
@@ -390,23 +390,23 @@ export default function EditJobScreen() {
 
           {/* ─── Status ─── */}
           <Animated.View entering={FadeInDown.delay(260).duration(350)}>
-            <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.iconWrap, { backgroundColor: 'rgba(139,92,246,0.1)' }]}>
+                <View style={[styles.iconWrap, {backgroundColor: 'rgba(139,92,246,0.1)'}]}>
                   <Ionicons name="flag" size={15} color={UI.status.paid} />
                 </View>
-                <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Status</Text>
+                <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Status</Text>
               </View>
               <View style={styles.statusRow}>
                 {(['pending', 'in_progress', 'completed'] as const).map((s) => {
-                  const labels: Record<string, string> = { pending: 'Pending', in_progress: 'In Progress', completed: 'Completed' };
+                  const labels: Record<string, string> = {pending: 'Pending', in_progress: 'In Progress', completed: 'Completed'};
                   const isSelected = status === s;
                   return (
                     <TouchableOpacity
                       key={s}
                       style={[
                         styles.statusChip,
-                        isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border },
+                        isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border},
                         isSelected && styles.statusChipActive,
                       ]}
                       onPress={() => setStatus(s)}
@@ -415,7 +415,7 @@ export default function EditJobScreen() {
                       <Text
                         style={[
                           styles.statusChipText,
-                          isDark && { color: theme.text.muted },
+                          isDark && {color: theme.text.muted},
                           isSelected && styles.statusChipTextActive,
                         ]}
                       >
@@ -431,12 +431,12 @@ export default function EditJobScreen() {
           {/* ─── Assign Workers ─── */}
           {hasWorkers && isAdmin && (
             <Animated.View entering={FadeInDown.delay(300).duration(350)}>
-              <View style={[styles.glassCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+              <View style={[styles.glassCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.iconWrap, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+                  <View style={[styles.iconWrap, {backgroundColor: 'rgba(59,130,246,0.1)'}]}>
                     <Ionicons name="people" size={15} color={UI.status.inProgress} />
                   </View>
-                  <Text style={[styles.sectionTitle, isDark && { color: theme.text.title }]}>Assigned Workers</Text>
+                  <Text style={[styles.sectionTitle, isDark && {color: theme.text.title}]}>Assigned Workers</Text>
                 </View>
                 <WorkerPicker
                   companyId={userProfile?.company_id || ''}
@@ -452,8 +452,8 @@ export default function EditJobScreen() {
             <TouchableOpacity onPress={handleSave} disabled={saving} activeOpacity={0.85}>
               <LinearGradient
                 colors={UI.gradients.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
                 style={styles.saveBtn}
               >
                 {saving ? (
@@ -473,9 +473,9 @@ export default function EditJobScreen() {
       {/* ─── Date/Time Picker Modal ─── */}
       <Modal transparent visible={showDatePicker} animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.pickerModal, isDark && { backgroundColor: theme.surface.card }]}>
+          <View style={[styles.pickerModal, isDark && {backgroundColor: theme.surface.card}]}>
             <View style={styles.pickerHeader}>
-              <Text style={[styles.pickerTitle, isDark && { color: theme.text.title }]}>
+              <Text style={[styles.pickerTitle, isDark && {color: theme.text.title}]}>
                 {pickerMode === 'date' ? 'Select Date' : 'Select Time'}
               </Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)} activeOpacity={0.7}>
@@ -493,7 +493,7 @@ export default function EditJobScreen() {
               themeVariant={isDark ? 'dark' : 'light'}
             />
             <TouchableOpacity onPress={() => setShowDatePicker(false)} activeOpacity={0.85}>
-              <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.confirmBtn}>
+              <LinearGradient colors={UI.gradients.primary} start={{x: 0, y: 0}} end={{x: 1, y: 0}} style={styles.confirmBtn}>
                 <Text style={styles.confirmBtnText}>Confirm</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -505,12 +505,12 @@ export default function EditJobScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.background },
-  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { flex: 1, paddingTop: 12 },
+  root: {flex: 1, backgroundColor: Colors.background},
+  loadingWrap: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+  scroll: {flex: 1, paddingTop: 12},
 
   // ── Ref badge ──
-  refRow: { alignItems: 'flex-start', marginBottom: 12 },
+  refRow: {alignItems: 'flex-start', marginBottom: 12},
   refBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
   },
-  refText: { fontSize: 12, fontWeight: '700', color: UI.brand.primary, letterSpacing: 0.3 },
+  refText: {fontSize: 12, fontWeight: '700', color: UI.brand.primary, letterSpacing: 0.3},
 
   // ── Glass card ──
   glassCard: {
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: UI.text.title },
+  sectionTitle: {fontSize: 14, fontWeight: '700', color: UI.text.title},
 
   // ── Inputs ──
   input: {
@@ -568,9 +568,9 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginLeft: 4,
   },
-  priceInput: { flex: 1 },
-  textArea: { minHeight: 120, paddingTop: 14 },
-  twoCol: { flexDirection: 'row' },
+  priceInput: {flex: 1},
+  textArea: {minHeight: 120, paddingTop: 14},
+  twoCol: {flexDirection: 'row'},
 
   // ── Schedule ──
   dateRow: {
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     ...Colors.shadow,
   },
-  saveBtnText: { color: UI.text.white, fontWeight: '700', fontSize: 16 },
+  saveBtnText: {color: UI.text.white, fontWeight: '700', fontSize: 16},
 
   // ── Modal ──
   modalOverlay: {
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
-  confirmBtnText: { color: UI.text.white, fontWeight: '700', fontSize: 15 },
+  confirmBtnText: {color: UI.text.white, fontWeight: '700', fontSize: 15},
 
   // ── Status chips ──
   statusRow: {

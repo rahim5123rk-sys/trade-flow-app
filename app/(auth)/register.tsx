@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../components/GlassIconButton';
 import {Colors, UI} from '../../constants/theme';
 import {supabase} from '../../src/config/supabase';
 import {useAuth} from '../../src/context/AuthContext';
@@ -422,7 +423,7 @@ export default function RegisterScreen() {
 
           await supabase
             .from('profiles')
-            .update({ accepted_gas_safe_terms: true })
+            .update({accepted_gas_safe_terms: true})
             .eq('id', userId);
         }
       } else {
@@ -494,9 +495,7 @@ export default function RegisterScreen() {
 
       {/* Header */}
       <View style={[styles.header, isDark && {backgroundColor: theme.surface.base}, {paddingTop: insets.top + 10}]}>
-        <TouchableOpacity onPress={goBack} style={[styles.backBtn, isDark && {backgroundColor: theme.surface.elevated}]}>
-          <Ionicons name="arrow-back" size={24} color={theme.text.title} />
-        </TouchableOpacity>
+        <GlassIconButton onPress={goBack} />
         <View style={styles.headerCenter}>
           <Text style={[styles.stepLabel, {color: theme.text.muted}]}>Step {step} of {TOTAL_STEPS}</Text>
         </View>
@@ -614,10 +613,10 @@ export default function RegisterScreen() {
                     activeOpacity={0.7}
                     onPress={() => setAcceptedGasSafeTerms(!acceptedGasSafeTerms)}
                   >
-                    <View style={[styles.checkbox, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, acceptedGasSafeTerms && styles.checkboxChecked]}>
+                    <View style={[styles.checkbox, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, acceptedGasSafeTerms && styles.checkboxChecked]}>
                       {acceptedGasSafeTerms && <Ionicons name="checkmark" size={14} color="#fff" />}
                     </View>
-                    <Text style={[styles.checkboxLabel, { color: theme.text.body }]}>
+                    <Text style={[styles.checkboxLabel, {color: theme.text.body}]}>
                       I warrant that I hold a current, valid Gas Safe registration, that I am lawfully authorised to use the Gas Safe Register name and logo on certificates in the course of my registered gas work, and I agree to the{' '}
                       <Text
                         style={styles.linkText}

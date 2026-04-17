@@ -22,6 +22,7 @@ import {
 import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import {GlassIconButton} from '../../../../../components/GlassIconButton';
 import JobAcceptModal from '../../../../../components/JobAcceptModal';
 import JobPartsSection from '../../../../../components/JobPartsSection';
 import {SignaturePad} from '../../../../../components/SignaturePad';
@@ -41,16 +42,16 @@ const STATUS_FLOW = ['pending', 'in_progress', 'complete', 'paid'];
 const isValidUUID = (s: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
-function AcceptancePill({ status }: { status?: string }) {
+function AcceptancePill({status}: {status?: string}) {
   const config = {
-    accepted:  { label: 'Accepted',  bg: '#1C3A2A', color: '#2ECC71' },
-    declined:  { label: 'Declined',  bg: '#3A1C1C', color: '#E74C3C' },
-    pending:   { label: 'Awaiting',  bg: '#3A2E1C', color: '#FF9500' },
-  }[status ?? 'pending'] ?? { label: 'Awaiting', bg: '#3A2E1C', color: '#FF9500' };
+    accepted: {label: 'Accepted', bg: '#1C3A2A', color: '#2ECC71'},
+    declined: {label: 'Declined', bg: '#3A1C1C', color: '#E74C3C'},
+    pending: {label: 'Awaiting', bg: '#3A2E1C', color: '#FF9500'},
+  }[status ?? 'pending'] ?? {label: 'Awaiting', bg: '#3A2E1C', color: '#FF9500'};
 
   return (
-    <View style={{ backgroundColor: config.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 }}>
-      <Text style={{ color: config.color, fontSize: 11, fontWeight: '700' }}>{config.label}</Text>
+    <View style={{backgroundColor: config.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8}}>
+      <Text style={{color: config.color, fontSize: 11, fontWeight: '700'}}>{config.label}</Text>
     </View>
   );
 }
@@ -79,8 +80,6 @@ export default function JobDetailScreen() {
   const {theme, isDark} = useAppTheme();
 
   const isAdmin = userProfile?.role === 'admin';
-
-  const backLabel = from === 'worker' ? 'Team' : from === 'calendar' ? 'Calendar' : 'Jobs';
 
   const handleBack = () => {
     if (from === 'worker' && workerId) {
@@ -258,10 +257,7 @@ export default function JobDetailScreen() {
 
       {/* ─── Custom header ─── */}
       <View style={[styles.headerBar, {paddingTop: insets.top + 4}]}>
-        <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={22} color={UI.brand.primary} />
-          <Text style={styles.backText}>{backLabel}</Text>
-        </TouchableOpacity>
+        <GlassIconButton onPress={handleBack} />
         {isAdmin && (
           <TouchableOpacity style={styles.editBtn} onPress={() => router.push(`/(app)/jobs/${job.id}/edit` as any)} activeOpacity={0.7}>
             <Ionicons name="create-outline" size={20} color={UI.brand.primary} />

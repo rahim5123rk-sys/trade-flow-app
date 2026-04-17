@@ -324,7 +324,7 @@ export default function UnifiedJobList() {
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.toggleWrap}>
-        <View style={[styles.toggleContainer, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}> 
+        <View style={[styles.toggleContainer, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
           <TouchableOpacity
             style={[styles.toggleBtn, tab === 'active' && [styles.toggleActive, isDark && {backgroundColor: 'rgba(255,255,255,0.12)'}]]}
             onPress={() => setTab('active')}
@@ -397,7 +397,7 @@ export default function UnifiedJobList() {
             }}
           />
           {selectedWorker ? (
-            <Text style={[styles.workerHint, {color: theme.text.muted}]}>Showing {selectedWorker.display_name}'s jobs</Text>
+            <Text style={[styles.workerHint, {color: theme.text.muted}]}>Showing {selectedWorker.display_name}’s jobs</Text>
           ) : null}
         </Animated.View>
       ) : null}
@@ -432,12 +432,12 @@ export default function UnifiedJobList() {
                 ) : (
                   <>
                     <Ionicons name="chevron-down-outline" size={18} color={UI.brand.primary} />
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: UI.brand.primary }}>Load more jobs</Text>
+                    <Text style={{fontSize: 14, fontWeight: '600', color: UI.brand.primary}}>Load more jobs</Text>
                   </>
                 )}
               </TouchableOpacity>
             ) : jobs.length > 0 ? (
-              <Text style={{ textAlign: 'center', color: theme.text.muted, fontSize: 13, paddingVertical: 16 }}>
+              <Text style={{textAlign: 'center', color: theme.text.muted, fontSize: 13, paddingVertical: 16}}>
                 All jobs loaded
               </Text>
             ) : null

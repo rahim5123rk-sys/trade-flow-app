@@ -446,7 +446,7 @@ export default function UnifiedCalendarScreen() {
     <View style={[styles.container, {paddingTop: insets.top}]}>
       <ProPaywallModal
         visible={showPaywall && !isPro}
-        onDismiss={() => { setShowPaywall(false); router.replace('/(app)/dashboard' as any); }}
+        onDismiss={() => {setShowPaywall(false); router.replace('/(app)/dashboard' as any);}}
         featureTitle="Smart Scheduling"
         featureDescription="Plan your week with an interactive calendar. See all your jobs at a glance and never double-book."
       />

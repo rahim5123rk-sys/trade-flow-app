@@ -1,28 +1,25 @@
-import {Ionicons} from '@expo/vector-icons';
 import {router} from 'expo-router';
 import React from 'react';
 import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../components/GlassIconButton';
 import {Colors, UI} from '../../../constants/theme';
-import {LEGAL_LAST_UPDATED, TERMS_OF_SERVICE_SECTIONS} from '../../../src/legal/legalContent';
 import {useAppTheme} from '../../../src/context/ThemeContext';
+import {LEGAL_LAST_UPDATED, TERMS_OF_SERVICE_SECTIONS} from '../../../src/legal/legalContent';
 
 export default function TermsOfServiceScreen() {
   const insets = useSafeAreaInsets();
-  const {theme, isDark} = useAppTheme();
+  const {theme} = useAppTheme();
 
   return (
     <View style={[styles.container, {paddingTop: insets.top, backgroundColor: theme.surface.base}]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, isDark && {backgroundColor: theme.surface.elevated}]}>
-          <Ionicons name="arrow-back" size={24} color={theme.text.title} />
-        </TouchableOpacity>
+        <GlassIconButton onPress={() => router.back()} />
         <Text style={[styles.headerTitle, {color: theme.text.title}]}>Terms of Service</Text>
         <View style={{width: 40}} />
       </View>
@@ -53,14 +50,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: UI.surface.elevated,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: UI.surface.elevated,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   headerTitle: {
     flex: 1,

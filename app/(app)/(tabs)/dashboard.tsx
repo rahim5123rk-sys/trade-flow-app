@@ -26,8 +26,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import JobAcceptModal from '../../../components/JobAcceptModal';
-import {SwipeableJobCard} from '../../../components/SwipeableJobCard';
 import Onboarding, {OnboardingTip} from '../../../components/Onboarding';
+import {SwipeableJobCard} from '../../../components/SwipeableJobCard';
 import {Colors, UI} from '../../../constants/theme';
 import {useRealtimeJobs} from '../../../hooks/useRealtime';
 import {supabase} from '../../../src/config/supabase';
@@ -412,44 +412,44 @@ const JobTile = ({
       <SwipeableJobCard
         status={job.status as any}
         isAdmin={isAdmin}
-        onAdvanceStatus={onAdvanceStatus || (() => {})}
-        onRevertStatus={onRevertStatus || (() => {})}
-        onDelete={onDelete || (() => {})}
+        onAdvanceStatus={onAdvanceStatus || (() => { })}
+        onRevertStatus={onRevertStatus || (() => { })}
+        onDelete={onDelete || (() => { })}
       >
         <TouchableOpacity
           style={[s.jobTile, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
           activeOpacity={0.7}
           onPress={() => router.push({pathname: '/(app)/jobs/[id]', params: {id: job.id, from: 'jobs'}} as any)}
         >
-        <View style={s.jobBody}>
-          <View style={s.jobTopRow}>
-            <View style={[s.jobTimeCol, !isToday && s.jobTimeColWide]}>
-              {datePart && (
-                <Text style={[s.jobDate, {color: theme.text.title}]}>{datePart}</Text>
-              )}
-              <Text style={[s.jobTime, {color: theme.text.muted}]}>{timePart}</Text>
-            </View>
-            <View style={s.jobDivider} />
+          <View style={s.jobBody}>
+            <View style={s.jobTopRow}>
+              <View style={[s.jobTimeCol, !isToday && s.jobTimeColWide]}>
+                {datePart && (
+                  <Text style={[s.jobDate, {color: theme.text.title}]}>{datePart}</Text>
+                )}
+                <Text style={[s.jobTime, {color: theme.text.muted}]}>{timePart}</Text>
+              </View>
+              <View style={s.jobDivider} />
 
-            <View style={s.jobCopy}>
-              <Text style={[s.jobTileTitle, {color: theme.text.title}]} numberOfLines={1}>
-                {cardTitle}
-              </Text>
-              <Text style={[s.jobMetaText, {color: theme.text.muted}]} numberOfLines={1}>
-                {cardSubtitle}
-              </Text>
-            </View>
+              <View style={s.jobCopy}>
+                <Text style={[s.jobTileTitle, {color: theme.text.title}]} numberOfLines={1}>
+                  {cardTitle}
+                </Text>
+                <Text style={[s.jobMetaText, {color: theme.text.muted}]} numberOfLines={1}>
+                  {cardSubtitle}
+                </Text>
+              </View>
 
-            <View style={[s.statusPill, {backgroundColor: `${st.color}14`}]}>
-              <Text style={[s.statusLabel, {color: st.color}]}>{st.label}</Text>
+              <View style={[s.statusPill, {backgroundColor: `${st.color}14`}]}>
+                <Text style={[s.statusLabel, {color: st.color}]}>{st.label}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={s.jobChevron}>
-          <Ionicons name="chevron-forward" size={18} color={theme.surface.border} />
-        </View>
-      </TouchableOpacity>
+          <View style={s.jobChevron}>
+            <Ionicons name="chevron-forward" size={18} color={theme.surface.border} />
+          </View>
+        </TouchableOpacity>
       </SwipeableJobCard>
     </Animated.View>
   );
@@ -1057,8 +1057,8 @@ export default function DashboardScreen() {
                   isToday={job.scheduled_date >= dayStart && job.scheduled_date < dayEnd}
                   delay={360 + i * 60}
                   isAdmin={isAdmin}
-                  onAdvanceStatus={() => { if (nextStatus) handleUpdateJobStatus(job.id, nextStatus); }}
-                  onRevertStatus={() => { if (prevStatus) handleUpdateJobStatus(job.id, prevStatus); }}
+                  onAdvanceStatus={() => {if (nextStatus) handleUpdateJobStatus(job.id, nextStatus);}}
+                  onRevertStatus={() => {if (prevStatus) handleUpdateJobStatus(job.id, prevStatus);}}
                   onDelete={() => handleDeleteJob(job.id)}
                 />
               );

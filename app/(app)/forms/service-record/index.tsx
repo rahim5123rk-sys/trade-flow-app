@@ -21,11 +21,12 @@ import {
 import Animated, {FadeIn, FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {CustomerSelector} from '../../../../components/CustomerSelector';
-import {SiteAddressSelector, SiteAddressData} from '../../../../components/forms/SiteAddressSelector';
-import {Colors, UI} from '../../../../constants/theme';
-import {SERVICE_RECORD_DUPLICATE_SEED_KEY, SERVICE_RECORD_EDIT_SEED_KEY} from '../../../../src/services/documentActions';
+import {SiteAddressData, SiteAddressSelector} from '../../../../components/forms/SiteAddressSelector';
+import {GlassIconButton} from '../../../../components/GlassIconButton';
+import {UI} from '../../../../constants/theme';
 import {useServiceRecord} from '../../../../src/context/ServiceRecordContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
+import {SERVICE_RECORD_DUPLICATE_SEED_KEY, SERVICE_RECORD_EDIT_SEED_KEY} from '../../../../src/services/documentActions';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -186,13 +187,7 @@ export default function ServiceRecordDetailsScreen() {
         >
           {/* Header */}
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={[s.backBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={22} color={theme.text.title} />
-            </TouchableOpacity>
+            <GlassIconButton onPress={() => router.back()} />
             <View style={{flex: 1}}>
               <Text style={[s.title, {color: theme.text.title}]}>Service Record</Text>
               <Text style={[s.subtitle, {color: theme.text.muted}]}>Gas Appliance Service & Maintenance</Text>

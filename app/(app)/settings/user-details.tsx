@@ -1,25 +1,26 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router, useFocusEffect} from 'expo-router';
+import React, {useCallback, useState} from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Linking,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, UI } from '../../../constants/theme';
-import { supabase } from '../../../src/config/supabase';
-import { useAuth } from '../../../src/context/AuthContext';
-import { useAppTheme } from '../../../src/context/ThemeContext';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../components/GlassIconButton';
+import {Colors, UI} from '../../../constants/theme';
+import {supabase} from '../../../src/config/supabase';
+import {useAuth} from '../../../src/context/AuthContext';
+import {useAppTheme} from '../../../src/context/ThemeContext';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;
@@ -43,14 +44,14 @@ const InputField = ({
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
   maxLength?: number;
 }) => {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   return (
     <View style={styles.inputContainer}>
-      <Text style={[styles.inputLabel, { color: theme.text.body }]}>{label}</Text>
-      <View style={[styles.inputWrapper, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
-        {icon ? <Ionicons name={icon} size={20} color={theme.text.muted} style={{ marginRight: 10 }} /> : null}
+      <Text style={[styles.inputLabel, {color: theme.text.body}]}>{label}</Text>
+      <View style={[styles.inputWrapper, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
+        {icon ? <Ionicons name={icon} size={20} color={theme.text.muted} style={{marginRight: 10}} /> : null}
         <TextInput
-          style={[styles.input, { color: theme.text.title }]}
+          style={[styles.input, {color: theme.text.title}]}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}
@@ -65,8 +66,8 @@ const InputField = ({
 };
 
 export default function UserDetailsScreen() {
-  const { user, userProfile, refreshProfile } = useAuth();
-  const { theme, isDark } = useAppTheme();
+  const {user, userProfile, refreshProfile} = useAuth();
+  const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -104,7 +105,7 @@ export default function UserDetailsScreen() {
     if (!nextAccepted || !gasSafeEntered || !gasSafeValid || !licenceValid) return;
     if (!userIdForSettings) return;
 
-    const { data: currentData, error: currentSettingsError } = await supabase
+    const {data: currentData, error: currentSettingsError} = await supabase
       .from('companies')
       .select('settings')
       .eq('id', userProfile.company_id)
@@ -112,7 +113,7 @@ export default function UserDetailsScreen() {
     if (currentSettingsError) throw currentSettingsError;
 
     const currentSettings = currentData?.settings || {};
-    const { error: companyUpdateError } = await supabase
+    const {error: companyUpdateError} = await supabase
       .from('companies')
       .update({
         settings: {
@@ -131,9 +132,9 @@ export default function UserDetailsScreen() {
       .eq('id', userProfile.company_id);
     if (companyUpdateError) throw companyUpdateError;
 
-    const { error: profileUpdateError } = await supabase
+    const {error: profileUpdateError} = await supabase
       .from('profiles')
-      .update({ accepted_gas_safe_terms: true, gas_safe_terms_accepted_at: new Date().toISOString() })
+      .update({accepted_gas_safe_terms: true, gas_safe_terms_accepted_at: new Date().toISOString()})
       .eq('id', userIdForSettings);
     if (profileUpdateError) throw profileUpdateError;
   };
@@ -154,7 +155,7 @@ export default function UserDetailsScreen() {
         if (userProfile.company_id) {
           // Step 1: load gas safe numbers from companies.settings
           try {
-            const { data, error: settingsError } = await supabase
+            const {data, error: settingsError} = await supabase
               .from('companies')
               .select('settings')
               .eq('id', userProfile.company_id)
@@ -188,7 +189,7 @@ export default function UserDetailsScreen() {
           // Step 2: cross-check accepted_gas_safe_terms from profiles table
           // This column may not exist in all deployments — never throw here
           try {
-            const { data: profileData } = await supabase
+            const {data: profileData} = await supabase
               .from('profiles')
               .select('accepted_gas_safe_terms')
               .eq('id', uid)
@@ -212,7 +213,7 @@ export default function UserDetailsScreen() {
         }
       });
 
-      return () => { cancelled = true; };
+      return () => {cancelled = true;};
     }, [userProfile, user?.email, user?.id])
   );
 
@@ -238,7 +239,7 @@ export default function UserDetailsScreen() {
     setIsSaving(true);
     try {
       if (email && user?.email && email.trim().toLowerCase() !== user.email.toLowerCase()) {
-        const { error: authError } = await supabase.auth.updateUser({ email: email.trim() });
+        const {error: authError} = await supabase.auth.updateUser({email: email.trim()});
         if (authError) {
           Alert.alert('Cannot Update Email', authError.message);
           setIsSaving(false);
@@ -247,20 +248,20 @@ export default function UserDetailsScreen() {
         Alert.alert('Check your Inbox', `We sent a confirmation link to ${email}.`);
       }
 
-      const { error: profileUpdateError } = await supabase
+      const {error: profileUpdateError} = await supabase
         .from('profiles')
         .update({
           display_name: fullName.trim(),
           email: email.trim(),
           ...(gasSafeEntered && acceptedGasSafeTerms
-            ? { accepted_gas_safe_terms: true, gas_safe_terms_accepted_at: new Date().toISOString() }
+            ? {accepted_gas_safe_terms: true, gas_safe_terms_accepted_at: new Date().toISOString()}
             : {}),
         })
         .eq('id', uid);
       if (profileUpdateError) throw profileUpdateError;
 
       if (userProfile.company_id) {
-        const { data: currentData, error: currentSettingsError } = await supabase
+        const {data: currentData, error: currentSettingsError} = await supabase
           .from('companies')
           .select('settings')
           .eq('id', userProfile.company_id)
@@ -268,7 +269,7 @@ export default function UserDetailsScreen() {
         if (currentSettingsError) throw currentSettingsError;
 
         const currentSettings = currentData?.settings || {};
-        const { error: companyUpdateError } = await supabase
+        const {error: companyUpdateError} = await supabase
           .from('companies')
           .update({
             settings: {
@@ -300,29 +301,27 @@ export default function UserDetailsScreen() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <LinearGradient colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+      <LinearGradient colors={isDark ? theme.gradients.appBackground : UI.gradients.appBackground} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 40 }}
+        contentContainerStyle={{paddingTop: insets.top + 16, paddingBottom: 40}}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity style={[styles.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={theme.text.title} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.screenTitle, { color: theme.text.title }]}>User Details</Text>
-            <Text style={[styles.screenSubtitle, { color: theme.text.muted }]}>Personal and gas engineer details</Text>
+          <GlassIconButton onPress={() => router.back()} />
+          <View style={{flex: 1}}>
+            <Text style={[styles.screenTitle, {color: theme.text.title}]}>User Details</Text>
+            <Text style={[styles.screenSubtitle, {color: theme.text.muted}]}>Personal and gas engineer details</Text>
           </View>
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={theme.brand.primary} style={{ marginTop: 24 }} />
+          <ActivityIndicator color={theme.brand.primary} style={{marginTop: 24}} />
         ) : (
-          <View style={[styles.card, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+          <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
             <InputField
               label="Full Name"
               value={fullName}
@@ -331,7 +330,7 @@ export default function UserDetailsScreen() {
               placeholder="e.g. Sarah Jenkins"
               autoCapitalize="words"
             />
-            <View style={{ height: 16 }} />
+            <View style={{height: 16}} />
             <InputField
               label="Email"
               value={email}
@@ -340,7 +339,7 @@ export default function UserDetailsScreen() {
               placeholder="you@company.com"
               keyboardType="email-address"
             />
-            <View style={{ height: 16 }} />
+            <View style={{height: 16}} />
             <InputField
               label="Gas Safe Register Number"
               value={gasSafeRegisterNumber}
@@ -368,10 +367,10 @@ export default function UserDetailsScreen() {
                   }
                 }}
               >
-                <View style={[styles.checkbox, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }, acceptedGasSafeTerms && styles.checkboxChecked]}>
+                <View style={[styles.checkbox, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}, acceptedGasSafeTerms && styles.checkboxChecked]}>
                   {acceptedGasSafeTerms && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
-                <Text style={[styles.checkboxLabel, { color: theme.text.body }]}>
+                <Text style={[styles.checkboxLabel, {color: theme.text.body}]}>
                   I warrant that I hold a current, valid Gas Safe registration, that I am lawfully authorised to use the Gas Safe Register name and logo on certificates in the course of my registered gas work, and I agree to the{' '}
                   <Text
                     style={styles.linkText}
@@ -383,7 +382,7 @@ export default function UserDetailsScreen() {
                 </Text>
               </TouchableOpacity>
             )}
-            <View style={{ height: 16 }} />
+            <View style={{height: 16}} />
             <InputField
               label="Gas Engineer ID Card Number"
               value={gasLicenceNumber}
@@ -396,7 +395,7 @@ export default function UserDetailsScreen() {
             {licenceEntered && !licenceValid && (
               <Text style={styles.errorHint}>Must be exactly 7 digits</Text>
             )}
-            <View style={{ height: 16 }} />
+            <View style={{height: 16}} />
             <InputField
               label="OFTEC Number"
               value={oftecNumber}
@@ -405,12 +404,12 @@ export default function UserDetailsScreen() {
               placeholder="Enter OFTEC number if registered"
               autoCapitalize="characters"
             />
-            <Text style={[styles.hint, { color: theme.text.muted }]}>Enter your OFTEC number only if you are OFTEC registered.</Text>
+            <Text style={[styles.hint, {color: theme.text.muted}]}>Enter your OFTEC number only if you are OFTEC registered.</Text>
           </View>
         )}
 
-        <TouchableOpacity style={[styles.saveBtn, !canSave && { opacity: 0.5 }]} onPress={handleSave} disabled={!canSave}>
-          <LinearGradient colors={UI.gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveBtnGradient}>
+        <TouchableOpacity style={[styles.saveBtn, !canSave && {opacity: 0.5}]} onPress={handleSave} disabled={!canSave}>
+          <LinearGradient colors={UI.gradients.primary} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={styles.saveBtnGradient}>
             {isSaving ? <ActivityIndicator color={UI.text.white} /> : <Text style={styles.saveBtnText}>Save User Details</Text>}
           </LinearGradient>
         </TouchableOpacity>
@@ -420,8 +419,8 @@ export default function UserDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  container: {flex: 1, paddingHorizontal: 16},
+  headerRow: {flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18},
   backBtn: {
     width: 36,
     height: 36,
@@ -432,8 +431,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: GLASS_BORDER,
   },
-  screenTitle: { fontSize: 26, fontWeight: '800', color: UI.text.title },
-  screenSubtitle: { fontSize: 13, color: UI.text.muted, marginTop: 2 },
+  screenTitle: {fontSize: 26, fontWeight: '800', color: UI.text.title},
+  screenSubtitle: {fontSize: 13, color: UI.text.muted, marginTop: 2},
   card: {
     backgroundColor: GLASS_BG,
     borderWidth: 1,
@@ -443,8 +442,8 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     ...Colors.shadow,
   },
-  inputContainer: { gap: 6 },
-  inputLabel: { fontSize: 12, fontWeight: '700', color: UI.text.body, marginLeft: 4 },
+  inputContainer: {gap: 6},
+  inputLabel: {fontSize: 12, fontWeight: '700', color: UI.text.body, marginLeft: 4},
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -454,10 +453,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
   },
-  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: UI.text.title, fontWeight: '500' },
-  hint: { fontSize: 12, color: UI.text.muted, marginTop: 10, marginLeft: 4 },
-  errorHint: { fontSize: 12, color: '#DC2626', marginTop: 4, marginLeft: 4, fontWeight: '600' },
-  checkboxRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 12, paddingRight: 4 },
+  input: {flex: 1, paddingVertical: 12, fontSize: 15, color: UI.text.title, fontWeight: '500'},
+  hint: {fontSize: 12, color: UI.text.muted, marginTop: 10, marginLeft: 4},
+  errorHint: {fontSize: 12, color: '#DC2626', marginTop: 4, marginLeft: 4, fontWeight: '600'},
+  checkboxRow: {flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 12, paddingRight: 4},
   checkbox: {
     width: 22,
     height: 22,
@@ -469,10 +468,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginTop: 1,
   },
-  checkboxChecked: { backgroundColor: UI.brand.primary, borderColor: UI.brand.primary },
-  checkboxLabel: { flex: 1, fontSize: 12, lineHeight: 17, color: UI.text.body },
-  linkText: { color: UI.brand.primary, textDecorationLine: 'underline' },
-  saveBtn: { borderRadius: 14, overflow: 'hidden', ...Colors.shadow },
-  saveBtnGradient: { paddingVertical: 16, alignItems: 'center' },
-  saveBtnText: { color: UI.text.white, fontSize: 16, fontWeight: '700' },
+  checkboxChecked: {backgroundColor: UI.brand.primary, borderColor: UI.brand.primary},
+  checkboxLabel: {flex: 1, fontSize: 12, lineHeight: 17, color: UI.text.body},
+  linkText: {color: UI.brand.primary, textDecorationLine: 'underline'},
+  saveBtn: {borderRadius: 14, overflow: 'hidden', ...Colors.shadow},
+  saveBtnGradient: {paddingVertical: 16, alignItems: 'center'},
+  saveBtnText: {color: UI.text.white, fontSize: 16, fontWeight: '700'},
 });

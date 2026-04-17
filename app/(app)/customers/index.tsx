@@ -111,12 +111,12 @@ export default function CustomersListScreen() {
                 ) : (
                   <>
                     <Ionicons name="chevron-down-outline" size={18} color={UI.brand.primary} />
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: UI.brand.primary }}>Load more customers</Text>
+                    <Text style={{fontSize: 14, fontWeight: '600', color: UI.brand.primary}}>Load more customers</Text>
                   </>
                 )}
               </TouchableOpacity>
             ) : filteredCustomers.length > 0 ? (
-              <Text style={{ textAlign: 'center', color: theme.text.muted, fontSize: 13, paddingVertical: 16 }}>
+              <Text style={{textAlign: 'center', color: theme.text.muted, fontSize: 13, paddingVertical: 16}}>
                 All customers loaded
               </Text>
             ) : null

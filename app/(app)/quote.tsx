@@ -4,51 +4,52 @@
 // Uses shared CustomerSelector + auto-prefills from job
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router, useLocalSearchParams} from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {FadeIn, FadeInDown, FadeInUp} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {
-    buildCustomerInsert,
-    buildCustomerSnapshot,
-    CustomerFormData,
-    CustomerSelector,
-    EMPTY_CUSTOMER_FORM,
-    getJobAddress,
-    prefillFromJob,
+  buildCustomerInsert,
+  buildCustomerSnapshot,
+  CustomerFormData,
+  CustomerSelector,
+  EMPTY_CUSTOMER_FORM,
+  getJobAddress,
+  prefillFromJob,
 } from '../../components/CustomerSelector';
-import { upsertSiteAddress } from '../../components/forms';
+import {upsertSiteAddress} from '../../components/forms';
+import {GlassIconButton} from '../../components/GlassIconButton';
 import ProPaywallModal from '../../components/ProPaywallModal';
 import RichTextLineInput from '../../components/RichTextLineInput';
-import { UI } from '../../constants/theme';
-import { supabase } from '../../src/config/supabase';
-import { useAuth } from '../../src/context/AuthContext';
-import { useSubscription } from '../../src/context/SubscriptionContext';
-import { useAppTheme } from '../../src/context/ThemeContext';
+import {UI} from '../../constants/theme';
+import {supabase} from '../../src/config/supabase';
+import {useAuth} from '../../src/context/AuthContext';
+import {useSubscription} from '../../src/context/SubscriptionContext';
+import {useAppTheme} from '../../src/context/ThemeContext';
 import {
-    DocumentData,
-    generateDocument,
-    generateDocumentBase64,
-    generateDocumentUrl,
-    LineItem,
+  DocumentData,
+  generateDocument,
+  generateDocumentBase64,
+  generateDocumentUrl,
+  LineItem,
 } from '../../src/services/DocumentGenerator';
-import { sanitizeRecipients, sendCp12CertificateEmail, createQuoteResponseToken } from '../../src/services/email';
-import { getNextQuoteReference } from '../../src/services/formDocumentService';
+import {createQuoteResponseToken, sanitizeRecipients, sendCp12CertificateEmail} from '../../src/services/email';
+import {getNextQuoteReference} from '../../src/services/formDocumentService';
 
 // ─── Design tokens ──────────────────────────────────────────────────
 const GLASS_BG =
@@ -59,11 +60,11 @@ const fmtCurrency = (n: number) =>
   `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 export default function CreateQuoteScreen() {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   const st = makeStyles(theme, isDark);
-  const { id, editId } = useLocalSearchParams<{ id?: string; editId?: string }>();
-  const { userProfile } = useAuth();
-  const { isPro } = useSubscription();
+  const {id, editId} = useLocalSearchParams<{id?: string; editId?: string}>();
+  const {userProfile} = useAuth();
+  const {isPro} = useSubscription();
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
@@ -81,7 +82,7 @@ export default function CreateQuoteScreen() {
   const [quoteRef, setQuoteRef] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [items, setItems] = useState<LineItem[]>([
-    { description: '', quantity: 1, unitPrice: 0, vatPercent: 0 },
+    {description: '', quantity: 1, unitPrice: 0, vatPercent: 0},
   ]);
   const [discountPercent, setDiscountPercent] = useState('0');
   const [notes, setNotes] = useState('');
@@ -106,7 +107,7 @@ export default function CreateQuoteScreen() {
 
     // ─── Edit mode: load existing document ─────────────────────
     if (editId) {
-      const { data: existingDoc } = await supabase
+      const {data: existingDoc} = await supabase
         .from('documents')
         .select('*')
         .eq('id', editId)
@@ -124,7 +125,7 @@ export default function CreateQuoteScreen() {
           if (ref) setQuoteRef(ref);
         }
         setExpiryDate(existingDoc.expiry_date || '');
-        setItems(existingDoc.items?.length ? existingDoc.items : [{ description: '', quantity: 1, unitPrice: 0, vatPercent: 0 }]);
+        setItems(existingDoc.items?.length ? existingDoc.items : [{description: '', quantity: 1, unitPrice: 0, vatPercent: 0}]);
         setDiscountPercent(String(existingDoc.discount_percent || 0));
         setNotes(existingDoc.notes || '');
         setJobId(existingDoc.job_id || null);
@@ -161,7 +162,7 @@ export default function CreateQuoteScreen() {
     }
 
     // ─── New quote mode ────────────────────────────────────────
-    const { data: companyData } = await supabase
+    const {data: companyData} = await supabase
       .from('companies')
       .select('settings')
       .eq('id', userProfile.company_id)
@@ -191,7 +192,7 @@ export default function CreateQuoteScreen() {
     );
 
     if (id && id !== 'new' && id !== '[id]') {
-      const { data: jobData } = await supabase
+      const {data: jobData} = await supabase
         .from('jobs')
         .select('*')
         .eq('id', id)
@@ -224,7 +225,7 @@ export default function CreateQuoteScreen() {
   const addLineItem = () =>
     setItems([
       ...items,
-      { description: '', quantity: 1, unitPrice: 0, vatPercent: 0 },
+      {description: '', quantity: 1, unitPrice: 0, vatPercent: 0},
     ]);
   const removeLineItem = (index: number) =>
     setItems(items.filter((_, i) => i !== index));
@@ -273,7 +274,7 @@ export default function CreateQuoteScreen() {
     });
     const snapshot = buildCustomerSnapshot(customerForm);
     const jobAddr = getJobAddress(customerForm);
-    return { snapshot, jobAddr, today };
+    return {snapshot, jobAddr, today};
   };
 
   // ─── Save (shared for draft & generate) ──────────────────────
@@ -285,7 +286,7 @@ export default function CreateQuoteScreen() {
     if (isSavingDraft) setSaving(true); else setGenerating(true);
 
     try {
-      const { snapshot, jobAddr } = buildDocData();
+      const {snapshot, jobAddr} = buildDocData();
 
       let finalCustomerId = customerForm.customerId;
       if (!finalCustomerId) {
@@ -293,7 +294,7 @@ export default function CreateQuoteScreen() {
           customerForm,
           userProfile.company_id,
         );
-        const { data: newCust, error: custErr } = await supabase
+        const {data: newCust, error: custErr} = await supabase
           .from('customers')
           .insert(insertData)
           .select('id')
@@ -339,13 +340,13 @@ export default function CreateQuoteScreen() {
       let resultDocId: string | null = editingDocId;
 
       if (editingDocId) {
-        const { error } = await supabase
+        const {error} = await supabase
           .from('documents')
           .update(docPayload)
           .eq('id', editingDocId);
         if (error) throw error;
       } else {
-        const { data: insertedDoc, error } = await supabase.from('documents').insert({
+        const {data: insertedDoc, error} = await supabase.from('documents').insert({
           ...docPayload,
           date: new Date().toISOString(),
         }).select('id').single();
@@ -371,7 +372,7 @@ export default function CreateQuoteScreen() {
       const msg = editingDocId ? 'Quote updated.' : (isSavingDraft ? 'Quote saved as draft.' : 'Quote saved.');
       if (editingDocId) {
         Alert.alert('Saved', msg, [
-          { text: 'OK', onPress: () => router.back() },
+          {text: 'OK', onPress: () => router.back()},
         ]);
       } else {
         Alert.alert('Saved', msg);
@@ -396,7 +397,7 @@ export default function CreateQuoteScreen() {
 
     try {
       if (!userProfile?.company_id) return;
-      const { jobAddr, today } = buildDocData();
+      const {jobAddr, today} = buildDocData();
       const docData: DocumentData = {
         type: 'quote',
         number: parseInt(quoteNumber.replace(/\D/g, '')) || 1,
@@ -451,7 +452,7 @@ export default function CreateQuoteScreen() {
       if (!docId) throw new Error('Failed to save quote.');
 
       // Build PDF data
-      const { jobAddr, today } = buildDocData();
+      const {jobAddr, today} = buildDocData();
       const docData: DocumentData = {
         type: 'quote',
         number: parseInt(quoteNumber.replace(/\D/g, '')) || 1,
@@ -504,7 +505,7 @@ export default function CreateQuoteScreen() {
       });
 
       Alert.alert('Sent', `Quote emailed to ${recipients.join(', ')}.`, [
-        { text: 'OK', onPress: () => router.back() },
+        {text: 'OK', onPress: () => router.back()},
       ]);
     } catch (e: any) {
       if (e.message && !e.message.includes('save')) {
@@ -520,7 +521,7 @@ export default function CreateQuoteScreen() {
     if (!userProfile?.company_id) return;
     setViewingPdf(true);
     try {
-      const { jobAddr, today } = buildDocData();
+      const {jobAddr, today} = buildDocData();
       const docData: DocumentData = {
         type: 'quote',
         number: parseInt(quoteNumber.replace(/\D/g, '')) || 1,
@@ -559,7 +560,7 @@ export default function CreateQuoteScreen() {
     if (!userProfile?.company_id) return;
     setViewingPdf(true);
     try {
-      const { jobAddr, today } = buildDocData();
+      const {jobAddr, today} = buildDocData();
       const docData: DocumentData = {
         type: 'quote',
         number: parseInt(quoteNumber.replace(/\D/g, '')) || 1,
@@ -606,7 +607,7 @@ export default function CreateQuoteScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={{flex: 1}}
     >
       <ProPaywallModal
         visible={!isPro}
@@ -616,7 +617,7 @@ export default function CreateQuoteScreen() {
       />
       <LinearGradient
         colors={theme.gradients.appBackground}
-        style={{ flex: 1 }}
+        style={{flex: 1}}
       >
         <ScrollView
           style={st.container}
@@ -631,19 +632,14 @@ export default function CreateQuoteScreen() {
             entering={FadeInDown.duration(350).springify()}
             style={st.headerRow}
           >
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={st.backBtn}
-            >
-              <Ionicons name="arrow-back" size={22} color={theme.text.body} />
-            </TouchableOpacity>
+            <GlassIconButton onPress={() => router.back()} />
             <View style={st.headerCenter}>
               <Text style={st.screenTitle}>{editingDocId ? 'Edit Quote' : 'New Quote'}</Text>
               <Text style={st.screenSubtitle}>
                 {editingDocId ? 'Update quote details' : 'Build and send a detailed estimate'}
               </Text>
             </View>
-            <View style={{ width: 42 }} />
+            <View style={{width: 42}} />
           </Animated.View>
 
           {/* ─── Quote Meta ─── */}
@@ -659,7 +655,7 @@ export default function CreateQuoteScreen() {
             </View>
 
             <View style={st.row}>
-              <View style={{ flex: 1, marginRight: 8 }}>
+              <View style={{flex: 1, marginRight: 8}}>
                 <Text style={st.label}>Quote #</Text>
                 <TextInput
                   style={st.input}
@@ -667,7 +663,7 @@ export default function CreateQuoteScreen() {
                   editable={false}
                 />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={{flex: 1}}>
                 <Text style={st.label}>Valid Until</Text>
                 <TextInput
                   style={st.input}
@@ -729,7 +725,7 @@ export default function CreateQuoteScreen() {
             style={st.sectionHeader}
           >
             <View style={st.sectionLeft}>
-              <View style={[st.cardIconWrap, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
+              <View style={[st.cardIconWrap, {backgroundColor: 'rgba(99,102,241,0.1)'}]}>
                 <Ionicons name="list" size={16} color={UI.brand.primary} />
               </View>
               <Text style={st.sectionTitle}>Line Items</Text>
@@ -771,13 +767,13 @@ export default function CreateQuoteScreen() {
                 placeholder="Description"
                 isFocused={focusedDescIdx === index}
                 onFocus={() => setFocusedDescIdx(index)}
-                onBlur={() => { if (focusedDescIdx === index) setFocusedDescIdx(null); }}
+                onBlur={() => {if (focusedDescIdx === index) setFocusedDescIdx(null);}}
                 isDark={isDark}
                 theme={theme}
               />
 
               <View style={st.row}>
-                <View style={{ flex: 1, marginRight: 6 }}>
+                <View style={{flex: 1, marginRight: 6}}>
                   <Text style={st.label}>Qty</Text>
                   <TextInput
                     style={st.input}
@@ -786,7 +782,7 @@ export default function CreateQuoteScreen() {
                     keyboardType="numeric"
                   />
                 </View>
-                <View style={{ flex: 1, marginRight: 6 }}>
+                <View style={{flex: 1, marginRight: 6}}>
                   <Text style={st.label}>Unit Price</Text>
                   <TextInput
                     style={st.input}
@@ -797,7 +793,7 @@ export default function CreateQuoteScreen() {
                     keyboardType="numeric"
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{flex: 1}}>
                   <Text style={st.label}>VAT %</Text>
                   <TextInput
                     style={st.input}
@@ -821,7 +817,7 @@ export default function CreateQuoteScreen() {
               <View
                 style={[
                   st.cardIconWrap,
-                  { backgroundColor: 'rgba(239,68,68,0.1)' },
+                  {backgroundColor: 'rgba(239,68,68,0.1)'},
                 ]}
               >
                 <Ionicons name="pricetag" size={16} color={UI.brand.danger} />
@@ -845,8 +841,8 @@ export default function CreateQuoteScreen() {
           >
             <LinearGradient
               colors={UI.gradients.primary}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
+              start={{x: 0, y: 0}}
+              end={{x: 0, y: 1}}
               style={st.totalsAccent}
             />
             <View style={st.totalsBody}>
@@ -859,7 +855,7 @@ export default function CreateQuoteScreen() {
                   <Text style={st.totalLabel}>
                     Discount ({discountPercent}%)
                   </Text>
-                  <Text style={[st.totalValue, { color: UI.brand.danger }]}>
+                  <Text style={[st.totalValue, {color: UI.brand.danger}]}>
                     -{fmtCurrency(discount)}
                   </Text>
                 </View>
@@ -881,7 +877,7 @@ export default function CreateQuoteScreen() {
               <View
                 style={[
                   st.cardIconWrap,
-                  { backgroundColor: 'rgba(59,130,246,0.1)' },
+                  {backgroundColor: 'rgba(59,130,246,0.1)'},
                 ]}
               >
                 <Ionicons name="document-text" size={16} color={UI.status.inProgress} />
@@ -889,7 +885,7 @@ export default function CreateQuoteScreen() {
               <Text style={st.cardTitle}>Scope & Notes</Text>
             </View>
             <TextInput
-              style={[st.input, { minHeight: 80 }]}
+              style={[st.input, {minHeight: 80}]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Scope of works, exclusions..."
@@ -927,8 +923,8 @@ export default function CreateQuoteScreen() {
             >
               <LinearGradient
                 colors={[UI.brand.primary, '#6366f1']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
                 style={st.generateBtn}
               >
                 {emailing ? (
@@ -956,8 +952,8 @@ export default function CreateQuoteScreen() {
             >
               <LinearGradient
                 colors={UI.gradients.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
                 style={st.generateBtn}
               >
                 {generating ? (
@@ -983,14 +979,14 @@ export default function CreateQuoteScreen() {
                   activeOpacity={0.7}
                   onPress={handleViewPdf}
                   disabled={viewingPdf}
-                  style={[st.draftBtn, { borderColor: UI.brand.primary, borderWidth: 1.5 }]}
+                  style={[st.draftBtn, {borderColor: UI.brand.primary, borderWidth: 1.5}]}
                 >
                   {viewingPdf ? (
                     <ActivityIndicator color={UI.brand.primary} />
                   ) : (
                     <>
                       <Ionicons name="document-text-outline" size={18} color={UI.brand.primary} />
-                      <Text style={[st.draftBtnText, { color: UI.brand.primary }]}>View Quote PDF</Text>
+                      <Text style={[st.draftBtnText, {color: UI.brand.primary}]}>View Quote PDF</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -999,10 +995,10 @@ export default function CreateQuoteScreen() {
                   activeOpacity={0.7}
                   onPress={handleSharePdf}
                   disabled={viewingPdf}
-                  style={[st.draftBtn, { borderColor: '#059669', borderWidth: 1.5 }]}
+                  style={[st.draftBtn, {borderColor: '#059669', borderWidth: 1.5}]}
                 >
                   <Ionicons name="share-outline" size={18} color="#059669" />
-                  <Text style={[st.draftBtnText, { color: '#059669' }]}>Share</Text>
+                  <Text style={[st.draftBtnText, {color: '#059669'}]}>Share</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -1011,13 +1007,13 @@ export default function CreateQuoteScreen() {
           {/* ─── Terms (at the bottom) ─── */}
           <Animated.View
             entering={FadeInDown.delay(400).duration(350).springify()}
-            style={[st.card, { marginTop: 8 }]}
+            style={[st.card, {marginTop: 8}]}
           >
             <View style={st.cardHeader}>
               <View
                 style={[
                   st.cardIconWrap,
-                  { backgroundColor: 'rgba(16,185,129,0.1)' },
+                  {backgroundColor: 'rgba(16,185,129,0.1)'},
                 ]}
               >
                 <Ionicons name="shield-checkmark" size={16} color={UI.status.complete} />
@@ -1025,7 +1021,7 @@ export default function CreateQuoteScreen() {
               <Text style={st.cardTitle}>Terms & Conditions</Text>
             </View>
             <TextInput
-              style={[st.input, { minHeight: 60 }]}
+              style={[st.input, {minHeight: 60}]}
               value={terms}
               onChangeText={setTerms}
               placeholder="e.g. Valid for 30 days"
@@ -1042,8 +1038,8 @@ export default function CreateQuoteScreen() {
 // ─── Styles ─────────────────────────────────────────────────────────
 
 const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.surface.base },
+  container: {flex: 1, paddingHorizontal: 16},
+  center: {flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.surface.base},
 
   // Header
   headerRow: {
@@ -1061,9 +1057,9 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerCenter: { flex: 1, marginLeft: 12 },
-  screenTitle: { fontSize: 22, fontWeight: '800', color: theme.text.title },
-  screenSubtitle: { fontSize: 13, color: theme.text.muted, marginTop: 2 },
+  headerCenter: {flex: 1, marginLeft: 12},
+  screenTitle: {fontSize: 22, fontWeight: '800', color: theme.text.title},
+  screenSubtitle: {fontSize: 13, color: theme.text.muted, marginTop: 2},
 
   // Glass card
   card: {
@@ -1074,7 +1070,7 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 18,
     marginBottom: 12,
     shadowColor: theme.text.muted,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
@@ -1093,7 +1089,7 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text.body },
+  cardTitle: {fontSize: 15, fontWeight: '700', color: theme.text.body},
 
   // Labels & inputs
   label: {
@@ -1115,7 +1111,7 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     color: theme.text.title,
     marginBottom: 8,
   },
-  row: { flexDirection: 'row' },
+  row: {flexDirection: 'row'},
 
   // Ref badge
   refRow: {
@@ -1128,8 +1124,8 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 10,
     marginTop: 4,
   },
-  refLabel: { fontSize: 12, fontWeight: '600', color: theme.text.muted },
-  refValue: { fontSize: 14, fontWeight: '700', color: UI.brand.primary },
+  refLabel: {fontSize: 12, fontWeight: '600', color: theme.text.muted},
+  refValue: {fontSize: 14, fontWeight: '700', color: UI.brand.primary},
 
   // Prefill
   prefillBanner: {
@@ -1151,7 +1147,7 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  prefillText: { fontSize: 13, fontWeight: '600', color: UI.brand.success },
+  prefillText: {fontSize: 13, fontWeight: '600', color: UI.brand.success},
   editPrefillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1160,7 +1156,7 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 12,
   },
-  editPrefillText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
+  editPrefillText: {fontSize: 13, fontWeight: '600', color: UI.brand.primary},
 
   // Section header
   sectionHeader: {
@@ -1170,8 +1166,8 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     marginBottom: 10,
     marginTop: 8,
   },
-  sectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.text.body },
+  sectionLeft: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  sectionTitle: {fontSize: 15, fontWeight: '700', color: theme.text.body},
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1181,7 +1177,7 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 10,
   },
-  addBtnText: { fontSize: 13, fontWeight: '700', color: UI.brand.primary },
+  addBtnText: {fontSize: 13, fontWeight: '700', color: UI.brand.primary},
 
   // Line item card
   lineCard: {
@@ -1192,7 +1188,7 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 16,
     marginBottom: 8,
     shadowColor: theme.text.muted,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
@@ -1208,7 +1204,7 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
-  lineBadgeText: { fontSize: 11, fontWeight: '800', color: UI.brand.primary },
+  lineBadgeText: {fontSize: 11, fontWeight: '800', color: UI.brand.primary},
   lineTotal: {
     flex: 1,
     textAlign: 'right',
@@ -1236,32 +1232,32 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     shadowColor: theme.text.muted,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
   },
-  totalsAccent: { width: 5 },
-  totalsBody: { flex: 1, padding: 16 },
+  totalsAccent: {width: 5},
+  totalsBody: {flex: 1, padding: 16},
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
   },
-  totalLabel: { fontSize: 15, fontWeight: '600', color: theme.text.muted },
-  totalValue: { fontSize: 16, fontWeight: '700', color: theme.text.body },
+  totalLabel: {fontSize: 15, fontWeight: '600', color: theme.text.muted},
+  totalValue: {fontSize: 16, fontWeight: '700', color: theme.text.body},
   totalDivider: {
     height: 2,
     backgroundColor: theme.surface.divider,
     borderRadius: 1,
     marginVertical: 8,
   },
-  grandTotalLabel: { fontSize: 18, fontWeight: '800', color: theme.text.title },
-  grandTotalValue: { fontSize: 22, fontWeight: '800', color: UI.brand.primary },
+  grandTotalLabel: {fontSize: 18, fontWeight: '800', color: theme.text.title},
+  grandTotalValue: {fontSize: 22, fontWeight: '800', color: UI.brand.primary},
 
   // Actions
-  actions: { marginTop: 8, gap: 10 },
+  actions: {marginTop: 8, gap: 10},
   draftBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1273,8 +1269,8 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     padding: 16,
     borderRadius: 14,
   },
-  draftBtnText: { color: theme.text.muted, fontWeight: '700', fontSize: 16 },
-  generateWrap: { borderRadius: 14, overflow: 'hidden' },
+  draftBtnText: {color: theme.text.muted, fontWeight: '700', fontSize: 16},
+  generateWrap: {borderRadius: 14, overflow: 'hidden'},
   generateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1282,5 +1278,5 @@ const makeStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     gap: 8,
     padding: 16,
   },
-  generateBtnText: { color: UI.text.white, fontWeight: '700', fontSize: 16 },
+  generateBtnText: {color: UI.text.white, fontWeight: '700', fontSize: 16},
 });

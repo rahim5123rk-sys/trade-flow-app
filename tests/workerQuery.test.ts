@@ -1,5 +1,5 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 
 import { WORKER_SELECT_COLUMNS } from '../src/utils/workerQuery';
 

@@ -4,9 +4,9 @@
 // ============================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {router} from 'expo-router';
-import {Alert} from 'react-native';
-import type {Document} from '../types';
+import { router } from 'expo-router';
+import { Alert } from 'react-native';
+import type { Document } from '../types';
 
 // ─── Seed Keys ──────────────────────────────────────────────
 export const CP12_DUPLICATE_SEED_KEY = 'cp12_duplicate_seed_v1';

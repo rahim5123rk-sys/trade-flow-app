@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import Animated, {FadeInDown} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {GlassIconButton} from '../../../components/GlassIconButton';
 import {Colors, UI} from '../../../constants/theme';
 import {supabase} from '../../../src/config/supabase';
 import {useAuth} from '../../../src/context/AuthContext';
@@ -214,10 +215,7 @@ export default function WorkerDetailScreen() {
       <LinearGradient colors={theme.gradients.appBackground} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={StyleSheet.absoluteFill} />
 
       <View style={[styles.headerBar, {paddingTop: insets.top + 4}]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.78}>
-          <Ionicons name="chevron-back" size={22} color={theme.brand.primary} />
-          <Text style={[styles.backText, {color: theme.brand.primary}]}>Team</Text>
-        </TouchableOpacity>
+        <GlassIconButton onPress={() => router.back()} />
       </View>
 
       <ScrollView contentContainerStyle={{paddingHorizontal: 16, paddingBottom: insets.bottom + 32}} showsVerticalScrollIndicator={false}>
