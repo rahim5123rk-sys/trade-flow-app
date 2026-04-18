@@ -28,6 +28,7 @@ import {UI} from '../../../../constants/theme';
 import {useServiceRecord} from '../../../../src/context/ServiceRecordContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
 import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
+import {ALL_FUEL_TYPES} from '../../../../src/types/gasForms';
 import {
   ApplianceCategory,
   BoilerType,
@@ -40,7 +41,6 @@ import {
   ServiceFinalInfo,
   YesNoNA
 } from '../../../../src/types/serviceRecord';
-import {ALL_FUEL_TYPES} from '../../../../src/types/gasForms';
 
 const GLASS_BG = UI.glass.bg;
 const GLASS_BORDER = UI.glass.border;

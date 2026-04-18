@@ -3,10 +3,42 @@
   "slug": "vaillant",
   "description": "ecoTEC plus, ecoTEC pro, ecoFIT and legacy Turbomax ranges. F.xx fault codes with plain-English explanations.",
   "models": [
-    { "id": "ecotec-plus", "name": "ecoTEC plus", "seriesAliases": ["ecoTEC plus 824", "ecoTEC plus 831", "ecoTEC plus 832", "ecoTEC plus 937"] },
-    { "id": "ecotec-pro", "name": "ecoTEC pro", "seriesAliases": ["ecoTEC pro 24", "ecoTEC pro 28", "ecoTEC pro 30"] },
-    { "id": "ecofit-pure", "name": "ecoFIT pure", "seriesAliases": ["ecoFIT pure 825", "ecoFIT pure 830", "ecoFIT pure 835"] },
-    { "id": "turbomax", "name": "Turbomax Plus / Pro (legacy)", "seriesAliases": ["Turbomax 824E", "Turbomax 828E"] }
+    {
+      "id": "ecotec-plus",
+      "name": "ecoTEC plus",
+      "seriesAliases": [
+        "ecoTEC plus 824",
+        "ecoTEC plus 831",
+        "ecoTEC plus 832",
+        "ecoTEC plus 937"
+      ]
+    },
+    {
+      "id": "ecotec-pro",
+      "name": "ecoTEC pro",
+      "seriesAliases": [
+        "ecoTEC pro 24",
+        "ecoTEC pro 28",
+        "ecoTEC pro 30"
+      ]
+    },
+    {
+      "id": "ecofit-pure",
+      "name": "ecoFIT pure",
+      "seriesAliases": [
+        "ecoFIT pure 825",
+        "ecoFIT pure 830",
+        "ecoFIT pure 835"
+      ]
+    },
+    {
+      "id": "turbomax",
+      "name": "Turbomax Plus / Pro (legacy)",
+      "seriesAliases": [
+        "Turbomax 824E",
+        "Turbomax 828E"
+      ]
+    }
   ],
   "faultCodes": [
     {
@@ -14,7 +46,7 @@
       "title": "Flow temperature sensor open circuit",
       "severity": "warning",
       "appliesTo": "all",
-      "summary": "The PCB sees an open circuit where the flow NTC should be.",
+      "summary": "Flow NTC is unplugged or gone open circuit.",
       "likelyCauses": [
         "Flow NTC unplugged",
         "Broken wire in the loom",
@@ -32,7 +64,7 @@
       "title": "Return temperature sensor open circuit",
       "severity": "warning",
       "appliesTo": "all",
-      "summary": "Return NTC open or disconnected.",
+      "summary": "Return NTC unplugged or gone open.",
       "likelyCauses": [
         "Sensor unplugged or damaged",
         "Broken wiring"
@@ -45,10 +77,13 @@
     },
     {
       "code": "F.05",
-      "title": "Outdoor temperature sensor fault (open circuit)",
+      "title": "Outside sensor open circuit",
       "severity": "warning",
-      "appliesTo": ["ecotec-plus", "ecotec-pro"],
-      "summary": "The outdoor temperature sensor has an open circuit. Weather compensation will not function but the boiler can still operate.",
+      "appliesTo": [
+        "ecotec-plus",
+        "ecotec-pro"
+      ],
+      "summary": "Outdoor sensor's open circuit. Weather comp won't work but boiler still runs.",
       "likelyCauses": [
         "Outdoor sensor cable damaged or disconnected",
         "Faulty outdoor sensor",
@@ -56,7 +91,7 @@
       ],
       "quickChecks": [
         "Check outdoor sensor cable and connections at the boiler",
-        "Measure sensor resistance — compare to Vaillant spec chart",
+        "Meter the sensor resistance",
         "If no outdoor sensor is fitted, this code can be ignored"
       ],
       "partSearchHint": "outdoor sensor"
@@ -66,7 +101,7 @@
       "title": "Flow temperature sensor short to ground",
       "severity": "warning",
       "appliesTo": "all",
-      "summary": "Flow NTC wiring or sensor has shorted.",
+      "summary": "Flow NTC wiring's shorted.",
       "likelyCauses": [
         "Crushed or pinched loom",
         "Water ingress into the connector",
@@ -84,7 +119,7 @@
       "title": "Return temperature sensor short to ground",
       "severity": "warning",
       "appliesTo": "all",
-      "summary": "Return NTC wiring or sensor has shorted.",
+      "summary": "Return NTC wiring's shorted.",
       "likelyCauses": [
         "Damaged wiring",
         "Failed sensor"
@@ -97,17 +132,20 @@
     },
     {
       "code": "F.12",
-      "title": "DHW outlet sensor short circuit",
+      "title": "DHW sensor short circuit",
       "severity": "warning",
-      "appliesTo": ["ecotec-plus", "ecotec-pro"],
-      "summary": "The domestic hot water outlet temperature sensor has a short circuit. Hot water temperature control may be affected.",
+      "appliesTo": [
+        "ecotec-plus",
+        "ecotec-pro"
+      ],
+      "summary": "Hot water outlet sensor's shorted. DHW temp control might be off.",
       "likelyCauses": [
         "Faulty DHW NTC sensor",
         "Water ingress into sensor connector",
         "Damaged wiring between sensor and PCB"
       ],
       "quickChecks": [
-        "Measure DHW outlet sensor resistance — should be ~10kΩ at 25°C",
+        "Meter the DHW sensor — should be ~10kΩ at room temp",
         "Check connector for moisture or corrosion",
         "Disconnect sensor and check if code clears — confirms sensor fault"
       ],
@@ -117,8 +155,11 @@
       "code": "F.13",
       "title": "Cylinder sensor short circuit",
       "severity": "warning",
-      "appliesTo": ["ecotec-plus", "ecotec-pro"],
-      "summary": "The external hot water cylinder NTC is shorted (system boilers only).",
+      "appliesTo": [
+        "ecotec-plus",
+        "ecotec-pro"
+      ],
+      "summary": "Cylinder sensor's shorted (system boilers only).",
       "likelyCauses": [
         "Cylinder sensor failed",
         "Damaged cable run"
@@ -131,10 +172,12 @@
     },
     {
       "code": "F.14",
-      "title": "Return NTC sensor open circuit (cylinder sensor on system boilers)",
+      "title": "Cylinder sensor open circuit",
       "severity": "warning",
-      "appliesTo": ["ecotec-plus"],
-      "summary": "The cylinder NTC sensor has an open circuit. On system boilers with a cylinder connected, the boiler cannot read cylinder temperature.",
+      "appliesTo": [
+        "ecotec-plus"
+      ],
+      "summary": "Cylinder sensor's gone open circuit. System boiler can't read cylinder temp.",
       "likelyCauses": [
         "Cylinder sensor disconnected or cable damaged",
         "Faulty cylinder NTC sensor",
@@ -142,17 +185,20 @@
       ],
       "quickChecks": [
         "Check wiring between cylinder sensor pocket and boiler",
-        "Measure sensor resistance — should be ~10kΩ at 25°C",
+        "Meter the sensor — ~10kΩ at room temp",
         "If no cylinder fitted (combi), check diagnostic setting D.017"
       ],
       "partSearchHint": "cylinder sensor"
     },
     {
       "code": "F.15",
-      "title": "Outdoor temperature sensor short circuit",
+      "title": "Outside sensor short circuit",
       "severity": "warning",
-      "appliesTo": ["ecotec-plus", "ecotec-pro"],
-      "summary": "The outdoor temperature sensor has a short circuit. Weather compensation will revert to a fixed flow temperature.",
+      "appliesTo": [
+        "ecotec-plus",
+        "ecotec-pro"
+      ],
+      "summary": "Outside sensor's shorted. Weather comp falls back to fixed flow temp.",
       "likelyCauses": [
         "Short circuit in sensor cable (water ingress)",
         "Faulty outdoor NTC sensor",
@@ -161,7 +207,7 @@
       "quickChecks": [
         "Inspect outdoor sensor cable for damage or water ingress",
         "Disconnect sensor at the boiler and see if code clears",
-        "Measure resistance — a short will read near 0Ω"
+        "Meter it — a short reads near 0Ω"
       ],
       "partSearchHint": "outdoor sensor"
     },
@@ -170,7 +216,7 @@
       "title": "Safety shut-off, overheat",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Overheat thermostat or flow sensor has exceeded the safe limit.",
+      "summary": "Overheat stat or flow sensor tripped — temp's gone too high.",
       "likelyCauses": [
         "Pump seized or air-locked",
         "Limescale or sludge in the heat exchanger",
@@ -182,15 +228,17 @@
         "Vent the system and auto air vent",
         "Measure overheat stat continuity cold"
       ],
-      "linkedFlowcharts": ["no-heating"],
+      "linkedFlowcharts": [
+        "no-heating"
+      ],
       "partSearchHint": "overheat thermostat"
     },
     {
       "code": "F.22",
-      "title": "Low water pressure / dry fire protection",
+      "title": "Low pressure / dry fire",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Pressure sensor reads below the operating threshold or the PCB has detected a dry run condition.",
+      "summary": "Pressure too low or sensor says the system's dry.",
       "likelyCauses": [
         "Filling loop not fully closed or dripping",
         "System pressure too low",
@@ -203,15 +251,17 @@
         "Check for visible leaks",
         "If no hot water but heating works, check the diverter valve — commonly sticks on Turbomax models"
       ],
-      "linkedFlowcharts": ["low-pressure"],
+      "linkedFlowcharts": [
+        "low-pressure"
+      ],
       "partSearchHint": "pressure sensor"
     },
     {
       "code": "F.23",
-      "title": "Flow and return temperature differential too large",
+      "title": "Flow/return temp gap too big",
       "severity": "warning",
       "appliesTo": "all",
-      "summary": "Big gap between flow and return suggests poor circulation.",
+      "summary": "Big gap between flow and return — not enough water moving.",
       "likelyCauses": [
         "Pump slow or air-bound",
         "Partially closed valve",
@@ -222,14 +272,16 @@
         "Confirm isolation valves fully open",
         "Feel flow and return pipes for temperature split"
       ],
-      "linkedFlowcharts": ["no-heating"]
+      "linkedFlowcharts": [
+        "no-heating"
+      ]
     },
     {
       "code": "F.24",
-      "title": "Temperature rise too fast",
+      "title": "Temp rising too fast",
       "severity": "warning",
       "appliesTo": "all",
-      "summary": "Rate of change on flow temp is too high — starved circulation at the sensor.",
+      "summary": "Flow temp's climbing too fast — water's not circulating.",
       "likelyCauses": [
         "Pump failing to start",
         "Airlock",
@@ -244,10 +296,10 @@
     },
     {
       "code": "F.25",
-      "title": "Flue gas temperature too high",
+      "title": "Flue temp too high",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Flue stat or flue NTC reading above safe limit.",
+      "summary": "Flue temp's gone too high.",
       "likelyCauses": [
         "Partial flue blockage",
         "Flue NTC drift",
@@ -262,10 +314,10 @@
     },
     {
       "code": "F.27",
-      "title": "Flame detected when gas valve closed",
+      "title": "False flame signal",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Parasitic flame signal — electrode tracking or gas valve passing.",
+      "summary": "Boiler sees a flame when the gas is off. Damp lead, cracked electrode, or gas valve leaking.",
       "likelyCauses": [
         "Damp or cracked ignition lead",
         "Electrode insulator cracked",
@@ -283,7 +335,7 @@
       "title": "Ignition failure on start-up",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Boiler tried to light but the flame was never established.",
+      "summary": "Boiler tried to light but nothing happened.",
       "likelyCauses": [
         "Gas supply low/off",
         "Ignition lead or electrode faulty",
@@ -297,7 +349,9 @@
         "Drain the condensate trap",
         "On Turbomax models, if F.28 only occurs on DHW demand, check the diverter valve position and operation"
       ],
-      "linkedFlowcharts": ["no-ignition"],
+      "linkedFlowcharts": [
+        "no-ignition"
+      ],
       "partSearchHint": "ignition electrode"
     },
     {
@@ -305,7 +359,7 @@
       "title": "Flame lost during operation",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Flame lit but was extinguished mid-cycle.",
+      "summary": "Flame lit OK but dropped out mid-run.",
       "likelyCauses": [
         "Weak gas supply under load",
         "Flue or recirculation issue",
@@ -317,14 +371,16 @@
         "Inspect flue for draughts or wind cut-out",
         "Clean flame-sense electrode"
       ],
-      "linkedFlowcharts": ["no-ignition"]
+      "linkedFlowcharts": [
+        "no-ignition"
+      ]
     },
     {
       "code": "F.32",
       "title": "Fan fault",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Fan not matching commanded speed.",
+      "summary": "Fan's not at the right speed.",
       "likelyCauses": [
         "Worn bearings",
         "Blockage in fan cage",
@@ -336,22 +392,26 @@
         "Inspect the impeller for debris",
         "Check 230V supply and tacho signal"
       ],
-      "linkedFlowcharts": ["fan-fault"],
+      "linkedFlowcharts": [
+        "fan-fault"
+      ],
       "partSearchHint": "fan assembly"
     },
     {
       "code": "F.33",
-      "title": "Air pressure switch fault (older models)",
+      "title": "Air pressure switch fault",
       "severity": "lockout",
-      "appliesTo": ["turbomax"],
-      "summary": "Air pressure switch has not confirmed flow on older pre-ecoTEC models.",
+      "appliesTo": [
+        "turbomax"
+      ],
+      "summary": "Air pressure switch hasn't proved airflow (older pre-ecoTEC models).",
       "likelyCauses": [
         "Blocked or kinked APS hose",
         "APS diaphragm faulty",
         "Flue partially obstructed"
       ],
       "quickChecks": [
-        "Inspect the APS hose for moisture",
+        "Check the APS hose — any water in it?",
         "Swap the APS if proven faulty",
         "Check flue for blockage"
       ],
@@ -359,54 +419,65 @@
     },
     {
       "code": "F.35",
-      "title": "Insufficient fresh air supply fault",
+      "title": "Not enough combustion air",
       "severity": "lockout",
-      "appliesTo": ["ecotec-plus", "ecotec-pro", "ecofit-pure"],
-      "summary": "The boiler has detected insufficient combustion air. This is a safety shutdown to prevent incomplete combustion.",
+      "appliesTo": [
+        "ecotec-plus",
+        "ecotec-pro",
+        "ecofit-pure"
+      ],
+      "summary": "Not enough air getting to the burner. Safety shutdown.",
       "likelyCauses": [
-        "Flue terminal blocked (birds' nest, debris, leaves)",
-        "Flue run too long or too many bends",
-        "Air intake vent blocked (room-sealed boiler needs clear intake)"
+        "Flue blocked — birds' nest, leaves, or debris",
+        "Flue run's too long or got too many bends",
+        "Air intake blocked"
       ],
       "quickChecks": [
-        "Check the flue terminal outside — is it clear and unobstructed?",
-        "Inspect the full flue run for damage, separation, or blockage",
-        "Ensure no building work has blocked the flue exit path"
+        "Check the flue terminal outside — anything blocking it?",
+        "Check the full flue run for damage, gaps, or blockage",
+        "Any building work done near the flue recently?"
       ],
       "partSearchHint": "flue"
     },
     {
       "code": "F.36",
-      "title": "Flue blocked / exhaust fault",
+      "title": "Flue blocked",
       "severity": "lockout",
-      "appliesTo": ["ecotec-plus", "ecotec-pro", "ecofit-pure"],
-      "summary": "The flue gas discharge is being recirculated or blocked, causing the boiler to lock out. Common after building work near the flue terminal.",
+      "appliesTo": [
+        "ecotec-plus",
+        "ecotec-pro",
+        "ecofit-pure"
+      ],
+      "summary": "Flue's blocked or exhaust is blowing back. Common after building work.",
       "likelyCauses": [
-        "Flue terminal blocked or too close to a wall/recess",
-        "Flue has become separated inside the wall",
+        "Flue terminal blocked or too close to a wall",
+        "Flue's come apart inside the wall",
         "Wind guard missing on exposed sites"
       ],
       "quickChecks": [
-        "Inspect the flue terminal — is it clear of any obstructions?",
-        "Check the flue hasn't separated at any joints",
-        "If exposed location, check if a wind guard is required"
+        "Check the flue terminal outside",
+        "Check the flue joints haven't separated",
+        "Exposed site? Might need a wind guard"
       ]
     },
     {
       "code": "F.42",
-      "title": "Coding resistor / product code fault",
+      "title": "Coding resistor fault",
       "severity": "lockout",
-      "appliesTo": ["ecotec-plus", "ecotec-pro"],
-      "summary": "The boiler's internal coding resistor is reading incorrectly. The boiler cannot determine its configuration.",
+      "appliesTo": [
+        "ecotec-plus",
+        "ecotec-pro"
+      ],
+      "summary": "Coding resistor reading wrong — boiler doesn't know what model it is.",
       "likelyCauses": [
-        "Coding resistor connector loose or corroded",
-        "Incorrect coding resistor fitted after PCB replacement",
-        "PCB fault reading resistor incorrectly"
+        "Coding resistor plug loose or corroded",
+        "Wrong resistor put in after PCB swap",
+        "PCB not reading it properly"
       ],
       "quickChecks": [
-        "Check the coding resistor connector on the PCB",
-        "Verify the correct resistor value for the boiler model",
-        "If PCB was recently replaced, ensure the correct coding resistor was transferred"
+        "Check the coding resistor plug on the PCB",
+        "Make sure it's the right value for the model",
+        "New PCB? Make sure the old coding resistor was moved across"
       ]
     },
     {
@@ -414,7 +485,7 @@
       "title": "eBUS voltage fault",
       "severity": "warning",
       "appliesTo": "all",
-      "summary": "Low or short-circuited voltage on the eBUS controller cable.",
+      "summary": "eBUS cable's shorted or voltage is low.",
       "likelyCauses": [
         "Short across the eBUS terminals",
         "Damaged cable to the room controller",
@@ -429,19 +500,23 @@
     },
     {
       "code": "F.53",
-      "title": "Flame supervision fault",
+      "title": "Flame sensor fault",
       "severity": "lockout",
-      "appliesTo": ["ecotec-plus", "ecotec-pro", "ecofit-pure"],
-      "summary": "The flame monitoring electrode is not detecting a satisfactory flame signal. The boiler locks out intermittently.",
+      "appliesTo": [
+        "ecotec-plus",
+        "ecotec-pro",
+        "ecofit-pure"
+      ],
+      "summary": "Flame sensor can't see a good flame. Locks out on and off.",
       "likelyCauses": [
-        "Flame sense electrode dirty or glazed",
-        "Gas pressure too low — weak flame can't reach electrode",
-        "Electrode gap incorrect after servicing"
+        "Flame sensor dirty or glazed",
+        "Gas pressure too low — weak flame",
+        "Electrode gap wrong after servicing"
       ],
       "quickChecks": [
-        "Clean the flame sense electrode with fine emery cloth",
-        "Check gas pressure at burner — minimum 17.5 mbar dynamic for natural gas",
-        "Verify electrode position — gap should be per manufacturer spec"
+        "Clean the flame sensor with emery cloth",
+        "Check gas pressure — min 17.5 mbar dynamic",
+        "Check electrode gap matches the spec"
       ],
       "partSearchHint": "flame sense electrode"
     },
@@ -450,7 +525,7 @@
       "title": "Gas pressure fault",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Low gas pressure detected by the pressure switch.",
+      "summary": "Gas pressure too low.",
       "likelyCauses": [
         "Supply pipe undersized",
         "Meter regulator issue",
@@ -467,7 +542,7 @@
       "title": "Gas valve control fault",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "PCB cannot control the gas valve correctly.",
+      "summary": "PCB can't control the gas valve.",
       "likelyCauses": [
         "Gas valve coil open or shorted",
         "PCB driver fault",
@@ -481,10 +556,10 @@
     },
     {
       "code": "F.62",
-      "title": "Gas valve shut-off delay",
+      "title": "Gas valve slow to close",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Gas valve did not close quickly enough at end of cycle.",
+      "summary": "Gas valve didn't close quick enough.",
       "likelyCauses": [
         "Sticking gas valve",
         "Slow flame loss (poor flame-sense)"
@@ -497,10 +572,10 @@
     },
     {
       "code": "F.63",
-      "title": "EEPROM fault",
+      "title": "PCB memory fault",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "PCB memory error.",
+      "summary": "PCB memory's gone. Usually needs a new board.",
       "likelyCauses": [
         "PCB hardware failure"
       ],
@@ -512,13 +587,13 @@
     },
     {
       "code": "F.64",
-      "title": "A/D converter fault",
+      "title": "PCB sensor fault",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Internal sensor-reading hardware fault on the PCB.",
+      "summary": "PCB sensor circuit's failed.",
       "likelyCauses": [
         "PCB failure",
-        "Short-circuited sensor pulling the rail"
+        "Sensor shorting and pulling down the rail"
       ],
       "quickChecks": [
         "Unplug flow and return NTCs to isolate — if fault clears, suspect the sensor",
@@ -531,7 +606,7 @@
       "title": "PCB temperature too high",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "PCB temperature sensor above limit.",
+      "summary": "PCB's overheating.",
       "likelyCauses": [
         "Boiler in overheated casing or cupboard",
         "PCB fault",
@@ -545,10 +620,10 @@
     },
     {
       "code": "F.67",
-      "title": "Flame signal implausible",
+      "title": "Flame signal wrong",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Flame signal does not match expected range.",
+      "summary": "Flame signal doesn't look right.",
       "likelyCauses": [
         "Dirty flame-sense electrode",
         "Earth fault",
@@ -565,7 +640,7 @@
       "title": "Flame signal unstable",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Flame signal fluctuates more than allowed during operation.",
+      "summary": "Flame signal keeps jumping about.",
       "likelyCauses": [
         "Gas supply fluctuation",
         "Electrode worn",
@@ -580,24 +655,24 @@
     },
     {
       "code": "F.70",
-      "title": "Invalid product code (DSN)",
+      "title": "No product code set",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Display/PCB combination does not have a valid product code programmed.",
+      "summary": "No product code set — happens after fitting a new PCB or display.",
       "likelyCauses": [
         "New PCB or display fitted without programming",
         "EEPROM corrupted"
       ],
       "quickChecks": [
-        "Programme the DSN using the diagnostic menu as per the service manual"
+        "Set the DSN through the diagnostic menu — check the service manual"
       ]
     },
     {
       "code": "F.71",
-      "title": "Flow temperature sensor signal fault",
+      "title": "Flow sensor stuck",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Flow NTC reading implausible — stuck at a fixed value.",
+      "summary": "Flow NTC stuck on one reading.",
       "likelyCauses": [
         "Flow NTC failed shorted or drifted",
         "Sensor not in thermal contact with pipe"
@@ -610,10 +685,10 @@
     },
     {
       "code": "F.72",
-      "title": "Flow/return sensor plausibility",
+      "title": "Flow/return sensors don't match",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Flow and return sensors are not giving a coherent pair of readings.",
+      "summary": "Flow and return sensors don't match up.",
       "likelyCauses": [
         "One sensor faulty",
         "Sensors swapped on the pipes"
@@ -626,10 +701,10 @@
     },
     {
       "code": "F.73",
-      "title": "Water pressure sensor open circuit or short",
+      "title": "Pressure sensor fault",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Pressure transducer signal out of range.",
+      "summary": "Pressure sensor's open or shorted.",
       "likelyCauses": [
         "Pressure sensor faulty",
         "Damaged loom"
@@ -643,10 +718,10 @@
     },
     {
       "code": "F.74",
-      "title": "Pressure sensor implausible",
+      "title": "Pressure sensor stuck",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Pressure sensor reading does not vary as expected.",
+      "summary": "Pressure sensor's stuck on one reading.",
       "likelyCauses": [
         "Failed sensor",
         "Blocked port on the pressure sensor"
@@ -662,7 +737,7 @@
       "title": "Pump or pressure sensor fault (no pressure change on pump start)",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Pump starts but sensor never sees the expected pressure rise. This is one of the most common Vaillant fault codes — often caused by a stuck pump or a blocked pressure sensor especially on the ecoTEC plus.",
+      "summary": "Pump starts but pressure doesn't change. One of the most common Vaillant faults — usually a stuck pump or blocked pressure sensor on the ecoTEC plus.",
       "likelyCauses": [
         "Pump failure",
         "Air in the system",
@@ -674,15 +749,17 @@
         "Inspect pressure sensor port for debris",
         "Tap the pump gently — if it frees and boiler fires, the pump was stuck. Clean or replace."
       ],
-      "linkedFlowcharts": ["low-pressure"],
+      "linkedFlowcharts": [
+        "low-pressure"
+      ],
       "partSearchHint": "pump"
     },
     {
       "code": "F.76",
-      "title": "Primary heat exchanger fuse tripped",
+      "title": "Heat exchanger fuse blown",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Overheat cut-out on the heat exchanger has opened.",
+      "summary": "Overheat fuse on the heat exchanger has blown.",
       "likelyCauses": [
         "Severe overheat event",
         "Fuse/wiring failure"
@@ -694,10 +771,12 @@
     },
     {
       "code": "F.77",
-      "title": "Flue non-return valve fault",
+      "title": "Flue non-return valve stuck",
       "severity": "lockout",
-      "appliesTo": ["ecotec-plus"],
-      "summary": "On shared flue systems (twin-pipe), the non-return valve feedback is incorrect.",
+      "appliesTo": [
+        "ecotec-plus"
+      ],
+      "summary": "Flue non-return flap stuck — shared flue systems only.",
       "likelyCauses": [
         "Flap stuck open or closed",
         "Feedback switch faulty"
@@ -710,10 +789,10 @@
     },
     {
       "code": "F.83",
-      "title": "Flow/return temperature change too small",
+      "title": "No temp rise",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Boiler has fired but temperature is not rising as expected.",
+      "summary": "Boiler's firing but temp isn't going up.",
       "likelyCauses": [
         "Sensors not in contact with the pipes",
         "No water in the system",
@@ -727,10 +806,10 @@
     },
     {
       "code": "F.84",
-      "title": "Flow/return temperature plausibility",
+      "title": "Sensors on wrong pipes",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Flow and return are showing an illogical relationship (e.g. return hotter than flow).",
+      "summary": "Return's hotter than flow — sensors are probably on the wrong pipes.",
       "likelyCauses": [
         "Sensors swapped on pipes",
         "Reverse circulation"
@@ -743,10 +822,10 @@
     },
     {
       "code": "F.85",
-      "title": "Flow/return sensors wrongly fitted",
+      "title": "Sensors on same pipe",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Related to F.84 — both sensors may be on the same pipe.",
+      "summary": "Both sensors on the same pipe.",
       "likelyCauses": [
         "Sensors both clipped to flow or both to return"
       ],

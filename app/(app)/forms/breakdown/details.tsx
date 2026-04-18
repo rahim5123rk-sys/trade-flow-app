@@ -8,10 +8,10 @@ import {AutocompleteInput} from '../../../../components/forms/AutocompleteInput'
 import {FormHeader} from '../../../../components/forms/FormHeader';
 import {FormStepIndicator} from '../../../../components/forms/FormStepIndicator';
 import {ChoiceChips, DropdownField, FormSection, TextAreaField} from '../../../../components/forms/GasFormFields';
-import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {Button} from '../../../../components/ui/Button';
 import {useBreakdownReport} from '../../../../src/context/BreakdownReportContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
+import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {ApplianceCategory, BoilerType, BreakdownReportAppliance, EMPTY_BREAKDOWN_REPORT_APPLIANCE, FlueType, FuelType, PassFailNA, SafeUnsafe, YesNoNA} from '../../../../src/types/breakdownReport';
 import {ALL_FUEL_TYPES} from '../../../../src/types/gasForms';
 

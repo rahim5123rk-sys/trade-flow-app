@@ -17,7 +17,6 @@ import {FlowchartCard} from '../../../../components/faultFinder/FlowchartCard';
 import {GlassIconButton} from '../../../../components/GlassIconButton';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
 import {
-  COMMON_TESTS,
   FaultCode,
   Flowchart,
   filterFaultCodes,
@@ -26,7 +25,7 @@ import {
 } from '../../../../src/data/faultFinder';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
-type Tab = 'codes' | 'flowcharts' | 'tests';
+type Tab = 'codes' | 'flowcharts';
 
 export default function BrandLanding() {
   const {theme, isDark} = useAppTheme();
@@ -86,7 +85,6 @@ export default function BrandLanding() {
         <Animated.View entering={FadeInDown.delay(120).springify()} style={[s.tabBar, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
           <TabBtn label={`Fault Codes (${codes.length})`} active={tab === 'codes'} onPress={() => setTab('codes')} />
           <TabBtn label={`Flowcharts (${flowcharts.length})`} active={tab === 'flowcharts'} onPress={() => setTab('flowcharts')} />
-          <TabBtn label="Tests" active={tab === 'tests'} onPress={() => setTab('tests')} />
         </Animated.View>
 
         {tab === 'codes' ? (
@@ -127,30 +125,7 @@ export default function BrandLanding() {
           </Animated.View>
         ) : null}
 
-        {tab === 'tests' ? (
-          <Animated.View entering={FadeInDown.delay(160).springify()} style={{gap: 12}}>
-            <Text style={[s.note, {color: theme.text.muted}]}>
-              Reusable field tests that work across most boilers. Always cross-check against the manufacturer's specific values.
-            </Text>
-            {COMMON_TESTS.map((test) => (
-              <TouchableOpacity
-                key={test.slug}
-                style={[s.testRow, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
-                activeOpacity={0.8}
-                onPress={() => router.push(`/toolbox/fault-finder/common/test/${test.slug}`)}
-              >
-                <View style={[s.testIcon, {backgroundColor: isDark ? 'rgba(59,130,246,0.16)' : '#EEF5FF'}]}>
-                  <Ionicons name="pulse-outline" size={20} color={theme.brand.primary} />
-                </View>
-                <View style={{flex: 1}}>
-                  <Text style={[s.testTitle, {color: theme.text.title}]}>{test.title}</Text>
-                  <Text style={[s.testSummary, {color: theme.text.muted}]} numberOfLines={2}>{test.summary}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={theme.text.muted} />
-              </TouchableOpacity>
-            ))}
-          </Animated.View>
-        ) : null}
+
       </ScrollView>
     </View>
   );
@@ -208,26 +183,6 @@ const s = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.84)',
     marginVertical: 18,
   },
-  note: {fontSize: 13, lineHeight: 20, marginBottom: 6},
-  testRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(15,23,42,0.06)',
-  },
-  testIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  testTitle: {fontSize: 15, fontWeight: '700'},
-  testSummary: {fontSize: 13, lineHeight: 18, marginTop: 2},
   emptyCard: {
     flexDirection: 'row',
     alignItems: 'center',

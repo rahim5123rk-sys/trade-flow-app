@@ -18,30 +18,25 @@
 // 6. disconnect() — clean up
 // ============================================
 
-import { Platform, PermissionsAndroid } from 'react-native';
-import { BleManager, Device, Service, Characteristic, Subscription, BleError } from 'react-native-ble-plx';
+import { PermissionsAndroid, Platform } from 'react-native';
+import { BleError, BleManager, Characteristic, Device, Service, Subscription } from 'react-native-ble-plx';
 import {
-  TPI_BLE_NAME_PREFIXES,
-  TPI_DEVICE_PROFILES,
-  TPI_FGA_SERVICE_UUID,
-  TPI_CHAR_O2,
-  TPI_CHAR_CO,
-  TPI_CHAR_FLUE_TEMP,
-  TPI_CHAR_AMBIENT_TEMP,
-  TPI_CHAR_EFFICIENCY,
-  TPI_DEVICE_INFO_SERVICE_UUID,
-  TPI_BATTERY_SERVICE_UUID,
-  TPI_CHAR_MANUFACTURER,
-  TPI_CHAR_MODEL_NUMBER,
-  TPI_CHAR_SERIAL_NUMBER,
-  TPI_CHAR_FIRMWARE_REV,
-  TPI_CHAR_BATTERY_LEVEL,
-  TPI_CHAR_LAST_CAL_DATE,
-  TPI_CHAR_CAL_DUE_DATE,
-  type BleDeviceInfo,
-  type TpiModel,
-  type TpiGasAnalyserReading,
-  type TpiDeviceMetadata,
+    TPI_BATTERY_SERVICE_UUID,
+    TPI_BLE_NAME_PREFIXES,
+    TPI_CHAR_BATTERY_LEVEL,
+    TPI_CHAR_CAL_DUE_DATE,
+    TPI_CHAR_FIRMWARE_REV,
+    TPI_CHAR_LAST_CAL_DATE,
+    TPI_CHAR_MANUFACTURER,
+    TPI_CHAR_MODEL_NUMBER,
+    TPI_CHAR_SERIAL_NUMBER,
+    TPI_DEVICE_INFO_SERVICE_UUID,
+    TPI_DEVICE_PROFILES,
+    TPI_FGA_SERVICE_UUID,
+    type BleDeviceInfo,
+    type TpiDeviceMetadata,
+    type TpiGasAnalyserReading,
+    type TpiModel
 } from '../types/tpiDevice';
 
 // ─── Types for discovery mode ───────────────────────────────────

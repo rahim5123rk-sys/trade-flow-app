@@ -6,8 +6,8 @@
 // selector, pump start/stop, and a "Use Readings" action.
 // ============================================
 
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {Ionicons, MaterialCommunityIcons} from '@expo/vector-icons';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   Modal,
   ScrollView,
@@ -16,21 +16,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UI } from '../constants/theme';
-import { useAppTheme } from '../src/context/ThemeContext';
-import { useTpiDevice } from '../src/context/TpiDeviceContext';
-import { ALL_FUEL_TYPES } from '../src/types/gasForms';
-import type { FuelType } from '../src/types/gasForms';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {UI} from '../constants/theme';
+import {useAppTheme} from '../src/context/ThemeContext';
+import {useTpiDevice} from '../src/context/TpiDeviceContext';
+import type {FuelType} from '../src/types/gasForms';
+import {ALL_FUEL_TYPES} from '../src/types/gasForms';
+import {
+  TPI_CHAR_COMMAND,
+  TPI_CHAR_PUMP_FLAG,
+  TPI_FGA_SERVICE_UUID,
+} from '../src/types/tpiDevice';
 import {
   calculateExcessAir,
   estimateCombustionEfficiency,
 } from '../src/utils/combustion';
-import {
-  TPI_FGA_SERVICE_UUID,
-  TPI_CHAR_COMMAND,
-  TPI_CHAR_PUMP_FLAG,
-} from '../src/types/tpiDevice';
 
 // ─── Props ──────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ export function TpiAnalyserScreen({
   onUseReadings,
 }: TpiAnalyserScreenProps) {
   const insets = useSafeAreaInsets();
-  const { isDark, theme } = useAppTheme();
+  const {isDark, theme} = useAppTheme();
   const {
     connectedDevice,
     latestReading,
@@ -139,7 +139,7 @@ export function TpiAnalyserScreen({
   const handleUseReadings = useCallback(() => {
     // Turn off pump before closing
     if (pumpOn && connectedDevice && writeChar) {
-      writeChar(TPI_FGA_SERVICE_UUID, TPI_CHAR_COMMAND, btoa('CMD*PUMP=OFF')).catch(() => {});
+      writeChar(TPI_FGA_SERVICE_UUID, TPI_CHAR_COMMAND, btoa('CMD*PUMP=OFF')).catch(() => { });
     }
     onUseReadings?.();
     onClose();
@@ -187,29 +187,29 @@ export function TpiAnalyserScreen({
     const isLive = displayVal !== '—';
 
     return (
-      <View style={[styles.readingRow, { borderBottomColor: border }]}>
+      <View style={[styles.readingRow, {borderBottomColor: border}]}>
         <View style={styles.readingLabelWrap}>
           {icon && (
             <MaterialCommunityIcons
               name={icon as any}
               size={18}
               color={highlight ? amber : textMuted}
-              style={{ marginRight: 8 }}
+              style={{marginRight: 8}}
             />
           )}
-          <Text style={[styles.readingLabel, { color: textBody }]}>{label}</Text>
+          <Text style={[styles.readingLabel, {color: textBody}]}>{label}</Text>
         </View>
         <View style={styles.readingValueWrap}>
           <Text
             style={[
               styles.readingValue,
-              { color: isLive ? (highlight ? amber : textTitle) : textMuted },
+              {color: isLive ? (highlight ? amber : textTitle) : textMuted},
             ]}
           >
             {displayVal}
           </Text>
           {unit ? (
-            <Text style={[styles.readingUnit, { color: textMuted }]}>{unit}</Text>
+            <Text style={[styles.readingUnit, {color: textMuted}]}>{unit}</Text>
           ) : null}
         </View>
       </View>
@@ -225,18 +225,18 @@ export function TpiAnalyserScreen({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { backgroundColor: bg, paddingTop: insets.top }]}>
+      <View style={[styles.container, {backgroundColor: bg, paddingTop: insets.top}]}>
         {/* ── Header ── */}
-        <View style={[styles.header, { borderBottomColor: border }]}>
+        <View style={[styles.header, {borderBottomColor: border}]}>
           <View style={styles.headerLeft}>
-            <View style={[styles.tpiBadge, { backgroundColor: tpiRed }]}>
+            <View style={[styles.tpiBadge, {backgroundColor: tpiRed}]}>
               <Text style={styles.tpiBadgeText}>TPI</Text>
             </View>
             <View>
-              <Text style={[styles.headerTitle, { color: textTitle }]}>
+              <Text style={[styles.headerTitle, {color: textTitle}]}>
                 Flue Gas Analysis
               </Text>
-              <Text style={[styles.headerSubtitle, { color: textMuted }]}>
+              <Text style={[styles.headerSubtitle, {color: textMuted}]}>
                 {deviceLabel}
               </Text>
             </View>
@@ -248,27 +248,27 @@ export function TpiAnalyserScreen({
 
         <ScrollView
           style={styles.body}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{paddingBottom: insets.bottom + 24}}
           showsVerticalScrollIndicator={false}
         >
           {/* ── Device Info Card ── */}
-          <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+          <View style={[styles.card, {backgroundColor: cardBg, borderColor: border}]}>
             <View style={styles.deviceHeader}>
               <View style={styles.deviceTitleRow}>
-                <View style={[styles.statusDot, { backgroundColor: green }]} />
-                <Text style={[styles.deviceName, { color: textTitle }]}>
+                <View style={[styles.statusDot, {backgroundColor: green}]} />
+                <Text style={[styles.deviceName, {color: textTitle}]}>
                   Connected
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={handleDisconnect}
-                style={[styles.disconnectBtn, { borderColor: red }]}
+                style={[styles.disconnectBtn, {borderColor: red}]}
               >
-                <Text style={[styles.disconnectText, { color: red }]}>Disconnect</Text>
+                <Text style={[styles.disconnectText, {color: red}]}>Disconnect</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={[styles.metaRow, { borderTopColor: border }]}>
+            <View style={[styles.metaRow, {borderTopColor: border}]}>
               {deviceMetadata?.batteryLevel != null && (
                 <View style={styles.metaItem}>
                   <Ionicons
@@ -282,7 +282,7 @@ export function TpiAnalyserScreen({
                     size={14}
                     color={deviceMetadata.batteryLevel > 20 ? green : red}
                   />
-                  <Text style={[styles.metaText, { color: textBody }]}>
+                  <Text style={[styles.metaText, {color: textBody}]}>
                     {deviceMetadata.batteryLevel}%
                   </Text>
                 </View>
@@ -290,7 +290,7 @@ export function TpiAnalyserScreen({
               {deviceMetadata?.lastCalDate && (
                 <View style={styles.metaItem}>
                   <Ionicons name="calendar-outline" size={14} color={textMuted} />
-                  <Text style={[styles.metaText, { color: textBody }]}>
+                  <Text style={[styles.metaText, {color: textBody}]}>
                     Cal: {deviceMetadata.lastCalDate}
                   </Text>
                 </View>
@@ -298,7 +298,7 @@ export function TpiAnalyserScreen({
               {deviceMetadata?.calDueDate && (
                 <View style={styles.metaItem}>
                   <Ionicons name="alert-circle-outline" size={14} color={amber} />
-                  <Text style={[styles.metaText, { color: textBody }]}>
+                  <Text style={[styles.metaText, {color: textBody}]}>
                     Due: {deviceMetadata.calDueDate}
                   </Text>
                 </View>
@@ -306,7 +306,7 @@ export function TpiAnalyserScreen({
               {deviceMetadata?.firmwareRevision && (
                 <View style={styles.metaItem}>
                   <Ionicons name="hardware-chip-outline" size={14} color={textMuted} />
-                  <Text style={[styles.metaText, { color: textBody }]}>
+                  <Text style={[styles.metaText, {color: textBody}]}>
                     FW {deviceMetadata.firmwareRevision}
                   </Text>
                 </View>
@@ -315,9 +315,9 @@ export function TpiAnalyserScreen({
           </View>
 
           {/* ── Pump Control ── */}
-          <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+          <View style={[styles.card, {backgroundColor: cardBg, borderColor: border}]}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionLabel, { color: textMuted }]}>PUMP</Text>
+              <Text style={[styles.sectionLabel, {color: textMuted}]}>PUMP</Text>
               <View
                 style={[
                   styles.statusPill,
@@ -327,8 +327,8 @@ export function TpiAnalyserScreen({
                   },
                 ]}
               >
-                <View style={[styles.statusPillDot, { backgroundColor: pumpOn ? green : amber }]} />
-                <Text style={[styles.statusPillText, { color: pumpOn ? green : amber }]}>
+                <View style={[styles.statusPillDot, {backgroundColor: pumpOn ? green : amber}]} />
+                <Text style={[styles.statusPillText, {color: pumpOn ? green : amber}]}>
                   {pumpOn ? 'RUNNING' : 'STOPPED'}
                 </Text>
               </View>
@@ -349,7 +349,7 @@ export function TpiAnalyserScreen({
                 ]}
               >
                 <Ionicons name="play" size={16} color={pumpOn ? textMuted : '#FFFFFF'} />
-                <Text style={[styles.pumpBtnText, { color: pumpOn ? textMuted : '#FFFFFF' }]}>
+                <Text style={[styles.pumpBtnText, {color: pumpOn ? textMuted : '#FFFFFF'}]}>
                   Start
                 </Text>
               </TouchableOpacity>
@@ -368,20 +368,20 @@ export function TpiAnalyserScreen({
                 ]}
               >
                 <Ionicons name="stop" size={16} color={!pumpOn ? textMuted : '#FFFFFF'} />
-                <Text style={[styles.pumpBtnText, { color: !pumpOn ? textMuted : '#FFFFFF' }]}>
+                <Text style={[styles.pumpBtnText, {color: !pumpOn ? textMuted : '#FFFFFF'}]}>
                   Stop
                 </Text>
               </TouchableOpacity>
             </View>
 
             {pumpError && (
-              <Text style={[styles.errorText, { color: red }]}>{pumpError}</Text>
+              <Text style={[styles.errorText, {color: red}]}>{pumpError}</Text>
             )}
           </View>
 
           {/* ── Fuel Type Selector ── */}
-          <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
-            <Text style={[styles.sectionLabel, { color: textMuted }]}>FUEL TYPE</Text>
+          <View style={[styles.card, {backgroundColor: cardBg, borderColor: border}]}>
+            <Text style={[styles.sectionLabel, {color: textMuted}]}>FUEL TYPE</Text>
             <TouchableOpacity
               onPress={() => setFuelPickerOpen(!fuelPickerOpen)}
               style={[
@@ -392,7 +392,7 @@ export function TpiAnalyserScreen({
                 },
               ]}
             >
-              <Text style={[styles.fuelText, { color: textTitle, flex: 1 }]}>
+              <Text style={[styles.fuelText, {color: textTitle, flex: 1}]}>
                 {fuelType || 'Select Fuel Type'}
               </Text>
               <Ionicons
@@ -403,14 +403,14 @@ export function TpiAnalyserScreen({
             </TouchableOpacity>
 
             {fuelPickerOpen && (
-              <View style={[styles.fuelList, { borderColor: border }]}>
+              <View style={[styles.fuelList, {borderColor: border}]}>
                 {ALL_FUEL_TYPES.map((ft) => (
                   <TouchableOpacity
                     key={ft}
                     onPress={() => handleSelectFuel(ft as FuelType)}
                     style={[
                       styles.fuelOption,
-                      { borderBottomColor: border },
+                      {borderBottomColor: border},
                       ft === fuelType && {
                         backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
                       },
@@ -419,7 +419,7 @@ export function TpiAnalyserScreen({
                     <Text
                       style={[
                         styles.fuelOptionText,
-                        { color: ft === fuelType ? accent : textBody },
+                        {color: ft === fuelType ? accent : textBody},
                       ]}
                     >
                       {ft}
@@ -434,14 +434,14 @@ export function TpiAnalyserScreen({
           </View>
 
           {/* ── Live Readings ── */}
-          <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+          <View style={[styles.card, {backgroundColor: cardBg, borderColor: border}]}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionLabel, { color: textMuted }]}>
+              <Text style={[styles.sectionLabel, {color: textMuted}]}>
                 LIVE READINGS
               </Text>
-              <View style={[styles.statusPill, { backgroundColor: greenBg, borderColor: greenBorder }]}>
-                <View style={[styles.statusPillDot, { backgroundColor: green }]} />
-                <Text style={[styles.statusPillText, { color: green }]}>LIVE</Text>
+              <View style={[styles.statusPill, {backgroundColor: greenBg, borderColor: greenBorder}]}>
+                <View style={[styles.statusPillDot, {backgroundColor: green}]} />
+                <Text style={[styles.statusPillText, {color: green}]}>LIVE</Text>
               </View>
             </View>
 
@@ -511,13 +511,13 @@ export function TpiAnalyserScreen({
           <TouchableOpacity
             onPress={handleUseReadings}
             activeOpacity={0.9}
-            style={[styles.useReadingsBtn, { backgroundColor: accent }]}
+            style={[styles.useReadingsBtn, {backgroundColor: accent}]}
           >
             <Ionicons name="download-outline" size={20} color="#FFFFFF" />
             <Text style={styles.useReadingsBtnText}>Use Readings</Text>
           </TouchableOpacity>
 
-          <Text style={[styles.footerNote, { color: textMuted }]}>
+          <Text style={[styles.footerNote, {color: textMuted}]}>
             Readings stream live from the analyser over Bluetooth.
           </Text>
         </ScrollView>
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: {width: 0, height: 1},
   },
   tpiBadgeText: {
     color: '#FFFFFF',

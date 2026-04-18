@@ -8,12 +8,12 @@ import {AutocompleteInput} from '../../../../components/forms/AutocompleteInput'
 import {FormHeader} from '../../../../components/forms/FormHeader';
 import {FormStepIndicator} from '../../../../components/forms/FormStepIndicator';
 import {ChoiceChips, DropdownField, FormSection, TextAreaField} from '../../../../components/forms/GasFormFields';
-import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {Button} from '../../../../components/ui/Button';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
 import {useWarningNotice} from '../../../../src/context/WarningNoticeContext';
-import {ApplianceCategory, BoilerType, EMPTY_WARNING_NOTICE_APPLIANCE, FlueType, FuelType, SafeUnsafe, WarningClassification, YesNoNA} from '../../../../src/types/warningNotice';
+import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {ALL_FUEL_TYPES} from '../../../../src/types/gasForms';
+import {ApplianceCategory, BoilerType, EMPTY_WARNING_NOTICE_APPLIANCE, FlueType, FuelType, SafeUnsafe, WarningClassification, YesNoNA} from '../../../../src/types/warningNotice';
 
 const STEPS = ['Details', 'Hazard', 'Review'];
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;

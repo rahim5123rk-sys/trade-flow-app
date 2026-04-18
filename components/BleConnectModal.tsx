@@ -7,26 +7,24 @@
 // Works without known UUIDs (discovery mode).
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UI } from '../constants/theme';
-import { useAppTheme } from '../src/context/ThemeContext';
-import { useTpiDevice } from '../src/context/TpiDeviceContext';
-import type { BleDeviceInfo } from '../src/types/tpiDevice';
-import type { DiscoveredService } from '../src/services/tpiBluetooth';
-import { TpiAnalyserScreen } from './TpiAnalyserScreen';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useAppTheme} from '../src/context/ThemeContext';
+import {useTpiDevice} from '../src/context/TpiDeviceContext';
+import type {DiscoveredService} from '../src/services/tpiBluetooth';
+import type {BleDeviceInfo} from '../src/types/tpiDevice';
+import {TpiAnalyserScreen} from './TpiAnalyserScreen';
 
 interface BleConnectModalProps {
   visible: boolean;
@@ -34,12 +32,12 @@ interface BleConnectModalProps {
   /** Called when user wants to use a live value for a field */
   onSelectValue?: (value: string, charUUID: string) => void;
   /** Called when user taps "Use Readings" in the TPI Analyser — passes current FGA values */
-  onUseReadings?: (values: { co: string; co2: string; ratio: string }) => void;
+  onUseReadings?: (values: {co: string; co2: string; ratio: string}) => void;
 }
 
-export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings }: BleConnectModalProps) {
+export function BleConnectModal({visible, onClose, onSelectValue, onUseReadings}: BleConnectModalProps) {
   const insets = useSafeAreaInsets();
-  const { isDark, theme } = useAppTheme();
+  const {isDark, theme} = useAppTheme();
   const {
     connectionStatus,
     error,
@@ -178,12 +176,12 @@ export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { backgroundColor: bg, paddingTop: insets.top }]}>
+      <View style={[styles.container, {backgroundColor: bg, paddingTop: insets.top}]}>
         {/* Header */}
-        <View style={[styles.header, { borderBottomColor: border }]}>
+        <View style={[styles.header, {borderBottomColor: border}]}>
           <View style={styles.headerLeft}>
             <Ionicons name="bluetooth" size={22} color={accent} />
-            <Text style={[styles.headerTitle, { color: textPrimary }]}>
+            <Text style={[styles.headerTitle, {color: textPrimary}]}>
               Bluetooth Analyser
             </Text>
           </View>
@@ -194,40 +192,40 @@ export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings
 
         {/* Error */}
         {error && (
-          <View style={[styles.errorBanner, { backgroundColor: isDark ? '#451A1A' : '#FEF2F2' }]}>
+          <View style={[styles.errorBanner, {backgroundColor: isDark ? '#451A1A' : '#FEF2F2'}]}>
             <Ionicons name="warning" size={16} color={red} />
-            <Text style={[styles.errorText, { color: red }]}>{error}</Text>
+            <Text style={[styles.errorText, {color: red}]}>{error}</Text>
           </View>
         )}
 
         {/* Connection Status */}
         {connectedDevice && (
-          <View style={[styles.connectedBanner, { backgroundColor: isDark ? '#052E16' : '#F0FDF4', borderColor: isDark ? '#166534' : '#BBF7D0' }]}>
+          <View style={[styles.connectedBanner, {backgroundColor: isDark ? '#052E16' : '#F0FDF4', borderColor: isDark ? '#166534' : '#BBF7D0'}]}>
             <View style={styles.connectedInfo}>
-              <View style={[styles.statusDot, { backgroundColor: green }]} />
+              <View style={[styles.statusDot, {backgroundColor: green}]} />
               <View>
-                <Text style={[styles.connectedName, { color: textPrimary }]}>
+                <Text style={[styles.connectedName, {color: textPrimary}]}>
                   {connectedDevice.name || connectedDevice.localName || 'Unknown'}
                 </Text>
-                <Text style={[styles.connectedSub, { color: textSecondary }]}>
+                <Text style={[styles.connectedSub, {color: textSecondary}]}>
                   {connectedDevice.model ? `TPI ${connectedDevice.model}` : 'Connected'}
                   {deviceMetadata?.batteryLevel != null && ` • ${deviceMetadata.batteryLevel}%`}
                 </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={handleDisconnect} style={[styles.disconnectBtn, { borderColor: red }]}>
-              <Text style={[styles.disconnectText, { color: red }]}>Disconnect</Text>
+            <TouchableOpacity onPress={handleDisconnect} style={[styles.disconnectBtn, {borderColor: red}]}>
+              <Text style={[styles.disconnectText, {color: red}]}>Disconnect</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        <ScrollView style={styles.body} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
+        <ScrollView style={styles.body} contentContainerStyle={{paddingBottom: insets.bottom + 20}}>
           {/* ── Not connected: Show scanner ── */}
           {!isConnected && !isConnecting && (
             <>
               <TouchableOpacity
                 onPress={handleScan}
-                style={[styles.scanBtn, { backgroundColor: isScanning ? red : accent }]}
+                style={[styles.scanBtn, {backgroundColor: isScanning ? red : accent}]}
               >
                 {isScanning ? (
                   <>
@@ -245,13 +243,13 @@ export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings
               {/* Device list — TPI devices sorted to top */}
               {sortedDevices.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: textSecondary }]}>
+                  <Text style={[styles.sectionTitle, {color: textSecondary}]}>
                     Nearby Devices ({sortedDevices.length})
                   </Text>
                   {sortedDevices.map((device) => (
                     <TouchableOpacity
                       key={device.id}
-                      style={[styles.deviceRow, { backgroundColor: cardBg, borderColor: border }]}
+                      style={[styles.deviceRow, {backgroundColor: cardBg, borderColor: border}]}
                       onPress={() => handleConnect(device)}
                     >
                       <View style={styles.deviceInfo}>
@@ -260,12 +258,12 @@ export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings
                           size={20}
                           color={device.model ? green : accent}
                         />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.deviceName, { color: textPrimary }]}>
+                        <View style={{flex: 1}}>
+                          <Text style={[styles.deviceName, {color: textPrimary}]}>
                             {device.name || device.localName || 'Unknown'}
                           </Text>
                           {device.model && (
-                            <Text style={[styles.deviceId, { color: green }]}>
+                            <Text style={[styles.deviceId, {color: green}]}>
                               TPI {device.model}
                             </Text>
                           )}
@@ -286,10 +284,10 @@ export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings
               {isScanning && sortedDevices.length === 0 && (
                 <View style={styles.emptyState}>
                   <ActivityIndicator size="large" color={accent} />
-                  <Text style={[styles.emptyText, { color: textSecondary }]}>
+                  <Text style={[styles.emptyText, {color: textSecondary}]}>
                     Scanning for nearby devices...
                   </Text>
-                  <Text style={[styles.emptyHint, { color: textMuted }]}>
+                  <Text style={[styles.emptyHint, {color: textMuted}]}>
                     Make sure your TPI analyser is powered on
                   </Text>
                 </View>
@@ -298,10 +296,10 @@ export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings
               {!isScanning && sortedDevices.length === 0 && (
                 <View style={styles.emptyState}>
                   <Ionicons name="bluetooth-outline" size={48} color={textMuted} />
-                  <Text style={[styles.emptyText, { color: textSecondary }]}>
+                  <Text style={[styles.emptyText, {color: textSecondary}]}>
                     No devices found
                   </Text>
-                  <Text style={[styles.emptyHint, { color: textMuted }]}>
+                  <Text style={[styles.emptyHint, {color: textMuted}]}>
                     Tap "Scan for Devices" to search
                   </Text>
                 </View>
@@ -313,7 +311,7 @@ export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings
           {isConnecting && (
             <View style={styles.emptyState}>
               <ActivityIndicator size="large" color={accent} />
-              <Text style={[styles.emptyText, { color: textSecondary }]}>
+              <Text style={[styles.emptyText, {color: textSecondary}]}>
                 Connecting...
               </Text>
             </View>
@@ -322,10 +320,10 @@ export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings
           {/* ── Connected: Show services & characteristics ── */}
           {isConnected && services.length > 0 && (
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: textSecondary }]}>
+              <Text style={[styles.sectionTitle, {color: textSecondary}]}>
                 Services & Characteristics
               </Text>
-              <Text style={[styles.sectionHint, { color: textMuted }]}>
+              <Text style={[styles.sectionHint, {color: textMuted}]}>
                 Tap a service to expand. Tap "Monitor" to watch live values.
               </Text>
 
@@ -352,7 +350,7 @@ export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings
           {isConnected && services.length === 0 && (
             <View style={styles.emptyState}>
               <ActivityIndicator size="large" color={accent} />
-              <Text style={[styles.emptyText, { color: textSecondary }]}>
+              <Text style={[styles.emptyText, {color: textSecondary}]}>
                 Discovering services...
               </Text>
             </View>
@@ -405,13 +403,13 @@ function ServiceCard({
   };
 
   return (
-    <View style={[styles.serviceCard, { backgroundColor: cardBg, borderColor: border }]}>
+    <View style={[styles.serviceCard, {backgroundColor: cardBg, borderColor: border}]}>
       <TouchableOpacity onPress={onToggle} style={styles.serviceHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.serviceUUID, { color: textPrimary }]} numberOfLines={1}>
+        <View style={{flex: 1}}>
+          <Text style={[styles.serviceUUID, {color: textPrimary}]} numberOfLines={1}>
             {service.uuid}
           </Text>
-          <Text style={[styles.serviceCharCount, { color: textMuted }]}>
+          <Text style={[styles.serviceCharCount, {color: textMuted}]}>
             {service.characteristics.length} characteristic{service.characteristics.length !== 1 ? 's' : ''}
           </Text>
         </View>
@@ -423,7 +421,7 @@ function ServiceCard({
       </TouchableOpacity>
 
       {expanded && (
-        <View style={[styles.charList, { borderTopColor: border }]}>
+        <View style={[styles.charList, {borderTopColor: border}]}>
           {service.characteristics.map((char) => {
             const isMonitored = monitoredChars.has(char.uuid);
             const value = liveValues[char.uuid];
@@ -433,16 +431,16 @@ function ServiceCard({
             if (char.isWritable) badges.push('W');
 
             return (
-              <View key={char.uuid} style={[styles.charRow, { borderBottomColor: border }]}>
-                <View style={{ flex: 1 }}>
+              <View key={char.uuid} style={[styles.charRow, {borderBottomColor: border}]}>
+                <View style={{flex: 1}}>
                   <View style={styles.charUUIDRow}>
-                    <Text style={[styles.charUUID, { color: textSecondary }]} numberOfLines={1}>
+                    <Text style={[styles.charUUID, {color: textSecondary}]} numberOfLines={1}>
                       {char.uuid}
                     </Text>
                     <View style={styles.badges}>
                       {badges.map((b) => (
-                        <View key={b} style={[styles.badge, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' }]}>
-                          <Text style={[styles.badgeText, { color: textMuted }]}>{b}</Text>
+                        <View key={b} style={[styles.badge, {backgroundColor: isDark ? '#1E293B' : '#F1F5F9'}]}>
+                          <Text style={[styles.badgeText, {color: textMuted}]}>{b}</Text>
                         </View>
                       ))}
                     </View>
@@ -453,9 +451,9 @@ function ServiceCard({
                     <TouchableOpacity
                       onPress={() => onSelectValue?.(value, char.uuid)}
                       disabled={!onSelectValue}
-                      style={[styles.valueContainer, { backgroundColor: isDark ? '#0F2E1A' : '#F0FDF4' }]}
+                      style={[styles.valueContainer, {backgroundColor: isDark ? '#0F2E1A' : '#F0FDF4'}]}
                     >
-                      <Text style={[styles.valueText, { color: green }]} numberOfLines={2}>
+                      <Text style={[styles.valueText, {color: green}]} numberOfLines={2}>
                         {value}
                       </Text>
                       {onSelectValue && (
@@ -470,9 +468,9 @@ function ServiceCard({
                   {char.isReadable && (
                     <TouchableOpacity
                       onPress={() => onRead(service.uuid, char.uuid)}
-                      style={[styles.charBtn, { borderColor: accent }]}
+                      style={[styles.charBtn, {borderColor: accent}]}
                     >
-                      <Text style={[styles.charBtnText, { color: accent }]}>Read</Text>
+                      <Text style={[styles.charBtnText, {color: accent}]}>Read</Text>
                     </TouchableOpacity>
                   )}
                   {char.isNotifiable && (
@@ -480,11 +478,11 @@ function ServiceCard({
                       onPress={() => onToggleMonitor(service.uuid, char.uuid)}
                       style={[
                         styles.charBtn,
-                        { borderColor: isMonitored ? red : green },
-                        isMonitored && { backgroundColor: isDark ? '#451A1A' : '#FEF2F2' },
+                        {borderColor: isMonitored ? red : green},
+                        isMonitored && {backgroundColor: isDark ? '#451A1A' : '#FEF2F2'},
                       ]}
                     >
-                      <Text style={[styles.charBtnText, { color: isMonitored ? red : green }]}>
+                      <Text style={[styles.charBtnText, {color: isMonitored ? red : green}]}>
                         {isMonitored ? 'Stop' : 'Monitor'}
                       </Text>
                     </TouchableOpacity>

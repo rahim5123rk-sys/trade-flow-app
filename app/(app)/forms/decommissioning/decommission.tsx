@@ -8,10 +8,10 @@ import {AutocompleteInput} from '../../../../components/forms/AutocompleteInput'
 import {FormHeader} from '../../../../components/forms/FormHeader';
 import {FormStepIndicator} from '../../../../components/forms/FormStepIndicator';
 import {ChoiceChips, DropdownField, FormSection, TextAreaField} from '../../../../components/forms/GasFormFields';
-import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {Button} from '../../../../components/ui/Button';
 import {useDecommissioning} from '../../../../src/context/DecommissioningContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
+import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {
   ApplianceCategory,
   BoilerType,

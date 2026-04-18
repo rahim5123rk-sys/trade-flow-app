@@ -20,34 +20,33 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import type { Subscription } from 'react-native-ble-plx';
+import type {Subscription} from 'react-native-ble-plx';
+import {
+  connectToDevice,
+  destroyManager,
+  disconnectDevice,
+  discoverServices,
+  isBleReady,
+  monitorCharacteristic,
+  onDeviceDisconnected,
+  readCharacteristic,
+  readDeviceMetadata,
+  requestBlePermissions,
+  startScanAll,
+  stopScan,
+  subscribeToReadings,
+  writeCharacteristic,
+  type DiscoveredService,
+} from '../services/tpiBluetooth';
+import type {FuelType} from '../types/gasForms';
 import type {
   BleConnectionStatus,
   BleDeviceInfo,
   TpiCompleteReading,
-  TpiGasAnalyserReading,
   TpiDeviceMetadata,
+  TpiGasAnalyserReading,
 } from '../types/tpiDevice';
-import {
-  requestBlePermissions,
-  startScanAll,
-  stopScan,
-  connectToDevice,
-  disconnectDevice,
-  discoverServices,
-  readCharacteristic,
-  writeCharacteristic,
-  readDeviceMetadata,
-  monitorCharacteristic,
-  subscribeToReadings,
-  onDeviceDisconnected,
-  isBleReady,
-  destroyManager,
-  type DiscoveredService,
-} from '../services/tpiBluetooth';
-import { calculateCO2FromO2, calculateCOCO2Ratio } from '../utils/combustion';
-import { tpiReadingsToFGA } from '../utils/combustion';
-import type { FuelType } from '../types/gasForms';
+import {calculateCO2FromO2, calculateCOCO2Ratio, tpiReadingsToFGA} from '../utils/combustion';
 
 // ─── Context Type ───────────────────────────────────────────────
 
@@ -74,7 +73,7 @@ interface TpiDeviceContextValue {
   latestReading: TpiCompleteReading | null;
 
   /** Pre-formatted FGA values ready to drop into form fields */
-  fgaValues: { co: string; co2: string; ratio: string };
+  fgaValues: {co: string; co2: string; ratio: string};
 
   /** Device metadata (serial, cal dates, battery etc.) */
   deviceMetadata: TpiDeviceMetadata | null;
@@ -118,7 +117,7 @@ const TpiDeviceContext = createContext<TpiDeviceContextValue | null>(null);
 
 // ─── Provider ───────────────────────────────────────────────────
 
-export function TpiDeviceProvider({ children }: { children: React.ReactNode }) {
+export function TpiDeviceProvider({children}: {children: React.ReactNode}) {
   const [connectionStatus, setConnectionStatus] = useState<BleConnectionStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [discoveredDevices, setDiscoveredDevices] = useState<BleDeviceInfo[]>([]);
@@ -159,7 +158,7 @@ export function TpiDeviceProvider({ children }: { children: React.ReactNode }) {
   // ─── Computed: FGA form values (ready to populate fields) ──────
 
   const fgaValues = useMemo(() => {
-    if (!latestReading) return { co: '', co2: '', ratio: '' };
+    if (!latestReading) return {co: '', co2: '', ratio: ''};
     return tpiReadingsToFGA(latestReading.o2, latestReading.co, fuelType);
   }, [latestReading, fuelType]);
 
@@ -298,7 +297,7 @@ export function TpiDeviceProvider({ children }: { children: React.ReactNode }) {
     if (!connectedDevice) return null;
     const val = await readCharacteristic(connectedDevice.id, serviceUUID, charUUID);
     if (val) {
-      setLiveValues((prev) => ({ ...prev, [charUUID]: val }));
+      setLiveValues((prev) => ({...prev, [charUUID]: val}));
     }
     return val;
   }, [connectedDevice]);
@@ -319,7 +318,7 @@ export function TpiDeviceProvider({ children }: { children: React.ReactNode }) {
       serviceUUID,
       charUUID,
       (value) => {
-        setLiveValues((prev) => ({ ...prev, [charUUID]: value }));
+        setLiveValues((prev) => ({...prev, [charUUID]: value}));
       },
     );
 

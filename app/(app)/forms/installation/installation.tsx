@@ -1,20 +1,20 @@
 import {LinearGradient} from 'expo-linear-gradient';
 import {router} from 'expo-router';
 import React, {useEffect, useState} from 'react';
-import {Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Input} from '../../../../components/Input';
 import {AutocompleteInput} from '../../../../components/forms/AutocompleteInput';
+import {FgaReadingsGroup} from '../../../../components/forms/FgaReadingsGroup';
 import {FormHeader} from '../../../../components/forms/FormHeader';
 import {FormStepIndicator} from '../../../../components/forms/FormStepIndicator';
-import {FgaReadingsGroup} from '../../../../components/forms/FgaReadingsGroup';
 import {ChoiceChips, DropdownField, FormSection, TextAreaField} from '../../../../components/forms/GasFormFields';
-import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {Button} from '../../../../components/ui/Button';
 import {useInstallationCert} from '../../../../src/context/InstallationCertContext';
 import {useAppTheme} from '../../../../src/context/ThemeContext';
-import {ApplianceCategory, BoilerType, EMPTY_FGA, EMPTY_INSTALLATION_CERT_APPLIANCE, FlueType, FuelType, InstallationCertAppliance, InstallationType, PassFailNA, SafeUnsafe, YesNoNA} from '../../../../src/types/installationCert';
+import {getBrandsForCategory} from '../../../../src/data/applianceBrands';
 import {ALL_FUEL_TYPES} from '../../../../src/types/gasForms';
+import {ApplianceCategory, BoilerType, EMPTY_FGA, EMPTY_INSTALLATION_CERT_APPLIANCE, FlueType, FuelType, InstallationCertAppliance, InstallationType, PassFailNA, SafeUnsafe, YesNoNA} from '../../../../src/types/installationCert';
 
 const STEPS = ['Details', 'Installation', 'Review'];
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;

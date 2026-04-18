@@ -3,7 +3,10 @@
   "slug": "generic",
   "description": "Common-sense reference that applies to most modern condensing combi and system boilers. Use this when the exact brand or model isn't known.",
   "models": [
-    { "id": "universal", "name": "Any condensing boiler" }
+    {
+      "id": "universal",
+      "name": "Any condensing boiler"
+    }
   ],
   "faultCodes": [
     {
@@ -11,132 +14,142 @@
       "title": "Boiler locked out (generic)",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "The boiler has shut itself down to a safe state and needs a manual reset. Most lockouts clear with a single reset — if it locks out again, stop resetting and diagnose.",
+      "summary": "Boiler's shut down and needs a reset. If it locks out again, stop resetting and find the fault.",
       "likelyCauses": [
-        "Ignition failure — no gas, faulty electrode, or blocked condensate",
-        "Overheat or flow-limit trip — poor circulation or sludge",
-        "Low pressure cut-out — leak or expansion vessel failure",
-        "Fan or flue fault — blocked flue or worn fan bearings",
-        "Component fault detected by PCB — sensor, valve, or wiring"
+        "Won't light — no gas, bad electrode, or blocked condensate",
+        "Overheating — poor flow or sludge in the system",
+        "Pressure too low — leak or knackered expansion vessel",
+        "Fan or flue problem — blockage or worn bearings",
+        "PCB flagging a dodgy sensor, valve, or wiring"
       ],
       "quickChecks": [
-        "Read the exact code displayed — then jump to the brand-specific page for precise diagnosis",
-        "Confirm gas supply (check other appliances), electrical supply, and water pressure before pressing reset",
-        "Press reset once and observe. If it locks out again within 10 minutes, do not keep resetting — diagnose the root cause",
-        "Check the condensate pipe isn't frozen or blocked (very common winter call-out)"
+        "Read the fault code on screen — check the brand-specific page for that code",
+        "Check gas, electrics, and water pressure before you reset",
+        "Reset once. If it locks out again within 10 mins, don't keep trying — diagnose it",
+        "Check the condensate pipe isn't frozen or blocked (classic winter job)"
       ],
       "partSearchHint": "pcb",
-      "linkedFlowcharts": ["no-ignition"]
+      "linkedFlowcharts": [
+        "no-ignition"
+      ]
     },
     {
       "code": "IGNITION",
       "title": "Ignition fault (generic)",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Boiler cannot establish or maintain flame. This is the single most common boiler fault across all brands.",
+      "summary": "Boiler won't light or can't hold a flame. Most common fault across all brands.",
       "likelyCauses": [
-        "No gas or low gas pressure — check meter and other appliances",
+        "No gas or low gas pressure — try the hob or other appliances",
         "Ignition electrode worn, cracked, or dirty",
-        "Flame-sense electrode dirty or glazed — won't detect flame",
-        "Condensate trap blocked — backs up and floods the burner",
-        "Gas valve not opening — faulty coil or stuck valve",
-        "Frozen condensate pipe — extremely common in winter"
+        "Flame sensor dirty or glazed — can't see the flame",
+        "Condensate trap blocked — water backing up into the burner",
+        "Gas valve stuck or coil faulty",
+        "Frozen condensate pipe — happens all winter"
       ],
       "quickChecks": [
-        "Confirm gas at other appliances (hob, fire) — if no gas anywhere, contact supplier",
-        "Clean and gap the ignition and flame-sense electrode(s)",
-        "Drain and clean the condensate trap and siphon",
-        "Measure inlet gas pressure at the test point under full load — should be 20 mbar for natural gas",
-        "In cold weather, check external condensate pipe for ice blockage — pour warm water to thaw"
+        "Try another gas appliance. No gas anywhere? Call the supplier",
+        "Clean and re-gap the ignition and flame sensor electrode(s)",
+        "Pull out and clean the condensate trap and siphon",
+        "Check inlet gas pressure at the test point on load — should be 20 mbar (nat gas)",
+        "Cold weather? Check the outside condensate pipe for ice — pour warm water to thaw"
       ],
       "partSearchHint": "ignition electrode",
-      "linkedFlowcharts": ["no-ignition"]
+      "linkedFlowcharts": [
+        "no-ignition"
+      ]
     },
     {
       "code": "OVERHEAT",
       "title": "Overheat / limit trip (generic)",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Primary flow temperature rose above the safe limit (typically 95–105°C). The boiler has shut down to prevent damage. Usually caused by circulation problems.",
+      "summary": "Flow temp went above the limit (usually 95–105°C). Almost always a circulation problem.",
       "likelyCauses": [
-        "Poor circulation — pump failed, airlocked, or valve closed on the system",
-        "Scale or magnetite sludge in heat exchanger restricting flow",
-        "Overheat stat or flow NTC faulty — giving false readings",
-        "System bypass set too high — not enough water flowing through radiators"
+        "Pump failed, airlocked, or a valve shut somewhere",
+        "Heat exchanger clogged with scale or magnetite",
+        "Overheat stat or flow NTC giving false readings",
+        "Bypass set too high — not enough flow through rads"
       ],
       "quickChecks": [
-        "Verify pump is running — feel for vibration and warmth on pump body",
-        "Check system pressure is at 1.0–1.5 bar cold",
-        "Bleed radiators and the auto air vent — trapped air prevents circulation",
-        "Check inhibitor level and inspect for sludge — black water when bleeding indicates magnetite",
-        "Feel flow and return pipes — large differential (>20°C) suggests poor circulation"
+        "Feel the pump — should be warm and vibrating when it's running",
+        "Check system pressure is 1.0–1.5 bar cold",
+        "Bleed rads and the auto air vent — trapped air kills circulation",
+        "Bleed a rad — black water means magnetite. System needs a flush",
+        "Feel flow and return pipes — big temp gap (>20°C) means poor flow"
       ],
       "partSearchHint": "pump",
-      "linkedFlowcharts": ["kettling"]
+      "linkedFlowcharts": [
+        "kettling"
+      ]
     },
     {
       "code": "LOW-PRESSURE",
       "title": "Low pressure (generic)",
       "severity": "warning",
       "appliesTo": "all",
-      "summary": "System pressure has fallen below the minimum operating level (typically below 0.5 bar). The boiler may not fire until pressure is restored.",
+      "summary": "System pressure dropped below 0.5 bar. Boiler won't fire until you top it up.",
       "likelyCauses": [
-        "Slow system leak — radiator valve, pipe joint, or auto air vent dripping",
-        "Expansion vessel lost charge — diaphragm failed or Schrader valve leaking",
-        "PRV weeping — passing water out of the discharge pipe",
-        "Recently bled radiators without topping up pressure"
+        "Slow leak — rad valve, pipe joint, or auto air vent dripping",
+        "Expansion vessel gone — diaphragm failed or Schrader valve leaking",
+        "PRV letting by — check the discharge pipe outside",
+        "Bled rads recently without topping up"
       ],
       "quickChecks": [
-        "Top up to 1.0–1.5 bar via the filling loop (close it afterwards!)",
-        "Walk the system checking for damp spots at every joint and valve",
-        "Check the PRV discharge pipe outside for dripping",
-        "Check expansion vessel pre-charge with a tyre gauge on the Schrader valve (typically 0.75 bar cold)",
-        "If pressure drops repeatedly (weekly), a systematic leak search is needed"
+        "Top up to 1.0–1.5 bar via the filling loop. Close it when done!",
+        "Walk the system — check every joint and valve for damp spots",
+        "Look at the PRV discharge pipe outside. Dripping? PRV needs replacing",
+        "Check expansion vessel charge — tyre gauge on the Schrader valve, should be ~0.75 bar cold",
+        "Keeps dropping every week? You need a proper leak search"
       ],
       "partSearchHint": "expansion vessel",
-      "linkedFlowcharts": ["low-pressure"]
+      "linkedFlowcharts": [
+        "low-pressure"
+      ]
     },
     {
       "code": "FAN",
       "title": "Fan fault (generic)",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "Fan speed isn't meeting the PCB's demand. The boiler will not attempt ignition if the fan can't prove correct air flow.",
+      "summary": "Fan isn't hitting the right speed. Boiler won't try to light without correct airflow.",
       "likelyCauses": [
         "Worn fan bearings — common after 8–10 years",
-        "Blocked flue — debris, birds' nest, or ice in winter",
-        "Tacho or supply wiring fault — loose connector or damaged cable",
-        "PCB fan driver circuit failed",
-        "Heavy condensate sitting in the fan housing"
+        "Blocked flue — debris, bird's nest, or ice",
+        "Tacho or wiring fault — loose plug or damaged cable",
+        "PCB fan circuit failed",
+        "Condensate pooling in the fan housing"
       ],
       "quickChecks": [
-        "Listen to the fan on start-up — grinding or scraping noise means worn bearings",
-        "Spin the fan by hand (power off) — it should spin freely with no resistance",
-        "Inspect flue terminal outside for blockage or heavy condensate pooling",
-        "Check 230V supply to the fan and the tacho signal back to the PCB",
-        "Inspect the fan connector — corrosion is common on the tacho pins"
+        "Listen on start-up — grinding or scraping means worn bearings",
+        "Power off, spin the fan by hand. Should turn freely with no drag",
+        "Check flue terminal outside for blockages or condensate build-up",
+        "Check 230V to the fan and tacho signal back to PCB",
+        "Look at the fan connector — corrosion on tacho pins is common"
       ],
       "partSearchHint": "fan",
-      "linkedFlowcharts": ["fan-fault"]
+      "linkedFlowcharts": [
+        "fan-fault"
+      ]
     },
     {
       "code": "SENSOR",
       "title": "Sensor fault (generic)",
       "severity": "warning",
       "appliesTo": "all",
-      "summary": "An NTC thermistor or pressure sensor is reading outside its expected range. The boiler may still operate in a limited mode or lock out depending on which sensor has failed.",
+      "summary": "Sensor's reading out of range. Boiler might limp along or lock out.",
       "likelyCauses": [
-        "Failed NTC sensor — open circuit (reads too high) or short circuit (reads too low)",
-        "Unplugged or loose connector — vibration can work connectors free over time",
-        "Damaged wiring loom — common after other work near the boiler",
-        "Moisture ingress into connector — causes corrosion and erratic readings"
+        "NTC gone — open circuit reads high, short reads low",
+        "Plug come loose — vibration shakes them free",
+        "Wiring damaged — often after other work near the boiler",
+        "Moisture in the connector — causes corrosion and jumpy readings"
       ],
       "quickChecks": [
-        "Re-seat the sensor connector firmly — it should click into place",
-        "Measure NTC resistance with a multimeter — typically ~10kΩ at 25°C (check manufacturer chart)",
-        "Inspect wiring for damage, especially where it runs near hot surfaces",
-        "Check connector pins for green corrosion — clean with contact cleaner or replace",
-        "If sensor reads correctly, suspect the PCB socket"
+        "Push the sensor connector back in firmly — should click",
+        "Meter the NTC — roughly 10kΩ at 25°C (check the maker's chart)",
+        "Inspect wiring for damage, especially near hot surfaces",
+        "Green corrosion on pins? Clean with contact cleaner or swap it",
+        "Sensor reads fine? Suspect the PCB socket"
       ],
       "partSearchHint": "ntc sensor"
     },
@@ -145,41 +158,43 @@
       "title": "Condensate blockage (generic)",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "The condensate discharge is blocked, causing acidic water to back up into the boiler. Extremely common in freezing weather when external condensate pipes freeze solid.",
+      "summary": "Condensate can't drain, so water backs up into the boiler. Number one winter call-out.",
       "likelyCauses": [
-        "Frozen external condensate pipe — the #1 winter call-out for all brands",
-        "Condensate trap blocked with debris or sludge",
-        "Condensate pipe run too long, incorrectly graded, or undersized",
+        "Frozen condensate pipe outside — classic winter fault",
+        "Condensate trap blocked with muck or sludge",
+        "Pipe run too long, no fall, or undersized",
         "Internal siphon blocked"
       ],
       "quickChecks": [
-        "Check the external condensate pipe — pour warm (not boiling) water over it to thaw",
-        "Remove and clean the condensate trap inside the boiler",
-        "Check the pipe has a continuous fall — no dips where water can pool and freeze",
-        "If persistent, recommend upgrading to 32mm pipe or adding trace heating",
-        "Temporary fix in emergency: redirect condensate into a bucket and advise customer"
+        "Pour warm (not boiling) water over the outside condensate pipe to thaw it",
+        "Pull out and clean the condensate trap inside the boiler",
+        "Check the pipe has a steady fall — no dips where water can sit and freeze",
+        "Keeps happening? Recommend 32mm pipe or trace heating",
+        "Emergency fix: run the condensate into a bucket and tell the customer"
       ],
       "partSearchHint": "condensate trap",
-      "linkedFlowcharts": ["frozen-condensate"]
+      "linkedFlowcharts": [
+        "frozen-condensate"
+      ]
     },
     {
       "code": "PUMP",
       "title": "Pump / circulation fault (generic)",
       "severity": "lockout",
       "appliesTo": "all",
-      "summary": "The boiler has detected inadequate water circulation. Either the pump has failed, is airlocked, or system flow is restricted.",
+      "summary": "Water isn't moving through the system. Pump's failed, airlocked, or something's blocking flow.",
       "likelyCauses": [
-        "Pump seized or stuck — very common after summer when boiler hasn't run",
-        "Pump airlock — air trapped in pump housing prevents impeller spinning",
-        "System filter or strainer blocked with magnetite sludge",
-        "Zone valve or lockshield valve closed — restricting flow through the system"
+        "Pump seized — very common after sitting idle all summer",
+        "Airlock in pump housing — impeller can't spin",
+        "System filter packed with magnetite sludge",
+        "Zone valve or lockshield shut — blocking flow"
       ],
       "quickChecks": [
-        "Feel the pump — it should be warm and vibrating when running",
-        "Try bleeding the pump via the bleed screw on the front (small flathead)",
-        "On some pumps, gently tap the body — a stuck impeller may free itself",
-        "Check the system filter (if fitted) — clean if full of sludge",
-        "Verify all zone valves are open and lockshields aren't fully closed"
+        "Feel the pump — should be warm and vibrating when running",
+        "Bleed the pump via the screw on the front (small flathead)",
+        "Give it a gentle tap — a stuck impeller sometimes frees up",
+        "Check the system filter if there is one — clean out any sludge",
+        "Make sure all zone valves are open and lockshields aren't shut"
       ],
       "partSearchHint": "pump"
     }

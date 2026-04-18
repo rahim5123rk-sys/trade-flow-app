@@ -10,8 +10,8 @@
 // auto-populate the fields via useTpiDevice() context.
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import React, {useCallback, useState} from 'react';
 import {
   Platform,
   StyleSheet,
@@ -20,10 +20,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { UI } from '../../constants/theme';
-import { useAppTheme } from '../../src/context/ThemeContext';
-import { useTpiDevice } from '../../src/context/TpiDeviceContext';
-import { BleConnectModal } from '../BleConnectModal';
+import {UI} from '../../constants/theme';
+import {useAppTheme} from '../../src/context/ThemeContext';
+import {useTpiDevice} from '../../src/context/TpiDeviceContext';
+import {BleConnectModal} from '../BleConnectModal';
 
 interface FGAValues {
   co: string;
@@ -41,7 +41,7 @@ interface FgaReadingsGroupProps {
   showBluetooth?: boolean;
 }
 
-const FIELD_LABELS = { co: 'CO', co2: 'CO₂', ratio: 'Ratio' } as const;
+const FIELD_LABELS = {co: 'CO', co2: 'CO₂', ratio: 'Ratio'} as const;
 
 export function FgaReadingsGroup({
   label,
@@ -50,15 +50,15 @@ export function FgaReadingsGroup({
   showNA = true,
   showBluetooth = true,
 }: FgaReadingsGroupProps) {
-  const { isDark, theme } = useAppTheme();
+  const {isDark, theme} = useAppTheme();
   const [bleModalVisible, setBleModalVisible] = useState(false);
-  const { connectedDevice, connectionStatus, deviceMetadata } = useTpiDevice();
+  const {connectedDevice, connectionStatus, deviceMetadata} = useTpiDevice();
 
   const isConnected = connectionStatus === 'connected' && !!connectedDevice;
 
   const handleManualChange = useCallback(
     (field: keyof FGAValues, text: string) => {
-      onChange({ ...value, [field]: text });
+      onChange({...value, [field]: text});
     },
     [value, onChange],
   );
@@ -71,7 +71,7 @@ export function FgaReadingsGroup({
       const num = parseFloat(numMatch[0]);
       if (!isFinite(num)) return;
 
-      onChange({ ...value, co: String(num) });
+      onChange({...value, co: String(num)});
       setBleModalVisible(false);
     },
     [value, onChange],
@@ -81,7 +81,7 @@ export function FgaReadingsGroup({
     <View style={styles.container}>
       {/* Label row with BLE button */}
       <View style={styles.labelRow}>
-        <Text style={[styles.label, isDark && { color: theme.text.bodyLight }]}>
+        <Text style={[styles.label, isDark && {color: theme.text.bodyLight}]}>
           {label}
         </Text>
         {showBluetooth && (
@@ -90,7 +90,7 @@ export function FgaReadingsGroup({
             style={[
               styles.bleBtn,
               isConnected && styles.bleBtnConnected,
-              isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border },
+              isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border},
             ]}
           >
             <Ionicons
@@ -111,7 +111,7 @@ export function FgaReadingsGroup({
       <View style={styles.grid}>
         {(['co', 'co2', 'ratio'] as const).map((field) => (
           <View key={field} style={styles.field}>
-            <Text style={[styles.fieldLabel, isDark && { color: theme.text.muted }]}>
+            <Text style={[styles.fieldLabel, isDark && {color: theme.text.muted}]}>
               {FIELD_LABELS[field]}
             </Text>
             <View style={styles.inputRow}>

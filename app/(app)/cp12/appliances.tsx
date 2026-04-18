@@ -3,37 +3,37 @@
 // Step 2 – Add appliances (max 5)
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import {LinearGradient} from 'expo-linear-gradient';
+import {router} from 'expo-router';
+import React, {useCallback, useState} from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UI } from '../../../constants/theme';
-import { FgaReadingsGroup } from '../../../components/forms/FgaReadingsGroup';
-import { useCP12 } from '../../../src/context/CP12Context';
-import { useAppTheme } from '../../../src/context/ThemeContext';
+import Animated, {FadeIn, FadeInDown, FadeInUp} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {AutocompleteSuggestions} from '../../../components/forms/AutocompleteInput';
+import {FgaReadingsGroup} from '../../../components/forms/FgaReadingsGroup';
+import {UI} from '../../../constants/theme';
+import {useCP12} from '../../../src/context/CP12Context';
+import {useAppTheme} from '../../../src/context/ThemeContext';
 import {APPLIANCE_TYPES, getBrandsForCategory} from '../../../src/data/applianceBrands';
 import {
-    CP12Appliance,
-    EMPTY_APPLIANCE,
-    EMPTY_FGA,
-    FlueType,
-    HeatInputUnit,
-    PassFailNA,
-    YesNoNA,
+  CP12Appliance,
+  EMPTY_APPLIANCE,
+  EMPTY_FGA,
+  FlueType,
+  HeatInputUnit,
+  PassFailNA,
+  YesNoNA,
 } from '../../../src/types/cp12';
 
 const GLASS_BG = UI.glass.bg;
@@ -52,10 +52,10 @@ const FLUE_TYPES: FlueType[] = [
 
 // ─── Step indicator (reused) ────────────────────────────────────
 
-const StepIndicator = ({ current }: { current: number }) => {
-  const { isDark, theme } = useAppTheme();
+const StepIndicator = ({current}: {current: number}) => {
+  const {isDark, theme} = useAppTheme();
   return (
-    <View style={[s.stepRow, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+    <View style={[s.stepRow, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
       {['Details', 'Appliances', 'Checks', 'Review'].map((label, i) => {
         const step = i + 1;
         const isActive = step === current;
@@ -68,12 +68,12 @@ const StepIndicator = ({ current }: { current: number }) => {
               {isDone ? (
                 <Ionicons name="checkmark" size={12} color={UI.text.white} />
               ) : (
-                <Text style={[s.stepDotText, (isActive || isDone) && { color: UI.text.white }, isDark && !isActive && !isDone && { color: theme.text.muted }]}>
+                <Text style={[s.stepDotText, (isActive || isDone) && {color: UI.text.white}, isDark && !isActive && !isDone && {color: theme.text.muted}]}>
                   {step}
                 </Text>
               )}
             </View>
-            <Text style={[s.stepLabel, isActive ? { color: theme.brand.primary } : isDark && { color: theme.text.muted }]}>{label}</Text>
+            <Text style={[s.stepLabel, isActive ? {color: theme.brand.primary} : isDark && {color: theme.text.muted}]}>{label}</Text>
           </View>
         );
       })}
@@ -125,32 +125,32 @@ function DropdownSelector({
   onSelect: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { isDark, theme } = useAppTheme();
+  const {isDark, theme} = useAppTheme();
   return (
     <View style={s.inputContainer}>
-      <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>{label}</Text>
+      <Text style={[s.inputLabel, isDark && {color: theme.text.bodyLight}]}>{label}</Text>
       <TouchableOpacity
-        style={[s.dropdownTrigger, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}
+        style={[s.dropdownTrigger, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}
         onPress={() => setOpen(!open)}
         activeOpacity={0.7}
       >
-        <Text style={[value ? s.dropdownText : s.dropdownPlaceholder, isDark && { color: value ? theme.text.title : theme.text.placeholder }]}>
+        <Text style={[value ? s.dropdownText : s.dropdownPlaceholder, isDark && {color: value ? theme.text.title : theme.text.placeholder}]}>
           {value || 'Select…'}
         </Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={isDark ? theme.text.muted : UI.text.muted} />
       </TouchableOpacity>
       {open && (
-        <Animated.View entering={FadeInUp.duration(200)} style={[s.dropdownList, isDark && { backgroundColor: theme.surface.card, borderColor: theme.surface.border }]}>
+        <Animated.View entering={FadeInUp.duration(200)} style={[s.dropdownList, isDark && {backgroundColor: theme.surface.card, borderColor: theme.surface.border}]}>
           {options.map((opt) => (
             <TouchableOpacity
               key={opt}
-              style={[s.dropdownOption, isDark && { borderBottomColor: theme.surface.divider }, value === opt && s.dropdownOptionActive]}
+              style={[s.dropdownOption, isDark && {borderBottomColor: theme.surface.divider}, value === opt && s.dropdownOptionActive]}
               onPress={() => {
                 onSelect(opt);
                 setOpen(false);
               }}
             >
-              <Text style={[s.dropdownOptionText, isDark && { color: theme.text.body }, value === opt && s.dropdownOptionTextActive]}>
+              <Text style={[s.dropdownOptionText, isDark && {color: theme.text.body}, value === opt && s.dropdownOptionTextActive]}>
                 {opt}
               </Text>
               {value === opt && (
@@ -166,7 +166,7 @@ function DropdownSelector({
 
 // ─── Section divider ────────────────────────────────────────────
 
-const SectionDivider = ({ title }: { title: string }) => (
+const SectionDivider = ({title}: {title: string}) => (
   <View style={s.divider}>
     <View style={s.dividerLine} />
     <Text style={s.dividerText}>{title}</Text>
@@ -177,22 +177,22 @@ const SectionDivider = ({ title }: { title: string }) => (
 // ─── Main screen ────────────────────────────────────────────────
 
 export default function AppliancesScreen() {
-  const { theme, isDark } = useAppTheme();
+  const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
-  const { appliances, addAppliance, updateAppliance, removeAppliance } = useCP12();
+  const {appliances, addAppliance, updateAppliance, removeAppliance} = useCP12();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMakeSuggestions, setShowMakeSuggestions] = useState(false);
   const [showTypeSuggestions, setShowTypeSuggestions] = useState(false);
-  const [form, setForm] = useState<Omit<CP12Appliance, 'id'>>({ ...EMPTY_APPLIANCE });
+  const [form, setForm] = useState<Omit<CP12Appliance, 'id'>>({...EMPTY_APPLIANCE});
 
   const canAddMore = appliances.length < MAX_APPLIANCES;
 
   const resetForm = useCallback(() => {
     setForm({
       ...EMPTY_APPLIANCE,
-      fgaLow: { ...EMPTY_FGA },
-      fgaHigh: { ...EMPTY_FGA },
+      fgaLow: {...EMPTY_FGA},
+      fgaHigh: {...EMPTY_FGA},
     });
     setEditingId(null);
   }, []);
@@ -203,7 +203,7 @@ export default function AppliancesScreen() {
   };
 
   const handleEdit = (a: CP12Appliance) => {
-    setForm({ ...a });
+    setForm({...a});
     setEditingId(a.id);
     setShowForm(true);
   };
@@ -215,10 +215,10 @@ export default function AppliancesScreen() {
     }
 
     if (editingId) {
-      updateAppliance(editingId, { ...form, id: editingId });
+      updateAppliance(editingId, {...form, id: editingId});
     } else {
       const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
-      addAppliance({ ...form, id });
+      addAppliance({...form, id});
     }
 
     resetForm();
@@ -227,8 +227,8 @@ export default function AppliancesScreen() {
 
   const handleRemove = (id: string) => {
     Alert.alert('Remove Appliance', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeAppliance(id) },
+      {text: 'Cancel', style: 'cancel'},
+      {text: 'Remove', style: 'destructive', onPress: () => removeAppliance(id)},
     ]);
   };
 
@@ -243,25 +243,25 @@ export default function AppliancesScreen() {
   const updateField = <K extends keyof Omit<CP12Appliance, 'id'>>(
     key: K,
     value: Omit<CP12Appliance, 'id'>[K],
-  ) => setForm((prev) => ({ ...prev, [key]: value }));
+  ) => setForm((prev) => ({...prev, [key]: value}));
 
   return (
     <View style={s.root}>
       <LinearGradient
         colors={theme.gradients.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
         style={StyleSheet.absoluteFill}
       />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{flex: 1}}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={[
             s.scroll,
-            { paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + 120 },
+            {paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + 120},
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -270,14 +270,14 @@ export default function AppliancesScreen() {
           <Animated.View entering={FadeInDown.delay(50).springify()} style={s.header}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={[s.backBtn, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+              style={[s.backBtn, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
               activeOpacity={0.7}
             >
               <Ionicons name="arrow-back" size={22} color={theme.text.title} />
             </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.title, { color: theme.text.title }]}>Appliances</Text>
-              <Text style={[s.subtitle, { color: theme.text.muted }]}>
+            <View style={{flex: 1}}>
+              <Text style={[s.title, {color: theme.text.title}]}>Appliances</Text>
+              <Text style={[s.subtitle, {color: theme.text.muted}]}>
                 {appliances.length}/{MAX_APPLIANCES} added
               </Text>
             </View>
@@ -290,17 +290,17 @@ export default function AppliancesScreen() {
             <Animated.View
               key={a.id}
               entering={FadeInDown.delay(100 + idx * 80).springify()}
-              style={[s.applianceCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}
+              style={[s.applianceCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
             >
               <View style={s.applianceHeader}>
                 <View style={s.applianceNum}>
                   <Text style={s.applianceNumText}>{idx + 1}</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.applianceName, isDark && { color: theme.text.title }]} numberOfLines={1}>
+                <View style={{flex: 1}}>
+                  <Text style={[s.applianceName, isDark && {color: theme.text.title}]} numberOfLines={1}>
                     {a.make} {a.model}
                   </Text>
-                  <Text style={[s.applianceLocation, isDark && { color: theme.text.muted }]}>{a.location}</Text>
+                  <Text style={[s.applianceLocation, isDark && {color: theme.text.muted}]}>{a.location}</Text>
                 </View>
                 <TouchableOpacity onPress={() => handleEdit(a)} style={s.iconBtn}>
                   <Ionicons name="pencil-outline" size={18} color={UI.brand.primary} />
@@ -323,8 +323,8 @@ export default function AppliancesScreen() {
                   <Text
                     style={[
                       s.metaValue,
-                      a.applianceSafeToUse === 'Yes' && { color: UI.status.complete },
-                      a.applianceSafeToUse === 'No' && { color: UI.brand.danger },
+                      a.applianceSafeToUse === 'Yes' && {color: UI.status.complete},
+                      a.applianceSafeToUse === 'No' && {color: UI.brand.danger},
                     ]}
                   >
                     {a.applianceSafeToUse || '–'}
@@ -362,9 +362,9 @@ export default function AppliancesScreen() {
 
           {/* ── Appliance form ── */}
           {showForm && (
-            <Animated.View entering={FadeInDown.springify()} style={[s.formCard, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
+            <Animated.View entering={FadeInDown.springify()} style={[s.formCard, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
               <View style={s.formHeader}>
-                <Text style={[s.formTitle, isDark && { color: theme.text.title }]}>
+                <Text style={[s.formTitle, isDark && {color: theme.text.title}]}>
                   {editingId ? 'Edit Appliance' : 'New Appliance'}
                 </Text>
                 <TouchableOpacity
@@ -381,11 +381,11 @@ export default function AppliancesScreen() {
               <SectionDivider title="Appliance Details" />
 
               <FormInput label="Location" value={form.location} onChange={(v) => updateField('location', v)} placeholder="e.g. Kitchen" />
-              <FormInput label="Make" value={form.make} onChange={(v) => { updateField('make', v); setShowMakeSuggestions(true); }} placeholder="e.g. Worcester" />
-              <AutocompleteSuggestions value={form.make} suggestions={getBrandsForCategory(form.type)} visible={showMakeSuggestions} onSelect={(v) => { updateField('make', v); setShowMakeSuggestions(false); }} />
+              <FormInput label="Make" value={form.make} onChange={(v) => {updateField('make', v); setShowMakeSuggestions(true);}} placeholder="e.g. Worcester" />
+              <AutocompleteSuggestions value={form.make} suggestions={getBrandsForCategory(form.type)} visible={showMakeSuggestions} onSelect={(v) => {updateField('make', v); setShowMakeSuggestions(false);}} />
               <FormInput label="Model" value={form.model} onChange={(v) => updateField('model', v)} placeholder="e.g. Greenstar 30i" />
-              <FormInput label="Type" value={form.type} onChange={(v) => { updateField('type', v); setShowTypeSuggestions(true); }} placeholder="e.g. Boiler" />
-              <AutocompleteSuggestions value={form.type} suggestions={[...APPLIANCE_TYPES]} visible={showTypeSuggestions} onSelect={(v) => { updateField('type', v); setShowTypeSuggestions(false); }} />
+              <FormInput label="Type" value={form.type} onChange={(v) => {updateField('type', v); setShowTypeSuggestions(true);}} placeholder="e.g. Boiler" />
+              <AutocompleteSuggestions value={form.type} suggestions={[...APPLIANCE_TYPES]} visible={showTypeSuggestions} onSelect={(v) => {updateField('type', v); setShowTypeSuggestions(false);}} />
               <FormInput label="Serial Number" value={form.serialNumber} onChange={(v) => updateField('serialNumber', v)} placeholder="Serial number" />
               <FormInput label="GC Number" value={form.gcNumber} onChange={(v) => updateField('gcNumber', v)} placeholder="GC number" />
 
@@ -408,7 +408,7 @@ export default function AppliancesScreen() {
               />
 
               <View style={s.row}>
-                <View style={{ flex: 1 }}>
+                <View style={{flex: 1}}>
                   <FormInput
                     label="Heat Input"
                     value={form.heatInput}
@@ -508,8 +508,8 @@ export default function AppliancesScreen() {
               <TouchableOpacity style={s.saveBtn} activeOpacity={0.85} onPress={handleSave}>
                 <LinearGradient
                   colors={UI.gradients.success}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 0}}
                   style={s.saveBtnGradient}
                 >
                   <Ionicons name="checkmark-circle-outline" size={20} color={UI.text.white} />
@@ -526,18 +526,18 @@ export default function AppliancesScreen() {
         {!showForm && (
           <Animated.View
             entering={FadeIn.delay(400)}
-            style={[s.bottomBar, { bottom: TAB_BAR_HEIGHT, paddingBottom: 12 }, isDark && { backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)' }]}
+            style={[s.bottomBar, {bottom: TAB_BAR_HEIGHT, paddingBottom: 12}, isDark && {backgroundColor: 'rgba(28,28,30,0.97)', borderTopColor: 'rgba(255,255,255,0.08)'}]}
           >
             <TouchableOpacity
-              style={[s.nextBtn, appliances.length === 0 && { opacity: 0.5 }]}
+              style={[s.nextBtn, appliances.length === 0 && {opacity: 0.5}]}
               activeOpacity={0.85}
               onPress={handleNext}
               disabled={appliances.length === 0}
             >
               <LinearGradient
                 colors={UI.gradients.primaryDark}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
                 style={s.nextGradient}
               >
                 <Text style={s.nextText}>Next: Final Checks</Text>
@@ -566,13 +566,13 @@ function FormInput({
   placeholder: string;
   keyboardType?: 'default' | 'decimal-pad' | 'numeric';
 }) {
-  const { isDark, theme } = useAppTheme();
+  const {isDark, theme} = useAppTheme();
   return (
     <View style={s.inputContainer}>
-      <Text style={[s.inputLabel, isDark && { color: theme.text.bodyLight }]}>{label}</Text>
-      <View style={[s.inputWrapper, isDark && { backgroundColor: theme.surface.elevated, borderColor: theme.surface.border }]}>
+      <Text style={[s.inputLabel, isDark && {color: theme.text.bodyLight}]}>{label}</Text>
+      <View style={[s.inputWrapper, isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border}]}>
         <TextInput
-          style={[s.input, isDark && { color: theme.text.title }]}
+          style={[s.input, isDark && {color: theme.text.title}]}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}
@@ -588,82 +588,82 @@ function FormInput({
 // ─── Styles ─────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { paddingHorizontal: 20 },
+  root: {flex: 1},
+  scroll: {paddingHorizontal: 20},
 
   // Header
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
+  header: {flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12},
   backBtn: {
     width: 40, height: 40, borderRadius: 14,
     backgroundColor: GLASS_BG, borderWidth: 1, borderColor: GLASS_BORDER,
     justifyContent: 'center', alignItems: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2 },
+  title: {fontSize: 24, fontWeight: '800', color: UI.text.title, letterSpacing: -0.5},
+  subtitle: {fontSize: 13, color: UI.text.muted, fontWeight: '500', marginTop: 2},
 
   // Step
-  stepRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 24, paddingVertical: 14, backgroundColor: GLASS_BG, borderRadius: 16, borderWidth: 1, borderColor: GLASS_BORDER },
-  stepItem: { alignItems: 'center', gap: 6 },
-  stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: UI.surface.divider, justifyContent: 'center', alignItems: 'center' },
-  stepDotActive: { backgroundColor: UI.brand.primary },
-  stepDotDone: { backgroundColor: UI.status.complete },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: UI.text.muted },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted },
-  stepLabelActive: { color: UI.brand.primary },
+  stepRow: {flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 24, paddingVertical: 14, backgroundColor: GLASS_BG, borderRadius: 16, borderWidth: 1, borderColor: GLASS_BORDER},
+  stepItem: {alignItems: 'center', gap: 6},
+  stepDot: {width: 28, height: 28, borderRadius: 14, backgroundColor: UI.surface.divider, justifyContent: 'center', alignItems: 'center'},
+  stepDotActive: {backgroundColor: UI.brand.primary},
+  stepDotDone: {backgroundColor: UI.status.complete},
+  stepDotText: {fontSize: 12, fontWeight: '700', color: UI.text.muted},
+  stepLabel: {fontSize: 11, fontWeight: '600', color: UI.text.muted},
+  stepLabelActive: {color: UI.brand.primary},
 
   // Appliance card
   applianceCard: {
     backgroundColor: GLASS_BG, borderRadius: 18, borderWidth: 1, borderColor: GLASS_BORDER,
     padding: 16, marginBottom: 12,
-    shadowColor: UI.text.muted, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
+    shadowColor: UI.text.muted, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
-  applianceHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  applianceNum: { width: 30, height: 30, borderRadius: 10, backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  applianceNumText: { fontSize: 14, fontWeight: '800', color: UI.brand.primary },
-  applianceName: { fontSize: 15, fontWeight: '700', color: UI.text.title },
-  applianceLocation: { fontSize: 12, color: UI.text.muted, marginTop: 1 },
-  iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: UI.surface.base, justifyContent: 'center', alignItems: 'center' },
-  applianceMeta: { flexDirection: 'row', gap: 16, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: UI.surface.elevated },
+  applianceHeader: {flexDirection: 'row', alignItems: 'center', gap: 10},
+  applianceNum: {width: 30, height: 30, borderRadius: 10, backgroundColor: UI.surface.primaryLight, justifyContent: 'center', alignItems: 'center'},
+  applianceNumText: {fontSize: 14, fontWeight: '800', color: UI.brand.primary},
+  applianceName: {fontSize: 15, fontWeight: '700', color: UI.text.title},
+  applianceLocation: {fontSize: 12, color: UI.text.muted, marginTop: 1},
+  iconBtn: {width: 36, height: 36, borderRadius: 10, backgroundColor: UI.surface.base, justifyContent: 'center', alignItems: 'center'},
+  applianceMeta: {flexDirection: 'row', gap: 16, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: UI.surface.elevated},
   metaItem: {},
-  metaLabel: { fontSize: 10, fontWeight: '600', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  metaValue: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight },
+  metaLabel: {fontSize: 10, fontWeight: '600', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2},
+  metaValue: {fontSize: 13, fontWeight: '600', color: UI.text.bodyLight},
 
   // Add button
-  addBtn: { borderRadius: 16, overflow: 'hidden', marginBottom: 12 },
-  addBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  addBtnText: { fontSize: 15, fontWeight: '700', color: UI.text.white },
+  addBtn: {borderRadius: 16, overflow: 'hidden', marginBottom: 12},
+  addBtnGradient: {flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8},
+  addBtnText: {fontSize: 15, fontWeight: '700', color: UI.text.white},
 
-  maxNotice: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', paddingVertical: 14 },
-  maxNoticeText: { fontSize: 13, fontWeight: '600', color: UI.brand.primary },
+  maxNotice: {flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', paddingVertical: 14},
+  maxNoticeText: {fontSize: 13, fontWeight: '600', color: UI.brand.primary},
 
   // Form card
   formCard: {
     backgroundColor: GLASS_BG, borderRadius: 20, borderWidth: 1, borderColor: GLASS_BORDER,
     padding: 18, marginBottom: 12,
-    shadowColor: UI.text.muted, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 4,
+    shadowColor: UI.text.muted, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.1, shadowRadius: 16, elevation: 4,
   },
-  formHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  formTitle: { fontSize: 18, fontWeight: '800', color: UI.text.title },
+  formHeader: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12},
+  formTitle: {fontSize: 18, fontWeight: '800', color: UI.text.title},
 
   // Inputs
-  inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6 },
+  inputContainer: {marginBottom: 14},
+  inputLabel: {fontSize: 13, fontWeight: '600', color: UI.text.bodyLight, marginBottom: 6},
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: UI.surface.base, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
-  input: { flex: 1, fontSize: 15, color: UI.text.title, padding: 0 },
+  input: {flex: 1, fontSize: 15, color: UI.text.title, padding: 0},
 
   // Chips
-  chipRow: { flexDirection: 'row', gap: 8 },
+  chipRow: {flexDirection: 'row', gap: 8},
   chip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
     backgroundColor: UI.surface.elevated, borderWidth: 1, borderColor: UI.surface.divider,
   },
-  chipActive: { backgroundColor: UI.surface.primaryLight, borderColor: UI.brand.primary },
-  chipText: { fontSize: 13, fontWeight: '600', color: UI.text.muted },
-  chipTextActive: { color: UI.brand.primary },
+  chipActive: {backgroundColor: UI.surface.primaryLight, borderColor: UI.brand.primary},
+  chipText: {fontSize: 13, fontWeight: '600', color: UI.text.muted},
+  chipTextActive: {color: UI.brand.primary},
 
   // Dropdown
   dropdownTrigger: {
@@ -671,29 +671,29 @@ const s = StyleSheet.create({
     backgroundColor: UI.surface.base, borderRadius: 12, borderWidth: 1, borderColor: UI.surface.divider,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 12,
   },
-  dropdownText: { fontSize: 15, color: UI.text.title, fontWeight: '500' },
-  dropdownPlaceholder: { fontSize: 15, color: UI.text.muted },
+  dropdownText: {fontSize: 15, color: UI.text.title, fontWeight: '500'},
+  dropdownPlaceholder: {fontSize: 15, color: UI.text.muted},
   dropdownList: {
     marginTop: 4, borderRadius: 14, backgroundColor: '#fff',
     borderWidth: 1, borderColor: UI.surface.divider, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 6,
+    shadowColor: '#000', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.08, shadowRadius: 16, elevation: 6,
   },
   dropdownOption: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 13,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: UI.surface.elevated,
   },
-  dropdownOptionActive: { backgroundColor: UI.surface.primaryLight },
-  dropdownOptionText: { fontSize: 14, fontWeight: '500', color: UI.text.bodyLight },
-  dropdownOptionTextActive: { color: UI.brand.primary, fontWeight: '600' },
+  dropdownOptionActive: {backgroundColor: UI.surface.primaryLight},
+  dropdownOptionText: {fontSize: 14, fontWeight: '500', color: UI.text.bodyLight},
+  dropdownOptionTextActive: {color: UI.brand.primary, fontWeight: '600'},
 
   // FGA
-  fgaSection: { marginBottom: 16 },
-  fgaLabel: { fontSize: 14, fontWeight: '700', color: UI.text.bodyLight, marginBottom: 8 },
-  fgaGrid: { flexDirection: 'row', gap: 8 },
-  fgaField: { flex: 1 },
-  fgaFieldLabel: { fontSize: 11, fontWeight: '600', color: UI.text.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  fgaInputRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  fgaSection: {marginBottom: 16},
+  fgaLabel: {fontSize: 14, fontWeight: '700', color: UI.text.bodyLight, marginBottom: 8},
+  fgaGrid: {flexDirection: 'row', gap: 8},
+  fgaField: {flex: 1},
+  fgaFieldLabel: {fontSize: 11, fontWeight: '600', color: UI.text.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5},
+  fgaInputRow: {flexDirection: 'row', alignItems: 'center', gap: 4},
   fgaInput: {
     flex: 1, fontSize: 14, color: UI.text.title,
     backgroundColor: UI.surface.base, borderRadius: 10, borderWidth: 1, borderColor: UI.surface.divider,
@@ -703,23 +703,23 @@ const s = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 8, borderRadius: 8,
     backgroundColor: UI.surface.elevated, borderWidth: 1, borderColor: UI.surface.divider,
   },
-  naBtnActive: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
-  naBtnText: { fontSize: 10, fontWeight: '700', color: UI.text.muted },
-  naBtnTextActive: { color: UI.brand.danger },
+  naBtnActive: {backgroundColor: '#FEE2E2', borderColor: '#FECACA'},
+  naBtnText: {fontSize: 10, fontWeight: '700', color: UI.text.muted},
+  naBtnTextActive: {color: UI.brand.danger},
 
   // Divider
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: UI.surface.divider },
-  dividerText: { fontSize: 12, fontWeight: '700', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  divider: {flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16},
+  dividerLine: {flex: 1, height: 1, backgroundColor: UI.surface.divider},
+  dividerText: {fontSize: 12, fontWeight: '700', color: UI.text.muted, textTransform: 'uppercase', letterSpacing: 0.5},
 
   // Row
-  row: { flexDirection: 'row', gap: 12 },
-  unitToggle: { width: 130 },
+  row: {flexDirection: 'row', gap: 12},
+  unitToggle: {width: 130},
 
   // Save
-  saveBtn: { borderRadius: 16, overflow: 'hidden', marginTop: 8 },
-  saveBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: UI.text.white },
+  saveBtn: {borderRadius: 16, overflow: 'hidden', marginTop: 8},
+  saveBtnGradient: {flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8},
+  saveBtnText: {fontSize: 15, fontWeight: '700', color: UI.text.white},
 
   // Bottom bar
   bottomBar: {
@@ -728,7 +728,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(248,250,252,0.92)',
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.06)',
   },
-  nextBtn: { borderRadius: 16, overflow: 'hidden' },
-  nextGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  nextText: { fontSize: 16, fontWeight: '700', color: UI.text.white },
+  nextBtn: {borderRadius: 16, overflow: 'hidden'},
+  nextGradient: {flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8},
+  nextText: {fontSize: 16, fontWeight: '700', color: UI.text.white},
 });
