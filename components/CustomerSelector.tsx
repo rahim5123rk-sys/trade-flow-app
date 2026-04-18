@@ -744,7 +744,7 @@ export function CustomerSelector({
       )}
 
       {/* ─── JOB / SITE ADDRESS ─── */}
-      {showJobAddress && !isQuick && !isLocked && !isEditing && (
+      {showJobAddress && !isQuick && !isLocked && (
         <Animated.View
           entering={FadeInDown.delay(150).duration(350).springify()}
           style={[s.jobCard, darkCard]}

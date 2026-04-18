@@ -1,0 +1,1411 @@
+{
+  "brand": "Worcester Bosch",
+  "slug": "worcester",
+  "description": "Greenstar Si Compact, Greenstar i, Greenstar 4000 and CDi Classic ranges. Codes cover combi, system and regular models.",
+  "models": [
+    { "id": "greenstar-i", "name": "Greenstar i", "seriesAliases": ["25i", "30i", "Greenstar 25i", "Greenstar 30i"] },
+    { "id": "greenstar-si-compact", "name": "Greenstar Si Compact", "seriesAliases": ["28 Si Compact", "32 Si Compact"] },
+    { "id": "greenstar-4000", "name": "Greenstar 4000", "seriesAliases": ["Greenstar 4000 25kW", "Greenstar 4000 30kW"] },
+    { "id": "greenstar-cdi", "name": "Greenstar CDi Classic", "seriesAliases": ["CDi Compact", "CDi Classic"] },
+    { "id": "greenstar-ri", "name": "Greenstar Ri", "seriesAliases": ["Ri 12", "Ri 18", "Ri 24"] }
+  ],
+  "faultCodes": [
+    {
+      "code": "A1",
+      "title": "Pump running dry or seized",
+      "severity": "warning",
+      "appliesTo": "all",
+      "summary": "Boiler detects the pump is circulating no water, either because the pump is seized or the system is air-locked or empty.",
+      "likelyCauses": [
+        "System pressure too low or empty",
+        "Pump shaft seized (magnetic rotor stuck after long idle period)",
+        "Airlock in primary circuit",
+        "Pump winding failure",
+        "Auto air vent blocked or capped"
+      ],
+      "quickChecks": [
+        "Check system pressure — should be 1.0–1.5 bar cold",
+        "Listen for pump running when boiler fires",
+        "Bleed radiators and auto air vent on top of pump",
+        "Free a seized pump by loosening the centre screw and rotating the shaft with a flat screwdriver"
+      ],
+      "linkedFlowcharts": ["low-pressure"],
+      "partSearchHint": "pump"
+    },
+    {
+      "code": "A7",
+      "title": "Hot water NTC sensor defective",
+      "severity": "warning",
+      "appliesTo": "all",
+      "summary": "The domestic hot water temperature sensor is reading out of range.",
+      "likelyCauses": [
+        "NTC sensor open or short circuit",
+        "Sensor connector unplugged or corroded",
+        "Damaged sensor wiring"
+      ],
+      "quickChecks": [
+        "Unplug and re-seat the DHW NTC connector",
+        "Measure NTC resistance against the standard table — should fall between 8k–12kΩ at room temperature",
+        "Inspect the loom for damage near the heat exchanger"
+      ],
+      "linkedFlowcharts": [],
+      "partSearchHint": "dhw ntc sensor"
+    },
+    {
+      "code": "A8",
+      "title": "Communication break with FX or remote controls",
+      "severity": "warning",
+      "appliesTo": "all",
+      "summary": "The PCB has lost communication with a connected Worcester room-stat, FX programmer or weather-compensation controller.",
+      "likelyCauses": [
+        "Broken or shorted data cable to the controller",
+        "Controller batteries flat (where applicable)",
+        "Controller hardware fault",
+        "PCB interface fault"
+      ],
+      "quickChecks": [
+        "Check continuity of the two data wires between boiler and controller",
+        "Power-cycle the boiler and controller",
+        "Swap in a known-good controller if one is available"
+      ],
+      "linkedFlowcharts": [],
+      "partSearchHint": "fx controller"
+    },
+    {
+      "code": "B1",
+      "title": "Code plug missing or not detected",
+      "severity": "lockout",
+      "appliesTo": "all",
+      "summary": "The boiler cannot read the coding plug that tells the PCB which model and output it is controlling.",
+      "likelyCauses": [
+        "Coding plug removed during a service",
+        "Coding plug connector not seated",
+        "Damaged or wrong coding plug after a PCB swap"
+      ],
+      "quickChecks": [
+        "Turn boiler off at the spur, re-seat the coding plug firmly, and power back on",
+        "Confirm the coding plug matches the model rating plate",
+        "Check for broken pins on the plug"
+      ],
+      "linkedFlowcharts": [],
+      "partSearchHint": "coding plug"
+    },
+    {
+      "code": "C6",
+      "title": "Fan speed too low",
+      "severity": "lockout",
+      "appliesTo": "all",
+      "summary": "The fan is not reaching the speed the PCB expects, either on start-up or during operation.",
+      "likelyCauses": [
+        "Fan bearings worn",
+        "Fan wiring or connector fault",
+        "Blocked flue or heavy condensate in the flue",
+        "PCB fan driver fault"
+      ],
+      "quickChecks": [
+        "Listen and feel the fan on start-up — rough bearings are obvious",
+        "Inspect flue terminal for blockage (nests, debris)",
+        "Drain condensate from the flue low point if fitted",
+        "Check 230V supply to the fan and the tacho signal back to the PCB"
+      ],
+      "linkedFlowcharts": ["fan-fault"],
+      "partSearchHint": "fan assembly"
+    },
+    {
+      "code": "D1",
+      "title": "Return sensor temperature fault",
+      "severity": "warning",
+      "appliesTo": "all",
+      "summary": "The central heating return NTC is reading an implausible value.",
+      "likelyCauses": [
+        "Return NTC open or short",
+        "Connector unplugged or damp",
+        "Damaged wiring"
+      ],
+      "quickChecks": [
+        "Re-seat the return NTC plug",
+        "Measure resistance against the NTC table",
+        "Check for water ingress at the sensor"
+      ],
+      "linkedFlowcharts": [],
+      "partSearchHint": "return ntc sensor"
+    },
+    {
+      "code": "E2",
+      "title": "Central heating flow NTC defective",
+      "severity": "warning",
+      "appliesTo": "all",
+      "summary": "The primary flow sensor is open, shorted or wildly out of range.",
+      "likelyCauses": [
+        "Flow NTC open or short circuit",
+        "Damaged sensor loom",
+        "Loose connector at the PCB"
+      ],
+      "quickChecks": [
+        "Unplug, inspect and re-seat the flow NTC",
+        "Measure resistance at room temperature (~10kΩ typical)",
+        "Compare reading on the service menu with actual pipe temperature"
+      ],
+      "linkedFlowcharts": [],
+      "partSearchHint": "flow ntc sensor"
+    },
+    {
+      "code": "E9",
+      "title": "Flow temperature safety limiter tripped",
+      "severity": "lockout",
+      "appliesTo": "all",
+      "summary": "The flow thermistor or overheat stat has seen the heat exchanger rise above the safe limit.",
+      "likelyCauses": [
+        "Poor circulation (seized pump, airlock, closed valves)",
+        "Limescale or sludge in the primary heat exchanger",
+        "Flow NTC drifting or short",
+        "Overheat stat faulty"
+      ],
+      "quickChecks": [
+        "Confirm pump is circulating and system is vented",
+        "Check inhibitor level and inspect for sludge (black water on expansion vessel drain)",
+        "Feel flow and return pipes — large temperature differential points to poor flow",
+        "Swap the overheat stat if it reads open cold"
+      ],
+      "linkedFlowcharts": ["no-heating"],
+      "partSearchHint": "overheat thermostat"
+    },
+    {
+      "code": "EA",
+      "title": "Flame not detected on ignition",
+      "severity": "lockout",
+      "appliesTo": "all",
+      "summary": "The boiler tried to light but the ionisation current never confirmed a flame.",
+      "likelyCauses": [
+        "Gas supply isolated or emergency control valve off",
+        "Condensate trap or pipework blocked, drowning the burner",
+        "Ignition or flame-sense electrode dirty, cracked or out of gap",
+        "Ignition lead perished or earthing out",
+        "Gas valve failed closed",
+        "Reversed polarity at the spur"
+      ],
+      "quickChecks": [
+        "Check gas is on and other gas appliances run normally",
+        "Confirm mains polarity with a socket tester or meter",
+        "Clean the flame-sense electrode and check the spark gap (typically 3–4 mm)",
+        "Clear and reseat the condensate trap, prove it is draining",
+        "Verify gas inlet working pressure at the test point"
+      ],
+      "linkedFlowcharts": ["no-ignition"],
+      "partSearchHint": "ignition electrode"
+    },
+    {
+      "code": "EB",
+      "title": "False flame detected when boiler is off",
+      "severity": "lockout",
+      "appliesTo": "all",
+      "summary": "The PCB is seeing a flame signal when the gas valve is closed.",
+      "likelyCauses": [
+        "Damp or tracking ignition lead",
+        "Electrode insulator cracked and earthing",
+        "PCB flame-detect circuit faulty",
+        "Gas valve leaking through"
+      ],
+      "quickChecks": [
+        "Dry and inspect the ignition lead and electrode",
+        "Check the electrode porcelain for fine cracks",
+        "Isolate and watch the burner — gas escaping when off points to a passing gas valve"
+      ],
+      "linkedFlowcharts": [],
+      "partSearchHint": "ignition lead"
+    },
+    {
+      "code": "F0",
+      "title": "Internal PCB error",
+      "severity": "lockout",
+      "appliesTo": "all",
+      "summary": "The PCB has detected an internal software or hardware fault.",
+      "likelyCauses": [
+        "Moisture tracking on the PCB",
+        "PCB hardware failure",
+        "Low mains voltage",
+        "Firmware fault"
+      ],
+      "quickChecks": [
+        "Turn the boiler off for 60 seconds and back on",
+        "Inspect the PCB for water staining, green corrosion or burnt components",
+        "Measure mains voltage under load"
+      ],
+      "linkedFlowcharts": [],
+      "partSearchHint": "pcb"
+    },
+    {
+      "code": "F7",
+      "title": "Flame detected while boiler is off",
+      "severity": "lockout",
+      "appliesTo": "all",
+      "summary": "Similar to EB — the boiler sees a flame signal when there should be none.",
+      "likelyCauses": [
+        "Damp ignition lead or electrode",
+        "Cracked electrode porcelain",
+        "Gas valve passing gas when closed",
+        "PCB flame-detect fault"
+      ],
+      "quickChecks": [
+        "Dry out the burner chamber and lead",
+        "Inspect electrode for cracks",
+        "Soap-test the burner when the gas valve is closed"
+      ],
+      "linkedFlowcharts": [],
+      "partSearchHint": "ignition lead"
+    },
+    {
+      "code": "FA",
+      "title": "Flame detected after gas shut off",
+      "severity": "lockout",
+      "appliesTo": "all",
+      "summary": "After the gas valve closed at end of cycle, the PCB still sees flame — usually a gas valve passing.",
+      "likelyCauses": [
+        "Gas valve leaking through (most common)",
+        "Ignition lead damp",
+        "Flame-detect circuit fault"
+      ],
+      "quickChecks": [
+        "Soap test the burner with the boiler off to confirm valve closure",
+        "Dry and inspect the ignition lead",
+        "Replace the gas valve if it is proven to be passing"
+      ],
+      "linkedFlowcharts": [],
+      "partSearchHint": "gas valve"
+    },
+    {
+      "code": "FD",
+      "title": "Reset button pressed in error",
+      "severity": "info",
+      "appliesTo": "all",
+      "summary": "The boiler logs a reset that was pressed without a prior lockout.",
+      "likelyCauses": [
+        "Operator pressed reset needlessly"
+      ],
+      "quickChecks": [
+        "No action needed — clears automatically"
+      ],
+      "linkedFlowcharts": []
+    },
+    {
+      "code": "H07",
+      "title": "Low system pressure warning",
+      "severity": "info",
+      "appliesTo": "all",
+      "summary": "Pressure has dropped close to the low cut-off but the boiler is still running.",
+      "likelyCauses": [
+        "Gradual system leak",
+        "Failed expansion vessel charge",
+        "PRV discharging"
+      ],
+      "quickChecks": [
+        "Top up the system to 1.2 bar cold",
+        "Walk radiators and visible pipework for weeping joints",
+        "Check the PRV outside discharge pipe for dripping"
+      ],
+      "linkedFlowcharts": ["low-pressure", "prv-leaking"]
+    },
+    {
+      "code": "224",
+      "title": "Waiting for airflow",
+      "severity": "info",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The air pressure switch or fan tacho has not confirmed airflow yet at start-up.",
+      "likelyCauses": [
+        "Fan spin-up delay (normal if brief)",
+        "Partial flue blockage",
+        "APS or tacho signal weak",
+        "Loose fan connector"
+      ],
+      "quickChecks": [
+        "Confirm fan is actually spinning on start-up",
+        "Inspect the flue run for debris",
+        "Re-seat the fan connector and tacho lead"
+      ],
+      "linkedFlowcharts": ["fan-fault"]
+    },
+    {
+      "code": "227",
+      "title": "System pressure too low",
+      "severity": "warning",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "Pressure sensor reads below the minimum operating threshold.",
+      "likelyCauses": [
+        "System leak",
+        "Pressure sensor faulty or blocked",
+        "Failed expansion vessel"
+      ],
+      "quickChecks": [
+        "Top up to 1.2 bar cold",
+        "Check pressure sensor reading against the gauge",
+        "Pressurise expansion vessel to 1.0 bar with system drained"
+      ],
+      "linkedFlowcharts": ["low-pressure"],
+      "partSearchHint": "pressure sensor"
+    },
+    {
+      "code": "229",
+      "title": "Flow temperature too high",
+      "severity": "warning",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "Primary flow temperature has exceeded the PCB limit, often alongside poor circulation.",
+      "likelyCauses": [
+        "Pump not circulating",
+        "Airlock or closed valve",
+        "Sludge in heat exchanger",
+        "Flow NTC drift"
+      ],
+      "quickChecks": [
+        "Check pump operation and system pressure",
+        "Vent rads and auto air vent",
+        "Inspect heat exchanger for sludge evidence"
+      ],
+      "linkedFlowcharts": ["no-heating"],
+      "partSearchHint": "safety temperature sensor"
+    },
+    {
+      "code": "265",
+      "title": "Fan running too fast",
+      "severity": "lockout",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "Fan overshoot — PCB commanding a speed but the tacho reports much higher RPM.",
+      "likelyCauses": [
+        "Tacho signal fault",
+        "Fan electronics failure",
+        "High wind at flue terminal (intermittent)"
+      ],
+      "quickChecks": [
+        "Check fan tacho wiring and connector",
+        "Run the boiler in service test to confirm commanded vs actual speed"
+      ],
+      "linkedFlowcharts": ["fan-fault"],
+      "partSearchHint": "fan assembly"
+    },
+    {
+      "code": "266",
+      "title": "Fan running too slow",
+      "severity": "lockout",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "Fan not reaching commanded RPM.",
+      "likelyCauses": [
+        "Worn fan bearings",
+        "Debris in the fan cage",
+        "Low mains voltage",
+        "Fan motor failure"
+      ],
+      "quickChecks": [
+        "Spin the fan by hand when isolated — grinding or stiff = bearings",
+        "Check supply voltage to the fan",
+        "Clean the fan impeller if accessible"
+      ],
+      "linkedFlowcharts": ["fan-fault"],
+      "partSearchHint": "fan assembly"
+    },
+    {
+      "code": "283",
+      "title": "Fan start-up problem",
+      "severity": "lockout",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "Fan failed to spin up within the allowed window on a call for heat.",
+      "likelyCauses": [
+        "Fan seized",
+        "Fan supply lead disconnected",
+        "PCB fan driver fault"
+      ],
+      "quickChecks": [
+        "Confirm 230V supply at the fan connector on call for heat",
+        "Spin the fan manually and listen for bearing noise",
+        "Re-seat all fan connections"
+      ],
+      "linkedFlowcharts": ["fan-fault"],
+      "partSearchHint": "fan assembly"
+    },
+    {
+      "code": "286",
+      "title": "Primary flow to return differential too large",
+      "severity": "warning",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The gap between flow and return temperatures exceeds the safe threshold, usually indicating starved circulation.",
+      "likelyCauses": [
+        "Pump running slow or air-bound",
+        "Partially closed flow valves",
+        "Blocked or limed primary heat exchanger"
+      ],
+      "quickChecks": [
+        "Confirm pump is running at normal speed",
+        "Check all isolation valves are fully open",
+        "Inspect heat exchanger flow passages if accessible"
+      ],
+      "linkedFlowcharts": ["no-heating"],
+      "partSearchHint": "pump"
+    },
+    {
+      "code": "287",
+      "title": "Flow temperature rising too quickly",
+      "severity": "warning",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "Rate of change on the flow NTC is above the expected limit — points to poor flow past the sensor.",
+      "likelyCauses": [
+        "Pump seized or starting slowly",
+        "Airlock in the heat exchanger",
+        "Valve shut on the flow"
+      ],
+      "quickChecks": [
+        "Bleed the auto air vent",
+        "Spin the pump shaft by hand if cold",
+        "Verify all isolation valves are fully open"
+      ],
+      "linkedFlowcharts": ["no-heating"],
+      "partSearchHint": "heat exchanger"
+    },
+    {
+      "code": "D3",
+      "title": "Mains power error / electrical interruption",
+      "severity": "lockout",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The boiler has detected a mains power interruption or spike. This can trip the boiler into lockout.",
+      "likelyCauses": [
+        "Unstable mains supply or power cut",
+        "Loose wiring at spur or plug",
+        "Faulty PCB unable to regulate power"
+      ],
+      "quickChecks": [
+        "Check mains voltage at the boiler spur — should be 230V +/-",
+        "Inspect wiring at fused spur for loose connections",
+        "If power stable, reset — if it recurs, suspect PCB"
+      ],
+      "partSearchHint": "pcb"
+    },
+    {
+      "code": "D4",
+      "title": "Temperature differential exceeding limit",
+      "severity": "warning",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The flow and return (or flow and safety sensor) temperature difference is too large, indicating a circulation issue.",
+      "likelyCauses": [
+        "Pump not running at correct speed or failing",
+        "System blockage restricting circulation",
+        "Faulty NTC sensor giving incorrect reading"
+      ],
+      "quickChecks": [
+        "Check pump is running and speed is adequate",
+        "Feel the flow and return pipes — large temp difference confirms circulation issue",
+        "Check for system blockage — flush if needed"
+      ],
+      "linkedFlowcharts": ["no-heating"],
+      "partSearchHint": "pump"
+    },
+    {
+      "code": "C1",
+      "title": "Fan stopped during operation",
+      "severity": "lockout",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The fan has stopped spinning mid-operation. The boiler locks out to prevent incomplete combustion.",
+      "likelyCauses": [
+        "Fan motor bearing failure",
+        "Loose wiring to fan connector",
+        "PCB not sending fan signal",
+        "Fan capacitor failure (older models)"
+      ],
+      "quickChecks": [
+        "Listen for the fan — is it spinning at all when the boiler fires?",
+        "Check the fan connector is fully plugged in",
+        "Measure voltage at fan leads — should see ~240V AC when demanded"
+      ],
+      "linkedFlowcharts": ["fan-fault"],
+      "partSearchHint": "fan assembly"
+    },
+    {
+      "code": "C4",
+      "title": "Gas valve coil disconnected",
+      "severity": "lockout",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The boiler has detected that the gas valve coil wiring is disconnected or has an open circuit.",
+      "likelyCauses": [
+        "Loose connector on gas valve coil",
+        "Broken wire in gas valve harness",
+        "Faulty gas valve coil winding"
+      ],
+      "quickChecks": [
+        "Check gas valve connector is fully seated",
+        "Measure gas valve coil resistance — typically 30-60Ω per coil",
+        "Inspect harness for damaged or broken wires"
+      ],
+      "partSearchHint": "gas valve"
+    },
+    {
+      "code": "CE",
+      "title": "No pressure change detected after pump activation",
+      "severity": "warning",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The pressure sensor detected no pressure change when the pump was activated, suggesting a pump or sensor fault.",
+      "likelyCauses": [
+        "Pump seized or airlocked",
+        "Faulty pressure sensor",
+        "Very low system pressure (below sensor range)"
+      ],
+      "quickChecks": [
+        "Check system pressure on the gauge — repressurise if below 1 bar",
+        "Listen for the pump — if silent, it may be seized",
+        "Tap the pump gently to free it if stuck"
+      ],
+      "linkedFlowcharts": ["low-pressure"],
+      "partSearchHint": "pump"
+    },
+    {
+      "code": "A3",
+      "title": "Flue gas sensor temperature too high",
+      "severity": "lockout",
+      "appliesTo": "all",
+      "summary": "The flue gas temperature has exceeded the safe limit. The boiler locks out to prevent damage to the heat exchanger or flue system.",
+      "likelyCauses": [
+        "Blocked or restricted heat exchanger (scale/sludge build-up)",
+        "Incorrect gas rate — too much gas burning",
+        "Faulty flue gas thermistor reading high"
+      ],
+      "quickChecks": [
+        "Check the flue for obstructions or blockages",
+        "Run a combustion analysis — check CO/CO2 ratio",
+        "Inspect the heat exchanger for signs of scaling or blockage"
+      ],
+      "partSearchHint": "flue gas thermistor"
+    },
+    {
+      "code": "E3",
+      "title": "Flue gas temperature rising too fast",
+      "severity": "warning",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The flue gas temperature is rising faster than expected, indicating possible heat exchanger or burner issues.",
+      "likelyCauses": [
+        "Blocked heat exchanger — sludge or scale restricting water flow",
+        "Incorrect gas pressure at burner",
+        "Faulty flue gas NTC sensor"
+      ],
+      "quickChecks": [
+        "Check gas pressure at the burner — compare to data badge spec",
+        "Inspect heat exchanger for signs of blockage",
+        "Check flue gas sensor resistance against spec"
+      ],
+      "partSearchHint": "heat exchanger"
+    },
+    {
+      "code": "E5",
+      "title": "Supply temperature sensor exceeded 110°C",
+      "severity": "lockout",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The flow temperature safety sensor has detected a temperature above 110°C. This is a critical safety shutdown.",
+      "likelyCauses": [
+        "System circulation blocked — pump failure or system sludge",
+        "Faulty safety temperature sensor",
+        "Limescale build-up in heat exchanger"
+      ],
+      "quickChecks": [
+        "Check pump is running — is water circulating?",
+        "Check for system blockages — feel pipes for cold spots",
+        "If pump OK and water flowing, suspect sensor or heat exchanger"
+      ],
+      "linkedFlowcharts": ["no-heating"],
+      "partSearchHint": "overheat thermostat"
+    },
+    {
+      "code": "H09",
+      "title": "Communication to pump has failed",
+      "severity": "info",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The boiler cannot communicate with the pump. On Greenstar models with intelligent pump control, this means the pump data link has failed.",
+      "likelyCauses": [
+        "Loose wiring between PCB and pump",
+        "Pump communication module fault",
+        "Incorrect pump type fitted (non-compatible)"
+      ],
+      "quickChecks": [
+        "Check wires to pump are secure — reconnect and re-power",
+        "Verify the correct pump type is fitted for the model",
+        "Reset the boiler and monitor"
+      ],
+      "partSearchHint": "pump"
+    },
+    {
+      "code": "H11",
+      "title": "DHW temperature sensor defect",
+      "severity": "info",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The domestic hot water outlet temperature sensor is showing an incorrect or out-of-range reading.",
+      "likelyCauses": [
+        "Faulty DHW NTC sensor",
+        "Loose or corroded connector",
+        "Wiring damage between sensor and PCB"
+      ],
+      "quickChecks": [
+        "Check DHW sensor wiring and connector for damage",
+        "Measure sensor resistance — should be ~10kΩ at 25°C",
+        "If resistance is wrong, replace the sensor"
+      ],
+      "partSearchHint": "dhw ntc sensor"
+    },
+    {
+      "code": "H29",
+      "title": "Outdoor temperature sensor defective",
+      "severity": "info",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The outdoor temperature sensor is reading incorrectly or is disconnected. The boiler will operate without weather compensation.",
+      "likelyCauses": [
+        "Outdoor sensor disconnected or cable damaged",
+        "Sensor exposed to direct sunlight giving false readings",
+        "Faulty sensor"
+      ],
+      "quickChecks": [
+        "Check the outdoor sensor wiring and connections at the boiler",
+        "Verify sensor is positioned on a north-facing wall, out of direct sunlight",
+        "Measure sensor resistance — compare to manufacturer's chart"
+      ],
+      "partSearchHint": "outdoor sensor"
+    },
+    {
+      "code": "CF",
+      "title": "Ionisation sensor shorted",
+      "severity": "lockout",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact", "greenstar-4000"],
+      "summary": "The ionisation (flame sensing) electrode has a short circuit to earth, preventing flame detection.",
+      "likelyCauses": [
+        "Ionisation lead touching burner or metalwork",
+        "Cracked or damaged ionisation electrode insulator",
+        "Soot/carbon build-up shorting the electrode"
+      ],
+      "quickChecks": [
+        "Inspect the ionisation electrode and lead for cracks or contact with metal parts",
+        "Clean the electrode tip and check for carbon deposits",
+        "Measure electrode resistance to earth — should be open circuit when cold"
+      ],
+      "partSearchHint": "ionisation electrode"
+    }
+  ],
+  "flowcharts": [
+    {
+      "slug": "flow-sensor-test",
+      "title": "Hot water flow sensor — voltage test",
+      "symptomCategory": "no-hot-water",
+      "appliesTo": ["greenstar-i", "greenstar-si-compact"],
+      "toolsNeeded": ["Digital multimeter", "Flat screwdriver"],
+      "safetyWarnings": [
+        "230V present on adjacent terminals — take care with probes",
+        "Leave cover off only as long as needed, refit securely afterwards"
+      ],
+      "steps": [
+        {
+          "id": "s1",
+          "type": "instruction",
+          "body": "Isolate gas. Remove the front cover and drop the control box cover. Identify the flow sensor connector on the cold inlet — typically three wires (red, black, yellow).",
+          "next": "s2"
+        },
+        {
+          "id": "s2",
+          "type": "instruction",
+          "body": "Set the multimeter to DC volts (20V range). Back-probe the connector while it remains plugged into the PCB.",
+          "next": "s3"
+        },
+        {
+          "id": "s3",
+          "type": "measurement",
+          "body": "Probe the supply rail. Put the red lead on the red wire and the black lead on the black wire. This is the 5V supply from the PCB to the sensor.",
+          "expected": "Approximately 5V DC",
+          "options": [
+            { "label": "Reading is 4.5–5.5V", "next": "s4" },
+            { "label": "No voltage / very low", "next": "r-pcb-supply" }
+          ]
+        },
+        {
+          "id": "s4",
+          "type": "measurement",
+          "body": "Now check the signal line. Move the red lead to the yellow wire, keeping the black lead on the black wire. With no water flowing it should sit near one rail.",
+          "expected": "Close to 5V or close to 0V at rest",
+          "options": [
+            { "label": "Sits near 5V or near 0V", "next": "s5" },
+            { "label": "Floating around 2.5V with tap off", "next": "r-sensor-faulty" }
+          ]
+        },
+        {
+          "id": "s5",
+          "type": "instruction",
+          "body": "Open a hot tap fully. The flow sensor impeller should spin and pulse the signal line, so the meter now sees an average around mid-rail.",
+          "next": "s6"
+        },
+        {
+          "id": "s6",
+          "type": "measurement",
+          "body": "With the hot tap running, read the yellow-to-black voltage again.",
+          "expected": "Averages around 2.5V DC while water is flowing",
+          "options": [
+            { "label": "Reads ~2.5V — sensor is pulsing", "next": "r-sensor-ok" },
+            { "label": "Stays stuck at 5V or 0V", "next": "r-sensor-faulty" }
+          ]
+        },
+        {
+          "id": "r-pcb-supply",
+          "type": "result",
+          "body": "No 5V supply from the PCB to the sensor. Check the connector for water ingress and wiring continuity back to the PCB. If supply cable is good, the PCB flow-sensor circuit has failed.",
+          "outcome": "component-faulty",
+          "partSearchHint": "pcb"
+        },
+        {
+          "id": "r-sensor-faulty",
+          "type": "result",
+          "body": "Sensor is powered correctly but not pulsing on flow. The flow sensor has failed and should be replaced.",
+          "outcome": "component-faulty",
+          "partSearchHint": "dhw flow sensor"
+        },
+        {
+          "id": "r-sensor-ok",
+          "type": "result",
+          "body": "Supply and signal are healthy. Sensor is working. If hot water still fails, move on to the diverter valve, secondary heat exchanger or DHW NTC.",
+          "outcome": "ok"
+        }
+      ]
+    },
+    {
+      "slug": "no-ignition",
+      "title": "No ignition lockout (EA / ignition fault)",
+      "symptomCategory": "no-ignition",
+      "appliesTo": "all",
+      "toolsNeeded": ["U-gauge or digital manometer", "Multimeter", "Torx/allen keys"],
+      "safetyWarnings": [
+        "Prove gas isolation before opening combustion chamber",
+        "Mains voltage present around PCB"
+      ],
+      "steps": [
+        {
+          "id": "s1",
+          "type": "decision",
+          "body": "Are other gas appliances in the property working normally?",
+          "options": [
+            { "label": "Yes, gas is good elsewhere", "next": "s2" },
+            { "label": "No, no gas at other appliances", "next": "r-gas-supply" }
+          ]
+        },
+        {
+          "id": "s2",
+          "type": "instruction",
+          "body": "Reset the boiler and watch/listen. You should hear the fan purge, then ignition sparks, then the burner either lights or locks out.",
+          "next": "s3"
+        },
+        {
+          "id": "s3",
+          "type": "decision",
+          "body": "Are you hearing ignition sparks?",
+          "options": [
+            { "label": "Yes, sparks audible", "next": "s4" },
+            { "label": "No sparks", "next": "r-no-spark" }
+          ]
+        },
+        {
+          "id": "s4",
+          "type": "decision",
+          "body": "Does the burner light at all before locking out?",
+          "options": [
+            { "label": "Lights briefly, then drops out", "next": "s5" },
+            { "label": "Never lights", "next": "s6" }
+          ]
+        },
+        {
+          "id": "s5",
+          "type": "instruction",
+          "body": "Burner lighting but dropping = flame not being sensed. Inspect the flame-sense electrode for soot, cracks or incorrect gap. Check the lead and earth path.",
+          "next": "r-flame-sense"
+        },
+        {
+          "id": "s6",
+          "type": "instruction",
+          "body": "Burner not lighting despite sparks = no gas arriving at the burner, or gas valve not opening. Check inlet working pressure with a manometer at the test point while calling for heat.",
+          "next": "s7"
+        },
+        {
+          "id": "s7",
+          "type": "measurement",
+          "body": "Measure inlet gas pressure at the boiler test point with the appliance calling for heat.",
+          "expected": "Approximately 20 mbar natural gas, 37 mbar LPG (within manufacturer tolerance)",
+          "options": [
+            { "label": "Pressure within tolerance", "next": "r-gas-valve" },
+            { "label": "Pressure low or absent", "next": "r-gas-supply" }
+          ]
+        },
+        {
+          "id": "r-gas-supply",
+          "type": "result",
+          "body": "Gas supply issue upstream of the boiler. Check emergency control valve, meter, and any in-line shut-offs. If pressure is low, investigate the supply pipe sizing or a partially closed valve.",
+          "outcome": "needs-service"
+        },
+        {
+          "id": "r-no-spark",
+          "type": "result",
+          "body": "No sparks. Check the ignition lead for damage, the electrode gap, and the PCB ignition output. A cracked electrode or perished lead is the most common culprit.",
+          "outcome": "component-faulty",
+          "partSearchHint": "ignition electrode"
+        },
+        {
+          "id": "r-flame-sense",
+          "type": "result",
+          "body": "Flame is being made but not detected. Clean or replace the flame-sense electrode, check the earth path back to the PCB, and verify the ionisation current in service mode.",
+          "outcome": "component-faulty",
+          "partSearchHint": "flame sense electrode"
+        },
+        {
+          "id": "r-gas-valve",
+          "type": "result",
+          "body": "Gas arriving at the boiler but not reaching the burner. Check the gas valve coil resistance and that 230V is being delivered to the valve on call for heat. Replace gas valve if proven faulty.",
+          "outcome": "component-faulty",
+          "partSearchHint": "gas valve"
+        }
+      ]
+    },
+    {
+      "slug": "low-pressure",
+      "title": "Low system pressure",
+      "symptomCategory": "pressure",
+      "appliesTo": "all",
+      "toolsNeeded": ["Filling loop", "Tyre pressure gauge"],
+      "safetyWarnings": [
+        "Isolate power before working on the expansion vessel",
+        "Hot water in the system — let it cool before draining"
+      ],
+      "steps": [
+        {
+          "id": "s1",
+          "type": "instruction",
+          "body": "Top the system up to 1.2 bar cold and note the time. Ask the customer when they last needed to top up.",
+          "next": "s2"
+        },
+        {
+          "id": "s2",
+          "type": "decision",
+          "body": "Has the pressure been dropping over weeks, or quickly (within days)?",
+          "options": [
+            { "label": "Gradual (weeks/months)", "next": "s3" },
+            { "label": "Rapid (days or less)", "next": "s5" }
+          ]
+        },
+        {
+          "id": "s3",
+          "type": "instruction",
+          "body": "Gradual drops are typically the expansion vessel. Isolate power. Drain the system down below the vessel (around 0 bar on the gauge).",
+          "next": "s4"
+        },
+        {
+          "id": "s4",
+          "type": "measurement",
+          "body": "With the system drained, check the expansion vessel air charge through the Schrader valve.",
+          "expected": "0.75–1.0 bar (match manufacturer spec)",
+          "options": [
+            { "label": "Pressure low or zero", "next": "r-evessel" },
+            { "label": "Holds pressure correctly", "next": "s5" }
+          ]
+        },
+        {
+          "id": "s5",
+          "type": "instruction",
+          "body": "Walk every visible radiator valve, pipe joint and the boiler internals looking for weeps. Check the PRV discharge pipe outside for any drip.",
+          "next": "s6"
+        },
+        {
+          "id": "s6",
+          "type": "decision",
+          "body": "Found a visible leak?",
+          "options": [
+            { "label": "Yes, found a wet joint or valve", "next": "r-leak" },
+            { "label": "No visible leak, PRV dry", "next": "r-hidden-leak" },
+            { "label": "PRV dripping outside", "next": "r-prv-leak" }
+          ]
+        },
+        {
+          "id": "r-evessel",
+          "type": "result",
+          "body": "Expansion vessel has lost its air charge. Re-pressurise to spec or replace the vessel if it has failed internally (water at the Schrader valve = ruptured diaphragm).",
+          "outcome": "component-faulty",
+          "partSearchHint": "expansion vessel"
+        },
+        {
+          "id": "r-leak",
+          "type": "result",
+          "body": "Repair the identified leak, refill, vent and re-pressurise to 1.2 bar. Monitor for 24 hours.",
+          "outcome": "needs-service"
+        },
+        {
+          "id": "r-hidden-leak",
+          "type": "result",
+          "body": "No visible leak and vessel is good. Suspect a buried leak under floors or screed. Consider a pressure test with the boiler isolated, or a trace leak dye.",
+          "outcome": "needs-service"
+        },
+        {
+          "id": "r-prv-leak",
+          "type": "result",
+          "body": "PRV is dumping water. Either the expansion vessel has failed (most common), the PRV itself has debris on the seat, or the filling loop was left open. Check vessel first, then PRV.",
+          "outcome": "needs-service"
+        }
+      ]
+    },
+    {
+      "slug": "no-heating",
+      "title": "No central heating, hot water works",
+      "symptomCategory": "no-heating",
+      "appliesTo": "all",
+      "toolsNeeded": ["Multimeter"],
+      "safetyWarnings": ["230V present around diverter actuator"],
+      "steps": [
+        {
+          "id": "s1",
+          "type": "decision",
+          "body": "Does the boiler fire on a hot tap but stay silent on a heating demand?",
+          "options": [
+            { "label": "Yes, fires on DHW only", "next": "s2" },
+            { "label": "No, nothing on either", "next": "r-cross-ref" }
+          ]
+        },
+        {
+          "id": "s2",
+          "type": "decision",
+          "body": "When heating calls, does the pump run?",
+          "options": [
+            { "label": "Pump runs, boiler does not fire", "next": "s3" },
+            { "label": "Pump does not run", "next": "r-demand" }
+          ]
+        },
+        {
+          "id": "s3",
+          "type": "instruction",
+          "body": "Diverter valve may be stuck on DHW. Cycle heating a few times and feel the valve body — you should hear/feel the actuator move.",
+          "next": "s4"
+        },
+        {
+          "id": "s4",
+          "type": "decision",
+          "body": "Does the diverter actuator move when heating calls?",
+          "options": [
+            { "label": "Yes, moves", "next": "r-sensor-check" },
+            { "label": "No, silent", "next": "r-diverter" }
+          ]
+        },
+        {
+          "id": "r-cross-ref",
+          "type": "result",
+          "body": "Boiler isn't firing for either mode. This is a different fault — start with the no-ignition flowchart.",
+          "outcome": "needs-service"
+        },
+        {
+          "id": "r-demand",
+          "type": "result",
+          "body": "No demand signal reaching the boiler. Check stat wiring, programmer state, and that the heating select is on. Bridge the CH demand terminals temporarily to confirm.",
+          "outcome": "needs-service"
+        },
+        {
+          "id": "r-diverter",
+          "type": "result",
+          "body": "Diverter actuator not moving on CH call. Check 230V to the actuator, then the motor/cartridge. Replace actuator or diverter cartridge as required.",
+          "outcome": "component-faulty",
+          "partSearchHint": "diverter valve actuator"
+        },
+        {
+          "id": "r-sensor-check",
+          "type": "result",
+          "body": "Actuator moves but boiler does not fire on CH. Check flow NTC and overheat stat readings in service mode, and verify the primary circulation. If flow sensor reads a high temp at rest, replace it.",
+          "outcome": "needs-service"
+        }
+      ]
+    },
+    {
+      "slug": "fan-fault",
+      "title": "Fan fault (C6 / 265 / 266 / 283)",
+      "symptomCategory": "fan",
+      "appliesTo": "all",
+      "toolsNeeded": ["Multimeter", "Torx keys"],
+      "safetyWarnings": ["Isolate mains before unplugging fan connections"],
+      "steps": [
+        {
+          "id": "s1",
+          "type": "instruction",
+          "body": "Drop the case and power the boiler. Call for heat and watch the fan directly.",
+          "next": "s2"
+        },
+        {
+          "id": "s2",
+          "type": "decision",
+          "body": "Does the fan spin up at all?",
+          "options": [
+            { "label": "Spins but rough / noisy", "next": "r-bearings" },
+            { "label": "Spins smoothly", "next": "s3" },
+            { "label": "Does not spin", "next": "s4" }
+          ]
+        },
+        {
+          "id": "s3",
+          "type": "instruction",
+          "body": "Smooth spin but still locking out. This points to the tacho signal rather than the motor.",
+          "next": "r-tacho"
+        },
+        {
+          "id": "s4",
+          "type": "instruction",
+          "body": "Isolate power and unplug the fan. Measure the two winding wires.",
+          "next": "s5"
+        },
+        {
+          "id": "s5",
+          "type": "measurement",
+          "body": "Check resistance across the fan winding pins.",
+          "expected": "Typically 10–80 Ω depending on model (must match the service manual figure)",
+          "options": [
+            { "label": "Open circuit (OL)", "next": "r-motor" },
+            { "label": "Within range", "next": "r-no-supply" }
+          ]
+        },
+        {
+          "id": "r-bearings",
+          "type": "result",
+          "body": "Bearings worn — fan assembly needs replacing.",
+          "outcome": "component-faulty",
+          "partSearchHint": "fan assembly"
+        },
+        {
+          "id": "r-tacho",
+          "type": "result",
+          "body": "Fan spins but PCB not seeing tacho. Inspect the tacho/signal wire continuity. If the wiring is good, replace the fan assembly (integrated tacho).",
+          "outcome": "component-faulty",
+          "partSearchHint": "fan assembly"
+        },
+        {
+          "id": "r-motor",
+          "type": "result",
+          "body": "Winding open — motor failed. Replace fan.",
+          "outcome": "component-faulty",
+          "partSearchHint": "fan assembly"
+        },
+        {
+          "id": "r-no-supply",
+          "type": "result",
+          "body": "Fan winding healthy but not spinning. Measure 230V supply at the fan connector on call for heat. If absent, inspect the loom and PCB fan driver.",
+          "outcome": "needs-service"
+        }
+      ]
+    },
+    {
+      "slug": "frozen-condensate",
+      "title": "Frozen condensate pipe",
+      "symptomCategory": "condensate",
+      "appliesTo": "all",
+      "toolsNeeded": ["Hot water jug or hot water bottle", "Towel"],
+      "safetyWarnings": ["Do not use boiling water on plastic condensate pipe — warm tap water only"],
+      "steps": [
+        {
+          "id": "s1",
+          "type": "decision",
+          "body": "External condensate pipe outside? Cold weather and boiler locked out with EA or similar?",
+          "options": [
+            { "label": "Yes, pipe outside in a frost event", "next": "s2" },
+            { "label": "No external pipe", "next": "r-not-this" }
+          ]
+        },
+        {
+          "id": "s2",
+          "type": "instruction",
+          "body": "Locate the external section. Feel for an ice plug — typically at the base of a vertical section, at an elbow, or inside the external termination.",
+          "next": "s3"
+        },
+        {
+          "id": "s3",
+          "type": "instruction",
+          "body": "Lay a warm cloth or pour warm (not boiling) tap water gently over the suspected ice plug. Work down from the top. Listen for water starting to move.",
+          "next": "s4"
+        },
+        {
+          "id": "s4",
+          "type": "instruction",
+          "body": "Reset the boiler. It should now run normally.",
+          "next": "s5"
+        },
+        {
+          "id": "s5",
+          "type": "instruction",
+          "body": "Advise the customer: re-route the condensate internally, upsize the pipe to 32mm minimum externally, insulate thoroughly, or fit a trace heater. Quote as required.",
+          "next": "r-done"
+        },
+        {
+          "id": "r-not-this",
+          "type": "result",
+          "body": "Condensate routed internally, so freezing is unlikely to be the issue. Check the internal trap for blockage and clear if needed.",
+          "outcome": "needs-service"
+        },
+        {
+          "id": "r-done",
+          "type": "result",
+          "body": "Pipe thawed, boiler running. Recommend an upgrade to prevent recurrence.",
+          "outcome": "needs-service"
+        }
+      ]
+    },
+    {
+      "slug": "prv-leaking",
+      "title": "PRV leaking / excess pressure",
+      "symptomCategory": "pressure",
+      "appliesTo": "all",
+      "toolsNeeded": ["Tyre pressure gauge (for Schrader valve)", "Hose and bucket (for drain)", "Leak detection fluid"],
+      "safetyWarnings": [
+        "Isolate the boiler flow and return before draining down. Do not attempt expansion vessel recharge with the system pressurised.",
+        "Always follow the manufacturer's instructions for the correct expansion vessel pre-charge pressure — typically 0.5–1.0 bar."
+      ],
+      "steps": [
+        {
+          "id": "s1",
+          "type": "instruction",
+          "body": "Isolate the boiler flow and return. Open the boiler drain-off valve to de-pressurise the system to atmospheric pressure.",
+          "next": "s2"
+        },
+        {
+          "id": "s2",
+          "type": "measurement",
+          "body": "With the system at atmospheric pressure, attach a tyre pressure gauge to the expansion vessel Schrader valve. What is the pre-charge pressure?",
+          "expected": "Typically 0.75–1.0 bar (check manufacturer spec)",
+          "options": [
+            {"label": "Pressure correct (holds at spec)", "next": "s4"},
+            {"label": "Pressure low or zero", "next": "s3"},
+            {"label": "Pressure drops immediately", "next": "r-vessel"}
+          ]
+        },
+        {
+          "id": "s3",
+          "type": "instruction",
+          "body": "Re-charge the expansion vessel to the manufacturer's specified pressure using a pump. Leave connected for 5 minutes to ensure pressure holds. Spray leak detection fluid on the Schrader valve.",
+          "next": "s3a"
+        },
+        {
+          "id": "s3a",
+          "type": "decision",
+          "body": "Does the expansion vessel hold the recharged pressure for 5 minutes without dropping?",
+          "options": [
+            {"label": "Yes, pressure holds", "next": "s4"},
+            {"label": "No, pressure drops", "next": "r-vessel"}
+          ]
+        },
+        {
+          "id": "s4",
+          "type": "instruction",
+          "body": "Re-pressurise the boiler, open flow and return. Fire the boiler on heating and let it reach full temperature. Monitor the pressure gauge.",
+          "next": "s5"
+        },
+        {
+          "id": "s5",
+          "type": "decision",
+          "body": "Does the pressure still rise above 3 bar or is the PRV still discharging while the boiler heats up?",
+          "options": [
+            {"label": "No — pressure stays in normal range", "next": "r-ok"},
+            {"label": "Yes — pressure still rising excessively", "next": "s6"}
+          ]
+        },
+        {
+          "id": "s6",
+          "type": "decision",
+          "body": "Disconnect the filling loop or check that it is fully closed. With the filling loop disconnected, does the pressure still rise while the boiler is cold/idle?",
+          "options": [
+            {"label": "Yes — still rising with filling loop off", "next": "r-plate"},
+            {"label": "No — pressure stable after disconnecting filling loop", "next": "r-filling-loop"}
+          ]
+        },
+        {
+          "id": "r-vessel",
+          "type": "result",
+          "body": "The expansion vessel diaphragm has failed and cannot hold pre-charge pressure. Replace the expansion vessel. Also recommend replacing the PRV as good practice on any pressure fault.",
+          "outcome": "component-faulty",
+          "partSearchHint": "expansion vessel"
+        },
+        {
+          "id": "r-ok",
+          "type": "result",
+          "body": "Expansion vessel recharge resolved the issue. The PRV was discharging because the flat vessel couldn't absorb system expansion. Monitor over the next few days. Recommend replacing the PRV as good practice.",
+          "outcome": "ok"
+        },
+        {
+          "id": "r-plate",
+          "type": "result",
+          "body": "The plate heat exchanger has an internal leak allowing mains water pressure into the heating circuit. Replace the plate heat exchanger. Also recommend replacing the PRV.",
+          "outcome": "component-faulty",
+          "partSearchHint": "plate heat exchanger"
+        },
+        {
+          "id": "r-filling-loop",
+          "type": "result",
+          "body": "The filling loop was passing — letting mains pressure into the sealed system. Replace or properly close the filling loop. On some models, check for an integral filling link that may need replacing.",
+          "outcome": "component-faulty",
+          "partSearchHint": "filling loop"
+        }
+      ]
+    },
+    {
+      "slug": "no-hot-water",
+      "title": "No hot water — heating works fine",
+      "symptomCategory": "no-hot-water",
+      "appliesTo": "all",
+      "toolsNeeded": ["Digital multimeter"],
+      "safetyWarnings": [
+        "Isolate the electrical supply before testing any wiring. Take care around hot pipework."
+      ],
+      "steps": [
+        {
+          "id": "s1",
+          "type": "decision",
+          "body": "Turn on a hot tap and observe the boiler. Does the boiler attempt to fire for hot water (fan starts, ignition attempts)?",
+          "options": [
+            {"label": "Yes — boiler fires but water stays cold", "next": "s2"},
+            {"label": "No — boiler doesn't respond to hot tap demand", "next": "s4"}
+          ]
+        },
+        {
+          "id": "s2",
+          "type": "decision",
+          "body": "The boiler is firing but hot water isn't getting through. Feel the pipework — is the flow to the hot water outlet warm, but the actual hot water cold or lukewarm?",
+          "options": [
+            {"label": "Flow pipe warm, outlet cold — diverter valve not switching", "next": "r-diverter"},
+            {"label": "Everything heating up but water still lukewarm", "next": "s3"}
+          ]
+        },
+        {
+          "id": "s3",
+          "type": "decision",
+          "body": "If the water is lukewarm, the plate heat exchanger may be blocked or there's a flow rate issue. Has the boiler been descaled recently? Is the incoming mains pressure adequate?",
+          "options": [
+            {"label": "Poor mains flow — low water pressure at taps", "next": "r-mains"},
+            {"label": "Mains flow OK — suspect blocked plate", "next": "r-plate"}
+          ]
+        },
+        {
+          "id": "s4",
+          "type": "decision",
+          "body": "The boiler doesn't recognise a hot water demand. Does the boiler show any fault codes on the display?",
+          "options": [
+            {"label": "Yes — fault code showing", "next": "r-check-code"},
+            {"label": "No fault code — boiler just ignores the hot tap", "next": "s5"}
+          ]
+        },
+        {
+          "id": "s5",
+          "type": "decision",
+          "body": "Check the flow sensor / flow switch. Open a hot tap and listen — can you hear the turbine in the flow sensor spinning? On Greenstar models, check for 1–6V at the flow sensor connector.",
+          "options": [
+            {"label": "No signal / no spin — flow sensor faulty", "next": "r-flow-sensor"},
+            {"label": "Flow sensor OK — signal present", "next": "r-pcb"}
+          ]
+        },
+        {
+          "id": "r-diverter",
+          "type": "result",
+          "body": "The diverter valve is not switching from heating to hot water mode. On most combis this is a motorised valve inside the boiler. Check for 240V at the diverter motor when hot water is demanded. If power present but valve not moving, replace the diverter valve or motor cartridge.",
+          "outcome": "component-faulty",
+          "partSearchHint": "diverter valve"
+        },
+        {
+          "id": "r-mains",
+          "type": "result",
+          "body": "Low incoming mains water pressure. The boiler needs adequate flow to trigger DHW mode. Check the mains stopcock is fully open. You may need a mains pressure boost or a plumber to address supply issues.",
+          "outcome": "ok"
+        },
+        {
+          "id": "r-plate",
+          "type": "result",
+          "body": "The secondary (plate) heat exchanger is likely blocked with limescale, especially in hard water areas. It can sometimes be flushed with descaler, but often needs replacing.",
+          "outcome": "component-faulty",
+          "partSearchHint": "plate heat exchanger"
+        },
+        {
+          "id": "r-check-code",
+          "type": "result",
+          "body": "The boiler is showing a fault code — look up the specific code for this brand in the Fault Finder for targeted diagnosis.",
+          "outcome": "needs-service"
+        },
+        {
+          "id": "r-flow-sensor",
+          "type": "result",
+          "body": "The DHW flow sensor / turbine is not registering water flow when a tap is opened. Replace the flow sensor. On Worcester Greenstar models, check the sensor connector for corrosion.",
+          "outcome": "component-faulty",
+          "partSearchHint": "flow sensor"
+        },
+        {
+          "id": "r-pcb",
+          "type": "result",
+          "body": "The flow sensor is sending a signal but the PCB isn't recognising the demand. Possible PCB fault. Try resetting the boiler first. If it persists, the PCB may need replacing — contact the manufacturer.",
+          "outcome": "component-faulty",
+          "partSearchHint": "pcb"
+        }
+      ]
+    },
+    {
+      "slug": "kettling",
+      "title": "Boiler kettling or banging noises",
+      "symptomCategory": "noise",
+      "appliesTo": "all",
+      "toolsNeeded": ["Stethoscope or ear against pipe (careful — hot!)", "System water test kit (optional)"],
+      "safetyWarnings": [
+        "Pipework may be very hot — use caution when touching or listening. Never put your ear directly on hot pipes."
+      ],
+      "steps": [
+        {
+          "id": "s1",
+          "type": "decision",
+          "body": "When does the noise occur? Fire the boiler on heating and listen carefully.",
+          "options": [
+            {"label": "Noise during ignition only (banging/popping)", "next": "r-delayed-ignition"},
+            {"label": "Continuous rumbling/kettling while the burner is on", "next": "s2"},
+            {"label": "Banging from pipes, not the boiler itself", "next": "r-pipes"}
+          ]
+        },
+        {
+          "id": "s2",
+          "type": "decision",
+          "body": "Kettling during operation usually means limescale build-up in the heat exchanger or inadequate circulation. Has the system ever been flushed or treated with inhibitor?",
+          "options": [
+            {"label": "No — never flushed, old system, likely sludge/scale", "next": "r-flush"},
+            {"label": "Yes — recently flushed, still kettling", "next": "s3"}
+          ]
+        },
+        {
+          "id": "s3",
+          "type": "decision",
+          "body": "Check the pump speed and circulation. Is the pump running at the correct speed? Are all radiator valves open? Is there a good flow/return temperature difference (10–20°C)?",
+          "options": [
+            {"label": "Delta T too high (>25°C) — poor circulation", "next": "r-circulation"},
+            {"label": "Circulation seems fine — delta T normal", "next": "r-exchanger"}
+          ]
+        },
+        {
+          "id": "r-delayed-ignition",
+          "type": "result",
+          "body": "Banging on ignition is typically delayed ignition — gas builds up before the spark catches. Check the electrode gap and condition, clean the burner, and verify gas pressure at the burner. If the burner is clogged, clean or replace it.",
+          "outcome": "needs-service",
+          "partSearchHint": "ignition electrode"
+        },
+        {
+          "id": "r-pipes",
+          "type": "result",
+          "body": "Banging from pipework (not the boiler) is usually thermal expansion. Pipes expanding against joists or floorboards. Check pipe clips and add felt or lagging where pipes pass through tight spaces. Not a boiler fault.",
+          "outcome": "ok"
+        },
+        {
+          "id": "r-flush",
+          "type": "result",
+          "body": "Limescale and sludge build-up in the heat exchanger is the most common cause of kettling. Recommend a full system powerflush with a suitable chemical inhibitor added afterwards. In severe cases, the heat exchanger may need replacing.",
+          "outcome": "needs-clean",
+          "partSearchHint": "heat exchanger"
+        },
+        {
+          "id": "r-circulation",
+          "type": "result",
+          "body": "Poor circulation is causing localised overheating in the heat exchanger (kettling). Check pump is on correct speed, all valves are open, and there are no blockages. A system flush may be needed. Consider fitting a magnetic filter.",
+          "outcome": "needs-service",
+          "partSearchHint": "pump"
+        },
+        {
+          "id": "r-exchanger",
+          "type": "result",
+          "body": "If circulation is fine but kettling persists, the primary heat exchanger may have internal scaling that flushing couldn't remove. In hard water areas this is common. The heat exchanger may need replacing or the boiler descaled with a specialist chemical.",
+          "outcome": "component-faulty",
+          "partSearchHint": "heat exchanger"
+        }
+      ]
+    }
+  ]
+}

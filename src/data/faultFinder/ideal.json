@@ -1,0 +1,456 @@
+{
+  "brand": "Ideal",
+  "slug": "ideal",
+  "description": "Logic+, Vogue Gen2, and Evomax 2 ranges — combi and system boilers common across UK housing and light commercial.",
+  "models": [
+    { "id": "logic-plus", "name": "Logic+", "seriesAliases": ["Logic+ Combi", "Logic+ System", "Logic+ 24", "Logic+ 30", "Logic+ 35"] },
+    { "id": "vogue-gen2", "name": "Vogue Gen2", "seriesAliases": ["Vogue Gen2 Combi", "Vogue Gen2 System"] },
+    { "id": "evomax-2", "name": "Evomax 2", "seriesAliases": ["Evomax 2 30", "Evomax 2 40", "Evomax 2 60", "Evomax 2 80", "Evomax 2 100", "Evomax 2 120"] }
+  ],
+  "faultCodes": [
+    {
+      "code": "L1",
+      "title": "No central heating flow",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Pump is running but no flow is being detected through the primary circuit.",
+      "likelyCauses": [
+        "Pump seized or airlocked",
+        "Closed isolation valve",
+        "Severely blocked heat exchanger"
+      ],
+      "quickChecks": [
+        "Bleed the auto air vent on top of the pump",
+        "Free a seized pump at the centre screw",
+        "Confirm both flow and return isolation valves fully open"
+      ],
+      "linkedFlowcharts": ["no-heating"],
+      "partSearchHint": "pump"
+    },
+    {
+      "code": "L2",
+      "title": "Ignition lockout",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Boiler has tried the full ignition sequence and given up.",
+      "likelyCauses": [
+        "Gas supply off",
+        "Ignition or flame-sense electrode faulty",
+        "Gas valve not opening",
+        "Condensate trap blocked"
+      ],
+      "quickChecks": [
+        "Check gas at other appliances",
+        "Clean and gap the ignition electrode",
+        "Drain the condensate trap",
+        "Measure inlet gas pressure under load",
+        "Ensure the condensate pipe is not frozen (very common in winter — pour warm water over the external pipe)"
+      ],
+      "linkedFlowcharts": ["no-ignition"],
+      "partSearchHint": "ignition electrode"
+    },
+    {
+      "code": "L5",
+      "title": "Five unsuccessful ignition attempts",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Boiler has hit the retry limit on ignition.",
+      "likelyCauses": [
+        "Same causes as L2 — gas supply, ignition, flame-sense, gas valve"
+      ],
+      "quickChecks": [
+        "Work through the no-ignition flowchart"
+      ],
+      "linkedFlowcharts": ["no-ignition"],
+      "partSearchHint": "pcb"
+    },
+    {
+      "code": "L6",
+      "title": "False flame detection",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Flame signal present when it should not be.",
+      "likelyCauses": [
+        "Damp ignition lead",
+        "Cracked electrode",
+        "Gas valve passing",
+        "PCB flame-detect fault"
+      ],
+      "quickChecks": [
+        "Dry and inspect the ignition lead and electrode",
+        "Soap-test burner with valve closed"
+      ],
+      "partSearchHint": "ignition lead"
+    },
+    {
+      "code": "L9",
+      "title": "Limit thermostat operation",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Overheat stat has opened.",
+      "likelyCauses": [
+        "Poor circulation",
+        "Limescale or sludge",
+        "Overheat stat faulty"
+      ],
+      "quickChecks": [
+        "Check pump and system vented",
+        "Inspect heat exchanger for sludge",
+        "Measure overheat stat continuity cold"
+      ],
+      "linkedFlowcharts": ["no-heating"],
+      "partSearchHint": "overheat thermostat"
+    },
+    {
+      "code": "F1",
+      "title": "Low system pressure",
+      "severity": "warning",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Pressure sensor below operating threshold.",
+      "likelyCauses": [
+        "Gradual leak",
+        "Failed expansion vessel",
+        "PRV dripping"
+      ],
+      "quickChecks": [
+        "Top up to 1.2 bar cold",
+        "Walk the system for leaks",
+        "Check PRV discharge outside"
+      ],
+      "linkedFlowcharts": ["low-pressure"],
+      "partSearchHint": "pcb"
+    },
+    {
+      "code": "F2",
+      "title": "Flame loss",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Flame extinguished mid-run.",
+      "likelyCauses": [
+        "Gas supply dropping under load",
+        "Flue recirculation",
+        "Dirty flame-sense"
+      ],
+      "quickChecks": [
+        "Measure gas working pressure under full rate",
+        "Inspect flue terminal",
+        "Clean flame-sense electrode"
+      ],
+      "partSearchHint": "flame sense electrode"
+    },
+    {
+      "code": "F3",
+      "title": "Fan fault",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Fan not achieving or maintaining commanded speed.",
+      "likelyCauses": [
+        "Worn bearings",
+        "Tacho signal fault",
+        "PCB fan driver"
+      ],
+      "quickChecks": [
+        "Listen to the fan on start-up",
+        "Check 230V supply and tacho wiring"
+      ],
+      "linkedFlowcharts": ["fan-fault"],
+      "partSearchHint": "fan assembly"
+    },
+    {
+      "code": "F4",
+      "title": "Flow thermistor fault",
+      "severity": "warning",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Flow NTC open, shorted, or out of range.",
+      "likelyCauses": [
+        "Sensor failure",
+        "Unplugged connector",
+        "Damaged loom",
+        "DHW NTC connector corroded from moisture"
+      ],
+      "quickChecks": [
+        "Re-seat connector",
+        "Measure resistance against NTC table",
+        "Inspect the NTC connector for green corrosion — clean or replace the connector"
+      ],
+      "partSearchHint": "flow thermistor"
+    },
+    {
+      "code": "F5",
+      "title": "Return thermistor fault",
+      "severity": "warning",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Return NTC open, shorted, or out of range.",
+      "likelyCauses": [
+        "Sensor failure",
+        "Unplugged connector",
+        "Damaged loom"
+      ],
+      "quickChecks": [
+        "Re-seat connector",
+        "Measure resistance against NTC table"
+      ],
+      "partSearchHint": "return thermistor"
+    },
+    {
+      "code": "F6",
+      "title": "Outside sensor fault",
+      "severity": "warning",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Optional outside weather compensation sensor reading out of range.",
+      "likelyCauses": [
+        "Sensor unplugged or damaged",
+        "Cable run damaged",
+        "Sensor unit failed"
+      ],
+      "quickChecks": [
+        "Inspect the external sensor",
+        "Check the cable run"
+      ],
+      "partSearchHint": "fan"
+    },
+    {
+      "code": "F7",
+      "title": "Low mains voltage",
+      "severity": "warning",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Supply voltage dropped below PCB operating range.",
+      "likelyCauses": [
+        "Poor connection at the spur",
+        "Shared circuit dropping voltage under load",
+        "Incoming supply problem"
+      ],
+      "quickChecks": [
+        "Measure supply voltage at the fused spur",
+        "Check for loose neutral or L connection"
+      ],
+      "partSearchHint": "pump"
+    },
+    {
+      "code": "F8",
+      "title": "CH flow switch open",
+      "severity": "warning",
+      "appliesTo": ["logic-plus"],
+      "summary": "Primary flow switch not seeing flow when pump is running (where fitted).",
+      "likelyCauses": [
+        "Seized flow switch",
+        "Debris on the paddle",
+        "No flow in the circuit"
+      ],
+      "quickChecks": [
+        "Flush the flow switch if accessible",
+        "Confirm pump operation"
+      ],
+      "partSearchHint": "overheat thermostat"
+    },
+    {
+      "code": "F9",
+      "title": "PCB fault",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "PCB internal error.",
+      "likelyCauses": [
+        "Water tracking on the PCB",
+        "Hardware failure"
+      ],
+      "quickChecks": [
+        "Power-cycle the boiler",
+        "Inspect the PCB for moisture damage"
+      ],
+      "partSearchHint": "pcb"
+    },
+    {
+      "code": "C1",
+      "title": "Communication fault",
+      "severity": "warning",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Communication error between the user interface and the main PCB.",
+      "likelyCauses": [
+        "Loose ribbon cable",
+        "Display module faulty",
+        "Main PCB fault"
+      ],
+      "quickChecks": [
+        "Re-seat the display ribbon cable",
+        "Swap in a known-good display"
+      ],
+      "partSearchHint": "condensate trap"
+    },
+    {
+      "code": "C2",
+      "title": "BCC / chip card fault",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "Boiler configuration chip card missing or not being read.",
+      "likelyCauses": [
+        "BCC not inserted after PCB swap",
+        "BCC contacts dirty",
+        "Wrong BCC fitted"
+      ],
+      "quickChecks": [
+        "Re-seat the BCC",
+        "Clean the contacts",
+        "Verify BCC matches boiler rating"
+      ],
+      "partSearchHint": "bcc chip card"
+    },
+    {
+      "code": "E1",
+      "title": "Ignition failure (Evomax 2)",
+      "severity": "lockout",
+      "appliesTo": ["evomax-2"],
+      "summary": "Commercial lockout — boiler could not establish flame.",
+      "likelyCauses": [
+        "Gas supply",
+        "Ignition electrode",
+        "Condensate trap flooded"
+      ],
+      "quickChecks": [
+        "Check gas pressure under load",
+        "Clean electrode and measure gap",
+        "Drain condensate trap"
+      ],
+      "linkedFlowcharts": ["no-ignition"],
+      "partSearchHint": "plate heat exchanger"
+    },
+    {
+      "code": "E2",
+      "title": "Flame loss during operation (Evomax 2)",
+      "severity": "lockout",
+      "appliesTo": ["evomax-2"],
+      "summary": "Flame established but then dropped.",
+      "likelyCauses": [
+        "Gas pressure collapsing under load",
+        "Flue recirculation",
+        "Weak flame-sense"
+      ],
+      "quickChecks": [
+        "Verify gas working pressure",
+        "Inspect flue",
+        "Clean flame-sense electrode"
+      ],
+      "partSearchHint": "pressure sensor"
+    },
+    {
+      "code": "E4",
+      "title": "Fan fault (Evomax 2)",
+      "severity": "lockout",
+      "appliesTo": ["evomax-2"],
+      "summary": "Fan speed not tracking command.",
+      "likelyCauses": [
+        "Worn bearings",
+        "Loose connection",
+        "PCB fan driver"
+      ],
+      "quickChecks": [
+        "Listen and inspect fan",
+        "Check wiring and supply"
+      ],
+      "linkedFlowcharts": ["fan-fault"],
+      "partSearchHint": "pcb"
+    },
+    {
+      "code": "L3",
+      "title": "No flame detected after ignition",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "The boiler established a flame signal on ignition but lost it almost immediately. This differs from L2 where the flame never establishes at all.",
+      "likelyCauses": [
+        "Flame sense electrode dirty or positioned incorrectly",
+        "Gas pressure dropping during operation (partial blockage in gas valve)",
+        "Electrode lead cracked or shorting to frame",
+        "Weak flame — air/gas mixture wrong"
+      ],
+      "quickChecks": [
+        "Clean the flame sense electrode with fine emery cloth",
+        "Check gas pressure at burner — should hold steady during operation",
+        "Inspect electrode lead for cracks, especially near the boot connector",
+        "Check gas rate matches the data badge"
+      ],
+      "linkedFlowcharts": ["no-ignition"],
+      "partSearchHint": "flame sense electrode"
+    },
+    {
+      "code": "L7",
+      "title": "Incorrect air-to-gas ratio detected",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "The boiler's combustion monitoring has detected the air-to-gas ratio is outside safe limits. This is a safety lockout.",
+      "likelyCauses": [
+        "Flue partially blocked (birds' nest, leaves, or debris)",
+        "Condensate trap blocked — backing up into the heat exchanger",
+        "Fan speed incorrect — faulty fan or hall effect sensor",
+        "Venturi blockage (soot or debris in mixing chamber)"
+      ],
+      "quickChecks": [
+        "Check flue terminal is clear outside the property",
+        "Inspect condensate trap and siphon — clean if blocked",
+        "Perform combustion analysis — CO/CO₂ readings will confirm the fault",
+        "Inspect the venturi / mixing chamber for soot buildup"
+      ],
+      "partSearchHint": "fan"
+    },
+    {
+      "code": "L8",
+      "title": "Loop controller / system wiring fault",
+      "severity": "warning",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "The boiler has detected a fault with the external controls wiring or OpenTherm communication. The boiler will still fire but advanced features may not work.",
+      "likelyCauses": [
+        "Room thermostat wiring fault or disconnected",
+        "OpenTherm controller not configured correctly",
+        "Short circuit on the external controls wiring",
+        "Faulty PCB terminal block (rare)"
+      ],
+      "quickChecks": [
+        "Check wiring connections at the boiler terminal strip",
+        "If fitted, check the OpenTherm controller is powered and communicating",
+        "Try bridging L-N on the room thermostat terminals — if boiler fires, fault is in the wiring",
+        "Check for any loose connections on the terminal block"
+      ],
+      "partSearchHint": "room thermostat"
+    },
+    {
+      "code": "FH",
+      "title": "DHW temperature too high at outlet",
+      "severity": "lockout",
+      "appliesTo": ["logic-plus", "vogue-gen2"],
+      "summary": "The domestic hot water temperature has exceeded the safe limit at the outlet. This is a safety lockout to prevent scalding.",
+      "likelyCauses": [
+        "DHW thermistor reading incorrectly — measure actual water temperature to confirm",
+        "Diverter valve stuck partially open to heating, causing excessive heat",
+        "Plate heat exchanger scaled up — uneven heat transfer",
+        "PCB not modulating gas valve down fast enough"
+      ],
+      "quickChecks": [
+        "Run a hot tap and measure actual water temperature with a thermometer",
+        "If water isn't actually too hot, suspect faulty DHW NTC — measure its resistance",
+        "Check the diverter valve is moving freely to full DHW position",
+        "Descale the plate heat exchanger if over 5 years old in hard water area"
+      ],
+      "partSearchHint": "dhw ntc sensor"
+    },
+    {
+      "code": "FL",
+      "title": "System filling fault / pressure too low",
+      "severity": "warning",
+      "appliesTo": ["logic-plus"],
+      "summary": "The system pressure has dropped below the minimum required. The boiler may not fire until pressure is topped up.",
+      "likelyCauses": [
+        "Slow leak in the system (radiator valve, pipework joint)",
+        "Failed expansion vessel — check pre-charge pressure",
+        "Faulty auto air vent weeping water",
+        "Pressure sensor reading low (less common)"
+      ],
+      "quickChecks": [
+        "Check the pressure gauge — top up to 1.0-1.5 bar via the filling loop",
+        "Look for drips around radiator valves, joints, and connections",
+        "Check the expansion vessel charge pressure via the Schrader valve (should be ~0.75 bar cold)",
+        "If pressure drops repeatedly, systematic leak search is needed"
+      ],
+      "linkedFlowcharts": ["low-pressure"],
+      "partSearchHint": "pressure sensor"
+    }
+  ],
+  "flowcharts": []
+}

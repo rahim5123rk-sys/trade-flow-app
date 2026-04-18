@@ -534,6 +534,48 @@ export async function readCharacteristic(
 }
 
 /**
+ * Write a value to a BLE characteristic.
+ * Used for sending commands (e.g. pump start/stop via TPI_CHAR_COMMAND).
+ *
+ * @param deviceId - Connected device ID
+ * @param serviceUUID - Service UUID
+ * @param charUUID - Characteristic UUID
+ * @param base64Value - Base64-encoded value to write
+ * @param withResponse - If true, use Write-With-Response; false for Write-Without-Response. Default true.
+ * @returns true if write succeeded
+ */
+export async function writeCharacteristic(
+  deviceId: string,
+  serviceUUID: string,
+  charUUID: string,
+  base64Value: string,
+  withResponse: boolean = true,
+): Promise<boolean> {
+  const manager = getManager();
+  try {
+    if (withResponse) {
+      await manager.writeCharacteristicWithResponseForDevice(
+        deviceId,
+        serviceUUID,
+        charUUID,
+        base64Value,
+      );
+    } else {
+      await manager.writeCharacteristicWithoutResponseForDevice(
+        deviceId,
+        serviceUUID,
+        charUUID,
+        base64Value,
+      );
+    }
+    return true;
+  } catch (err) {
+    console.warn('[TPI BLE] Write error:', err);
+    return false;
+  }
+}
+
+/**
  * Monitor (subscribe to notifications) on any characteristic.
  * Used in discovery mode to watch live data from unknown characteristics.
  *

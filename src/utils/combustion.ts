@@ -146,6 +146,9 @@ export function tpiReadingsToFGA(
 export function calculateExcessAir(o2: number | null | undefined): number | null {
   if (o2 == null || !isFinite(o2) || o2 < 0 || o2 >= O2_IN_AIR) return null;
 
+  // When O₂ > ~19% the probe is likely in open air — cap to avoid absurd values
+  if (o2 > 19) return null;
+
   const excessAir = (o2 / (O2_IN_AIR - o2)) * 100;
   return Math.round(excessAir * 10) / 10; // 1 decimal place
 }

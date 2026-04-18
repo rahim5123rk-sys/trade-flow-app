@@ -11,7 +11,7 @@
 // ============================================
 
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Platform,
   StyleSheet,
@@ -52,39 +52,12 @@ export function FgaReadingsGroup({
 }: FgaReadingsGroupProps) {
   const { isDark, theme } = useAppTheme();
   const [bleModalVisible, setBleModalVisible] = useState(false);
-  const { connectedDevice, fgaValues, connectionStatus, deviceMetadata } = useTpiDevice();
+  const { connectedDevice, connectionStatus, deviceMetadata } = useTpiDevice();
 
-  // Track whether the user has manually edited after auto-populate
-  const hasManualEditRef = useRef(false);
-  const prevFgaRef = useRef(fgaValues);
-
-  // Auto-populate from TPI when connected and values change
-  useEffect(() => {
-    if (connectionStatus !== 'connected') return;
-    if (hasManualEditRef.current) return;
-
-    // Only populate if we actually got new non-empty values from TPI
-    const hasData = fgaValues.co || fgaValues.co2 || fgaValues.ratio;
-    if (!hasData) return;
-
-    // Avoid unnecessary updates if values haven't changed
-    const prev = prevFgaRef.current;
-    if (prev.co === fgaValues.co && prev.co2 === fgaValues.co2 && prev.ratio === fgaValues.ratio) return;
-    prevFgaRef.current = fgaValues;
-
-    onChange(fgaValues);
-  }, [fgaValues, connectionStatus, onChange]);
-
-  // Reset manual edit flag when disconnecting
-  useEffect(() => {
-    if (connectionStatus !== 'connected') {
-      hasManualEditRef.current = false;
-    }
-  }, [connectionStatus]);
+  const isConnected = connectionStatus === 'connected' && !!connectedDevice;
 
   const handleManualChange = useCallback(
     (field: keyof FGAValues, text: string) => {
-      hasManualEditRef.current = true;
       onChange({ ...value, [field]: text });
     },
     [value, onChange],
@@ -103,8 +76,6 @@ export function FgaReadingsGroup({
     },
     [value, onChange],
   );
-
-  const isConnected = connectionStatus === 'connected' && !!connectedDevice;
 
   return (
     <View style={styles.container}>
@@ -130,7 +101,7 @@ export function FgaReadingsGroup({
             <Text style={[styles.bleBtnText, isConnected && styles.bleBtnTextConnected]}>
               {isConnected
                 ? `${connectedDevice?.name ?? 'TPI'}${deviceMetadata?.batteryLevel != null ? ` ${deviceMetadata.batteryLevel}%` : ''}`
-                : 'Connect'}
+                : 'Connect TPI'}
             </Text>
           </TouchableOpacity>
         )}
@@ -196,6 +167,10 @@ export function FgaReadingsGroup({
           visible={bleModalVisible}
           onClose={() => setBleModalVisible(false)}
           onSelectValue={handleBleValue}
+          onUseReadings={(values) => {
+            onChange(values);
+            setBleModalVisible(false);
+          }}
         />
       )}
     </View>

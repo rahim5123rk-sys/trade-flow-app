@@ -36,6 +36,7 @@ import {
   disconnectDevice,
   discoverServices,
   readCharacteristic,
+  writeCharacteristic,
   readDeviceMetadata,
   monitorCharacteristic,
   subscribeToReadings,
@@ -99,6 +100,9 @@ interface TpiDeviceContextValue {
 
   /** Read a single characteristic value */
   readChar: (serviceUUID: string, charUUID: string) => Promise<string | null>;
+
+  /** Write a value to a characteristic. Pass withResponse=false for Write-Without-Response. */
+  writeChar: (serviceUUID: string, charUUID: string, base64Value: string, withResponse?: boolean) => Promise<boolean>;
 
   /** Start monitoring a characteristic for live values */
   monitorChar: (serviceUUID: string, charUUID: string) => void;
@@ -299,6 +303,11 @@ export function TpiDeviceProvider({ children }: { children: React.ReactNode }) {
     return val;
   }, [connectedDevice]);
 
+  const writeChar = useCallback(async (serviceUUID: string, charUUID: string, base64Value: string, withResponse: boolean = true) => {
+    if (!connectedDevice) return false;
+    return writeCharacteristic(connectedDevice.id, serviceUUID, charUUID, base64Value, withResponse);
+  }, [connectedDevice]);
+
   const monitorChar = useCallback((serviceUUID: string, charUUID: string) => {
     if (!connectedDevice) return;
 
@@ -371,6 +380,7 @@ export function TpiDeviceProvider({ children }: { children: React.ReactNode }) {
       connect,
       disconnect,
       readChar,
+      writeChar,
       monitorChar,
       stopMonitorChar,
       clearReading,
@@ -392,6 +402,7 @@ export function TpiDeviceProvider({ children }: { children: React.ReactNode }) {
       connect,
       disconnect,
       readChar,
+      writeChar,
       monitorChar,
       stopMonitorChar,
       clearReading,

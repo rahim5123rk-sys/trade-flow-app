@@ -99,6 +99,11 @@ export default function EditJobScreen() {
           .single();
 
         if (customer) {
+          // Detect if the job had a different site address vs the customer's billing address
+          const snapAddr1 = snap?.address_line_1 || '';
+          const custAddr1 = customer.address_line_1 || '';
+          const hasDifferentSite = snapAddr1 && custAddr1 && snapAddr1.toLowerCase() !== custAddr1.toLowerCase();
+
           setCustomerForm({
             customerId: customer.id,
             customerName: customer.name || '',
@@ -109,14 +114,14 @@ export default function EditJobScreen() {
             addressLine2: customer.address_line_2 || '',
             city: customer.city || '',
             region: customer.region || '',
-            postCode: customer.post_code || customer.postcode || '',
-            sameAsBilling: true,
-            jobAddressLine1: '',
-            jobAddressLine2: '',
-            jobCity: '',
-            jobPostCode: '',
-            siteContactName: '',
-            siteContactEmail: '',
+            postCode: customer.postal_code || '',
+            sameAsBilling: !hasDifferentSite,
+            jobAddressLine1: hasDifferentSite ? snapAddr1 : '',
+            jobAddressLine2: hasDifferentSite ? (snap?.address_line_2 || '') : '',
+            jobCity: hasDifferentSite ? (snap?.city || '') : '',
+            jobPostCode: hasDifferentSite ? (snap?.postal_code || '') : '',
+            siteContactName: snap?.site_contact_name || '',
+            siteContactEmail: snap?.site_contact_email || '',
             siteContactPhone: '',
             siteContactTitle: '',
           });

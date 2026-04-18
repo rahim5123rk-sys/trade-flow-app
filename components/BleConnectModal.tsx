@@ -26,15 +26,18 @@ import { useAppTheme } from '../src/context/ThemeContext';
 import { useTpiDevice } from '../src/context/TpiDeviceContext';
 import type { BleDeviceInfo } from '../src/types/tpiDevice';
 import type { DiscoveredService } from '../src/services/tpiBluetooth';
+import { TpiAnalyserScreen } from './TpiAnalyserScreen';
 
 interface BleConnectModalProps {
   visible: boolean;
   onClose: () => void;
   /** Called when user wants to use a live value for a field */
   onSelectValue?: (value: string, charUUID: string) => void;
+  /** Called when user taps "Use Readings" in the TPI Analyser — passes current FGA values */
+  onUseReadings?: (values: { co: string; co2: string; ratio: string }) => void;
 }
 
-export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectModalProps) {
+export function BleConnectModal({ visible, onClose, onSelectValue, onUseReadings }: BleConnectModalProps) {
   const insets = useSafeAreaInsets();
   const { isDark, theme } = useAppTheme();
   const {
@@ -44,6 +47,8 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
     connectedDevice,
     services,
     liveValues,
+    fgaValues,
+    deviceMetadata,
     scan,
     cancelScan,
     connect,
@@ -55,20 +60,17 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
 
   const [expandedService, setExpandedService] = useState<string | null>(null);
   const [monitoredChars, setMonitoredChars] = useState<Set<string>>(new Set());
+  const [showAnalyser, setShowAnalyser] = useState(false);
 
   const isScanning = connectionStatus === 'scanning';
   const isConnected = connectionStatus === 'connected';
   const isConnecting = connectionStatus === 'connecting';
 
-  // Sort TPI devices to the top, strongest signal first within each group
+  // Show only recognised TPI devices, sorted by signal strength
   const sortedDevices = useMemo(() => {
-    return [...discoveredDevices].sort((a, b) => {
-      // TPI devices (those with a recognised model) come first
-      if (a.model && !b.model) return -1;
-      if (!a.model && b.model) return 1;
-      // Within the same group, sort by signal strength (higher = closer)
-      return (b.rssi ?? -999) - (a.rssi ?? -999);
-    });
+    return discoveredDevices
+      .filter((d) => d.model != null)
+      .sort((a, b) => (b.rssi ?? -999) - (a.rssi ?? -999));
   }, [discoveredDevices]);
 
   // ─── Handlers ───────────────────────────────────────────────
@@ -113,14 +115,20 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
     onSelectValue?.(value, charUUID);
   }, [onSelectValue]);
 
-  // Auto-close modal when a recognized TPI device connects.
-  // Production mode subscriptions in TpiDeviceContext handle data streaming,
-  // so the characteristics explorer isn't needed for known devices.
+  // Open TPI Analyser screen when a recognized TPI device connects.
+  // Production mode subscriptions in TpiDeviceContext handle data streaming.
   useEffect(() => {
     if (isConnected && connectedDevice?.model && visible) {
-      onClose();
+      setShowAnalyser(true);
     }
-  }, [isConnected, connectedDevice?.model, visible, onClose]);
+  }, [isConnected, connectedDevice?.model, visible]);
+
+  // Reset analyser flag when modal is closed by parent
+  useEffect(() => {
+    if (!visible) {
+      setShowAnalyser(false);
+    }
+  }, [visible]);
 
   // ─── Styles ─────────────────────────────────────────────────
 
@@ -135,6 +143,33 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
   const red = '#EF4444';
 
   // ─── Render ─────────────────────────────────────────────────
+
+  // If analyser is active, show the TPI Analyser screen instead.
+  // Keep showing it even during 'disconnecting' to avoid a flash of the scanner.
+  if (showAnalyser && connectedDevice?.model) {
+    return (
+      <TpiAnalyserScreen
+        visible={visible}
+        onClose={() => {
+          // Close parent modal first (hides everything), then reset flag
+          onClose();
+          setShowAnalyser(false);
+        }}
+        onUseReadings={() => {
+          // Pass current FGA values to the specific FgaReadingsGroup that opened this modal
+          if (onUseReadings) {
+            onUseReadings({
+              co: fgaValues.co,
+              co2: fgaValues.co2,
+              ratio: fgaValues.ratio,
+            });
+          }
+          onClose();
+          setShowAnalyser(false);
+        }}
+      />
+    );
+  }
 
   return (
     <Modal
@@ -175,8 +210,8 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
                   {connectedDevice.name || connectedDevice.localName || 'Unknown'}
                 </Text>
                 <Text style={[styles.connectedSub, { color: textSecondary }]}>
-                  {services.length} services found
-                  {connectedDevice.model && ` • ${connectedDevice.model}`}
+                  {connectedDevice.model ? `TPI ${connectedDevice.model}` : 'Connected'}
+                  {deviceMetadata?.batteryLevel != null && ` • ${deviceMetadata.batteryLevel}%`}
                 </Text>
               </View>
             </View>
@@ -229,23 +264,19 @@ export function BleConnectModal({ visible, onClose, onSelectValue }: BleConnectM
                           <Text style={[styles.deviceName, { color: textPrimary }]}>
                             {device.name || device.localName || 'Unknown'}
                           </Text>
-                          <Text style={[styles.deviceId, { color: textMuted }]}>
-                            {device.id}
-                            {device.model && (
-                              <Text style={{ color: green }}>{' '}• TPI {device.model}</Text>
-                            )}
-                          </Text>
+                          {device.model && (
+                            <Text style={[styles.deviceId, { color: green }]}>
+                              TPI {device.model}
+                            </Text>
+                          )}
                         </View>
                       </View>
                       {device.rssi != null && (
-                        <View style={styles.rssiContainer}>
-                          <Ionicons
-                            name={device.rssi > -60 ? 'wifi' : device.rssi > -80 ? 'wifi' : 'wifi-outline'}
-                            size={14}
-                            color={textMuted}
-                          />
-                          <Text style={[styles.rssiText, { color: textMuted }]}>{device.rssi} dBm</Text>
-                        </View>
+                        <Ionicons
+                          name={device.rssi > -60 ? 'wifi' : device.rssi > -80 ? 'wifi' : 'wifi-outline'}
+                          size={16}
+                          color={device.rssi > -60 ? green : device.rssi > -80 ? textMuted : red}
+                        />
                       )}
                     </TouchableOpacity>
                   ))}

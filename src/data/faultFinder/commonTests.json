@@ -1,0 +1,212 @@
+{
+  "tests": [
+    {
+      "slug": "ntc-thermistor-test",
+      "title": "NTC thermistor — resistance reference",
+      "summary": "Typical resistance values for 10k NTC thermistors used in most domestic boilers. Measure with the sensor unplugged from the PCB.",
+      "toolsNeeded": ["Digital multimeter", "Thermometer (optional)"],
+      "safetyWarnings": ["Isolate power before unplugging sensor connectors"],
+      "referenceTable": [
+        { "label": "0°C", "value": "≈ 32 kΩ" },
+        { "label": "10°C", "value": "≈ 19 kΩ" },
+        { "label": "20°C", "value": "≈ 12.5 kΩ" },
+        { "label": "25°C", "value": "≈ 10 kΩ" },
+        { "label": "40°C", "value": "≈ 5.3 kΩ" },
+        { "label": "60°C", "value": "≈ 2.5 kΩ" },
+        { "label": "80°C", "value": "≈ 1.3 kΩ" },
+        { "label": "100°C", "value": "≈ 0.68 kΩ" }
+      ],
+      "procedure": [
+        {
+          "id": "p1",
+          "type": "instruction",
+          "body": "Isolate power and unplug the NTC from the PCB. Note which terminals connect to the sensor.",
+          "next": "p2"
+        },
+        {
+          "id": "p2",
+          "type": "measurement",
+          "body": "Measure resistance across the two sensor pins at current pipe/room temperature.",
+          "expected": "Within ±15% of the value in the table above for the measured temperature",
+          "options": [
+            { "label": "Reading matches the table", "next": "r-ok" },
+            { "label": "Open circuit (OL)", "next": "r-open" },
+            { "label": "Zero or near zero", "next": "r-short" },
+            { "label": "Wildly different from table", "next": "r-drift" }
+          ]
+        },
+        {
+          "id": "r-ok",
+          "type": "result",
+          "body": "Sensor is within tolerance. Check the wiring back to the PCB next.",
+          "outcome": "ok"
+        },
+        {
+          "id": "r-open",
+          "type": "result",
+          "body": "NTC has gone open circuit. Replace the sensor.",
+          "outcome": "component-faulty",
+          "partSearchHint": "ntc thermistor"
+        },
+        {
+          "id": "r-short",
+          "type": "result",
+          "body": "NTC has shorted. Replace the sensor.",
+          "outcome": "component-faulty",
+          "partSearchHint": "ntc thermistor"
+        },
+        {
+          "id": "r-drift",
+          "type": "result",
+          "body": "NTC has drifted out of range. Replace the sensor.",
+          "outcome": "component-faulty",
+          "partSearchHint": "ntc thermistor"
+        }
+      ]
+    },
+    {
+      "slug": "gas-valve-coil-test",
+      "title": "Gas valve coil — resistance check",
+      "summary": "Quick test to decide whether a gas valve coil has failed open or shorted. Always refer to the service manual for the exact expected value for your model.",
+      "toolsNeeded": ["Digital multimeter"],
+      "safetyWarnings": [
+        "Isolate electrical supply before disconnecting the gas valve plug",
+        "Close the gas isolation valve before doing any further gas valve work"
+      ],
+      "procedure": [
+        {
+          "id": "p1",
+          "type": "instruction",
+          "body": "Turn off the electrical supply and unplug the gas valve connector from the harness.",
+          "next": "p2"
+        },
+        {
+          "id": "p2",
+          "type": "measurement",
+          "body": "Measure resistance across the two coil terminals.",
+          "expected": "Typically 1–4 kΩ for modulating coils; confirm against the service manual",
+          "options": [
+            { "label": "Within manufacturer range", "next": "r-ok" },
+            { "label": "Open circuit", "next": "r-open" },
+            { "label": "Short circuit", "next": "r-short" }
+          ]
+        },
+        {
+          "id": "r-ok",
+          "type": "result",
+          "body": "Coil is healthy. If the valve still isn't opening on call for heat, confirm the PCB is delivering 230V to the valve at the right moment.",
+          "outcome": "ok"
+        },
+        {
+          "id": "r-open",
+          "type": "result",
+          "body": "Coil open circuit — gas valve must be replaced.",
+          "outcome": "component-faulty",
+          "partSearchHint": "gas valve"
+        },
+        {
+          "id": "r-short",
+          "type": "result",
+          "body": "Coil short circuit — gas valve must be replaced.",
+          "outcome": "component-faulty",
+          "partSearchHint": "gas valve"
+        }
+      ]
+    },
+    {
+      "slug": "fan-winding-test",
+      "title": "Fan motor — winding resistance",
+      "summary": "Check whether a fan motor has an open or shorted winding before condemning it.",
+      "toolsNeeded": ["Digital multimeter"],
+      "safetyWarnings": ["Isolate mains power before unplugging the fan"],
+      "procedure": [
+        {
+          "id": "p1",
+          "type": "instruction",
+          "body": "Isolate power and unplug the fan supply/tacho connector.",
+          "next": "p2"
+        },
+        {
+          "id": "p2",
+          "type": "measurement",
+          "body": "Measure resistance across the two supply (motor) pins. Different manufacturers use different ranges.",
+          "expected": "Typically 10–80 Ω — refer to the service manual for the exact figure",
+          "options": [
+            { "label": "Within range", "next": "p3" },
+            { "label": "Open circuit (OL)", "next": "r-open" },
+            { "label": "Near zero", "next": "r-short" }
+          ]
+        },
+        {
+          "id": "p3",
+          "type": "instruction",
+          "body": "Motor winding is healthy. Spin the fan by hand — any grinding or stiffness indicates worn bearings.",
+          "next": "r-bearings-check"
+        },
+        {
+          "id": "r-bearings-check",
+          "type": "result",
+          "body": "If the fan spins smoothly and resistance is in range but the boiler still reports a fan fault, the problem is likely the tacho signal or the PCB fan driver. Verify tacho continuity next.",
+          "outcome": "ok"
+        },
+        {
+          "id": "r-open",
+          "type": "result",
+          "body": "Winding open — fan assembly needs replacing.",
+          "outcome": "component-faulty",
+          "partSearchHint": "fan assembly"
+        },
+        {
+          "id": "r-short",
+          "type": "result",
+          "body": "Winding shorted — fan assembly needs replacing.",
+          "outcome": "component-faulty",
+          "partSearchHint": "fan assembly"
+        }
+      ]
+    },
+    {
+      "slug": "flame-rectification",
+      "title": "Flame rectification current — µA reading",
+      "summary": "Good flame-sense electrodes produce a small DC current when the burner is lit. A drifted or dirty electrode will show a low reading. Use a multimeter capable of reading DC µA or use the boiler's service menu if it displays ionisation.",
+      "toolsNeeded": ["Multimeter with µA range", "Test lead adaptor"],
+      "safetyWarnings": ["Mains voltage and live burner — only break into the flame-sense lead with proper test adaptors"],
+      "referenceTable": [
+        { "label": "Healthy burner", "value": "Typically 4–12 µA DC" },
+        { "label": "Marginal", "value": "1–3 µA — clean electrode" },
+        { "label": "Fault", "value": "Below 1 µA" }
+      ],
+      "procedure": [
+        {
+          "id": "p1",
+          "type": "instruction",
+          "body": "If the boiler reports ionisation current in its diagnostic menu, use that — it's safer than breaking into the lead. Put the boiler into high-rate service test and read the value.",
+          "next": "p2"
+        },
+        {
+          "id": "p2",
+          "type": "measurement",
+          "body": "Note the reading at high rate.",
+          "expected": "Generally 4 µA or more on a healthy burner",
+          "options": [
+            { "label": "Good reading, stable", "next": "r-ok" },
+            { "label": "Low or fluctuating", "next": "r-clean" }
+          ]
+        },
+        {
+          "id": "r-ok",
+          "type": "result",
+          "body": "Flame-sense is healthy. If the boiler is still reporting flame faults, suspect the lead or PCB.",
+          "outcome": "ok"
+        },
+        {
+          "id": "r-clean",
+          "type": "result",
+          "body": "Clean the flame-sense electrode (fine abrasive, not wire wool on the ceramic) and re-test. If still low, replace the electrode.",
+          "outcome": "needs-service",
+          "partSearchHint": "flame sense electrode"
+        }
+      ]
+    }
+  ]
+}

@@ -233,6 +233,14 @@ export default function ToolboxScreen() {
                 isDark={isDark}
               />
               <ToolRow
+                label="Fault Finder"
+                description="Diagnose boiler faults by code or follow a step-by-step flowchart."
+                icon="construct-outline"
+                onPress={() => router.push('/toolbox/fault-finder' as any)}
+                theme={theme}
+                isDark={isDark}
+              />
+              <ToolRow
                 label="Boiler Manuals"
                 description="Open the boiler manuals library for service and installation documents."
                 icon="book-outline"

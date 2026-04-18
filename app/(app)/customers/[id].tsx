@@ -130,11 +130,14 @@ export default function CustomerDetailScreen() {
       email: formData.email.trim() || null
     }).eq('id', id);
 
-    if (!error) {
-      Alert.alert('Success', 'Customer details updated.');
-      setEditing(false);
-      fetchData();
+    if (error) {
+      Alert.alert('Error', error.code === '23505' ? 'A customer with that name already exists.' : 'Failed to update customer.');
+      return;
     }
+
+    Alert.alert('Success', 'Customer details updated.');
+    setEditing(false);
+    fetchData();
   };
 
   const handleDelete = () => {
