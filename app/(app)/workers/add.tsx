@@ -5,7 +5,6 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
-  Linking,
     Platform,
     ScrollView,
     StyleSheet,
@@ -28,10 +27,6 @@ export default function AddWorkerScreen() {
   const [showSeatLimit, setShowSeatLimit] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [seatInfo, setSeatInfo] = useState<{ current: number; limit: number } | null>(null);
-
-  const handleOpenTeamBilling = () => {
-    Linking.openURL('https://gaspilotapp.com/team');
-  };
 
   useEffect(() => {
     fetchInviteCode();
@@ -157,14 +152,9 @@ export default function AddWorkerScreen() {
             <View style={{ backgroundColor: isDark ? theme.surface.elevated : '#F1F5F9', padding: 12, borderRadius: 10 }}>
               <Text style={{ color: isDark ? theme.text.body : '#475569', fontSize: 13, lineHeight: 18 }}>
                 {showSeatLimit
-                  ? 'All worker seats are in use. Manage your team plan at gaspilotapp.com to add more seats.'
-                  : 'Need to add more team members? Manage your team plan at gaspilotapp.com.'}
+                  ? 'All worker seats are in use. Team plans are managed from your GasPilot account on the web.'
+                  : 'Need to add more team members? Team plans are managed from your GasPilot account on the web.'}
               </Text>
-              <TouchableOpacity onPress={handleOpenTeamBilling} style={{ marginTop: 10 }}>
-                <Text style={{ color: theme.brand.primary, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>
-                  Open Team Billing
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
         )}

@@ -50,10 +50,6 @@ export default function SubscriptionScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
-  const handleOpenTeamBilling = () => {
-    Linking.openURL('https://gaspilotapp.com/team');
-  };
-
   const handleManageSubscription = () => {
     if (Platform.OS === 'ios') {
       Linking.openURL('https://apps.apple.com/account/subscriptions');
@@ -252,11 +248,8 @@ export default function SubscriptionScreen() {
         {isPro && (
           <Animated.View entering={FadeInDown.delay(400)}>
             <Text style={[styles.teamHint, {color: theme.text.muted}]}>
-              Running a team? Manage additional worker seats from your account on the web.
+              Running a team? Additional worker seats are managed from your GasPilot account on the web.
             </Text>
-            <TouchableOpacity style={styles.teamLinkWrap} onPress={handleOpenTeamBilling}>
-              <Text style={[styles.teamLink, {color: theme.brand.primary}]}>Open team billing</Text>
-            </TouchableOpacity>
           </Animated.View>
         )}
 
