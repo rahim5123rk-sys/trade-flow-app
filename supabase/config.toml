@@ -432,3 +432,8 @@ entrypoint = "./functions/resend-webhook/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/quote-response/index.ts"
+
+[functions.xero-oauth-callback]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/xero-oauth-callback/index.ts"

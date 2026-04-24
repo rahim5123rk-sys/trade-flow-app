@@ -501,6 +501,11 @@ export default function CreateInvoiceScreen() {
         documentId: docId,
       });
 
+      // Best-effort: push to Xero if connected. Never blocks the send flow.
+      void supabase.functions
+        .invoke('xero-push-invoice', {body: {document_id: docId}})
+        .catch(() => { /* Xero not connected or push failed — silent */ });
+
       Alert.alert('Sent', `Invoice emailed to ${recipients.join(', ')}.`, [
         {text: 'OK', onPress: () => router.back()},
       ]);

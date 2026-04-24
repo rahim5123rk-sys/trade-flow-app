@@ -1143,6 +1143,21 @@ export default function SettingsScreen() {
           </>
         )}
 
+        {/* --- Integrations (Admin only) --- */}
+        {isAdmin && (
+          <>
+            <SectionHeader title="Integrations" />
+            <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
+              <SettingRow
+                icon="link-outline"
+                label="Connected apps"
+                value="Xero and more"
+                onPress={() => router.push('/(app)/settings/integrations' as any)}
+              />
+            </View>
+          </>
+        )}
+
         {/* --- Legal & Privacy --- */}
         <SectionHeader title="Legal & Privacy" />
         <View style={[styles.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}>
