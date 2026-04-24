@@ -12,7 +12,14 @@ export const XERO_CLIENT_SECRET = Deno.env.get('XERO_CLIENT_SECRET') ?? '';
 export const XERO_REDIRECT_URI = Deno.env.get('XERO_REDIRECT_URI') ?? '';
 export const XERO_SUCCESS_URL = Deno.env.get('XERO_SUCCESS_URL') ?? 'https://gaspilotapp.com/xero-connected';
 
-export const XERO_SCOPES = 'openid profile email accounting.transactions accounting.contacts offline_access';
+// Minimal scopes for the current integration:
+// - accounting.invoices: create/update draft invoices
+// - accounting.contacts: create/find contacts for invoice customers
+// - offline_access: refresh tokens server-side
+// Avoid deprecated broad scopes (`accounting.transactions`) and OpenID scopes
+// we don't currently use (`openid profile email`), which can trigger
+// `invalid_scope` on newer Xero apps.
+export const XERO_SCOPES = 'accounting.invoices accounting.contacts offline_access';
 
 const XERO_TOKEN_URL = 'https://identity.xero.com/connect/token';
 const XERO_CONNECTIONS_URL = 'https://api.xero.com/connections';
