@@ -85,6 +85,8 @@ export default function CreateInvoiceScreen() {
   const [notes, setNotes] = useState('');
   const [paymentInfo, setPaymentInfo] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
+  const [xeroConnected, setXeroConnected] = useState(false);
+  const [syncToXero, setSyncToXero] = useState(false);
   const [emailing, setEmailing] = useState(false);
   const [viewingPdf, setViewingPdf] = useState(false);
   const [focusedDescIdx, setFocusedDescIdx] = useState<number | null>(null);
@@ -104,6 +106,14 @@ export default function CreateInvoiceScreen() {
 
   const loadInitialData = async () => {
     if (!userProfile?.company_id) return;
+
+    const {data: xeroStatus} = await supabase
+      .from('xero_connection_status')
+      .select('tenant_name')
+      .eq('company_id', userProfile.company_id)
+      .maybeSingle();
+    const hasXeroConnection = !!xeroStatus;
+    setXeroConnected(hasXeroConnection);
 
     // ─── Edit mode: load existing document ─────────────────────
     if (editId) {
@@ -129,6 +139,7 @@ export default function CreateInvoiceScreen() {
         setDiscountPercent(String(existingDoc.discount_percent || 0));
         setNotes(existingDoc.notes || '');
         setPaymentInfo(existingDoc.payment_info || '');
+        setSyncToXero(!!existingDoc.sync_to_xero);
         setJobId(existingDoc.job_id || null);
 
         const snap = existingDoc.customer_snapshot;
@@ -174,6 +185,7 @@ export default function CreateInvoiceScreen() {
       if (s.invoiceNotes) setPaymentInfo(s.invoiceNotes);
       if (s.invoiceTerms) setPaymentTerms(s.invoiceTerms);
     }
+    setSyncToXero(hasXeroConnection);
 
     // Get next invoice reference (per-company, e.g. INV-0001)
     try {
@@ -338,6 +350,7 @@ export default function CreateInvoiceScreen() {
         total,
         notes: notes || null,
         payment_info: paymentInfo || null,
+        sync_to_xero: syncToXero,
       };
 
       let resultDocId: string | null = editingDocId;
@@ -501,10 +514,12 @@ export default function CreateInvoiceScreen() {
         documentId: docId,
       });
 
-      // Best-effort: push to Xero if connected. Never blocks the send flow.
-      void supabase.functions
-        .invoke('xero-push-invoice', {body: {document_id: docId}})
-        .catch(() => { /* Xero not connected or push failed — silent */ });
+      // Best-effort: push to Xero if enabled for this invoice.
+      if (syncToXero) {
+        void supabase.functions
+          .invoke('xero-push-invoice', {body: {document_id: docId}})
+          .catch(() => { /* Xero not connected or push failed — silent */ });
+      }
 
       Alert.alert('Sent', `Invoice emailed to ${recipients.join(', ')}.`, [
         {text: 'OK', onPress: () => router.back()},
@@ -899,6 +914,37 @@ export default function CreateInvoiceScreen() {
             />
           </Animated.View>
 
+          {(xeroConnected || syncToXero) && (
+            <Animated.View
+              entering={FadeInDown.delay(325).duration(350).springify()}
+              style={[st.card, isDark && {backgroundColor: theme.glass.bg, borderColor: theme.glass.border}]}
+            >
+              <View style={st.cardHeader}>
+                <View style={[st.cardIconWrap, {backgroundColor: 'rgba(19,181,234,0.12)'}]}>
+                  <Text style={st.xeroIconText}>X</Text>
+                </View>
+                <Text style={[st.cardTitle, isDark && {color: theme.text.title}]}>Xero Sync</Text>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setSyncToXero((value) => !value)}
+                style={[
+                  st.toggleRow,
+                  isDark && {backgroundColor: theme.surface.elevated, borderColor: theme.surface.border},
+                ]}
+              >
+                <View style={{flex: 1, paddingRight: 12}}>
+                  <Text style={[st.toggleTitle, isDark && {color: theme.text.title}]}>Sync this invoice to Xero</Text>
+                  <Text style={[st.toggleDesc, isDark && {color: theme.text.muted}]}>When this invoice is sent, GasPilot will create or update it in Xero as a draft.</Text>
+                </View>
+                <View style={[st.toggleTrack, syncToXero && st.toggleTrackOn]}>
+                  <View style={[st.toggleThumb, syncToXero && st.toggleThumbOn]} />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
           {/* ─── Action Buttons ─── */}
           <Animated.View
             entering={FadeInUp.delay(350).duration(400).springify()}
@@ -1125,6 +1171,34 @@ const st = StyleSheet.create({
     color: UI.text.title,
     marginBottom: 8,
   },
+  xeroIconText: {fontSize: 18, fontWeight: '800', color: '#13B5EA'},
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: UI.surface.divider,
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: 'rgba(248,250,252,0.8)',
+  },
+  toggleTitle: {fontSize: 15, fontWeight: '700', color: UI.text.title, marginBottom: 4},
+  toggleDesc: {fontSize: 13, lineHeight: 18, color: UI.text.muted},
+  toggleTrack: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#CBD5E1',
+    padding: 3,
+    justifyContent: 'center',
+  },
+  toggleTrackOn: {backgroundColor: '#13B5EA'},
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  toggleThumbOn: {alignSelf: 'flex-end'},
   row: {flexDirection: 'row'},
 
   // Ref badge

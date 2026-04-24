@@ -145,6 +145,7 @@ export interface Document {
   discount_percent: number;
   total_vat: number;
   total: number;
+  sync_to_xero?: boolean;
   notes?: string;
   payment_info?: string;
   created_at: string;
