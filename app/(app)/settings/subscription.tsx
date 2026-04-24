@@ -21,7 +21,7 @@ import {useSubscription} from '../../../src/context/SubscriptionContext';
 import {useAppTheme} from '../../../src/context/ThemeContext';
 
 const PRO_FEATURES = [
-  {icon: 'people-outline' as const, label: 'Unlimited team members'},
+  {icon: 'document-text-outline' as const, label: 'All 7 gas form types — unlimited'},
   {icon: 'receipt-outline' as const, label: 'Invoices & quotes'},
   {icon: 'calendar-outline' as const, label: 'Smart scheduling & calendar'},
   {icon: 'person-add-outline' as const, label: 'Unlimited customers'},
@@ -44,11 +44,15 @@ function getPlanMeta(identifier: string) {
 
 export default function SubscriptionScreen() {
   const {isDark, theme} = useAppTheme();
-  const {isPro, isLoading, currentOffering, purchasePackage, restorePurchases, devResetToStarter} = useSubscription();
+  const {isPro, isLoading, currentOffering, purchasePackage, restorePurchases} = useSubscription();
   const insets = useSafeAreaInsets();
   const [selectedPkg, setSelectedPkg] = useState<PurchasesPackage | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+
+  const handleOpenTeamBilling = () => {
+    Linking.openURL('https://gaspilotapp.com/team');
+  };
 
   const handleManageSubscription = () => {
     if (Platform.OS === 'ios') {
@@ -56,19 +60,6 @@ export default function SubscriptionScreen() {
     } else {
       Linking.openURL('https://play.google.com/store/account/subscriptions');
     }
-  };
-
-  const handleDevReset = () => {
-    Alert.alert('Reset to Starter', 'This will simulate Starter mode until you purchase again.', [
-      {text: 'Cancel', style: 'cancel'},
-      {
-        text: 'Reset',
-        style: 'destructive',
-        onPress: async () => {
-          await devResetToStarter();
-        },
-      },
-    ]);
   };
 
   const bg = isDark ? theme.surface.base : '#F8FAFC';
@@ -129,7 +120,7 @@ export default function SubscriptionScreen() {
           <Text style={[styles.planDesc, {color: theme.text.muted}]}>
             {isPro
               ? 'You have full access to all GasPilot features.'
-              : 'Upgrade to unlock unlimited jobs, invoices, team management and more.'}
+              : 'Upgrade to unlock unlimited gas forms, invoices, smart scheduling and more.'}
           </Text>
         </Animated.View>
 
@@ -212,6 +203,19 @@ export default function SubscriptionScreen() {
                 </>
               )}
             </TouchableOpacity>
+
+            <Text style={[styles.legalText, {color: theme.text.muted}]}>
+              Subscriptions auto-renew at the price shown unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in your App Store account settings. Payment is charged to your Apple ID on confirmation of purchase.
+            </Text>
+            <View style={styles.legalLinksRow}>
+              <TouchableOpacity onPress={() => router.push('/privacy-policy')}>
+                <Text style={[styles.legalLink, {color: theme.text.muted}]}>Privacy Policy</Text>
+              </TouchableOpacity>
+              <Text style={[styles.legalLink, {color: theme.text.muted}]}> · </Text>
+              <TouchableOpacity onPress={() => router.push('/terms-of-service')}>
+                <Text style={[styles.legalLink, {color: theme.text.muted}]}>Terms of Use (EULA)</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         )}
 
@@ -244,11 +248,14 @@ export default function SubscriptionScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Dev Reset (remove before production) */}
-        {__DEV__ && isPro && (
+        {/* Team hint — passive text only, no link (Apple policy). */}
+        {isPro && (
           <Animated.View entering={FadeInDown.delay(400)}>
-            <TouchableOpacity style={styles.devResetBtn} onPress={handleDevReset}>
-              <Text style={styles.devResetText}>⚙️ DEV: Reset to Starter</Text>
+            <Text style={[styles.teamHint, {color: theme.text.muted}]}>
+              Running a team? Manage additional worker seats from your account on the web.
+            </Text>
+            <TouchableOpacity style={styles.teamLinkWrap} onPress={handleOpenTeamBilling}>
+              <Text style={[styles.teamLink, {color: theme.brand.primary}]}>Open team billing</Text>
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -320,6 +327,10 @@ const styles = StyleSheet.create({
     gap: 8, paddingVertical: 16, borderRadius: 14, borderWidth: 1, marginBottom: 12,
   },
   manageBtnText: {fontSize: 15, fontWeight: '600'},
-  devResetBtn: {alignItems: 'center', paddingVertical: 14, marginTop: 16},
-  devResetText: {fontSize: 13, color: '#EF4444', fontWeight: '600'},
+  legalText: {fontSize: 11, lineHeight: 16, marginTop: 4, marginBottom: 12, textAlign: 'center'},
+  legalLinksRow: {flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 12},
+  legalLink: {fontSize: 12, textDecorationLine: 'underline'},
+  teamHint: {fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 20, paddingHorizontal: 24},
+  teamLinkWrap: {alignItems: 'center', marginTop: 8},
+  teamLink: {fontSize: 13, fontWeight: '700', textDecorationLine: 'underline'},
 });

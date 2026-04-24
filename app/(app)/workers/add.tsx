@@ -4,8 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
+  Linking,
     Platform,
     ScrollView,
     StyleSheet,
@@ -23,37 +23,30 @@ import { useAppTheme } from '../../../src/context/ThemeContext';
 export default function AddWorkerScreen() {
   const { userProfile } = useAuth();
   const { theme, isDark } = useAppTheme();
-  const { isPro, purchaseWorkerSeat } = useSubscription();
+  const { isPro, seatLimit } = useSubscription();
   const [showSeatLimit, setShowSeatLimit] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [seatInfo, setSeatInfo] = useState<{ current: number; limit: number } | null>(null);
-  const [buyingSeat, setBuyingSeat] = useState(false);
+
+  const handleOpenTeamBilling = () => {
+    Linking.openURL('https://gaspilotapp.com/team');
+  };
 
   useEffect(() => {
     fetchInviteCode();
     checkSeatLimit();
-  }, [userProfile]);
+  }, [userProfile, seatLimit]);
 
   const checkSeatLimit = async () => {
     if (!userProfile?.company_id || !isPro) return;
-    // Get seat limit
-    const { data: company } = await supabase
-      .from('companies')
-      .select('worker_seat_limit')
-      .eq('id', userProfile.company_id)
-      .single();
-    // Get current worker count (non-admin profiles in company)
     const { count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact', head: true })
       .eq('company_id', userProfile.company_id)
       .neq('role', 'admin');
-    const limit = company?.worker_seat_limit ?? 0;
     const current = count ?? 0;
-    setSeatInfo({ current, limit });
-    if (current >= limit) {
-      setShowSeatLimit(true);
-    }
+    setSeatInfo({ current, limit: seatLimit });
+    setShowSeatLimit(current >= seatLimit);
   };
 
   const fetchInviteCode = async () => {
@@ -70,26 +63,6 @@ export default function AddWorkerScreen() {
     if (inviteCode) {
       await Clipboard.setStringAsync(inviteCode);
       Alert.alert('Copied!', 'Invite code copied to clipboard.');
-    }
-  };
-
-  const handleBuySeat = async () => {
-    setBuyingSeat(true);
-    try {
-      await purchaseWorkerSeat();
-      Alert.alert('Seat Added!', 'You now have an additional worker seat.');
-      await checkSeatLimit();
-      setShowSeatLimit(false);
-    } catch (e: any) {
-      if (e?.userCancelled) {
-        // User tapped cancel — do nothing
-      } else if (e?.message === 'Not available' || e?.message === 'Worker seat package not found') {
-        Alert.alert('Unavailable', 'Worker seat purchase is not available right now. Please try again later.');
-      } else {
-        Alert.alert('Purchase Failed', 'Something went wrong. Please try again.');
-      }
-    } finally {
-      setBuyingSeat(false);
     }
   };
 
@@ -177,26 +150,18 @@ export default function AddWorkerScreen() {
             <Text style={[styles.subtitle, { color: theme.text.muted, marginBottom: 12 }]}>
               {seatInfo.current} of {seatInfo.limit} seats used
             </Text>
-            {showSeatLimit && (
-              <View style={{ backgroundColor: isDark ? theme.surface.elevated : '#FEF3C7', padding: 12, borderRadius: 10, marginBottom: 12 }}>
-                <Text style={{ color: isDark ? theme.text.body : '#92400E', fontSize: 13, lineHeight: 18 }}>
-                  All worker seats are in use. Purchase additional seats (£15/month each) to invite more workers.
+            <View style={{ backgroundColor: isDark ? theme.surface.elevated : '#F1F5F9', padding: 12, borderRadius: 10 }}>
+              <Text style={{ color: isDark ? theme.text.body : '#475569', fontSize: 13, lineHeight: 18 }}>
+                {showSeatLimit
+                  ? 'All worker seats are in use. Manage your team plan at gaspilotapp.com to add more seats.'
+                  : 'Need to add more team members? Manage your team plan at gaspilotapp.com.'}
+              </Text>
+              <TouchableOpacity onPress={handleOpenTeamBilling} style={{ marginTop: 10 }}>
+                <Text style={{ color: theme.brand.primary, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>
+                  Open Team Billing
                 </Text>
-              </View>
-            )}
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: theme.brand.primary }, buyingSeat && { opacity: 0.6 }]}
-              onPress={handleBuySeat}
-              disabled={buyingSeat}
-            >
-              {buyingSeat ? (
-                <ActivityIndicator color={theme.text.inverse} />
-              ) : (
-                <Text style={[styles.primaryBtnText, { color: theme.text.inverse }]}>
-                  {showSeatLimit ? 'Purchase Worker Seat — £15/mo' : 'Add Worker Seat — £15/mo'}
-                </Text>
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </ScrollView>
