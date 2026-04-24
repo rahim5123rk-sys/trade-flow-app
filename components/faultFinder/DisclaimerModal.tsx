@@ -48,7 +48,7 @@ export function DisclaimerModal() {
               This guide provides general diagnostic steps based on publicly available information and common field experience. Always isolate gas and electrical supplies before testing.
             </Text>
             <Text style={[s.body, {color: theme.text.body, marginTop: 10}]}>
-              Readings and procedures vary by model — always refer to the manufacturer's installation and service manual for the specific appliance in front of you.
+              Readings and procedures vary by model — always refer to the manufacturer&rsquo;s installation and service manual for the specific appliance in front of you.
             </Text>
             <Text style={[s.body, {color: theme.text.body, marginTop: 10}]}>
               GasPilot and its authors accept no liability for damage, injury, or loss arising from use of this guide.
@@ -63,7 +63,7 @@ export function DisclaimerModal() {
             <View style={[s.checkbox, checked && {backgroundColor: theme.brand.primary, borderColor: theme.brand.primary}]}>
               {checked ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
             </View>
-            <Text style={[s.checkLabel, {color: theme.text.body}]}>I'm a qualified engineer and I understand.</Text>
+            <Text style={[s.checkLabel, {color: theme.text.body}]}>I&rsquo;m a qualified engineer and I understand.</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

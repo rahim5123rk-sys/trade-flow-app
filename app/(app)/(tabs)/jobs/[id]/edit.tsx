@@ -74,7 +74,8 @@ export default function EditJobScreen() {
 
   useEffect(() => {
     if (userProfile?.company_id) checkForWorkers();
-  }, [userProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile?.company_id]);
 
   const fetchJob = async () => {
     const {data} = await supabase.from('jobs').select('*').eq('id', id).single();

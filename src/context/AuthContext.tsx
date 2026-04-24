@@ -480,10 +480,15 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
       await supabase.auth.signOut();
       setUserProfile(null);
       setSession(null);
-      await Promise.all([
-        AsyncStorage.removeItem(PROFILE_CACHE_KEY),
-        AsyncStorage.removeItem('@gaspilot_is_pro_cached'),
-      ]).catch(() => { });
+      // Clear profile cache + every per-user Pro cache entry. The prefix must
+      // stay in sync with PRO_CACHE_PREFIX in SubscriptionContext.
+      const keys = await AsyncStorage.getAllKeys().catch(() => [] as readonly string[]);
+      const toRemove = [
+        PROFILE_CACHE_KEY,
+        '@gaspilot_is_pro_cached', // legacy non-scoped key
+        ...keys.filter((k) => k.startsWith('@gaspilot_is_pro_cached:')),
+      ];
+      await AsyncStorage.multiRemove(toRemove).catch(() => { });
     } catch (e) {
       console.error('Sign out error:', e);
     }

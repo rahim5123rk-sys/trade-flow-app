@@ -5,28 +5,43 @@ import Purchases, {CustomerInfo, LOG_LEVEL, PurchasesOffering, PurchasesPackage}
 import {supabase} from '../config/supabase';
 import {useAuth} from './AuthContext';
 
-const DEV_OVERRIDE_KEY = '@gaspilot_dev_starter_override';
-const PRO_CACHE_KEY = '@gaspilot_is_pro_cached';
+const PRO_CACHE_PREFIX = '@gaspilot_is_pro_cached:';
+
+// Module-scoped RevenueCat identity state. Purchases.configure() is a no-op
+// after the first call, so account switches must go through Purchases.logIn().
+let rcConfigured = false;
+let rcCurrentUserId: string | null = null;
+
+type SeatTier = 'duo' | 'team' | 'crew' | 'fleet' | null;
 
 type SubscriptionContextType = {
   isPro: boolean;
   isLoading: boolean;
+  seatLimit: number;
+  seatTier: SeatTier;
+  stripeStatus: string | null;
   currentOffering: PurchasesOffering | null;
   purchasePackage: (pkg: PurchasesPackage) => Promise<void>;
-  purchaseWorkerSeat: () => Promise<void>;
   restorePurchases: () => Promise<void>;
-  devResetToStarter: () => Promise<void>;
 };
 
 const SubscriptionContext = createContext<SubscriptionContextType>({
   isPro: false,
   isLoading: true,
+  seatLimit: 0,
+  seatTier: null,
+  stripeStatus: null,
   currentOffering: null,
   purchasePackage: async () => { },
-  purchaseWorkerSeat: async () => { },
   restorePurchases: async () => { },
-  devResetToStarter: async () => { },
 });
+
+export const SEAT_TIER_LABELS: Record<Exclude<SeatTier, null>, string> = {
+  duo: 'Duo',
+  team: 'Team',
+  crew: 'Crew',
+  fleet: 'Fleet',
+};
 
 function getSubscriptionType(info: CustomerInfo): string | null {
   const active = info.entitlements.active['pro'];
@@ -41,33 +56,42 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
   const {session, userProfile} = useAuth();
   const [isPro, setIsPro] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [seatLimit, setSeatLimit] = useState(0);
+  const [seatTier, setSeatTier] = useState<SeatTier>(null);
+  const [stripeStatus, setStripeStatus] = useState<string | null>(null);
   const [currentOffering, setCurrentOffering] = useState<PurchasesOffering | null>(null);
 
-  const isAdmin = userProfile?.role === 'admin';
+  const userId = session?.user?.id ?? null;
+  const proCacheKey = userId ? `${PRO_CACHE_PREFIX}${userId}` : null;
 
-  // Restore cached Pro status immediately on mount (avoids flash of starter on cold start)
+  // User-scoped cache restore on user change (no cross-account leak).
   useEffect(() => {
-    AsyncStorage.getItem(PRO_CACHE_KEY).then((cached) => {
+    if (!proCacheKey) {
+      setIsPro(false);
+      return;
+    }
+    AsyncStorage.getItem(proCacheKey).then((cached) => {
       if (cached === 'true') setIsPro(true);
+      else if (cached === 'false') setIsPro(false);
     }).catch(() => { });
-  }, []);
+  }, [proCacheKey]);
 
-  // Persist Pro status to cache whenever it changes
   const updateIsPro = useCallback((value: boolean) => {
     setIsPro(value);
-    AsyncStorage.setItem(PRO_CACHE_KEY, value ? 'true' : 'false').catch(() => { });
-  }, []);
+    if (proCacheKey) {
+      AsyncStorage.setItem(proCacheKey, value ? 'true' : 'false').catch(() => { });
+    }
+  }, [proCacheKey]);
 
-  // Sync admin's subscription to Supabase (admin + all company members)
+  // Sync admin's RevenueCat state to Supabase so workers see it via their profile.
   const syncToSupabase = useCallback(
     async (info: CustomerInfo) => {
-      if (!session?.user.id) return;
+      if (!userId) return;
       const active = info.entitlements.active['pro'];
       const tier = active ? 'pro' : 'starter';
       const subType = getSubscriptionType(info);
       const expiresAt = subType === 'lifetime' ? null : (active?.expirationDate ?? null);
 
-      // Update the admin's own profile
       await supabase
         .from('profiles')
         .update({
@@ -76,146 +100,162 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
           subscription_expires_at: expiresAt,
           revenuecat_user_id: info.originalAppUserId,
         })
-        .eq('id', session.user.id);
+        .eq('id', userId);
 
-      // Also sync all company members
       if (userProfile?.company_id) {
         await supabase
           .from('profiles')
           .update({subscription_tier: tier})
           .eq('company_id', userProfile.company_id)
-          .neq('id', session.user.id);
+          .neq('id', userId);
       }
     },
-    [session?.user.id, userProfile?.company_id],
+    [userId, userProfile?.company_id],
   );
 
   useEffect(() => {
-    if (!session?.user.id) {
+    if (!userId) {
       setIsLoading(false);
       return;
     }
 
-    // Workers always have full access — they can only exist when admin has paid for a seat
-    if (!isAdmin) {
-      updateIsPro(true);
-      setIsLoading(false);
-      return;
-    }
+    let cancelled = false;
+    let listenerFn: ((info: CustomerInfo) => void) | null = null;
 
-    // Web: check Supabase directly instead of RevenueCat
-    if (Platform.OS === 'web') {
-      const checkProfile = async () => {
+    const run = async () => {
+      // 1. Authoritative fast path: read subscription_tier from Supabase.
+      //    The RevenueCat webhook writes this for every account (admin + workers),
+      //    so this works regardless of role and without touching the RC SDK.
+      try {
+        const {data} = await supabase
+          .from('profiles')
+          .select('subscription_tier, subscription_expires_at')
+          .eq('id', userId)
+          .maybeSingle();
+        if (!cancelled && data) {
+          const stillValid = !data.subscription_expires_at
+            || new Date(data.subscription_expires_at as string).getTime() > Date.now();
+          updateIsPro(data.subscription_tier === 'pro' && stillValid);
+        }
+      } catch (e) {
+        console.warn('[Subscription] Profile tier check failed:', e);
+      }
+
+      // 1b. Company seat tier (Stripe-managed). Writable only by stripe-webhook.
+      if (userProfile?.company_id) {
         try {
-          const {data, error} = await supabase
-            .from('profiles')
-            .select('subscription_tier')
-            .eq('id', session.user.id)
-            .single();
-          if (!error && data) {
-            updateIsPro(data.subscription_tier === 'pro');
+          const {data: company} = await supabase
+            .from('companies')
+            .select('worker_seat_limit, stripe_status, stripe_seat_tier')
+            .eq('id', userProfile.company_id)
+            .maybeSingle();
+          if (!cancelled && company) {
+            setSeatLimit(company.worker_seat_limit ?? 0);
+            setStripeStatus((company.stripe_status as string) ?? null);
+            const tier = company.stripe_seat_tier as SeatTier;
+            setSeatTier(tier ?? null);
           }
         } catch (e) {
-          console.warn('[Subscription] Profile check failed, keeping cached state:', e);
-        } finally {
-          setIsLoading(false);
+          console.warn('[Subscription] Company seat check failed:', e);
         }
-      };
-      checkProfile();
-      return;
-    }
-
-    // Admin on native: use RevenueCat
-    const iosKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '';
-    const androidKey = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '';
-    const apiKey = Platform.OS === 'ios' ? iosKey : androidKey;
-
-    if (!apiKey || apiKey.includes('xxxx')) {
-      setIsLoading(false);
-      return;
-    }
-
-    Purchases.setLogLevel(LOG_LEVEL.DEBUG);
-    Purchases.configure({apiKey, appUserID: session.user.id});
-
-    const listener = Purchases.addCustomerInfoUpdateListener(async (info) => {
-      if (__DEV__) {
-        const override = await AsyncStorage.getItem(DEV_OVERRIDE_KEY);
-        if (override === 'true') return;
       }
-      updateIsPro(typeof info.entitlements.active['pro'] !== 'undefined');
-      syncToSupabase(info);
-    });
 
-    const init = async () => {
+      if (cancelled) return;
+      setIsLoading(false);
+
+      // 2. Web: no RC SDK available.
+      if (Platform.OS === 'web') return;
+
+      // 3. Workers never need to hit RevenueCat — their tier is webhook-synced.
+      if (userProfile?.role === 'worker') return;
+
+      // 4. Admin (or unknown role yet): configure RC and reconcile.
+      const iosKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '';
+      const androidKey = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '';
+      const apiKey = Platform.OS === 'ios' ? iosKey : androidKey;
+      if (!apiKey || apiKey.includes('xxxx')) return;
+
       try {
-        // Check dev override
-        if (__DEV__) {
-          const override = await AsyncStorage.getItem(DEV_OVERRIDE_KEY);
-          if (override === 'true') {
-            updateIsPro(false);
-            const offerings = await Purchases.getOfferings();
-            setCurrentOffering(offerings.current);
-            setIsLoading(false);
-            return;
-          }
+        if (!rcConfigured) {
+          Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
+          Purchases.configure({apiKey, appUserID: userId});
+          rcConfigured = true;
+          rcCurrentUserId = userId;
+        } else if (rcCurrentUserId !== userId) {
+          // Account switch on the same device — re-identify with RC.
+          await Purchases.logIn(userId);
+          rcCurrentUserId = userId;
         }
+
+        listenerFn = (info: CustomerInfo) => {
+          if (cancelled) return;
+          const hasPro = typeof info.entitlements.active['pro'] !== 'undefined';
+          updateIsPro(hasPro);
+          void syncToSupabase(info);
+        };
+        Purchases.addCustomerInfoUpdateListener(listenerFn);
 
         const [info, offerings] = await Promise.all([
           Purchases.getCustomerInfo(),
           Purchases.getOfferings(),
         ]);
-        updateIsPro(typeof info.entitlements.active['pro'] !== 'undefined');
+        if (cancelled) return;
+
+        const hasProFromRC = typeof info.entitlements.active['pro'] !== 'undefined';
+        // RC is the source of truth for the admin who actually owns the purchase.
+        updateIsPro(hasProFromRC);
         setCurrentOffering(offerings.current);
         await syncToSupabase(info);
       } catch (e) {
-        console.warn('RevenueCat init error:', e);
-      } finally {
-        setIsLoading(false);
+        console.warn('[Subscription] RevenueCat init error:', e);
       }
     };
 
-    init();
+    run();
 
-    return () => {(listener as any)?.remove?.();};
-  }, [session?.user.id, isAdmin, syncToSupabase]);
+    return () => {
+      cancelled = true;
+      if (listenerFn) Purchases.removeCustomerInfoUpdateListener(listenerFn);
+    };
+  }, [userId, userProfile?.role, syncToSupabase, updateIsPro]);
 
   const purchasePackage = useCallback(async (pkg: PurchasesPackage) => {
-    await AsyncStorage.removeItem(DEV_OVERRIDE_KEY);
     const {customerInfo} = await Purchases.purchasePackage(pkg);
     updateIsPro(typeof customerInfo.entitlements.active['pro'] !== 'undefined');
     await syncToSupabase(customerInfo);
   }, [syncToSupabase, updateIsPro]);
 
-  const purchaseWorkerSeat = useCallback(async () => {
-    if (!currentOffering || !userProfile?.company_id) throw new Error('Not available');
-    const seatPkg = currentOffering.availablePackages.find(
-      (p) => p.identifier === '$rc_custom' || p.identifier === 'worker_seat' || p.product.identifier.includes('worker.seat'),
-    );
-    if (!seatPkg) throw new Error('Worker seat package not found');
-    const {customerInfo} = await Purchases.purchasePackage(seatPkg);
-    // Only increment seat limit if purchase actually went through
-    if (customerInfo.entitlements.active['worker_seat'] || customerInfo.allPurchasedProductIdentifiers.includes(seatPkg.product.identifier)) {
-      await supabase.rpc('increment_worker_seat', {
-        p_company_id: userProfile.company_id,
-      });
-    }
-  }, [currentOffering, userProfile?.company_id]);
-
-  const devResetToStarter = useCallback(async () => {
-    if (!__DEV__) return;
-    await AsyncStorage.setItem(DEV_OVERRIDE_KEY, 'true');
-    updateIsPro(false);
-  }, [updateIsPro]);
+  // Worker seats are sold on the web via Stripe (gaspilotapp.com/team).
+  // iOS IAP intentionally does not offer a seat product.
 
   const restorePurchases = useCallback(async () => {
+    // Workers and web have no RC SDK — their source of truth is the profile
+    // row, which the webhook keeps in sync. Re-read it and we're done.
+    const refreshFromProfile = async () => {
+      if (!userId) return;
+      const {data} = await supabase
+        .from('profiles')
+        .select('subscription_tier, subscription_expires_at')
+        .eq('id', userId)
+        .maybeSingle();
+      if (!data) return;
+      const stillValid = !data.subscription_expires_at
+        || new Date(data.subscription_expires_at as string).getTime() > Date.now();
+      updateIsPro(data.subscription_tier === 'pro' && stillValid);
+    };
+
+    if (Platform.OS === 'web' || userProfile?.role === 'worker' || !rcConfigured) {
+      await refreshFromProfile();
+      return;
+    }
+
     const info = await Purchases.restorePurchases();
     updateIsPro(typeof info.entitlements.active['pro'] !== 'undefined');
     await syncToSupabase(info);
-  }, [syncToSupabase, updateIsPro]);
+  }, [syncToSupabase, updateIsPro, userId, userProfile?.role]);
 
   return (
-    <SubscriptionContext.Provider value={{isPro, isLoading, currentOffering, purchasePackage, purchaseWorkerSeat, restorePurchases, devResetToStarter}}>
+    <SubscriptionContext.Provider value={{isPro, isLoading, seatLimit, seatTier, stripeStatus, currentOffering, purchasePackage, restorePurchases}}>
       {children}
     </SubscriptionContext.Provider>
   );

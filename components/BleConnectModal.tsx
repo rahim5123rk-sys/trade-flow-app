@@ -300,7 +300,7 @@ export function BleConnectModal({visible, onClose, onSelectValue, onUseReadings}
                     No devices found
                   </Text>
                   <Text style={[styles.emptyHint, {color: textMuted}]}>
-                    Tap "Scan for Devices" to search
+                    Tap &ldquo;Scan for Devices&rdquo; to search
                   </Text>
                 </View>
               )}
@@ -324,7 +324,7 @@ export function BleConnectModal({visible, onClose, onSelectValue, onUseReadings}
                 Services & Characteristics
               </Text>
               <Text style={[styles.sectionHint, {color: textMuted}]}>
-                Tap a service to expand. Tap "Monitor" to watch live values.
+                Tap a service to expand. Tap &ldquo;Monitor&rdquo; to watch live values.
               </Text>
 
               {services.map((service) => (

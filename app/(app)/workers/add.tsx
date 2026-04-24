@@ -23,7 +23,8 @@ import { useAppTheme } from '../../../src/context/ThemeContext';
 export default function AddWorkerScreen() {
   const { userProfile } = useAuth();
   const { theme, isDark } = useAppTheme();
-  const { isPro, seatLimit } = useSubscription();
+  const { isPro, seatLimit, seatTier } = useSubscription();
+  const tierLabel = seatTier ? { duo: 'Duo', team: 'Team', crew: 'Crew', fleet: 'Fleet' }[seatTier] : null;
   const [showSeatLimit, setShowSeatLimit] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [seatInfo, setSeatInfo] = useState<{ current: number; limit: number } | null>(null);
@@ -145,10 +146,13 @@ export default function AddWorkerScreen() {
           <View style={[styles.card, { marginTop: 16 }, isDark && { backgroundColor: theme.glass.bg, borderColor: theme.glass.border }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
               <Ionicons name="people" size={20} color={theme.brand.primary} />
-              <Text style={[styles.title, { color: theme.text.title, fontSize: 16, marginBottom: 0 }]}>Worker Seats</Text>
+              <Text style={[styles.title, { color: theme.text.title, fontSize: 16, marginBottom: 0 }]}>
+                {tierLabel ? `${tierLabel} plan` : 'Worker Seats'}
+              </Text>
             </View>
             <Text style={[styles.subtitle, { color: theme.text.muted, marginBottom: 12 }]}>
               {seatInfo.current} of {seatInfo.limit} seats used
+              {tierLabel ? ` — ${seatInfo.limit} seat${seatInfo.limit === 1 ? '' : 's'} included` : ''}
             </Text>
             <View style={{ backgroundColor: isDark ? theme.surface.elevated : '#F1F5F9', padding: 12, borderRadius: 10 }}>
               <Text style={{ color: isDark ? theme.text.body : '#475569', fontSize: 13, lineHeight: 18 }}>

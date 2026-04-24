@@ -99,7 +99,7 @@ export default function DocumentDetailScreen() {
     } else {
       setOneTimeEmails([]);
     }
-  }, [doc?.id]);
+  }, [doc?.payment_info]);
 
   const fetchDocument = async () => {
     const {data, error} = await supabase

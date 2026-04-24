@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
         }
         const { data: signedData } = await supabaseAdmin.storage
           .from(bucket)
-          .createSignedUrl(path, 3600) // 1 hour expiry
+          .createSignedUrl(path, 60 * 60 * 24 * 30) // 30-day expiry for emailed quote pages
         if (signedData?.signedUrl) {
           companyLogoUrl = signedData.signedUrl
         }

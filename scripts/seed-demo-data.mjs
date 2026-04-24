@@ -557,7 +557,7 @@ async function seedJobs(supabase, companyId, adminProfile, workers, customers, n
       scheduled_date: scheduled.getTime(),
       estimated_duration: template.duration,
       price: template.price || null,
-      notes: `${DEMO_NOTE_PREFIX} ${template.title} for App Store screenshots.`,
+      notes: `${DEMO_NOTE_PREFIX} ${template.title}.`,
       signature: ['complete', 'paid'].includes(template.status) ? makeSignature(customer.name) : null,
       photos: template.photos
         ? Array.from({ length: template.photos }, (_, photoIndex) =>
@@ -641,7 +641,7 @@ async function seedQuotes(supabase, companyId, customers, jobs, nextQuoteNumber)
       subtotal: totals.subtotal,
       discount_percent: discountPercent,
       total: totals.total,
-      notes: `${DEMO_NOTE_PREFIX} Quote seeded for screenshots.`,
+      notes: `${DEMO_NOTE_PREFIX} Quote.`,
     };
 
     const { data, error } = await supabase.from('documents').insert(payload).select('*').single();
@@ -683,7 +683,7 @@ async function seedInvoices(supabase, companyId, customers, jobs, nextInvoiceNum
       subtotal: totals.subtotal,
       discount_percent: discountPercent,
       total: totals.total,
-      notes: `${DEMO_NOTE_PREFIX} Invoice seeded for screenshots.`,
+      notes: `${DEMO_NOTE_PREFIX} Invoice.`,
       payment_info: 'Bank transfer: GasPilot Home Services · Sort Code 20-11-62 · Account 12345678',
     };
 
@@ -721,7 +721,7 @@ async function seedGasDocuments(supabase, companyId, customers, company, profile
       subtotal: 0,
       discount_percent: 0,
       total: 0,
-      notes: `${DEMO_NOTE_PREFIX} ${label} seeded for screenshot renewals.`,
+      notes: `${DEMO_NOTE_PREFIX} ${label}.`,
       payment_info: JSON.stringify(buildSeededGasLockedPayload(type, customer, createdAt, expiry, reference, company, profile)),
     };
 

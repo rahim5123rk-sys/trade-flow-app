@@ -101,43 +101,68 @@ export default function RegisterScreen() {
   const checkInviteCode = async () => {
     setLoading(true);
     try {
-      // 1. Find company by invite code
-      const {data, error} = await supabase
-        .from('companies')
-        .select('id, name, worker_seat_limit')
-        .eq('invite_code', inviteCode.trim().toUpperCase())
-        .single();
+      const {data, error} = await supabase.rpc('validate_invite_code', {
+        p_code: inviteCode.trim().toUpperCase(),
+      });
 
       if (error || !data) {
+        setLoading(false);
+        Alert.alert('Error', 'Failed to validate code. Please try again.');
+        return false;
+      }
+
+      const result = data as {
+        error?: 'invalid' | 'rate_limited' | 'global_rate_limited';
+        company_id?: string;
+        company_name?: string;
+        worker_seat_limit?: number;
+        worker_count?: number;
+        is_pro?: boolean;
+      };
+
+      if (result.error === 'rate_limited') {
+        setLoading(false);
+        Alert.alert(
+          'Too Many Attempts',
+          'Too many failed attempts with this code. Please wait an hour and try again, or double-check the code with your admin.',
+        );
+        return false;
+      }
+
+      if (result.error === 'global_rate_limited') {
+        setLoading(false);
+        Alert.alert('Service Busy', 'Too many invite checks right now. Please try again in a minute.');
+        return false;
+      }
+
+      if (result.error === 'invalid' || !result.company_id) {
         setLoading(false);
         Alert.alert('Invalid Code', 'No company found with this invite code.');
         return false;
       }
 
-      // 2. Check company admin is Pro (using RPC to bypass RLS)
-      const {data: isPro, error: proError} = await supabase
-        .rpc('check_company_pro_status', {p_company_id: data.id});
-
-      if (proError || !isPro) {
+      if (!result.is_pro) {
         setLoading(false);
-        Alert.alert('Team Not Available', 'This company does not have an active Pro subscription. Ask the company admin to upgrade to Pro before inviting team members.');
+        Alert.alert(
+          'Team Not Available',
+          'This company does not have an active Pro subscription. Ask the company admin to upgrade to Pro before inviting team members.',
+        );
         return false;
       }
 
-      // 3. Check seat availability (using RPC to bypass RLS)
-      const {data: currentWorkers, error: countError} = await supabase
-        .rpc('get_company_worker_count', {p_company_id: data.id});
-
-      const seatLimit = data.worker_seat_limit ?? 0;
-
-      if (countError || (currentWorkers ?? 0) >= seatLimit) {
+      const seatLimit = result.worker_seat_limit ?? 0;
+      const workerCount = result.worker_count ?? 0;
+      if (workerCount >= seatLimit) {
         setLoading(false);
-        Alert.alert('No Seats Available', 'This company has used all its worker seats. Ask the company admin to purchase additional seats before you can join.');
+        Alert.alert(
+          'No Seats Available',
+          'This company has used all its worker seats. Ask the company admin to purchase additional seats before you can join.',
+        );
         return false;
       }
 
       setLoading(false);
-      setFoundCompany({id: data.id, name: data.name});
+      setFoundCompany({id: result.company_id, name: result.company_name ?? 'your team'});
       return true;
     } catch (e) {
       setLoading(false);

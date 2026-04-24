@@ -1178,9 +1178,11 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.versionText, {color: theme.text.muted}]}>GasPilot v{appVersion}</Text>
-        <Text style={[styles.versionText, {color: theme.text.muted, marginTop: -12}]}>
-          Build: {Updates.updateId ? Updates.updateId.slice(0, 8) : 'embedded'} | {Updates.channel || 'no-channel'} | 22-Mar-A
-        </Text>
+        {__DEV__ && (
+          <Text style={[styles.versionText, {color: theme.text.muted, marginTop: -12}]}>
+            Build: {Updates.updateId ? Updates.updateId.slice(0, 8) : 'embedded'} | {Updates.channel || 'no-channel'}
+          </Text>
+        )}
       </ScrollView>
 
       {/* First-run onboarding */}

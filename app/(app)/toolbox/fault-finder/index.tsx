@@ -140,7 +140,7 @@ export default function FaultFinderHome() {
               >
                 <Ionicons name="warning-outline" size={20} color="#B45309" />
                 <Text style={[s.disclaimerText, {color: theme.text.muted}]}>
-                  For qualified Gas Safe engineers only. Always isolate gas and electrical supplies before testing. Readings vary by model — refer to the manufacturer's service manual for the appliance in front of you. GasPilot accepts no liability for damage or injury.
+                  For qualified Gas Safe engineers only. Always isolate gas and electrical supplies before testing. Readings vary by model — refer to the manufacturer&rsquo;s service manual for the appliance in front of you. GasPilot accepts no liability for damage or injury.
                 </Text>
               </Animated.View>
             </>
