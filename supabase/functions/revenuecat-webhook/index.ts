@@ -42,25 +42,48 @@ async function setCompanyTier(
   subType: string | null,
   expiresAt: string | null,
 ) {
-  const payload: Record<string, unknown> = {
-    subscription_tier: tier,
-    subscription_type: subType,
-    subscription_expires_at: expiresAt,
-  };
-  if (tier === 'pro') payload.revenuecat_user_id = appUserId;
+  // Read the admin's own override status. We always update the audit
+  // identity field (revenuecat_user_id) for the admin row, but skip the
+  // entitlement fields when an active override is in place.
+  const { data: adminRow } = await supabase
+    .from('profiles')
+    .select('admin_override, admin_override_expires_at')
+    .eq('id', appUserId)
+    .maybeSingle();
 
-  await supabase.from('profiles').update(payload).eq('id', appUserId);
+  const overrideActive = !!adminRow?.admin_override
+    && (
+      !adminRow.admin_override_expires_at
+      || new Date(adminRow.admin_override_expires_at as string).getTime() > Date.now()
+    );
 
+  if (overrideActive) {
+    if (tier === 'pro') {
+      await supabase
+        .from('profiles')
+        .update({ revenuecat_user_id: appUserId })
+        .eq('id', appUserId);
+    }
+  } else {
+    const payload: Record<string, unknown> = {
+      subscription_tier: tier,
+      subscription_type: subType,
+      subscription_expires_at: expiresAt,
+    };
+    if (tier === 'pro') payload.revenuecat_user_id = appUserId;
+    await supabase.from('profiles').update(payload).eq('id', appUserId);
+  }
+
+  // Company fan-out: atomic UPDATE that already excludes overridden rows.
   if (companyId) {
-    await supabase
-      .from('profiles')
-      .update({
-        subscription_tier: tier,
-        subscription_type: subType,
-        subscription_expires_at: expiresAt,
-      })
-      .eq('company_id', companyId)
-      .neq('id', appUserId);
+    const { error } = await supabase.rpc('apply_company_subscription_tier', {
+      p_admin_id: appUserId,
+      p_company_id: companyId,
+      p_tier: tier,
+      p_sub_type: subType,
+      p_expires_at: expiresAt,
+    });
+    if (error) console.error('apply_company_subscription_tier failed:', error);
   }
 }
 
