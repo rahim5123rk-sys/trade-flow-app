@@ -3,8 +3,7 @@ import {BlurView} from 'expo-blur';
 import {Redirect, Stack, router, usePathname} from 'expo-router';
 import React, {useEffect, useState} from 'react';
 import {ActivityIndicator, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import type {SharedValue} from 'react-native-reanimated';
-import Animated, {interpolate, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
+import Animated, {Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, type SharedValue} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {UI} from '../../constants/theme';
 import {useCalendarSync} from '../../hooks/useCalendarSync';
@@ -14,93 +13,41 @@ import {useAppTheme} from '../../src/context/ThemeContext';
 import {TpiDeviceProvider} from '../../src/context/TpiDeviceContext';
 import {registerForPushNotifications, setupNotificationListeners} from '../../src/services/notifications';
 
-const ADMIN_FAB_ACTIONS = [
+type FabAction = {
+  key: string;
+  label: string;
+  sub: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route: string;
+  accent: string;
+};
+
+const FAB_ACTIONS: FabAction[] = [
   {
     key: 'job',
     label: 'New Job',
-    icon: 'briefcase-outline' as const,
+    sub: 'Track time, materials and progress',
+    icon: 'briefcase-outline',
     route: '/(app)/jobs/create',
+    accent: '#3B82F6',
   },
   {
-    key: 'form',
-    label: 'New Form',
-    icon: 'document-text-outline' as const,
+    key: 'certificate',
+    label: 'New Certificate',
+    sub: 'Gas safety, service & install records',
+    icon: 'document-text-outline',
     route: '/(app)/forms',
+    accent: '#10B981',
   },
   {
-    key: 'customer',
-    label: 'New Customer',
-    icon: 'person-add-outline' as const,
-    route: '/(app)/customers/add',
-  },
-  {
-    key: 'tools',
-    label: 'Tools',
-    icon: 'hammer-outline' as const,
-    route: '/(app)/toolbox',
+    key: 'invoice',
+    label: 'New Invoice',
+    sub: 'Bill a customer for work done',
+    icon: 'receipt-outline',
+    route: '/(app)/invoice',
+    accent: '#F59E0B',
   },
 ];
-
-const WORKER_FAB_ACTIONS = [
-  {
-    key: 'job',
-    label: 'New Job',
-    icon: 'briefcase-outline' as const,
-    route: '/(app)/jobs/create',
-  },
-  {
-    key: 'form',
-    label: 'New Form',
-    icon: 'document-text-outline' as const,
-    route: '/(app)/forms',
-  },
-  {
-    key: 'cp12',
-    label: 'Gas Cert',
-    icon: 'flame-outline' as const,
-    route: '/(app)/cp12',
-  },
-  {
-    key: 'tools',
-    label: 'Tools',
-    icon: 'hammer-outline' as const,
-    route: '/(app)/toolbox',
-  },
-];
-
-function FabMenuItem({
-  action,
-  index,
-  onPress,
-  progress,
-  cardColor,
-}: {
-  action: {key: string; label: string; icon: keyof typeof Ionicons.glyphMap; route: string};
-  index: number;
-  onPress: () => void;
-  progress: SharedValue<number>;
-  cardColor: string;
-}) {
-  const actionStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [
-      {translateX: interpolate(progress.value, [0, 1], [18, 0])},
-      {translateY: interpolate(progress.value, [0, 1], [8, -((index + 1) * 72)])},
-      {scale: interpolate(progress.value, [0, 1], [0.92, 1])},
-    ],
-  }));
-
-  return (
-    <Animated.View style={[styles.fabMenuItemWrap, actionStyle]}>
-      <TouchableOpacity activeOpacity={0.9} style={[styles.fabMenuTouch, {backgroundColor: cardColor}]} onPress={onPress}>
-        <View style={[styles.fabMenuItem, {backgroundColor: cardColor}]}>
-          <Ionicons name={action.icon} size={19} color="#111111" />
-        </View>
-        <Text style={styles.fabMenuText}>{action.label}</Text>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-}
 
 export default function AppLayout() {
   const {session, isLoading, role, userProfile} = useAuth();
@@ -108,8 +55,7 @@ export default function AppLayout() {
   const {theme, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const fabBottomOffset = insets.bottom + NATIVE_TAB_BAR_HEIGHT + 14;
-  const isAdmin = role === 'admin';
+  const fabBottomOffset = insets.bottom + 18;
   const isOnTabs = pathname === '/dashboard' || pathname === '/calendar' || pathname === '/documents' || pathname === '/jobs' || pathname === '/' || pathname.startsWith('/jobs/');
   const hideGlobalFab = !isOnTabs || pathname.startsWith('/settings') || pathname.startsWith('/workers') || pathname.startsWith('/notes');
   useCalendarSync();
@@ -119,7 +65,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (overlayVisible) {
-      progress.value = withTiming(fabOpen ? 1 : 0, {duration: fabOpen ? 220 : 180});
+      progress.value = withTiming(fabOpen ? 1 : 0, {duration: fabOpen ? 260 : 180});
     }
   }, [fabOpen, overlayVisible, progress]);
 
@@ -142,6 +88,15 @@ export default function AppLayout() {
     }
   }, [userProfile?.id]);
 
+  const menuContainerStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+  }));
+
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
+    transform: [{translateY: interpolate(progress.value, [0, 1], [-8, 0])}],
+  }));
+
   const toggleFab = () => {
     if (fabOpen) {
       setFabOpen(false);
@@ -161,7 +116,7 @@ export default function AppLayout() {
   const mainFabStyle = useAnimatedStyle(() => ({
     transform: [
       {rotate: `${interpolate(progress.value, [0, 1], [0, 45])}deg`},
-      {scale: interpolate(progress.value, [0, 1], [1, 0.96])},
+      {scale: interpolate(progress.value, [0, 1], [1, 0.94])},
     ],
   }));
 
@@ -193,41 +148,47 @@ export default function AppLayout() {
       </Stack>
 
       {!hideGlobalFab ? (() => {
-        const fabActions = isAdmin ? ADMIN_FAB_ACTIONS : WORKER_FAB_ACTIONS;
-        const overlayHeight = fabActions.length * 72 + 20;
         return (
           <>
             {overlayVisible ? (
               <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
                 <Pressable style={StyleSheet.absoluteFill} onPress={closeFab}>
                   <BlurView
-                    intensity={isDark ? 24 : 32}
+                    intensity={isDark ? 60 : 70}
                     tint={isDark ? 'dark' : 'light'}
                     style={StyleSheet.absoluteFill}
                   />
+                  <View style={[StyleSheet.absoluteFill, {backgroundColor: isDark ? 'rgba(2,6,23,0.45)' : 'rgba(15,23,42,0.18)'}]} />
                 </Pressable>
 
-                <View
+                <Animated.View
                   pointerEvents="box-none"
-                  style={[
-                    styles.fabOverlay,
-                    {bottom: fabBottomOffset, height: overlayHeight},
-                  ]}
+                  style={[styles.fabMenuContainer, {paddingBottom: fabBottomOffset + 96}, menuContainerStyle]}
                 >
-                  {fabActions.map((action, index) => (
-                    <FabMenuItem
-                      key={action.key}
-                      action={action}
-                      index={index}
-                      progress={progress}
-                      cardColor="#FFFFFF"
-                      onPress={() => {
-                        closeFab();
-                        router.push(action.route as any);
-                      }}
-                    />
-                  ))}
-                </View>
+                  <Animated.View style={[styles.fabMenuHeader, headerStyle]}>
+                    <View style={[styles.fabMenuGrabber, {backgroundColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(15,23,42,0.18)'}]} />
+                    <Text style={[styles.fabMenuTitle, {color: isDark ? 'rgba(255,255,255,0.65)' : 'rgba(15,23,42,0.55)'}]}>
+                      Quick actions
+                    </Text>
+                  </Animated.View>
+
+                  <View style={styles.fabMenuList}>
+                    {FAB_ACTIONS.map((action, i) => (
+                      <FabMenuItem
+                        key={action.key}
+                        action={action}
+                        index={i}
+                        progress={progress}
+                        isDark={isDark}
+                        theme={theme}
+                        onPress={() => {
+                          closeFab();
+                          router.push(action.route as any);
+                        }}
+                      />
+                    ))}
+                  </View>
+                </Animated.View>
               </View>
             ) : null}
 
@@ -258,7 +219,64 @@ export default function AppLayout() {
   );
 }
 
-const NATIVE_TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 : 56;
+function FabMenuItem({
+  action,
+  index,
+  progress,
+  onPress,
+  isDark,
+  theme,
+}: {
+  action: FabAction;
+  index: number;
+  progress: SharedValue<number>;
+  onPress: () => void;
+  isDark: boolean;
+  theme: any;
+}) {
+  const itemStyle = useAnimatedStyle(() => {
+    const start = 0.08 + index * 0.14;
+    const span = 0.55;
+    const local = Math.max(0, Math.min(1, (progress.value - start) / span));
+    return {
+      opacity: local,
+      transform: [
+        {translateY: interpolate(local, [0, 1], [22, 0])},
+        {scale: interpolate(local, [0, 1], [0.94, 1])},
+      ],
+    };
+  });
+
+  const rowBg = isDark ? theme.surface.elevated : '#FFFFFF';
+  const borderColour = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)';
+  const titleColour = isDark ? theme.text.title : '#0F172A';
+  const subColour = isDark ? theme.text.muted : '#64748B';
+  const chevronColour = isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF';
+
+  return (
+    <Animated.View style={itemStyle}>
+      <Pressable
+        onPress={onPress}
+        style={({pressed}) => [
+          styles.fabRow,
+          {backgroundColor: rowBg, borderColor: borderColour},
+          pressed && {transform: [{scale: 0.97}], opacity: 0.92},
+        ]}
+      >
+        <View style={[styles.fabRowIconChip, {backgroundColor: action.accent + '1F'}]}>
+          <Ionicons name={action.icon} size={22} color={action.accent} />
+        </View>
+        <View style={{flex: 1, marginLeft: 14}}>
+          <Text style={[styles.fabRowTitle, {color: titleColour}]}>{action.label}</Text>
+          <Text style={[styles.fabRowSub, {color: subColour}]} numberOfLines={1}>
+            {action.sub}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={chevronColour} />
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 const styles = StyleSheet.create({
   offlineBanner: {
@@ -276,12 +294,14 @@ const styles = StyleSheet.create({
   },
   globalFabWrap: {
     position: 'absolute',
-    right: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
   },
   globalFab: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
@@ -291,44 +311,60 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  fabOverlay: {
+  fabMenuContainer: {
     position: 'absolute',
-    right: 20,
-    width: 240,
-  },
-  fabMenuItemWrap: {
-    position: 'absolute',
-    right: 0,
+    left: 16,
+    right: 16,
+    top: 0,
     bottom: 0,
+    justifyContent: 'flex-end',
   },
-  fabMenuTouch: {
+  fabMenuHeader: {
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  fabMenuGrabber: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 10,
+  },
+  fabMenuTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  fabMenuList: {
+    gap: 10,
+  },
+  fabRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 208,
-    height: 58,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     borderRadius: 18,
-    paddingHorizontal: 10,
+    borderWidth: StyleSheet.hairlineWidth,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
     elevation: 6,
   },
-  fabMenuItem: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  fabRowIconChip: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
   },
-  fabMenuText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#111111',
-    marginLeft: 12,
-    lineHeight: 22,
-    textAlign: 'left',
-    includeFontPadding: false,
+  fabRowTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  fabRowSub: {
+    fontSize: 12.5,
+    fontWeight: '500',
   },
 });
