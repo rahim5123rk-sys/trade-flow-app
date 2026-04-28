@@ -4,6 +4,7 @@ import {Platform} from 'react-native';
 import Purchases, {CustomerInfo, LOG_LEVEL, PurchasesOffering, PurchasesPackage} from 'react-native-purchases';
 import {supabase} from '../config/supabase';
 import {useAuth} from './AuthContext';
+import {resolveIsPro, type SupabaseProState} from './subscriptionRules';
 
 const PRO_CACHE_PREFIX = '@gaspilot_is_pro_cached:';
 
@@ -122,6 +123,18 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
     let cancelled = false;
     let listenerFn: ((info: CustomerInfo) => void) | null = null;
 
+    const readSupabaseProState = async (): Promise<SupabaseProState> => {
+      const {data} = await supabase
+        .from('profiles')
+        .select('subscription_tier, subscription_expires_at')
+        .eq('id', userId!)
+        .maybeSingle();
+      return {
+        tier: (data?.subscription_tier as 'pro' | 'starter' | undefined) ?? null,
+        expiresAt: (data?.subscription_expires_at as string | null) ?? null,
+      };
+    };
+
     const run = async () => {
       // 1. Authoritative fast path: read subscription_tier from Supabase.
       //    The RevenueCat webhook writes this for every account (admin + workers),
@@ -190,7 +203,15 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
         listenerFn = (info: CustomerInfo) => {
           if (cancelled) return;
           const hasPro = typeof info.entitlements.active['pro'] !== 'undefined';
-          updateIsPro(hasPro);
+          void (async () => {
+            const supabaseState = await readSupabaseProState();
+            if (cancelled) return;
+            updateIsPro(resolveIsPro({
+              rcHasPro: hasPro,
+              supabase: supabaseState,
+              previousIsPro: isPro,
+            }));
+          })();
           void syncToSupabase(info);
         };
         Purchases.addCustomerInfoUpdateListener(listenerFn);
@@ -202,8 +223,15 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
         if (cancelled) return;
 
         const hasProFromRC = typeof info.entitlements.active['pro'] !== 'undefined';
-        // RC is the source of truth for the admin who actually owns the purchase.
-        updateIsPro(hasProFromRC);
+        const supabaseState = await readSupabaseProState();
+        if (cancelled) return;
+        // Rule: RC may upgrade Standard→Pro but may never downgrade — Supabase
+        // (webhook-synced) is authoritative for the no-Pro answer.
+        updateIsPro(resolveIsPro({
+          rcHasPro: hasProFromRC,
+          supabase: supabaseState,
+          previousIsPro: isPro,
+        }));
         setCurrentOffering(offerings.current);
         await syncToSupabase(info);
       } catch (e) {
